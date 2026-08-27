@@ -6,7 +6,6 @@ const TITLES: Record<string, string> = {
   cars: 'My Cars',
   leads: 'Leads',
   notes: 'Notes',
-  billing: 'Billing',
   settings: 'Settings',
 };
 

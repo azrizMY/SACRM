@@ -1,7 +1,6 @@
 import { Routes } from '@angular/router';
 import { AccountSettingsComponent } from './pages/account-settings.component';
 import { BankersComponent } from './pages/bankers.component';
-import { BillingComponent } from './pages/billing.component';
 import { CalculatorComponent } from './pages/calculator.component';
 import { CostBreakdownComponent } from './pages/cost-breakdown.component';
 import { CustomerManagerComponent } from './pages/customer-manager.component';
@@ -33,7 +32,6 @@ export const routes: Routes = [
       { path: 'trade-ins', component: TradeInsComponent, data: { id: 'trade-ins' } },
       { path: 'notes', component: CostBreakdownComponent, data: { id: 'notes' } },
       { path: 'profile', component: ProfileComponent, data: { id: 'profile' } },
-      { path: 'billing', component: BillingComponent, data: { id: 'billing' } },
       { path: 'settings', component: AccountSettingsComponent, data: { id: 'settings' } },
       { path: '**', redirectTo: 'dashboard' },
     ],

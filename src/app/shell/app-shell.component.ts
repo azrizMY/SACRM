@@ -15,7 +15,6 @@ const TITLES: Record<string, string> = {
   'trade-ins': 'Trade-ins',
   notes: 'Cost Breakdown',
   profile: 'My Profile',
-  billing: 'Billing',
   settings: 'Settings',
 };
 

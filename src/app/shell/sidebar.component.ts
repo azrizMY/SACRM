@@ -15,7 +15,6 @@ const NAV: NavItem[] = [
   { id: 'notes', label: 'Cost Breakdown', icon: 'wallet' },
   { id: 'bankers', label: 'Bankers', icon: 'landmark' },
   { id: 'trade-ins', label: 'Trade-ins', icon: 'truck' },
-  { id: 'billing', label: 'Billing', icon: 'credit-card' },
   { id: 'settings', label: 'Settings', icon: 'settings' },
 ];
 

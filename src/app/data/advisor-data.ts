@@ -8,10 +8,10 @@ export type AdvisorProfile = {
 };
 
 export const DEFAULT_ADVISOR: AdvisorProfile = {
-  name: 'Aiman Rashid',
+  name: 'Ahmad Azri',
   role: 'Sales Consultant',
-  email: 'aiman@redlineauto.my',
-  phoneDisplay: '017-648 5681',
-  phoneWa: '60176485681',
+  email: 'ahmdazri65@gmail.com',
+  phoneDisplay: '011-53206966',
+  phoneWa: '601153206966',
   bio: 'Helping customers find the right car and the right deal, from first test drive to delivery day.',
 };

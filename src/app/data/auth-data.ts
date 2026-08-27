@@ -12,7 +12,7 @@ export type AuthUser = {
 export type AuthAccount = AuthUser & { password: string };
 
 export const DEMO_ACCOUNT: AuthAccount = {
-  name: 'Aiman Rashid',
-  email: 'aiman@redlineauto.my',
+  name: 'Ahmad Azri',
+  email: 'ahmdazri65@gmail.com',
   password: 'redline123',
 };
