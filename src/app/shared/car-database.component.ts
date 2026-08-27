@@ -53,7 +53,7 @@ function blankForm(brand: string): PricingForm {
       <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="close.emit()"></button>
       <div class="relative flex h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
         <!-- Header -->
-        <div class="flex flex-wrap items-center gap-3 border-b border-border p-4">
+        <div class="flex flex-wrap items-start gap-3 border-b border-border p-4">
           <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
             <app-icon name="wallet" [size]="16" />
           </span>
