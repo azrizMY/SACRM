@@ -117,13 +117,13 @@ function blankForm(brand: string): PricingForm {
           </button>
         </div>
 
-        <!-- Table -->
+        <!-- Rows: table on tablet/desktop, cards on mobile -->
         <div class="min-h-0 flex-1 overflow-auto">
-          <table class="w-full caption-bottom text-xs">
+          <table class="hidden w-full caption-bottom text-xs sm:table">
             <thead class="sticky top-0 z-10 bg-card">
               <tr class="border-b border-border text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 @if (brandFilter() === 'All') { <th class="h-9 whitespace-nowrap px-3 align-middle">Brand</th> }
-                <th class="h-9 whitespace-nowrap px-3 align-middle">Model</th>
+                <th class="sticky left-0 z-20 h-9 whitespace-nowrap bg-card px-3 align-middle">Model</th>
                 <th class="h-9 whitespace-nowrap px-3 align-middle">Variant</th>
                 <th class="h-9 whitespace-nowrap px-3 align-middle">Year</th>
                 <th class="h-9 whitespace-nowrap px-3 align-middle">Price (RM)</th>
@@ -136,9 +136,9 @@ function blankForm(brand: string): PricingForm {
             </thead>
             <tbody>
               @for (v of rows(); track v.id) {
-                <tr class="border-b border-border/60 transition-colors hover:bg-muted/30">
+                <tr class="group border-b border-border/60 transition-colors hover:bg-muted/30">
                   @if (brandFilter() === 'All') { <td class="p-2 align-middle text-xs">{{ v.brand }}</td> }
-                  <td class="p-2 align-middle text-xs font-medium">{{ v.model }}</td>
+                  <td class="sticky left-0 z-[5] bg-card p-2 align-middle text-xs font-medium transition-colors group-hover:bg-muted/30">{{ v.model }}</td>
                   <td class="p-2 align-middle text-xs">{{ variantLabel(v.variant) || '-' }}</td>
                   <td class="p-1 align-middle">
                     <input type="number" min="1900" step="1" [ngModel]="v.year" (ngModelChange)="onNumberChange(v, 'year', $event)" class="h-8 w-16 rounded border border-transparent bg-transparent px-1.5 text-xs tabular outline-none focus:border-ring focus:bg-input" />
@@ -197,6 +197,82 @@ function blankForm(brand: string): PricingForm {
               }
             </tbody>
           </table>
+
+          <!-- Mobile cards -->
+          <div class="flex flex-col gap-3 p-3 sm:hidden">
+            @for (v of rows(); track v.id) {
+              <div class="overflow-hidden rounded-lg border border-border">
+                <div class="flex items-start justify-between gap-2 border-b border-border bg-muted/30 p-3">
+                  <div class="flex min-w-0 flex-col gap-0.5">
+                    @if (brandFilter() === 'All') {
+                      <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ v.brand }}</span>
+                    }
+                    <span class="truncate text-sm font-semibold">
+                      {{ v.model }}
+                      <span class="font-normal text-muted-foreground">{{ variantLabel(v.variant) || '-' }}</span>
+                    </span>
+                  </div>
+                  <div class="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      (click)="toggleInsurance(v.id)"
+                      title="Itemized insurance quotation"
+                      aria-label="Edit insurance details"
+                      class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                      [ngClass]="expandedId() === v.id ? 'border-primary text-primary' : ''"
+                    >
+                      <app-icon name="shield-check" [size]="13" />
+                    </button>
+                    @if (isOnlyYearFor(v)) {
+                      <span
+                        title="This is the only pricing row for this variant — remove the whole variant from the Brand & Model Catalog instead."
+                        class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground/40"
+                      >
+                        <app-icon name="trash" [size]="13" />
+                      </span>
+                    } @else {
+                      <button type="button" (click)="requestDelete(v)" title="Remove this year's pricing" aria-label="Remove this year's pricing" class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-[var(--destructive)] hover:text-[var(--destructive)]">
+                        <app-icon name="trash" [size]="13" />
+                      </button>
+                    }
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 p-3">
+                  <label class="flex flex-col gap-1 text-[10px] font-medium text-muted-foreground">
+                    Year
+                    <input type="number" min="1900" step="1" [ngModel]="v.year" (ngModelChange)="onNumberChange(v, 'year', $event)" class="h-9 rounded border border-border bg-input px-2 text-sm tabular text-foreground outline-none focus:border-ring" />
+                  </label>
+                  <label class="flex flex-col gap-1 text-[10px] font-medium text-muted-foreground">
+                    Price (RM)
+                    <input type="number" min="0" step="100" [ngModel]="v.price" (ngModelChange)="onNumberChange(v, 'price', $event)" class="h-9 rounded border border-border bg-input px-2 text-sm tabular text-foreground outline-none focus:border-ring" />
+                  </label>
+                  <label class="flex flex-col gap-1 text-[10px] font-medium text-muted-foreground">
+                    Interest %
+                    <input type="number" min="0" step="0.1" [ngModel]="v.interestRate ?? null" (ngModelChange)="onOptionalNumberChange(v, 'interestRate', $event)" placeholder="Default" class="h-9 rounded border border-border bg-input px-2 text-sm tabular text-foreground outline-none focus:border-ring" />
+                  </label>
+                  <label class="flex flex-col gap-1 text-[10px] font-medium text-muted-foreground">
+                    Basic Premium
+                    <input type="number" min="0" step="1" [ngModel]="v.basicPremium ?? null" (ngModelChange)="onOptionalNumberChange(v, 'basicPremium', $event)" placeholder="Auto" class="h-9 rounded border border-border bg-input px-2 text-sm tabular text-foreground outline-none focus:border-ring" />
+                  </label>
+                  <label class="flex flex-col gap-1 text-[10px] font-medium text-muted-foreground">
+                    Rebate
+                    <input type="number" min="0" step="500" [ngModel]="v.rebate ?? null" (ngModelChange)="onOptionalNumberChange(v, 'rebate', $event)" placeholder="Default" class="h-9 rounded border border-border bg-input px-2 text-sm tabular text-foreground outline-none focus:border-ring" />
+                  </label>
+                  <label class="flex flex-col gap-1 text-[10px] font-medium text-muted-foreground">
+                    Add'l Rebate
+                    <input type="number" min="0" step="500" [ngModel]="v.additionalRebate ?? null" (ngModelChange)="onOptionalNumberChange(v, 'additionalRebate', $event)" placeholder="—" class="h-9 rounded border border-border bg-input px-2 text-sm tabular text-foreground outline-none focus:border-ring" />
+                  </label>
+                </div>
+                @if (expandedId() === v.id) {
+                  <div class="border-t border-border bg-muted/20 p-3">
+                    <app-insurance-quotation-editor [vehicle]="v" [ncdPct]="ncdPct()" [fallbackBasicPremium]="fallbackBasicPremiumFor(v)" />
+                  </div>
+                }
+              </div>
+            } @empty {
+              <p class="p-8 text-center text-sm text-muted-foreground">No pricing rows match. Add a model in the Brand &amp; Model Catalog first, then price it here.</p>
+            }
+          </div>
         </div>
       </div>
     </div>

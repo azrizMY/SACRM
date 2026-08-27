@@ -28,7 +28,7 @@ import { NotificationService } from '../shared/notification.service';
       </button>
 
       @if (open) {
-        <div class="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg">
+        <div class="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg">
           <div class="border-b border-border px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notifications</div>
           <div class="max-h-96 overflow-y-auto">
             @for (item of notifications.items(); track item.id) {

@@ -47,6 +47,7 @@ const TITLES: Record<string, string> = {
           <div class="absolute inset-y-0 left-0 animate-slide-in-left">
             <app-sidebar
               [collapsed]="false"
+              variant="mobile"
               [active]="active()"
               (navigate)="navigate($event)"
               (toggle)="mobileOpen.set(false)"

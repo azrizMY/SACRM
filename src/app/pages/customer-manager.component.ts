@@ -273,7 +273,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
 
       <!-- Table -->
       <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-        <div class="overflow-x-auto">
+        <div class="hidden overflow-x-auto sm:block">
           @if (activeTab() === 'All') {
             <table class="w-full caption-bottom text-sm">
               <thead>
@@ -674,6 +674,94 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
           }
         </div>
 
+        <!-- Mobile cards -->
+        <div class="flex flex-col gap-3 p-3 sm:hidden">
+          @for (r of rows(); track r.id) {
+            <div [id]="'customer-row-' + r.id" class="overflow-hidden rounded-lg border border-border">
+              <div class="flex cursor-pointer flex-col gap-2 p-3 transition-colors hover:bg-muted/40" (click)="toggleExpand(r.id)">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex min-w-0 flex-col">
+                    <span class="flex items-center gap-1.5 font-medium">
+                      <span class="truncate">{{ r.name }}</span>
+                      @if (activeTab() === 'Lead' && r.testDriveDate) { <app-icon name="car" [size]="12" class="shrink-0 text-muted-foreground" title="Test driven" /> }
+                      @if (activeTab() === 'In Progress' && readyExceptGifts(r)) {
+                        <app-icon name="alert-triangle" [size]="12" class="shrink-0 text-[var(--warning)]" title="Ready for delivery except free gifts — outstanding items on Cost Breakdown" />
+                      }
+                    </span>
+                    <a [href]="waLink(r.phone)" target="_blank" rel="noopener" (click)="$event.stopPropagation()" class="w-fit text-xs text-primary hover:underline">{{ r.phone }}</a>
+                  </div>
+                  <app-icon name="chevron-down" [size]="16" class="mt-0.5 shrink-0 text-muted-foreground transition-transform" [ngClass]="expandedId() === r.id ? 'rotate-180' : ''" />
+                </div>
+                <div class="flex items-center gap-2">
+                  <app-brand-mark [brand]="r.brand" />
+                  <div class="flex flex-col">
+                    <span class="text-sm">{{ modelVariantLabel(r.model, r.variant) }}</span>
+                    <span class="text-xs text-muted-foreground">{{ r.yearMade }} &middot; {{ r.colour }}</span>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 border-t border-border pt-2">
+                  @for (col of cardMetaColumns(); track col.key) {
+                    <div class="flex flex-col gap-0.5">
+                      <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{{ col.label }}</span>
+                      @if (col.key === 'status') {
+                        <span class="inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="statusMeta(r.status).tone">
+                          <span class="size-1.5 rounded-full" [ngClass]="statusMeta(r.status).dot"></span>
+                          {{ statusMeta(r.status).label }}
+                        </span>
+                      } @else if (col.key === 'documentStatus') {
+                        @if (isCash(r)) {
+                          <span class="text-sm text-muted-foreground">Cash</span>
+                        } @else {
+                          <span class="inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="docMeta(r.documentStatus).tone">
+                            <span class="size-1.5 rounded-full" [ngClass]="docMeta(r.documentStatus).dot"></span>
+                            {{ docMeta(r.documentStatus).label }}
+                          </span>
+                        }
+                      } @else {
+                        <span [ngClass]="col.key === 'stageDate' ? 'text-xs text-muted-foreground tabular' : 'text-sm'">{{ cardFieldValue(r, col.key) }}</span>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 border-t border-border bg-muted/20 p-2" (click)="$event.stopPropagation()">
+                <button type="button" (click)="openQuotation(r)" title="View Quotation" aria-label="View quotation" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+                  <app-icon name="file-text" [size]="14" />
+                </button>
+                @switch (activeTab()) {
+                  @case ('All') {
+                    <button type="button" (click)="requestDelete(r)" title="Delete" aria-label="Delete customer" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-[var(--destructive)] hover:text-[var(--destructive)]">
+                      <app-icon name="trash" [size]="14" />
+                    </button>
+                  }
+                  @case ('Lead') {
+                    <button type="button" (click)="openBooked(r)" title="Mark as Booked" aria-label="Mark as Booked" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+                      <app-icon name="clipboard-check" [size]="14" />
+                    </button>
+                  }
+                  @case ('Booked') {
+                    <button type="button" (click)="openInProgress(r)" title="Start Progress" aria-label="Start Progress" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+                      <app-icon name="refresh-cw" [size]="14" />
+                    </button>
+                  }
+                  @case ('In Progress') {
+                    <button type="button" (click)="openDelivered(r)" title="Deliver" aria-label="Deliver" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+                      <app-icon name="truck" [size]="14" />
+                    </button>
+                  }
+                }
+              </div>
+              @if (expandedId() === r.id) {
+                <div class="border-t border-border bg-muted/20">
+                  <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" (recordTestDrive)="openTestDrive($event)" />
+                </div>
+              }
+            </div>
+          } @empty {
+            <p class="p-8 text-center text-sm text-muted-foreground">{{ emptyMessageForActiveTab() }}</p>
+          }
+        </div>
+
         <!-- Pagination -->
         <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
           <div class="flex items-center gap-2 text-xs text-muted-foreground">
@@ -787,7 +875,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
             <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
               <fieldset class="flex flex-col gap-3">
                 <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Customer</legend>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Name
                     <input type="text" [(ngModel)]="leadForm.name" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -797,7 +885,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                     <input type="tel" [(ngModel)]="leadForm.phone" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                   </label>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Source Type
                     <select [(ngModel)]="leadForm.sourceType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -813,7 +901,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
 
               <fieldset class="flex flex-col gap-3">
                 <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Vehicle</legend>
-                <div class="grid grid-cols-3 gap-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Brand
                     <select [(ngModel)]="leadForm.brand" (ngModelChange)="onLeadBrandChange($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -833,7 +921,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                     </select>
                   </label>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Year Made
                     <select [(ngModel)]="leadForm.yearMade" class="h-10 w-full rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -857,7 +945,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                     @for (f of financingTypeOptions; track f.value) { <option [value]="f.value">{{ f.label }}</option> }
                   </select>
                 </label>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Rebate (RM)
                     <input type="number" min="0" step="500" [(ngModel)]="leadQuotationForm.rebate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -884,7 +972,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   />
                 </label>
                 @if (leadForm.financingType !== 'Cash') {
-                  <div class="grid grid-cols-2 gap-3">
+                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                       Interest Rate (%)
                       <input type="number" min="0" step="0.1" [(ngModel)]="leadQuotationForm.interestRate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -963,7 +1051,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
           </div>
           <div class="flex flex-col gap-3 overflow-y-auto p-4">
             <p class="text-[11px] text-muted-foreground">Needed for the test drive paperwork.</p>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 IC No
                 <input type="text" [(ngModel)]="testDriveForm.icNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -977,7 +1065,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
               Address
               <input type="text" [(ngModel)]="testDriveForm.address" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
             </label>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Email
                 <input type="email" [(ngModel)]="testDriveForm.email" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -1016,7 +1104,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
               Address
               <input type="text" [(ngModel)]="bookedForm.address" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
             </label>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Email
                 <input type="email" [(ngModel)]="bookedForm.email" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -1030,7 +1118,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
             @if (rec.quotation && !isCash(rec)) {
               <p class="rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">Down payment &amp; NCD below are prefilled from the quotation — adjust if needed.</p>
             }
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               @if (isCash(rec)) {
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Selling Price
@@ -1089,7 +1177,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
               <p class="rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
                 The bank panel below is the customer's <strong class="text-foreground">final confirmed</strong> financing bank. Down payment, amount and tenure are prefilled from the quotation — confirm or adjust them. Interest rate is manual — the bank sets it.
               </p>
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Bank Panel
                   <select [(ngModel)]="inProgressForm.bankPanel" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -1101,7 +1189,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   <input type="number" min="0" step="500" [(ngModel)]="inProgressForm.loanAmount" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                 </label>
               </div>
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Down Payment (RM)
                   <input type="number" min="0" step="500" [(ngModel)]="inProgressForm.downpayment" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -1113,7 +1201,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   </select>
                 </label>
               </div>
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Tenure
                   <select [(ngModel)]="inProgressForm.loanTenureMonths" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -1159,7 +1247,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                 <span>Colour is still "To be Confirmed" — update it to the actual colour via Edit before this car can be marked Delivered.</span>
               </div>
             }
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Registration Number
                 <input type="text" [(ngModel)]="deliveredForm.plateNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -1169,7 +1257,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                 <input type="date" [(ngModel)]="deliveredForm.deliveryDate" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring" />
               </label>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Chassis / VIN
                 <input type="text" [(ngModel)]="deliveredForm.chassisNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -1278,7 +1366,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   </div>
                 </div>
                 @if (!isCash(qrec)) {
-                  <div class="grid grid-cols-2 gap-3">
+                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div class="flex flex-col gap-1 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
                       <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Downpayment</span>
                       <span class="text-sm font-semibold tabular">{{ fmt(qv.downpaymentCash) }}</span>
@@ -1343,7 +1431,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                 <p class="rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">No quotation yet for this customer — fill in the details below to create one.</p>
               }
               <p class="text-sm font-medium">{{ qrec.brand }} {{ qrec.model }} &middot; {{ qrec.variant }}</p>
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Rebate (RM)
                   <input type="number" min="0" step="500" [(ngModel)]="quotationForm.rebate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -1369,7 +1457,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </label>
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Interest Rate (%)
                   <input type="number" min="0" step="0.1" [(ngModel)]="quotationForm.interestRate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -1555,6 +1643,60 @@ export class CustomerManagerComponent {
 
   waLink(phone: string): string {
     return `https://wa.me/${phone.replace(/[^0-9]/g, '')}`;
+  }
+
+  /** Mobile card fields: the active tab's columns minus name/brand, which the card already shows
+   *  in its own header rows. */
+  cardMetaColumns(): Column[] {
+    const cols =
+      this.activeTab() === 'Lead'
+        ? this.leadColumns
+        : this.activeTab() === 'Booked'
+          ? this.bookedColumns
+          : this.activeTab() === 'In Progress'
+            ? this.inprogressColumns
+            : this.activeTab() === 'Delivered'
+              ? this.deliveredColumns
+              : this.activeTab() === 'Cancelled'
+                ? this.cancelledColumns
+                : this.allColumns;
+    return cols.filter((c) => c.key !== 'name' && c.key !== 'brand');
+  }
+
+  /** Plain-text value for a mobile card field; 'status'/'documentStatus' are rendered as badges
+   *  in the template instead of through this. */
+  cardFieldValue(r: CustomerRecord, key: SortKey): string {
+    switch (key) {
+      case 'stageDate':
+        return this.stageDateText(r);
+      case 'bookingFee':
+        return this.bookingFeeText(r.bookingFee);
+      case 'tradeInStatus':
+        return r.tradeInStatus || 'No Trade-in';
+      case 'cancelReason':
+        return r.cancelReason || '—';
+      default: {
+        const v = r[key as keyof CustomerRecord];
+        return v === undefined || v === null || v === '' ? '—' : String(v);
+      }
+    }
+  }
+
+  emptyMessageForActiveTab(): string {
+    switch (this.activeTab()) {
+      case 'Lead':
+        return 'No leads match.';
+      case 'Booked':
+        return 'No bookings match.';
+      case 'In Progress':
+        return 'Nothing in progress.';
+      case 'Delivered':
+        return 'No deliveries match.';
+      case 'Cancelled':
+        return 'No cancelled deals.';
+      default:
+        return 'No customers match.';
+    }
   }
 
   giftsCompleteFor(r: CustomerRecord): boolean {

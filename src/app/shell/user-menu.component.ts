@@ -17,7 +17,7 @@ import { AuthService } from '../shared/auth.service';
 
       @if (open) {
         <div
-          class="absolute z-50 w-56 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg"
+          class="absolute z-50 w-56 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg"
           [class]="menuPosition"
         >
           <div class="px-2 py-1.5">
@@ -27,16 +27,16 @@ import { AuthService } from '../shared/auth.service';
             </div>
           </div>
           <div class="my-1 h-px bg-border"></div>
-          <button type="button" (click)="goTo('/profile')" class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-accent">
+          <button type="button" (click)="goTo('/profile')" class="flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-sm text-foreground transition-colors hover:bg-accent">
             <app-icon name="user" [size]="16" />
             Profile
           </button>
-          <button type="button" (click)="goTo('/settings')" class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-accent">
+          <button type="button" (click)="goTo('/settings')" class="flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-sm text-foreground transition-colors hover:bg-accent">
             <app-icon name="settings" [size]="16" />
             Account settings
           </button>
           <div class="my-1 h-px bg-border"></div>
-          <button type="button" (click)="logout()" class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)]/10">
+          <button type="button" (click)="logout()" class="flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-sm text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)]/10">
             <app-icon name="log-out" [size]="16" />
             Log out
           </button>

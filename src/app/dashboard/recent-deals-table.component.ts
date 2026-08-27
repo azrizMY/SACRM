@@ -53,7 +53,7 @@ function toRow(r: CustomerRecord): Row {
                     <button
                       type="button"
                       (click)="toggleSort(col.key)"
-                      class="inline-flex items-center gap-1 text-xs font-medium transition-colors hover:text-foreground"
+                      class="inline-flex items-center gap-1 py-2 text-xs font-medium transition-colors hover:text-foreground"
                       [ngClass]="[
                         col.align === 'right' ? 'flex-row-reverse' : '',
                         sortKey() === col.key ? 'text-foreground' : 'text-muted-foreground'
@@ -112,7 +112,7 @@ function toRow(r: CustomerRecord): Row {
             <div class="flex items-center gap-1">
               <button
                 type="button"
-                class="inline-flex size-8 items-center justify-center rounded-md border border-input bg-transparent transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                class="inline-flex size-10 items-center justify-center rounded-md border border-input bg-transparent transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
                 (click)="prev()" [disabled]="page() === 0" aria-label="Previous page"
               >
                 <app-icon name="chevron-left" [size]="16" />
@@ -120,7 +120,7 @@ function toRow(r: CustomerRecord): Row {
               <span class="px-2 text-xs text-muted-foreground tabular">{{ page() + 1 }} / {{ pageCount() }}</span>
               <button
                 type="button"
-                class="inline-flex size-8 items-center justify-center rounded-md border border-input bg-transparent transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                class="inline-flex size-10 items-center justify-center rounded-md border border-input bg-transparent transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
                 (click)="next()" [disabled]="page() >= pageCount() - 1" aria-label="Next page"
               >
                 <app-icon name="chevron-right" [size]="16" />

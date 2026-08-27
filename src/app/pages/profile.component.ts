@@ -32,13 +32,13 @@ import type { AdvisorProfile } from '../data/advisor-data';
                   type="text"
                   [(ngModel)]="form.name"
                   placeholder="Name"
-                  class="h-9 w-56 rounded-lg border border-input bg-input px-3 text-base font-semibold text-foreground outline-none focus:border-ring"
+                  class="h-9 w-full rounded-lg border border-input bg-input px-3 text-base font-semibold text-foreground outline-none focus:border-ring sm:w-56"
                 />
                 <input
                   type="text"
                   [(ngModel)]="form.role"
                   placeholder="Role"
-                  class="h-8 w-44 rounded-lg border border-input bg-input px-3 text-xs text-foreground outline-none focus:border-ring"
+                  class="h-8 w-full rounded-lg border border-input bg-input px-3 text-xs text-foreground outline-none focus:border-ring sm:w-44"
                 />
               }
             </div>

@@ -44,17 +44,17 @@ const NAV: NavItem[] = [
         }
       </div>
 
-      <!-- Collapse toggle -->
+      <!-- Collapse/close toggle -->
       <div class="pt-3" [ngClass]="collapsed ? 'px-0 flex justify-center' : 'px-3'">
         <button
           type="button"
           (click)="toggle.emit()"
-          [attr.aria-label]="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          [attr.aria-label]="variant === 'mobile' ? 'Close menu' : collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
           class="flex items-center gap-2 rounded-md text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           [ngClass]="collapsed ? 'size-9 justify-center p-0' : 'w-full px-2 py-1.5'"
         >
-          <app-icon name="panel-left" [size]="16" />
-          @if (!collapsed) {<span>Collapse</span>}
+          <app-icon [name]="variant === 'mobile' ? 'x' : 'panel-left'" [size]="16" />
+          @if (!collapsed) {<span>{{ variant === 'mobile' ? 'Close menu' : 'Collapse' }}</span>}
         </button>
       </div>
 
@@ -123,6 +123,7 @@ const NAV: NavItem[] = [
 })
 export class SidebarComponent {
   @Input() collapsed = false;
+  @Input() variant: 'desktop' | 'mobile' = 'desktop';
   @Input({ required: true }) active!: string;
   @Output() navigate = new EventEmitter<string>();
   @Output() toggle = new EventEmitter<void>();

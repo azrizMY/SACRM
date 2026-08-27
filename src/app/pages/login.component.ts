@@ -64,7 +64,7 @@ import { DEMO_ACCOUNT } from '../data/auth-data';
                   placeholder="••••••••"
                   class="h-10 w-full bg-transparent text-sm text-foreground outline-none"
                 />
-                <button type="button" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" class="shrink-0 text-muted-foreground transition-colors hover:text-foreground">
+                <button type="button" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" class="-mr-2 flex size-9 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground">
                   <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" [size]="15" />
                 </button>
               </div>

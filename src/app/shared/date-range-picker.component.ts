@@ -25,7 +25,9 @@ const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
       @if (open()) {
         <button type="button" aria-label="Close date picker" class="fixed inset-0 z-40 cursor-default" (click)="close()"></button>
-        <div class="absolute right-0 z-50 mt-2 w-[300px] rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-lg">
+        <div
+          class="fixed inset-x-4 top-1/2 z-50 -translate-y-1/2 rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[300px] sm:translate-y-0"
+        >
           <div class="flex items-center justify-between pb-2">
             <button
               type="button"

@@ -56,7 +56,7 @@ function relativeTime(ts: number): string {
         }
         <a
           routerLink="/leads"
-          class="mt-2 inline-flex h-8 w-full items-center justify-center rounded-md border border-input bg-transparent px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+          class="mt-2 inline-flex h-10 w-full items-center justify-center rounded-md border border-input bg-transparent px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
         >
           View all leads
         </a>

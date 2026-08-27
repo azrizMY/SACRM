@@ -80,7 +80,7 @@ const PAD = { top: 8, right: 8, bottom: 24, left: 48 };
               <rect
                 [attr.x]="p.x - bandW() / 2" [attr.y]="pad.top"
                 [attr.width]="bandW()" [attr.height]="height - pad.top - pad.bottom"
-                fill="transparent" (mouseenter)="hover.set(i)"
+                fill="transparent" (mouseenter)="hover.set(i)" (click)="hover.set(hover() === i ? null : i)"
               />
             }
           </svg>

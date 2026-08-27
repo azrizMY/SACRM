@@ -54,16 +54,16 @@ function blankModelForm(): ModelForm {
           </button>
         </div>
 
-        <div class="flex min-h-0 flex-1">
+        <div class="flex min-h-0 flex-1 flex-col sm:flex-row">
           <!-- Brands rail -->
-          <div class="flex w-64 shrink-0 flex-col gap-3 overflow-y-auto border-r border-border p-4">
+          <div class="flex w-full shrink-0 flex-col gap-3 border-b border-border p-4 sm:max-h-none sm:w-64 sm:overflow-y-auto sm:border-b-0 sm:border-r">
             <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Brands</span>
-            <div class="grid grid-cols-2 gap-2">
+            <div class="flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-x-visible sm:pb-0">
               @for (b of catalog.brands(); track b) {
                 <button
                   type="button"
                   (click)="selectedBrand.set(b)"
-                  class="flex flex-col items-center gap-1.5 rounded-lg border p-2.5 text-center transition-colors"
+                  class="flex w-20 shrink-0 flex-col items-center gap-1.5 rounded-lg border p-2.5 text-center transition-colors sm:w-auto"
                   [ngClass]="selectedBrand() === b ? 'border-primary bg-primary/5' : 'border-border hover:bg-accent'"
                 >
                   <div class="flex size-12 items-center justify-center overflow-hidden rounded-lg" [style.backgroundColor]="brandLogoFor(b) ? 'transparent' : styleFor(b).bg">
@@ -80,7 +80,7 @@ function blankModelForm(): ModelForm {
               <button
                 type="button"
                 (click)="openAddBrand()"
-                class="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border p-2.5 text-center text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                class="flex w-20 shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border p-2.5 text-center text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:w-auto"
               >
                 <span class="flex size-12 items-center justify-center rounded-lg border border-dashed border-border">
                   <app-icon name="plus" [size]="18" />

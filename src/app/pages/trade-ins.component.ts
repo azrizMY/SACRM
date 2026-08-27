@@ -135,7 +135,7 @@ function compareContacts(a: TradeInContactRecord, b: TradeInContactRecord, key: 
 
       <!-- Table -->
       <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-        <div class="overflow-x-auto">
+        <div class="hidden overflow-x-auto sm:block">
           <table class="w-full caption-bottom text-sm">
             <thead>
               <tr class="border-b border-border text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -216,6 +216,59 @@ function compareContacts(a: TradeInContactRecord, b: TradeInContactRecord, key: 
             </tbody>
           </table>
         </div>
+
+        <!-- Mobile cards -->
+        <div class="flex flex-col gap-3 p-3 sm:hidden">
+          @for (c of filteredSorted(); track c.id) {
+            <div class="flex flex-col gap-2 rounded-lg border border-border p-3">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex min-w-0 flex-col">
+                  <span class="truncate font-medium">{{ c.name }}</span>
+                  @if (chatHref(c); as href) {
+                    <a [href]="href" target="_blank" rel="noopener" class="text-xs text-primary hover:underline">{{ primaryContact(c) }}</a>
+                  } @else {
+                    @if (primaryContact(c); as contact) {
+                      <span class="text-xs text-muted-foreground">{{ contact }}</span>
+                    }
+                  }
+                </div>
+                <button
+                  type="button"
+                  (click)="toggleFavourite(c.id)"
+                  [attr.aria-label]="c.favourite ? 'Remove from favourites' : 'Add to favourites'"
+                  [title]="c.favourite ? 'Remove from favourites' : 'Add to favourites'"
+                  class="inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent"
+                  [ngClass]="c.favourite ? 'text-[var(--warning)]' : ''"
+                >
+                  <app-icon name="star" [filled]="c.favourite" [size]="14" />
+                </button>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="inline-flex items-center gap-1.5 rounded-md bg-muted/50 px-2 py-0.5 text-xs font-medium">
+                  <app-icon name="truck" [size]="12" class="text-muted-foreground" />
+                  {{ c.company }}
+                </span>
+                <span class="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <app-icon name="map-pin" [size]="12" />
+                  {{ c.state }}
+                </span>
+              </div>
+              @if (c.branch) {
+                <span class="text-xs text-muted-foreground">{{ c.branch }}</span>
+              }
+              <div class="flex items-center gap-1.5 border-t border-border pt-2">
+                <button type="button" (click)="openEdit(c)" title="Edit" aria-label="Edit contact" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+                  <app-icon name="pencil" [size]="14" />
+                </button>
+                <button type="button" (click)="requestDelete(c)" title="Delete" aria-label="Delete contact" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-[var(--destructive)] hover:text-[var(--destructive)]">
+                  <app-icon name="trash" [size]="14" />
+                </button>
+              </div>
+            </div>
+          } @empty {
+            <p class="p-8 text-center text-sm text-muted-foreground">No trade-in contacts match.</p>
+          }
+        </div>
       </div>
     </div>
 
@@ -235,7 +288,7 @@ function compareContacts(a: TradeInContactRecord, b: TradeInContactRecord, key: 
               Name
               <input type="text" [(ngModel)]="form.name" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
             </label>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Phone No
                 <input type="tel" [(ngModel)]="form.phone" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -246,7 +299,7 @@ function compareContacts(a: TradeInContactRecord, b: TradeInContactRecord, key: 
               </label>
             </div>
             <p class="text-[11px] text-muted-foreground">Provide a phone number and/or a WhatsApp username — at least one is required.</p>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Company
                 <input type="text" [(ngModel)]="form.company" list="trade-in-companies" placeholder="e.g. ABC Used Cars" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />

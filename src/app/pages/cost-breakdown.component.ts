@@ -120,7 +120,7 @@ function sortValue(r: CustomerRecord, key: SortKey): string | number {
 
       <!-- Filters -->
       <div class="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 text-card-foreground shadow-sm">
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-4">
           <div class="flex flex-col gap-1 sm:col-span-2">
             <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Search</span>
             <div class="relative">
@@ -171,7 +171,7 @@ function sortValue(r: CustomerRecord, key: SortKey): string | number {
 
       <!-- Table -->
       <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-        <div class="overflow-x-auto">
+        <div class="hidden overflow-x-auto sm:block">
           <table class="w-full caption-bottom text-sm">
             <thead>
               <tr class="border-b border-border text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -303,6 +303,83 @@ function sortValue(r: CustomerRecord, key: SortKey): string | number {
           </table>
         </div>
 
+        <!-- Mobile cards -->
+        <div class="flex flex-col gap-3 p-3 sm:hidden">
+          @for (r of rows(); track r.id) {
+            <div class="overflow-hidden rounded-lg border border-border">
+              <div class="flex cursor-pointer flex-col gap-2 p-3 transition-colors hover:bg-muted/40" (click)="toggleExpand(r.id)">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex min-w-0 flex-col">
+                    <span class="truncate font-medium">{{ r.name }}</span>
+                    <span class="text-xs text-muted-foreground">{{ r.phone }}</span>
+                  </div>
+                  <app-icon name="chevron-down" [size]="16" class="mt-0.5 shrink-0 text-muted-foreground transition-transform" [ngClass]="expandedId() === r.id ? 'rotate-180' : ''" />
+                </div>
+                <div class="flex items-center gap-2">
+                  <app-brand-mark [brand]="r.brand" />
+                  <div class="flex flex-col">
+                    <span class="text-sm">{{ modelVariantLabel(r.model, r.variant) }}</span>
+                    <span class="text-xs text-muted-foreground">{{ r.yearMade }}</span>
+                  </div>
+                </div>
+                <span class="inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="statusMeta(r.status).tone">
+                  <span class="size-1.5 rounded-full" [ngClass]="statusMeta(r.status).dot"></span>
+                  {{ statusMeta(r.status).label }}
+                </span>
+                <div class="grid grid-cols-3 gap-2 border-t border-border pt-2 text-center">
+                  <div class="flex flex-col">
+                    <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Commission</span>
+                    <span class="text-sm tabular">{{ r.commission != null ? fmt(r.commission) : '—' }}</span>
+                  </div>
+                  <div class="flex flex-col">
+                    <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Total Cost</span>
+                    <span class="text-sm tabular" [ngClass]="costOf(r) > 0 ? 'text-[var(--destructive)]' : costOf(r) < 0 ? 'text-[var(--success)]' : ''">{{ costOf(r) !== 0 ? fmt(costOf(r)) : '—' }}</span>
+                  </div>
+                  <div class="flex flex-col">
+                    <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Net Profit</span>
+                    <span class="text-sm font-semibold tabular" [ngClass]="profitOf(r) >= 0 ? 'text-[var(--success)]' : 'text-[var(--destructive)]'">{{ signed(profitOf(r)) }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 border-t border-border bg-muted/20 p-2" (click)="$event.stopPropagation()">
+                <button type="button" (click)="openCosting(r)" class="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
+                  <app-icon name="pencil" [size]="13" />
+                  Commission
+                </button>
+                <button type="button" (click)="openCostModal(r)" class="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
+                  <app-icon name="plus" [size]="13" />
+                  Add Cost
+                </button>
+              </div>
+              @if (expandedId() === r.id) {
+                <div class="flex flex-col gap-3 border-t border-border bg-muted/20 p-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Cost Spent Breakdown</span>
+                    <span class="text-xs font-semibold tabular" [ngClass]="costOf(r) >= 0 ? 'text-[var(--destructive)]' : 'text-[var(--success)]'">{{ fmtAbs(costOf(r)) }} total</span>
+                  </div>
+                  @if (r.costItems?.length) {
+                    <ul class="flex flex-col gap-1.5">
+                      @for (item of r.costItems; track item.id) {
+                        <li class="flex items-center gap-2 rounded-md border border-border/60 bg-card px-3 py-2 text-xs">
+                          <span class="flex-1 text-foreground">{{ item.label }}</span>
+                          <span class="tabular font-medium" [ngClass]="item.amount >= 0 ? 'text-[var(--destructive)]' : 'text-[var(--success)]'">{{ fmtAbs(item.amount) }}</span>
+                          <button type="button" (click)="removeCostItem(r, item.id)" aria-label="Remove cost item" class="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-[var(--destructive)]">
+                            <app-icon name="x" [size]="12" />
+                          </button>
+                        </li>
+                      }
+                    </ul>
+                  } @else {
+                    <p class="text-xs text-muted-foreground">No cost logged yet — use "Add Cost" to record spend for this customer.</p>
+                  }
+                </div>
+              }
+            </div>
+          } @empty {
+            <p class="p-8 text-center text-sm text-muted-foreground">No deals match. In Progress and Delivered customers from Customer Manager will appear here automatically.</p>
+          }
+        </div>
+
         <!-- Pagination -->
         <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
           <div class="flex items-center gap-2 text-xs text-muted-foreground">
@@ -344,7 +421,7 @@ function sortValue(r: CustomerRecord, key: SortKey): string | number {
         <span class="text-sm font-semibold">Free Gifts Checklist</span>
         <p class="text-xs text-muted-foreground">Deals from In Progress onward. Customer Manager shows a read-only count and links here.</p>
       </div>
-      <div class="overflow-x-auto border-t border-border">
+      <div class="hidden overflow-x-auto border-t border-border sm:block">
         <table class="w-full caption-bottom text-sm">
           <thead>
             <tr class="border-b border-border text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -383,6 +460,35 @@ function sortValue(r: CustomerRecord, key: SortKey): string | number {
             }
           </tbody>
         </table>
+      </div>
+
+      <!-- Mobile cards -->
+      <div class="flex flex-col gap-3 border-t border-border p-3 sm:hidden">
+        @for (r of giftEligible(); track r.id) {
+          <div class="flex flex-col gap-2 rounded-lg border border-border p-3">
+            <div class="flex items-center justify-between gap-2">
+              <span class="truncate font-medium">{{ r.name }}</span>
+              <span class="shrink-0 text-xs text-muted-foreground">{{ r.status }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <app-brand-mark [brand]="r.brand" class="size-6" />
+              <span class="text-sm text-muted-foreground">{{ modelVariantLabel(r.model, r.variant) }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2 border-t border-border pt-2">
+              <span class="text-sm">{{ giftsLabel(r) }}</span>
+              <button
+                type="button"
+                (click)="openGifts(r)"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                <app-icon name="gift" [size]="13" />
+                Manage
+              </button>
+            </div>
+          </div>
+        } @empty {
+          <p class="p-8 text-center text-sm text-muted-foreground">No deals in progress or delivered yet.</p>
+        }
       </div>
     </div>
 

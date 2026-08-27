@@ -108,7 +108,7 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
 
       <!-- Table -->
       <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-        <div class="overflow-x-auto">
+        <div class="hidden overflow-x-auto sm:block">
           <table class="w-full caption-bottom text-sm">
             <thead>
               <tr class="border-b border-border text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -201,6 +201,54 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
               }
             </tbody>
           </table>
+        </div>
+
+        <!-- Mobile cards -->
+        <div class="flex flex-col gap-3 p-3 sm:hidden">
+          @for (v of filteredSorted(); track v.id) {
+            <div class="flex flex-col gap-2 rounded-lg border border-border p-3">
+              <div class="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  [checked]="selected().has(v.id)"
+                  (change)="toggleSelect(v.id)"
+                  [attr.aria-label]="'Select ' + v.brand + ' ' + v.model + ' ' + v.variant"
+                  class="mt-1 size-4 shrink-0 accent-[var(--primary)]"
+                />
+                <div class="flex min-w-0 flex-1 items-center gap-2">
+                  <app-brand-mark [brand]="v.brand" />
+                  <div class="flex min-w-0 flex-col">
+                    <span class="truncate font-medium">{{ modelVariantLabel(v.model, v.variant) }}</span>
+                    <span class="text-xs text-muted-foreground">{{ v.brand }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 border-t border-border pt-2">
+                <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold" [ngClass]="powertrainBadge(v.powertrain)">
+                  {{ v.powertrain }}
+                </span>
+                <span class="text-xs text-muted-foreground">{{ v.engine }}</span>
+                <span class="text-xs text-muted-foreground">&middot; {{ v.transmission }}</span>
+                <span class="text-xs text-muted-foreground">&middot; {{ v.seater }} seater</span>
+              </div>
+              @if (brochureFor(v); as brochure) {
+                <div class="flex items-center gap-1.5 border-t border-border pt-2">
+                  <button type="button" (click)="openBrochure(v.id)" class="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
+                    <app-icon name="file-text" [size]="13" />
+                    View
+                  </button>
+                  <button type="button" (click)="downloadOne(v)" class="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
+                    <app-icon name="download" [size]="13" />
+                    Download
+                  </button>
+                </div>
+              } @else {
+                <span class="border-t border-border pt-2 text-xs text-muted-foreground">No brochure</span>
+              }
+            </div>
+          } @empty {
+            <p class="p-8 text-center text-sm text-muted-foreground">No cars match.</p>
+          }
         </div>
       </div>
     </div>

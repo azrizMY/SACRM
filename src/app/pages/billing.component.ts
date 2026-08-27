@@ -182,7 +182,7 @@ function thisMonthPrefix(): string {
         <div class="border-b border-border p-5">
           <span class="text-sm font-semibold">Billing History</span>
         </div>
-        <div class="overflow-x-auto">
+        <div class="hidden overflow-x-auto sm:block">
           <table class="w-full caption-bottom text-sm">
             <thead>
               <tr class="border-b border-border text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -216,6 +216,31 @@ function thisMonthPrefix(): string {
               }
             </tbody>
           </table>
+        </div>
+
+        <!-- Mobile cards -->
+        <div class="flex flex-col gap-3 p-3 sm:hidden">
+          @for (inv of subscription.state().invoices; track inv.id) {
+            <div class="flex flex-col gap-2 rounded-lg border border-border p-3">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex min-w-0 flex-col">
+                  <span class="truncate font-mono text-xs tabular text-muted-foreground">{{ inv.id }}</span>
+                  <span class="font-medium">{{ inv.planName }}</span>
+                </div>
+                <button type="button" (click)="downloadInvoice(inv)" class="inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" aria-label="Download invoice">
+                  <app-icon name="download" [size]="14" />
+                </button>
+              </div>
+              <div class="flex items-center justify-between gap-2 border-t border-border pt-2">
+                <span class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="invoiceStatusMeta[inv.status].tone">
+                  <span class="size-1.5 rounded-full" [ngClass]="invoiceStatusMeta[inv.status].dot"></span>
+                  {{ inv.status }}
+                </span>
+                <span class="text-sm tabular">{{ fmt(inv.amount) }}</span>
+                <span class="text-xs text-muted-foreground tabular">{{ inv.date }}</span>
+              </div>
+            </div>
+          }
         </div>
       </div>
     </div>

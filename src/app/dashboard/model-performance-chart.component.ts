@@ -71,12 +71,12 @@ const MAX_BARS_SHOWN = 8;
                 rx="6" fill="var(--chart-1)"
                 [attr.opacity]="hover() === null || hover() === i ? 1 : 0.55"
                 class="transition-opacity"
-                (mouseenter)="hover.set(i)"
+                (mouseenter)="hover.set(i)" (click)="hover.set(hover() === i ? null : i)"
               />
               <text
                 [attr.x]="b.cx" [attr.y]="height - 6"
                 text-anchor="middle" class="fill-muted-foreground" style="font-size: 10px"
-              >{{ b.model }}</text>
+              >{{ b.label }}</text>
             }
           </svg>
 
@@ -146,9 +146,17 @@ export class ModelPerformanceChartComponent implements AfterViewInit, OnDestroy 
       const units = this.unitsOf(d);
       const cx = this.pad.left + slot * i + slot / 2;
       const h = (units / yMax) * plotH;
-      return { ...d, units, cx, x: cx - barW / 2, w: barW, h, y: this.pad.top + plotH - h };
+      return { ...d, units, cx, x: cx - barW / 2, w: barW, h, y: this.pad.top + plotH - h, label: this.truncateLabel(d.model, slot) };
     });
   });
+
+  /** Keeps model-name labels from overlapping when many bars share a narrow slot (e.g. mobile widths). */
+  private truncateLabel(text: string, slotWidth: number): string {
+    const approxCharPx = 5.5;
+    const maxChars = Math.max(3, Math.floor(slotWidth / approxCharPx));
+    if (text.length <= maxChars) return text;
+    return text.slice(0, Math.max(1, maxChars - 1)) + '…';
+  }
 
   yTicks = computed(() => {
     const plotH = this.height - this.pad.top - this.pad.bottom;

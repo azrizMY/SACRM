@@ -41,7 +41,7 @@ import {
           <!-- Customer -->
           <fieldset class="flex flex-col gap-3">
             <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Customer</legend>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Name
                 <input type="text" [(ngModel)]="form.name" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -51,7 +51,7 @@ import {
                 <input type="tel" [(ngModel)]="form.phone" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
               </label>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Lead Source
                 <select [(ngModel)]="form.sourceType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -65,7 +65,7 @@ import {
                 </select>
               </label>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 IC No
                 <input type="text" [(ngModel)]="form.icNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -75,7 +75,7 @@ import {
                 <input type="text" [(ngModel)]="form.drivingLicenceNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
               </label>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Address
                 <input type="text" [(ngModel)]="form.address" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -90,7 +90,7 @@ import {
           <!-- Vehicle -->
           <fieldset class="flex flex-col gap-3">
             <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Vehicle</legend>
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Brand
                 <select [(ngModel)]="form.brand" (ngModelChange)="onBrandChange($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -136,7 +136,7 @@ import {
                 Booking Fee (RM)
                 <input type="number" min="0" step="100" [(ngModel)]="form.bookingFee" class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
               </label>
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 @if (isCashInForm) {
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Payment Status
@@ -184,7 +184,7 @@ import {
           @if (showTradeIn) {
             <fieldset class="flex flex-col gap-3">
               <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Trade-in</legend>
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Trade-in Status
                   <select [(ngModel)]="form.tradeInStatus" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -212,7 +212,7 @@ import {
             <fieldset class="flex flex-col gap-3">
               <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Financing</legend>
               @if (form.financingType === 'Loan') {
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Bank Panel
                     <select [(ngModel)]="form.bankPanel" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -224,7 +224,7 @@ import {
                     <input type="number" min="0" step="500" [(ngModel)]="form.loanAmount" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                   </label>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Tenure
                     <select [(ngModel)]="form.loanTenureMonths" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -256,7 +256,7 @@ import {
           @if (showDelivery) {
             <fieldset class="flex flex-col gap-3">
               <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Delivery</legend>
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Insurance
                   <select [(ngModel)]="form.insuranceName" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -268,7 +268,7 @@ import {
                   <input type="text" [(ngModel)]="form.plateNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                 </label>
               </div>
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Chassis / VIN
                   <input type="text" [(ngModel)]="form.chassisNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
