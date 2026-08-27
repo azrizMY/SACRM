@@ -53,18 +53,17 @@ function blankForm(brand: string): PricingForm {
       <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="close.emit()"></button>
       <div class="relative flex h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
         <!-- Header -->
-        <div class="flex flex-wrap items-start gap-3 border-b border-border p-4">
-          <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-            <app-icon name="wallet" [size]="16" />
-          </span>
-          <div class="flex flex-col">
-            <span class="text-sm font-semibold">Car Database</span>
-            <span class="text-xs text-muted-foreground">
-              Price, interest rate, rebate, and insurance figures for cars already in the Brand &amp; Model Catalog — edit any cell, it saves
-              instantly. Feeds the Calculator and Customer Manager.
+        <div class="flex items-start justify-between gap-3 border-b border-border p-4">
+          <div class="flex min-w-0 items-start gap-3">
+            <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+              <app-icon name="wallet" [size]="16" />
             </span>
+            <div class="flex min-w-0 flex-col">
+              <span class="text-sm font-semibold">Car Database</span>
+              <span class="text-xs text-muted-foreground">Price, interest rate, rebate &amp; insurance for existing models — edit any cell, it saves instantly.</span>
+            </div>
           </div>
-          <button type="button" (click)="close.emit()" aria-label="Close" class="ml-auto flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+          <button type="button" (click)="close.emit()" aria-label="Close" class="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
             <app-icon name="x" [size]="16" />
           </button>
         </div>
