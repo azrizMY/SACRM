@@ -5,6 +5,9 @@ export type AdvisorProfile = {
   phoneDisplay: string;
   phoneWa: string;
   bio: string;
+  /** Uploaded headshot (data URL) shown on the Profile page and the Calculator's Quote Preview —
+   *  falls back to initials on a gradient tile everywhere it's absent. */
+  photoUrl?: string;
 };
 
 export const DEFAULT_ADVISOR: AdvisorProfile = {

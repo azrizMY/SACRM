@@ -3,7 +3,7 @@
  * an npm/build step that keeps getting blocked in this environment, so quotation PDFs are
  * built by hand as raw PDF syntax (a handful of Type1 base-font text/line/rect operators).
  */
-import { variantLabel, type InsuranceQuotationBreakdown } from '../data/calculator-data';
+import { variantLabel, type InsuranceQuotationBreakdown, type RateType } from '../data/calculator-data';
 
 export type PdfColor = [number, number, number];
 export type PdfFontKey = 'H' | 'HB' | 'C';
@@ -133,7 +133,7 @@ export type QuotationPdfData = {
   downpaymentCash: number;
   loanAmount: number;
   interestRate: number;
-  eir: number;
+  rateType: RateType;
   repaymentRows: { label: string; monthly: number }[];
   /** Itemized insurance breakdown — expands the Insurance line into its own rows when provided. */
   insuranceBreakdown?: InsuranceQuotationBreakdown;
@@ -306,7 +306,8 @@ export function buildQuotationPdfBytes(d: QuotationPdfData): Uint8Array {
 
   // ---------- Repayment table ----------
   if (!d.isCash) {
-    page.text(left, y, `MONTHLY REPAYMENT — fixed ${d.interestRate}% (~${d.eir.toFixed(2)}% EIR)`, { font: 'HB', size: 9, color: gray });
+    const rateTypeLabel = d.rateType === 'effective' ? 'Effective (declining balance)' : 'Flat';
+    page.text(left, y, `MONTHLY REPAYMENT — ${rateTypeLabel} ${d.interestRate}%`, { font: 'HB', size: 9, color: gray });
     y -= 12;
     const repaymentRows: TableRow[] = [
       { cells: [label('Tenure', { bold: true }), label('Monthly Payment', { bold: true })] },

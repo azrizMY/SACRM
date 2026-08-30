@@ -22,11 +22,11 @@ import {
   basicPremiumDefault,
   computeInsuranceBreakdown,
   computeQuotationTotals,
-  eirApprox,
   modelVariantLabel,
   modelsForBrand,
-  monthlyFlat,
+  monthlyPayment,
   variantsForModel,
+  type RateType,
   type Vehicle,
 } from '../data/calculator-data';
 import { BrandMarkComponent } from '../shared/brand-mark.component';
@@ -849,7 +849,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
               @if (leadForm.financingType !== 'Cash') {
                 <div class="flex flex-col gap-1 border-t border-border pt-3">
                   <span class="text-[10px] text-muted-foreground">
-                    Fixed {{ leadQuotationForm.interestRate }}% <span class="text-muted-foreground/70">(~{{ lp.eir.toFixed(2) }}% EIR)</span>
+                    {{ leadQuotationForm.interestRate }}% <span class="text-muted-foreground/70">&middot; {{ leadQuotationForm.rateType === 'effective' ? 'EIR' : 'Flat' }}</span>
                   </span>
                   @for (row of lp.repaymentRows; track row.months) {
                     @if (row.months === leadQuotationForm.tenureMonths) {
@@ -972,9 +972,16 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   />
                 </label>
                 @if (leadForm.financingType !== 'Cash') {
+                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                    Rate Type
+                    <select [(ngModel)]="leadQuotationForm.rateType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
+                      <option value="flat">Flat</option>
+                      <option value="effective">EIR</option>
+                    </select>
+                  </label>
                   <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                      Interest Rate (%)
+                      {{ leadQuotationForm.rateType === 'effective' ? 'Effective Rate (%)' : 'Flat Rate (%)' }}
                       <input type="number" min="0" step="0.1" [(ngModel)]="leadQuotationForm.interestRate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                     </label>
                     <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
@@ -1394,7 +1401,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                 @if (!isCash(qrec)) {
                   <div class="overflow-hidden rounded-lg border border-border">
                     <div class="border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
-                      Fixed {{ qrec.quotation.interestRate }}% <span class="text-muted-foreground/70">(~{{ qv.eir.toFixed(2) }}% EIR)</span>
+                      {{ qrec.quotation.interestRate }}% <span class="text-muted-foreground/70">&middot; {{ qv.rateType === 'effective' ? 'EIR' : 'Flat' }}</span>
                     </div>
                     @for (row of qv.repaymentRows; track row.months) {
                       @if (row.months === qrec.quotation.tenureMonths) {
@@ -1457,9 +1464,16 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </label>
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Rate Type
+                <select [(ngModel)]="quotationForm.rateType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
+                  <option value="flat">Flat</option>
+                  <option value="effective">EIR</option>
+                </select>
+              </label>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Interest Rate (%)
+                  {{ quotationForm.rateType === 'effective' ? 'Effective Rate (%)' : 'Flat Rate (%)' }}
                   <input type="number" min="0" step="0.1" [(ngModel)]="quotationForm.interestRate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                 </label>
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
@@ -2167,6 +2181,7 @@ export class CustomerManagerComponent {
       rebate: vehicle?.rebate ?? DEFAULT_REBATE,
       ncd: 0,
       interestRate: 3.5,
+      rateType: 'flat',
       downpaymentType: 'percent',
       downpaymentValue: 10,
       tenureMonths: TENURE_OPTIONS[0].months,
@@ -2241,8 +2256,8 @@ export class CustomerManagerComponent {
       downpaymentValue: q.downpaymentValue,
     });
 
-    const eir = eirApprox(q.interestRate, q.tenureMonths);
-    const repaymentRows = TENURE_OPTIONS.map((t) => ({ ...t, monthly: monthlyFlat(totals.loanAmount, q.interestRate, t.months) }));
+    const rateType: RateType = q.rateType ?? 'flat';
+    const repaymentRows = TENURE_OPTIONS.map((t) => ({ ...t, monthly: monthlyPayment(totals.loanAmount, q.interestRate, t.months, rateType) }));
     return {
       basePrice,
       effectiveRebate,
@@ -2251,7 +2266,7 @@ export class CustomerManagerComponent {
       allInPrice: totals.totalAmountDue,
       downpaymentCash: totals.downpaymentCash,
       loanAmount: totals.loanAmount,
-      eir,
+      rateType,
       repaymentRows,
     };
   }
@@ -2292,7 +2307,7 @@ export class CustomerManagerComponent {
       downpaymentCash: nums.downpaymentCash,
       loanAmount: nums.loanAmount,
       interestRate: quotation.interestRate,
-      eir: nums.eir,
+      rateType: nums.rateType,
       repaymentRows: nums.repaymentRows.filter((r) => r.months === quotation.tenureMonths),
       insuranceBreakdown: nums.insuranceBreakdown,
     };

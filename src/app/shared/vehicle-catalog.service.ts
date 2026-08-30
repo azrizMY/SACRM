@@ -71,16 +71,6 @@ export class VehicleCatalogService {
     this.persist();
   }
 
-  /** Spec/identity fields (engine, seater, transmission, powertrain, drivetrain) are the same car
-   *  regardless of model year, so an edit from the Brand & Model Catalog applies to every year-row
-   *  of this variant at once, instead of leaving older years with stale spec. */
-  updateVariantSpec(brand: string, model: string, variant: string, patch: Pick<EditVehicleInput, 'engine' | 'seater' | 'transmission' | 'powertrain' | 'drivetrain'>) {
-    for (const v of VEHICLES) {
-      if (v.brand === brand && v.model === model && v.variant === variant) Object.assign(v, patch);
-    }
-    this.persist();
-  }
-
   removeVehicle(id: string) {
     const index = VEHICLES.findIndex((v) => v.id === id);
     if (index === -1) return;

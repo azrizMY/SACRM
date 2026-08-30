@@ -370,7 +370,7 @@ export class BankersComponent {
   selectedBanks = signal<Set<string>>(new Set());
   // Defaults to Bank, not Banker — every table in this app highlights a default-active sort
   // column, but never the identity column itself (Customer Manager defaults to "Last Updated",
-  // My Cars to "Brand").
+  // Brochures to "Brand").
   sortKey = signal<SortKey | null>('bank');
   sortDir = signal<SortDir>('asc');
 

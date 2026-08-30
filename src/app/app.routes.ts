@@ -8,6 +8,7 @@ import { DashboardPageComponent } from './pages/dashboard-page.component';
 import { LandingComponent } from './pages/landing.component';
 import { LoginComponent } from './pages/login.component';
 import { MyCarsComponent } from './pages/my-cars.component';
+import { PriceSettingsComponent } from './pages/price-settings.component';
 import { ProfileComponent } from './pages/profile.component';
 import { SignupComponent } from './pages/signup.component';
 import { TradeInsComponent } from './pages/trade-ins.component';
@@ -27,6 +28,7 @@ export const routes: Routes = [
       { path: 'dashboard', component: DashboardPageComponent, data: { id: 'dashboard' } },
       { path: 'calculator', component: CalculatorComponent, data: { id: 'calculator' } },
       { path: 'cars', component: MyCarsComponent, data: { id: 'cars' } },
+      { path: 'price-settings', component: PriceSettingsComponent, data: { id: 'price-settings' } },
       { path: 'leads', component: CustomerManagerComponent, data: { id: 'leads' } },
       { path: 'bankers', component: BankersComponent, data: { id: 'bankers' } },
       { path: 'trade-ins', component: TradeInsComponent, data: { id: 'trade-ins' } },

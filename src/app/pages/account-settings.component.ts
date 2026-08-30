@@ -2,13 +2,11 @@ import { AfterViewInit, Component, ElementRef, OnDestroy, signal } from '@angula
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent, type IconName } from '../shared/icon.component';
-import { CarDatabaseComponent } from '../shared/car-database.component';
-import { BrandModelCatalogComponent } from '../shared/brand-model-catalog.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { CustomerService } from '../shared/customer.service';
 import { SettingsService } from '../shared/settings.service';
 import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
-import { NCD_OPTIONS, VEHICLES } from '../data/calculator-data';
+import { NCD_OPTIONS } from '../data/calculator-data';
 import type { DashboardTarget, SalesDefaults } from '../data/settings-data';
 
 type NavItem = { id: string; label: string; icon: IconName };
@@ -16,7 +14,7 @@ type NavItem = { id: string; label: string; icon: IconName };
 @Component({
   selector: 'app-account-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, CarDatabaseComponent, BrandModelCatalogComponent],
+  imports: [CommonModule, FormsModule, IconComponent],
   template: `
     <div class="mx-auto flex max-w-6xl flex-col gap-6">
       <div class="flex flex-col gap-1">
@@ -49,7 +47,7 @@ type NavItem = { id: string; label: string; icon: IconName };
           <section id="defaults" data-section class="flex scroll-mt-20 flex-col gap-4">
             <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Defaults</h3>
 
-            <!-- Quote defaults (Sales Preferences + Default Brand, merged — both are quote-starting values) -->
+            <!-- Quote defaults — Calculator-specific starting values -->
             <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
               <div class="flex items-center gap-3 px-5 py-4">
                 <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -57,7 +55,7 @@ type NavItem = { id: string; label: string; icon: IconName };
                 </span>
                 <div class="flex flex-col gap-0.5">
                   <span class="text-sm font-semibold leading-none">Quote Defaults</span>
-                  <span class="text-xs text-muted-foreground">Starting values every time you open the Calculator or Dashboard.</span>
+                  <span class="text-xs text-muted-foreground">Starting values every time you open the Calculator.</span>
                 </div>
               </div>
 
@@ -85,33 +83,93 @@ type NavItem = { id: string; label: string; icon: IconName };
                     </select>
                   </label>
                 </div>
-                <p class="text-[11px] text-muted-foreground">Interest rate and basic premium are set per car in the Car Finance Database.</p>
-                <div class="flex items-center gap-2">
-                  <button
-                    type="button"
-                    (click)="saveSalesDefaults()"
-                    class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                  >
-                    Save Sales Preferences
-                  </button>
-                  @if (savedFlash()) {
-                    <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]">
-                      <app-icon name="check" [size]="13" />
-                      Saved
-                    </span>
-                  }
+                <p class="text-[11px] text-muted-foreground">Interest rate and basic premium are set per car in Price Settings.</p>
+              </div>
+
+              <div class="flex flex-col gap-3 border-t border-border px-5 py-5">
+                <div class="flex flex-col gap-2">
+                  <span class="text-xs font-medium text-muted-foreground">Default Rate Type</span>
+                  <div role="radiogroup" aria-label="Default Rate Type" class="flex gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
+                    <button
+                      type="button"
+                      role="radio"
+                      [attr.aria-checked]="salesForm.defaultRateType === 'flat'"
+                      (click)="salesForm.defaultRateType = 'flat'"
+                      class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
+                      [ngClass]="salesForm.defaultRateType === 'flat' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                    >
+                      Flat
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      [attr.aria-checked]="salesForm.defaultRateType === 'effective'"
+                      (click)="salesForm.defaultRateType = 'effective'"
+                      class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
+                      [ngClass]="salesForm.defaultRateType === 'effective' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                    >
+                      EIR
+                    </button>
+                  </div>
+                  <p class="text-[11px] text-muted-foreground">Which rate type the Calculator starts every new quote on.</p>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                  <span class="text-xs font-medium text-muted-foreground">Default Tenure Selection</span>
+                  <div role="group" aria-label="Default repayment table tenures (years)" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
+                    @for (y of posterYearOptions; track y) {
+                      <button
+                        type="button"
+                        [attr.aria-pressed]="salesForm.defaultTenureYears.includes(y)"
+                        (click)="toggleDefaultTenureYear(y)"
+                        class="flex aspect-square items-center justify-center rounded-full text-xs font-semibold transition-colors"
+                        [ngClass]="salesForm.defaultTenureYears.includes(y) ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                      >
+                        {{ y }}
+                      </button>
+                    }
+                  </div>
+                  <p class="text-[11px] text-muted-foreground">Pick 3 tenures — which years the Calculator's repayment table starts on for every new quote.</p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 border-t border-border px-5 py-4">
+                <button
+                  type="button"
+                  (click)="saveQuoteDefaults()"
+                  class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  Save Changes
+                </button>
+                @if (savedFlash()) {
+                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]">
+                    <app-icon name="check" [size]="13" />
+                    Saved
+                  </span>
+                }
+              </div>
+            </div>
+
+            <!-- Default Brand — not Calculator-specific: also drives Dashboard and Customer Manager -->
+            <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+              <div class="flex items-center gap-3 px-5 py-4">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <app-icon name="star" [size]="18" />
+                </span>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-sm font-semibold leading-none">Default Brand</span>
+                  <span class="text-xs text-muted-foreground">
+                    Dashboard's Monthly Target and Performance by Model, the Calculator's starting car, the new-lead starting car in
+                    Customer Manager, and the brand filter on Brochures.
+                  </span>
                 </div>
               </div>
 
               <div class="flex flex-col gap-3 border-t border-border px-5 py-5">
-                <div class="flex flex-col gap-1">
-                  <span class="text-xs font-semibold text-foreground">Default Brand</span>
-                  <p class="text-xs text-muted-foreground">
-                    Dashboard's Monthly Target and Performance by Model, the Calculator's starting car, the new-lead starting car in
-                    Customer Manager, and the brand filter on My Cars. Customer Manager's own brand filter always starts on "All" so
-                    existing customers from other brands aren't hidden by default; Cost Breakdown keeps its own filter too.
-                  </p>
-                </div>
+                <p class="text-[11px] text-muted-foreground">
+                  Customer Manager's own brand filter always starts on "All" so existing customers from other brands aren't hidden by
+                  default; Cost Breakdown keeps its own filter too.
+                </p>
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Brand
@@ -133,87 +191,22 @@ type NavItem = { id: string; label: string; icon: IconName };
                     />
                   </label>
                 </div>
-                <div class="flex items-center gap-2">
-                  <button
-                    type="button"
-                    (click)="saveDashboardTarget()"
-                    class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                  >
-                    Save Default Brand
-                  </button>
-                  @if (dashboardSavedFlash()) {
-                    <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]">
-                      <app-icon name="check" [size]="13" />
-                      Saved
-                    </span>
-                  }
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Car catalog -->
-          <section id="catalog" data-section class="flex scroll-mt-20 flex-col gap-4">
-            <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Car Catalog</h3>
-
-            <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-              <div class="flex items-center gap-3 px-5 py-4">
-                <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <app-icon name="sparkles" [size]="18" />
-                </span>
-                <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">Brand &amp; Model Catalog</span>
-                  <span class="text-xs text-muted-foreground">Brands, logos, models, variants, and spec — what a car IS.</span>
-                </div>
               </div>
 
-              <div class="flex items-center gap-3 border-t border-border px-5 py-4">
-                <div class="flex flex-col gap-0.5 rounded-lg bg-muted/40 px-3 py-2">
-                  <span class="text-lg font-semibold leading-none tabular">{{ catalog.brands().length }}</span>
-                  <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                    Brand{{ catalog.brands().length === 1 ? '' : 's' }}
-                  </span>
-                </div>
-                <div class="flex flex-col gap-0.5 rounded-lg bg-muted/40 px-3 py-2">
-                  <span class="text-lg font-semibold leading-none tabular">{{ vehicleCount() }}</span>
-                  <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                    Pricing Row{{ vehicleCount() === 1 ? '' : 's' }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="flex flex-wrap items-center gap-2 border-t border-border bg-muted/20 px-5 py-3">
+              <div class="flex items-center gap-2 border-t border-border px-5 py-4">
                 <button
                   type="button"
-                  (click)="openBrandModelCatalog.set(true)"
-                  class="flex w-fit items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  (click)="saveDefaultBrand()"
+                  class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                 >
-                  <app-icon name="sparkles" [size]="13" />
-                  Open Brand &amp; Model Catalog
+                  Save Changes
                 </button>
-              </div>
-            </div>
-
-            <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-              <div class="flex items-center gap-3 px-5 py-4">
-                <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <app-icon name="wallet" [size]="18" />
-                </span>
-                <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">Car Database</span>
-                  <span class="text-xs text-muted-foreground">Price, interest rate, rebate, and insurance for cars already in the Catalog — what a car costs.</span>
-                </div>
-              </div>
-
-              <div class="flex flex-wrap items-center gap-2 border-t border-border bg-muted/20 px-5 py-3">
-                <button
-                  type="button"
-                  (click)="openCarDatabase.set(true)"
-                  class="flex w-fit items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  <app-icon name="table" [size]="13" />
-                  Open Car Database
-                </button>
+                @if (brandSavedFlash()) {
+                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]">
+                    <app-icon name="check" [size]="13" />
+                    Saved
+                  </span>
+                }
               </div>
             </div>
           </section>
@@ -375,16 +368,6 @@ type NavItem = { id: string; label: string; icon: IconName };
       </div>
     </div>
 
-    <!-- Brand & Model Catalog -->
-    @if (openBrandModelCatalog()) {
-      <app-brand-model-catalog (close)="openBrandModelCatalog.set(false)" />
-    }
-
-    <!-- Car Database -->
-    @if (openCarDatabase()) {
-      <app-car-database (close)="openCarDatabase.set(false)" />
-    }
-
     <!-- Clear data confirmation -->
     @if (confirmingClear()) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -420,7 +403,6 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
 
   navItems: NavItem[] = [
     { id: 'defaults', label: 'Defaults', icon: 'wallet' },
-    { id: 'catalog', label: 'Car Catalog', icon: 'car' },
     { id: 'notifications', label: 'Notifications', icon: 'bell' },
     { id: 'data', label: 'Data & Privacy', icon: 'file-text' },
   ];
@@ -451,20 +433,17 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
     }
   };
 
-  /** Getter, not a field — re-reads the catalog on every check so it stays current while the
-   *  Brand & Model Catalog (a child of this same component) adds/removes brands underneath it. */
+  /** Getter, not a field — re-reads the catalog on every check so it stays current while Price
+   *  Settings (a separate page reading the same VehicleCatalogService) adds/removes brands. */
   get brands(): string[] {
     return this.catalog.brands();
   }
 
-  vehicleCount = () => VEHICLES.length;
-  openCarDatabase = signal(false);
-  openBrandModelCatalog = signal(false);
-
   salesForm: SalesDefaults;
   dashboardForm: DashboardTarget;
+  posterYearOptions = Array.from({ length: 9 }, (_, i) => i + 1);
   savedFlash = signal(false);
-  dashboardSavedFlash = signal(false);
+  brandSavedFlash = signal(false);
   confirmingClear = signal(false);
   seeding = signal(false);
   seedFlash = signal(false);
@@ -512,16 +491,30 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
 
   notifications = () => this.settingsService.settings().notifications;
 
-  saveSalesDefaults() {
+  saveQuoteDefaults() {
     this.settingsService.updateSalesDefaults(this.salesForm);
     this.savedFlash.set(true);
     setTimeout(() => this.savedFlash.set(false), 2000);
   }
 
-  saveDashboardTarget() {
+  saveDefaultBrand() {
     this.settingsService.updateDashboardTarget(this.dashboardForm);
-    this.dashboardSavedFlash.set(true);
-    setTimeout(() => this.dashboardSavedFlash.set(false), 2000);
+    this.brandSavedFlash.set(true);
+    setTimeout(() => this.brandSavedFlash.set(false), 2000);
+  }
+
+  /** Keeps the default tenure selection at exactly 3 years: toggles off if already picked (min 1
+   *  stays selected), otherwise adds, replacing the oldest pick once 3 are already chosen —
+   *  mirrors the Calculator's own poster-tenure picker. */
+  toggleDefaultTenureYear(year: number) {
+    const current = this.salesForm.defaultTenureYears;
+    if (current.includes(year)) {
+      if (current.length > 1) this.salesForm.defaultTenureYears = current.filter((y) => y !== year);
+    } else if (current.length < 3) {
+      this.salesForm.defaultTenureYears = [...current, year];
+    } else {
+      this.salesForm.defaultTenureYears = [...current.slice(1), year];
+    }
   }
 
   toggleNotification(key: 'newLeadAlerts' | 'bookingReminders' | 'weeklySummary') {

@@ -6,7 +6,7 @@ const FEATURES: { icon: IconName; title: string; blurb: string }[] = [
   { icon: 'calculator', title: 'Quotation Calculator', blurb: 'Price out any brand, model and variant with live financing math.' },
   { icon: 'users', title: 'Customer Manager', blurb: 'Track every deal from lead to booking to delivery in one pipeline.' },
   { icon: 'wallet', title: 'Cost Breakdown', blurb: 'See commission, gift spend and real profit the moment docs are in.' },
-  { icon: 'car', title: 'My Cars', blurb: 'Brochures for every model, filterable by brand, one tap to WhatsApp.' },
+  { icon: 'car', title: 'Brochures', blurb: 'Brochures for every model, filterable by brand, one tap to WhatsApp.' },
 ];
 
 @Component({

@@ -10,7 +10,8 @@ type NavItem = { id: string; label: string; icon: IconName };
 const NAV: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
   { id: 'calculator', label: 'Calculator', icon: 'calculator' },
-  { id: 'cars', label: 'My Cars', icon: 'car' },
+  { id: 'cars', label: 'Brochures', icon: 'car' },
+  { id: 'price-settings', label: 'Price Settings', icon: 'tag' },
   { id: 'leads', label: 'Customer Manager', icon: 'users' },
   { id: 'notes', label: 'Cost Breakdown', icon: 'wallet' },
   { id: 'bankers', label: 'Bankers', icon: 'landmark' },

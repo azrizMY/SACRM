@@ -10,25 +10,14 @@ import { VEHICLES, formatRM, latestVehiclePerVariant, modelVariantLabel, variant
 import { loadAllBrochures } from '../shared/brochure-store';
 
 type CustomBrochure = { fileName: string; blob: Blob; rawUrl: string; url: SafeResourceUrl };
-type SortKey = 'brand' | 'model' | 'variant' | 'engine' | 'powertrain' | 'seater' | 'transmission';
+type SortKey = 'brand' | 'model' | 'variant';
 type SortDir = 'asc' | 'desc';
 type Column = { key: SortKey; label: string; align?: 'right' };
 
 const COLUMNS: Column[] = [
   { key: 'brand', label: 'Brand' },
   { key: 'model', label: 'Model' },
-  { key: 'powertrain', label: 'Powertrain' },
-  { key: 'engine', label: 'Engine' },
-  { key: 'transmission', label: 'Transmission' },
-  { key: 'seater', label: 'Seater', align: 'right' },
 ];
-
-const POWERTRAIN_BADGE: Record<Vehicle['powertrain'], string> = {
-  ICE: 'border-border bg-muted/40 text-muted-foreground',
-  HEV: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  PHEV: 'border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400',
-  BEV: 'border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400',
-};
 
 function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): number {
   const av = a[key];
@@ -47,7 +36,7 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
     <div class="mx-auto flex max-w-7xl flex-col gap-5 pb-16">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="flex flex-col gap-1">
-          <h2 class="text-balance text-xl font-semibold tracking-tight">My Cars</h2>
+          <h2 class="text-balance text-xl font-semibold tracking-tight">Brochures</h2>
           <p class="text-pretty text-sm text-muted-foreground">
             Browse the uploaded brochure for every model, filter by brand, and download or view on the spot.
           </p>
@@ -158,17 +147,6 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
                     </td>
                   }
                   <td class="p-4 align-middle font-medium">{{ modelVariantLabel(v.model, v.variant) }}</td>
-                  <td class="p-4 align-middle">
-                    <span
-                      class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold"
-                      [ngClass]="powertrainBadge(v.powertrain)"
-                    >
-                      {{ v.powertrain }}
-                    </span>
-                  </td>
-                  <td class="p-4 align-middle text-muted-foreground">{{ v.engine }}</td>
-                  <td class="p-4 align-middle text-muted-foreground">{{ v.transmission }}</td>
-                  <td class="p-4 text-right align-middle tabular">{{ v.seater }}</td>
                   <td class="p-4 text-right align-middle">
                     @if (brochureFor(v); as brochure) {
                       <div class="flex items-center justify-end gap-1.5">
@@ -222,14 +200,6 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
                     <span class="text-xs text-muted-foreground">{{ v.brand }}</span>
                   </div>
                 </div>
-              </div>
-              <div class="flex flex-wrap items-center gap-2 border-t border-border pt-2">
-                <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold" [ngClass]="powertrainBadge(v.powertrain)">
-                  {{ v.powertrain }}
-                </span>
-                <span class="text-xs text-muted-foreground">{{ v.engine }}</span>
-                <span class="text-xs text-muted-foreground">&middot; {{ v.transmission }}</span>
-                <span class="text-xs text-muted-foreground">&middot; {{ v.seater }} seater</span>
               </div>
               @if (brochureFor(v); as brochure) {
                 <div class="flex items-center gap-1.5 border-t border-border pt-2">
@@ -423,10 +393,6 @@ export class MyCarsComponent implements OnDestroy {
 
   clearSelection() {
     this.selected.set(new Set());
-  }
-
-  powertrainBadge(powertrain: Vehicle['powertrain']): string {
-    return POWERTRAIN_BADGE[powertrain];
   }
 
   tileGradient(brand: string): string {

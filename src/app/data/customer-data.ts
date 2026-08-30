@@ -1,4 +1,4 @@
-import type { DownpaymentType, InsuranceQuotationDetails } from './calculator-data';
+import type { DownpaymentType, InsuranceQuotationDetails, RateType } from './calculator-data';
 
 export type CustomerStatus = 'Lead' | 'Booked' | 'In Progress' | 'Delivered' | 'Cancelled';
 export type DocumentStatus = 'NO' | 'SUBMITTED' | 'APPROVE';
@@ -175,6 +175,8 @@ export type QuotationDetails = {
   rebate: number;
   ncd: number;
   interestRate: number;
+  /** Optional so quotations saved before Rate Type existed still load — they were always flat. */
+  rateType?: RateType;
   downpaymentType: DownpaymentType;
   downpaymentValue: number;
   tenureMonths: number;

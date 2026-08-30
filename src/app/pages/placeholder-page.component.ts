@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 
 const TITLES: Record<string, string> = {
   calculator: 'Calculator',
-  cars: 'My Cars',
+  cars: 'Brochures',
   leads: 'Leads',
   notes: 'Notes',
   settings: 'Settings',

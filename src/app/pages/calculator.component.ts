@@ -1,9 +1,8 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, computed, effect, ElementRef, HostListener, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
 import { InsuranceQuotationEditorComponent } from '../shared/insurance-quotation-editor.component';
-import { brandStyle } from '../data/dashboard-data';
 import { AdvisorService } from '../shared/advisor.service';
 import { CustomerService } from '../shared/customer.service';
 import { SettingsService } from '../shared/settings.service';
@@ -12,23 +11,25 @@ import { todayStr } from '../shared/date-utils';
 import {
   NCD_OPTIONS,
   DEFAULT_REBATE,
-  TENURE_OPTIONS,
   VEHICLES,
   basicPremiumDefault,
   computeInsuranceBreakdown,
   computeQuotationTotals,
-  eirApprox,
   formatRM,
   modelVariantLabel,
-  monthlyFlat,
+  monthlyPayment,
   roundCents,
-  variantLabel,
   yearsForVariant,
   type DownpaymentType,
   type InsuranceQuotationDetails,
+  type RateType,
   type Vehicle,
 } from '../data/calculator-data';
 import { buildQuotationPdfBytes, downloadBlob } from '../shared/pdf-writer';
+import { labelFont, posterFontsReady } from '../shared/poster-theme';
+import { computePosterLayout } from '../shared/poster-layout';
+import { drawPosterSkeleton, drawHeader, drawCarHero, drawPricePanel, drawDataSection, drawFooter, drawInclusions } from '../shared/poster-renderer';
+import type { PosterData } from '../shared/poster-data';
 
 @Component({
   selector: 'app-calculator',
@@ -72,165 +73,19 @@ import { buildQuotationPdfBytes, downloadBlob } from '../shared/pdf-writer';
           class="flex-col gap-2 xl:sticky xl:top-4 xl:col-span-2 xl:flex"
           [ngClass]="mobileTab() === 'preview' ? 'flex' : 'hidden'"
         >
-          <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-md">
-            <!-- Letterhead -->
-            <div class="relative overflow-hidden p-4" [style.background]="tileGradient()">
-              <div class="pointer-events-none absolute inset-0 bg-black/10"></div>
-              <div class="relative flex items-center justify-between gap-3">
-                <div class="flex items-center gap-3">
-                  @if (brandLogo(); as logo) {
-                    <img [src]="logo" [alt]="selectedVehicle().brand" class="size-11 shrink-0 rounded-lg object-cover" />
-                  }
-                  <div class="flex flex-col gap-1">
-                    @if (!brandLogo()) {
-                      <span class="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60">{{ selectedVehicle().brand }}</span>
-                    }
-                    <h2 class="text-balance text-xl font-bold leading-tight tracking-tight text-white">
-                      {{ modelVariantLabel(selectedVehicle().model, selectedVehicle().variant) }}
-                    </h2>
-                    <span class="text-[13px] font-medium text-white/75 tabular">{{ modelYear() }} Model</span>
-                  </div>
-                </div>
-
-                <div class="flex flex-col items-end gap-1 text-right">
-                  <span class="text-[10px] font-medium text-white/60">{{ quoteDate() }}</span>
-                  <div class="flex items-center gap-2">
-                    <div class="flex flex-col items-end leading-tight">
-                      <span class="text-xs font-semibold text-white">{{ advisor.profile().name }}</span>
-                      <span class="text-[11px] text-white/70">{{ advisor.profile().role }} &middot; {{ advisor.profile().phoneDisplay }}</span>
-                    </div>
-                    <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-[11px] font-bold text-white ring-1 ring-inset ring-white/25">{{ advisor.initials() }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="flex flex-col gap-3 p-4">
-              <!-- Hero price -->
-              <div class="flex flex-col gap-3 rounded-xl border border-border bg-muted/30 p-3.5">
-                <div class="flex items-center gap-3">
-                  <span
-                    class="flex size-11 shrink-0 items-center justify-center rounded-xl border"
-                    [style.background]="'color-mix(in oklch, ' + brandAccent() + ', transparent 85%)'"
-                    [style.color]="brandAccent()"
-                    [style.borderColor]="'color-mix(in oklch, ' + brandAccent() + ', transparent 70%)'"
-                  >
-                    <app-icon name="sparkles" [size]="20" />
-                  </span>
-                  <div class="flex flex-col">
-                    <span class="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Selling Price</span>
-                    <span class="text-2xl font-bold tabular tracking-tight sm:text-[1.75rem]">{{ fmt2(allInPrice()) }}</span>
-                  </div>
-                </div>
-                <div class="grid grid-cols-2 gap-2.5">
-                  <div class="flex flex-col gap-0.5 rounded-lg border border-border bg-card px-3 py-2">
-                    <span class="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                      <app-icon name="wallet" [size]="11" />
-                      Downpayment
-                    </span>
-                    <span class="text-base font-semibold tabular">{{ fmt2(downpaymentCash()) }}</span>
-                  </div>
-                  <div class="flex flex-col gap-0.5 rounded-lg border border-border bg-card px-3 py-2">
-                    <span class="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                      <app-icon name="gauge" [size]="11" />
-                      Loan Amount
-                    </span>
-                    <span class="text-base font-semibold tabular">{{ fmt2(loanAmount()) }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Price breakdown -->
-              <div class="overflow-hidden rounded-lg border border-border">
-                <table class="w-full border-collapse text-sm">
-                  <thead>
-                    <tr class="border-b border-border bg-muted/40 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      <th class="px-3 py-2.5 font-semibold">Price Breakdown</th>
-                      <th class="px-3 py-2.5 text-right font-semibold">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-border">
-                    <tr>
-                      <td class="px-3 py-2.5 text-muted-foreground">OTR Price <span class="text-[10px]">(without insurance)</span></td>
-                      <td class="px-3 py-2.5 text-right font-medium tabular">{{ fmt2(basePrice()) }}</td>
-                    </tr>
-                    <tr>
-                      <td class="px-3 py-2.5 text-muted-foreground">Insurance <span class="text-[10px]">({{ ncd() }}% NCD)</span></td>
-                      <td class="px-3 py-2.5 text-right font-medium tabular">+ {{ fmt2(insurance()) }}</td>
-                    </tr>
-                    <tr>
-                      <td class="px-3 py-2.5 text-muted-foreground">Rebate</td>
-                      <td class="px-3 py-2.5 text-right font-medium tabular text-[var(--success)]">&minus; {{ fmt2(effectiveRebate()) }}</td>
-                    </tr>
-                  </tbody>
-                  <tfoot>
-                    <tr class="border-t border-border bg-primary/5">
-                      <td class="px-3 py-3 text-sm font-semibold">Total Amount Due</td>
-                      <td class="px-3 py-3 text-right text-sm font-bold tabular text-primary">{{ fmt2(allInPrice()) }}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-
-              <!-- Offers -->
-              @if (offers().length > 0) {
-                <div class="overflow-hidden rounded-lg border border-border">
-                  <div class="border-b border-border bg-muted/40 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">What&rsquo;s Included</div>
-                  <div class="flex flex-wrap gap-x-4 gap-y-1.5 p-3">
-                    @for (o of offers(); track o) {
-                      <span class="flex items-center gap-1.5 text-xs">
-                        <app-icon name="check" [size]="12" class="shrink-0 text-[var(--success)]" />
-                        {{ o }}
-                      </span>
-                    }
-                  </div>
-                </div>
-              }
-
-              <!-- Repayment table -->
-              <div class="overflow-hidden rounded-lg border border-border">
-                <div class="flex items-center justify-between border-b border-border bg-muted/40 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  <span>Monthly Estimate</span>
-                  <span class="font-semibold normal-case tracking-normal text-foreground">
-                    {{ interestRate() }}% fixed <span class="text-muted-foreground/70">&middot; ~{{ eir().toFixed(2) }}% EIR</span>
-                  </span>
-                </div>
-                <table class="w-full border-collapse text-sm">
-                  <thead>
-                    <tr class="border-b border-border text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                      <th class="px-3 py-2 font-medium">Tenure</th>
-                      <th class="px-3 py-2 text-right font-medium">Monthly Payment</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-border/60">
-                    @for (row of repaymentRows(); track row.months) {
-                      <tr [ngClass]="row.months === highlightedTenure() ? 'bg-primary/8' : ''">
-                        <td class="px-3 py-2.5 font-medium">
-                          <span class="flex items-center gap-2">
-                            {{ row.label }}
-                            @if (row.months === highlightedTenure()) {
-                              <span class="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">Selected</span>
-                            }
-                          </span>
-                        </td>
-                        <td class="px-3 py-2.5 text-right font-semibold tabular">{{ fmt2(row.monthly) }}/mo</td>
-                      </tr>
-                    }
-                    @if (isCustomTenure()) {
-                      <tr class="bg-primary/8">
-                        <td class="px-3 py-2.5 font-medium">
-                          <span class="flex items-center gap-2">
-                            Custom &middot; {{ selectedTenureLabel() }}
-                            <span class="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">Selected</span>
-                          </span>
-                        </td>
-                        <td class="px-3 py-2.5 text-right font-semibold tabular">{{ fmt2(selectedTenureMonthly()) }}/mo</td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            </div>
+          <div class="flex items-center justify-end">
+            <button
+              type="button"
+              (click)="downloadPoster()"
+              [disabled]="downloadingPoster()"
+              class="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+            >
+              <app-icon name="download" [size]="13" />
+              {{ downloadingPoster() ? 'Preparing…' : 'Download JPEG' }}
+            </button>
+          </div>
+          <div class="overflow-hidden rounded-xl shadow-md">
+            <canvas #posterCanvas class="block w-full h-auto"></canvas>
           </div>
 
           <p class="flex items-center justify-center gap-1.5 text-center text-[10px] leading-relaxed text-muted-foreground">
@@ -270,7 +125,7 @@ import { buildQuotationPdfBytes, downloadBlob } from '../shared/pdf-writer';
           <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
             <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Select Car</span>
 
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div class="flex flex-col gap-2">
                 <label for="brandSelect" class="text-xs font-medium text-muted-foreground">Brand</label>
                 <select
@@ -286,31 +141,36 @@ import { buildQuotationPdfBytes, downloadBlob } from '../shared/pdf-writer';
               </div>
 
               <div class="flex flex-col gap-2">
-                <label for="modelSelect" class="text-xs font-medium text-muted-foreground">Model</label>
-                <select
-                  id="modelSelect"
-                  [ngModel]="selectedModelName()"
-                  (ngModelChange)="onModelChange($event)"
-                  class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
-                >
-                  @for (m of modelsForBrand(); track m) {
-                    <option [value]="m">{{ m }}</option>
+                <span class="text-xs font-medium text-muted-foreground">Model</span>
+                <div class="relative">
+                  <button
+                    type="button"
+                    (click)="toggleCarDropdown($event)"
+                    class="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
+                  >
+                    <span class="truncate">{{ modelVariantLabel(selectedModelName(), selectedVariant()) }}</span>
+                    <app-icon name="chevron-down" [size]="16" class="shrink-0 text-muted-foreground" />
+                  </button>
+                  @if (carDropdownOpen) {
+                    <div class="absolute left-0 top-full z-50 mt-1 max-h-80 w-full min-w-[220px] overflow-y-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg">
+                      @for (group of carGroups(); track group.model; let first = $first) {
+                        <div class="px-3 pb-1 text-xs font-medium text-muted-foreground" [ngClass]="first ? 'pt-2' : 'pt-3'">{{ group.model }}</div>
+                        @for (item of group.items; track item.variant) {
+                          <button
+                            type="button"
+                            (click)="selectModelVariant(group.model, item.variant)"
+                            class="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                          >
+                            {{ item.label }}
+                            @if (group.model === selectedModelName() && item.variant === selectedVariant()) {
+                              <app-icon name="check" [size]="14" class="shrink-0 text-foreground" />
+                            }
+                          </button>
+                        }
+                      }
+                    </div>
                   }
-                </select>
-              </div>
-
-              <div class="flex flex-col gap-2">
-                <label for="variantSelect" class="text-xs font-medium text-muted-foreground">Variant</label>
-                <select
-                  id="variantSelect"
-                  [ngModel]="selectedVariant()"
-                  (ngModelChange)="onVariantChange($event)"
-                  class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
-                >
-                  @for (v of variantsForModel(); track v) {
-                    <option [value]="v">{{ variantLabel(v) || '-' }}</option>
-                  }
-                </select>
+                </div>
               </div>
             </div>
             <span class="text-[11px] text-muted-foreground">{{ fmt(selectedVehicle().price) }} base price</span>
@@ -469,8 +329,34 @@ import { buildQuotationPdfBytes, downloadBlob } from '../shared/pdf-writer';
             <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Loan Setup</span>
 
             <div class="flex flex-col gap-2">
+              <span class="text-xs font-medium text-muted-foreground">Rate Type</span>
+              <div role="radiogroup" aria-label="Rate Type" class="flex gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
+                <button
+                  type="button"
+                  role="radio"
+                  [attr.aria-checked]="rateType() === 'flat'"
+                  (click)="setRateType('flat')"
+                  class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
+                  [ngClass]="rateType() === 'flat' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                >
+                  Flat
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  [attr.aria-checked]="rateType() === 'effective'"
+                  (click)="setRateType('effective')"
+                  class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
+                  [ngClass]="rateType() === 'effective' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                >
+                  EIR
+                </button>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
               <div class="flex items-center justify-between">
-                <label for="interestRateInput" class="text-xs font-medium text-muted-foreground">Fixed Interest Rate (%)</label>
+                <label for="interestRateInput" class="text-xs font-medium text-muted-foreground">{{ rateType() === 'flat' ? 'Flat Rate (%)' : 'Effective Rate (%)' }}</label>
                 <span class="rounded-md px-1.5 py-0.5 text-[10px] font-semibold" [ngClass]="interestRateIsManual() ? 'bg-[var(--warning)]/15 text-[var(--warning)]' : 'bg-muted text-muted-foreground'">
                   {{ interestRateIsManual() ? 'Manual' : 'Default' }}
                 </span>
@@ -495,11 +381,6 @@ import { buildQuotationPdfBytes, downloadBlob } from '../shared/pdf-writer';
               >
                 Reset to default
               </button>
-            </div>
-
-            <div class="flex flex-col gap-1 rounded-lg bg-muted/40 px-3 py-2.5 text-[11px] text-muted-foreground">
-              <span>EIR equivalent (based on selected tenure)</span>
-              <span class="text-sm font-semibold tabular text-foreground">~{{ eir().toFixed(2) }}%</span>
             </div>
 
             <div class="flex flex-col gap-2">
@@ -568,21 +449,24 @@ import { buildQuotationPdfBytes, downloadBlob } from '../shared/pdf-writer';
             <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quotation Summary</span>
 
             <div class="flex flex-col gap-2">
-              <span class="text-xs font-medium text-muted-foreground">Tenure Selection</span>
-              <div role="radiogroup" aria-label="Tenure selection" class="grid grid-cols-4 gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
-                @for (t of tenureOptions; track t.months) {
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-muted-foreground">Tenure Selection</span>
+                <span class="text-xs font-semibold tabular text-foreground">{{ posterTenureSummary() }}</span>
+              </div>
+              <div role="group" aria-label="Repayment table tenures (years)" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
+                @for (y of posterYearOptions; track y) {
                   <button
                     type="button"
-                    role="radio"
-                    [attr.aria-checked]="t.months === highlightedTenure()"
-                    (click)="highlightedTenure.set(t.months)"
-                    class="rounded-lg px-1 py-1.5 text-xs font-semibold transition-colors"
-                    [ngClass]="t.months === highlightedTenure() ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                    [attr.aria-pressed]="posterTenureYears().includes(y)"
+                    (click)="togglePosterYear(y)"
+                    class="flex aspect-square items-center justify-center rounded-full text-xs font-semibold transition-colors"
+                    [ngClass]="posterTenureYears().includes(y) ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                   >
-                    {{ t.label }}
+                    {{ y }}
                   </button>
                 }
               </div>
+              <span class="text-[11px] text-muted-foreground">Pick 3 tenures to show in the repayment table above.</span>
             </div>
 
             <div class="flex flex-col gap-2">
@@ -594,10 +478,10 @@ import { buildQuotationPdfBytes, downloadBlob } from '../shared/pdf-writer';
                 max="120"
                 step="1"
                 [ngModel]="highlightedTenure()"
-                (ngModelChange)="highlightedTenure.set(+$event || 1)"
+                (ngModelChange)="onCustomTenureInput($event)"
                 class="h-10 w-full rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular outline-none transition-colors focus:border-ring"
               />
-              <span class="text-[11px] text-muted-foreground">Type any month count to use as the chosen tenure — this is what the quotation and PDF use.</span>
+              <span class="text-[11px] text-muted-foreground">Type any month count to use as the chosen tenure — this replaces the repayment table above with just this one, until you pick a tenure button again.</span>
             </div>
           </div>
         </div>
@@ -639,6 +523,18 @@ import { buildQuotationPdfBytes, downloadBlob } from '../shared/pdf-writer';
                 @for (f of financingTypeOptions; track f.value) { <option [value]="f.value">{{ f.label }}</option> }
               </select>
             </label>
+            @if (leadFinancingType !== 'Cash') {
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Tenure
+                <select
+                  [ngModel]="highlightedTenure()"
+                  (ngModelChange)="selectRepaymentTenure($event)"
+                  class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring"
+                >
+                  @for (t of tenureOptions; track t.months) { <option [ngValue]="t.months">{{ t.label }} &middot; {{ fmt2(monthlyForTenure(t.months)) }}/mo</option> }
+                </select>
+              </label>
+            }
             <p class="text-[11px] text-muted-foreground">
               Save the lead, download a quotation PDF, or message this customer on WhatsApp — do any or all of them, in any order.
             </p>
@@ -712,16 +608,20 @@ import { buildQuotationPdfBytes, downloadBlob } from '../shared/pdf-writer';
     }
   `,
 })
-export class CalculatorComponent {
+export class CalculatorComponent implements AfterViewInit {
+  @ViewChild('posterCanvas') posterCanvasRef?: ElementRef<HTMLCanvasElement>;
+  downloadingPoster = signal(false);
+  /** Set once fonts.google.com's Barlow Semi Condensed + Inter are ready to paint — the draw
+   *  effect waits on this so the very first frame never falls back to a system font. */
+  private fontsReady = signal(false);
+
   ncdOptions = NCD_OPTIONS;
-  tenureOptions = TENURE_OPTIONS;
   fmt = (v: number) => formatRM(v);
   /** Always shows exactly 2 decimals (even .00) plus thousands separators, matching the Total Due
    *  line in Insurance Breakdown — formatRM's toLocaleString would otherwise drop cents on whole
    *  numbers and show up to 3 fraction digits on others. Used throughout the Quote Preview. */
   fmt2 = (v: number) => `RM ${v.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   modelVariantLabel = modelVariantLabel;
-  variantLabel = variantLabel;
 
   brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
 
@@ -739,9 +639,25 @@ export class CalculatorComponent {
   private additionalRebateEnabledManual = signal<boolean | null>(null);
   ncd = signal(this.settingsService.settings().salesDefaults.ncd);
   private interestRateManual = signal<number | null>(null);
+  /** Rate Type — Flat or EIR (declining balance). Picked explicitly by the SA, never derived
+   *  from the other: each uses its own instalment formula (see monthlyPayment()). Starts on the
+   *  account's Default Rate Type (Account Settings → Quote Defaults). */
+  rateType = signal<RateType>(this.settingsService.settings().salesDefaults.defaultRateType);
   downpaymentType = signal<DownpaymentType>('percent');
   downpaymentValue = signal(this.settingsService.settings().salesDefaults.downpaymentPct);
-  highlightedTenure = signal(TENURE_OPTIONS[0].months);
+  highlightedTenure = signal(Math.max(...this.settingsService.settings().salesDefaults.defaultTenureYears) * 12);
+  /** Which 3 tenure years (of 1-9) populate the on-screen repayment table / quote poster. Picking
+   *  a button also sets highlightedTenure to that year and drops out of custom mode; typing a
+   *  custom month count does the reverse — see togglePosterYear() / onCustomTenureInput(). Starts
+   *  on the account's Default Tenure Selection (Account Settings → Quote Defaults). */
+  posterYearOptions = Array.from({ length: 9 }, (_, i) => i + 1);
+  /** Full 1-9 year range for the Add Lead modal's Tenure question — wider than the legacy 4-option
+   *  TENURE_OPTIONS list, matching every year the poster picker above can actually show. */
+  tenureOptions = this.posterYearOptions.map((y) => ({ months: y * 12, label: `${y} Yrs` }));
+  posterTenureYears = signal<number[]>([...this.settingsService.settings().salesDefaults.defaultTenureYears]);
+  /** True only while the Custom Tenure input is the active source of highlightedTenure — the
+   *  repayment table then shows just that one row instead of the 3 poster tenures. */
+  customTenureActive = signal(false);
 
   /** Per-quotation insurance override — set only via the Insurance Breakdown modal or "Customer
    *  Arranges Own Insurance". Never written to the Car Finance Database, so one customer declining
@@ -761,12 +677,43 @@ export class CalculatorComponent {
   modelsForBrand = computed(() =>
     Array.from(new Set(VEHICLES.filter((v) => v.brand === this.selectedBrand()).map((v) => v.model))),
   );
-  /** Unique variant names — a variant can have several rows, one per model year. */
-  variantsForModel = computed(() =>
-    Array.from(
-      new Set(VEHICLES.filter((v) => v.brand === this.selectedBrand() && v.model === this.selectedModelName()).map((v) => v.variant)),
-    ),
-  );
+
+  /** Model + Variant combobox, grouped by model: e.g. "Tiggo Cross" heading over its "Turbo" /
+   *  "Hybrid" variant rows, or a single self-titled row for a model with no variants (Chery O5). */
+  carGroups = computed(() => {
+    const brand = this.selectedBrand();
+    return this.modelsForBrand().map((model) => ({
+      model,
+      items: Array.from(new Set(VEHICLES.filter((v) => v.brand === brand && v.model === model).map((v) => v.variant))).map((variant) => ({
+        variant,
+        label: modelVariantLabel(model, variant),
+      })),
+    }));
+  });
+  carDropdownOpen = false;
+
+  toggleCarDropdown(event: MouseEvent) {
+    event.stopPropagation();
+    this.carDropdownOpen = !this.carDropdownOpen;
+  }
+
+  selectModelVariant(model: string, variant: string) {
+    this.selectedModelName.set(model);
+    this.onVariantChange(variant);
+    this.carDropdownOpen = false;
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocClick(event: MouseEvent) {
+    if (!this.host.nativeElement.contains(event.target)) {
+      this.carDropdownOpen = false;
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEsc() {
+    this.carDropdownOpen = false;
+  }
 
   /** Every model year actually in the database for this exact brand/model/variant, newest first —
    *  never assumed, so a lone "2025" row shows only 2025 and a newly added "2027" row shows up on
@@ -877,8 +824,14 @@ export class CalculatorComponent {
     this.closeInsuranceBreakdown();
   }
 
-  /** The model's own promo interest rate, when known, beats the SA's general default. */
-  autoInterestRate = computed(() => this.selectedVehicle().interestRate ?? this.settingsService.settings().salesDefaults.interestRate);
+  /** The model's own promo rate for whichever Rate Type is active, when known, beats the SA's
+   *  general default — flat and effective are independently-quoted figures on the vehicle (see
+   *  Vehicle.effectiveRate), so switching rate type looks up the matching field, not a conversion. */
+  autoInterestRate = computed(() => {
+    const vehicle = this.selectedVehicle();
+    const fallback = this.settingsService.settings().salesDefaults.interestRate;
+    return this.rateType() === 'effective' ? (vehicle.effectiveRate ?? fallback) : (vehicle.interestRate ?? fallback);
+  });
   interestRateIsManual = computed(() => this.interestRateManual() !== null);
   interestRate = computed(() => this.interestRateManual() ?? this.autoInterestRate());
 
@@ -887,6 +840,13 @@ export class CalculatorComponent {
   }
 
   resetInterestRate() {
+    this.interestRateManual.set(null);
+  }
+
+  /** Switching Rate Type drops any manual rate override — a flat-mode number typed in has no
+   *  business surviving as an effective-mode number, so each type starts back at its own default. */
+  setRateType(type: RateType) {
+    this.rateType.set(type);
     this.interestRateManual.set(null);
   }
 
@@ -925,26 +885,67 @@ export class CalculatorComponent {
     this.loanAmountDraft.set(null);
   }
 
-  eir = computed(() => eirApprox(this.interestRate(), this.highlightedTenure()));
+  /** Monthly payment for an arbitrary tenure, at the current loan amount/rate — powers the Add
+   *  Lead modal's Tenure question, independent of repaymentRows' poster/custom set. */
+  monthlyForTenure(months: number): number {
+    return monthlyPayment(this.loanAmount(), this.interestRate(), months, this.rateType());
+  }
 
-  repaymentRows = computed(() =>
-    TENURE_OPTIONS.map((t) => ({ ...t, monthly: monthlyFlat(this.loanAmount(), this.interestRate(), t.months) })),
-  );
+  /** Exclusive with custom mode: while typing a custom tenure, this is just that one row — pick a
+   *  tenure button to go back to the 3-tenure comparison (longest-first). */
+  repaymentRows = computed(() => {
+    if (this.customTenureActive()) {
+      const m = this.highlightedTenure();
+      return [{ months: m, label: this.selectedTenureLabel(), monthly: monthlyPayment(this.loanAmount(), this.interestRate(), m, this.rateType()) }];
+    }
+    const months = [...this.posterTenureYears()].sort((a, b) => b - a).map((y) => y * 12);
+    return months.map((m) => ({ months: m, label: `${m / 12} Yrs`, monthly: monthlyPayment(this.loanAmount(), this.interestRate(), m, this.rateType()) }));
+  });
 
-  /** The tenure actually chosen (a preset or a custom month count) — what the PDF/quotation quote on, not the full comparison table. */
-  isCustomTenure = computed(() => !TENURE_OPTIONS.some((t) => t.months === this.highlightedTenure()));
-  selectedTenureLabel = computed(() => TENURE_OPTIONS.find((t) => t.months === this.highlightedTenure())?.label ?? `${this.highlightedTenure()} mo`);
-  selectedTenureMonthly = computed(() => monthlyFlat(this.loanAmount(), this.interestRate(), this.highlightedTenure()));
+  /** The tenure actually chosen (a preset or a custom month count) — what the PDF/quotation quote on. */
+  selectedTenureLabel = computed(() => (this.highlightedTenure() % 12 === 0 ? `${this.highlightedTenure() / 12} Yrs` : `${this.highlightedTenure()} mo`));
+  selectedTenureMonthly = computed(() => monthlyPayment(this.loanAmount(), this.interestRate(), this.highlightedTenure(), this.rateType()));
 
-  offers = computed(() => this.settingsService.getVehicleOffers(this.selectedVehicle().id));
+  posterTenureSummary = computed(() => [...this.posterTenureYears()].sort((a, b) => b - a).join(' · '));
 
-  brandAccent = computed(() => brandStyle(this.selectedVehicle().brand).bg);
+  onCustomTenureInput(value: number) {
+    this.highlightedTenure.set(+value || 1);
+    this.customTenureActive.set(true);
+  }
+
+  /** Confirms which tenure Add Lead/the PDF quote on — click a row in the repayment table. */
+  selectRepaymentTenure(months: number) {
+    this.highlightedTenure.set(months);
+    this.customTenureActive.set(false);
+  }
+
+  /** Keeps the poster selection at exactly 3 years: toggles off if already picked (min 1 stays
+   *  selected), otherwise adds, replacing the oldest pick once 3 are already chosen. Purely
+   *  changes which years are shown — it never confirms a tenure on its own (see
+   *  selectRepaymentTenure) — except when the confirmed one just scrolled out of view (or was in
+   *  custom mode), where it falls back to the new longest pick so a row is always shown Selected. */
+  togglePosterYear(year: number) {
+    const current = this.posterTenureYears();
+    let next = current;
+    if (current.includes(year)) {
+      if (current.length > 1) next = current.filter((y) => y !== year);
+    } else if (current.length < 3) {
+      next = [...current, year];
+    } else {
+      next = [...current.slice(1), year];
+    }
+    this.posterTenureYears.set(next);
+    if (this.customTenureActive() || !next.includes(this.highlightedTenure() / 12)) {
+      this.customTenureActive.set(false);
+      this.highlightedTenure.set(Math.max(...next) * 12);
+    }
+  }
+
   brandLogo = computed(() => this.settingsService.getBrandLogo(this.selectedVehicle().brand));
 
-  tileGradient = computed(() => {
-    const style = brandStyle(this.selectedVehicle().brand);
-    return `radial-gradient(ellipse at 20% 15%, ${style.bg}, transparent 75%), linear-gradient(145deg, ${style.bg}, color-mix(in oklch, ${style.bg}, black 55%))`;
-  });
+  /** Blank checklist items (mid-edit in Price Settings, not yet filled in) never reach the poster
+   *  as an empty chip. */
+  offers = computed(() => this.settingsService.getVehicleOffers(this.selectedVehicle().id).filter((o) => o.trim().length > 0));
 
   quoteDate = computed(() => new Date().toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' }));
 
@@ -960,7 +961,97 @@ export class CalculatorComponent {
   constructor(
     private customers: CustomerService,
     public advisor: AdvisorService,
-  ) {}
+    private host: ElementRef,
+  ) {
+    posterFontsReady().then(() => this.fontsReady.set(true));
+
+    // Stage-by-stage scaffolding: redraws the poster canvas whenever the data behind it changes.
+    // Each stage adds its own drawXxx() call into drawPoster() below, so this wiring won't need
+    // to change again as later sections come online.
+    effect(() => {
+      if (!this.fontsReady()) return;
+      const data = this.buildPosterData();
+      this.drawPoster(data);
+    });
+  }
+
+  /** Assembles the plain data object the renderer draws from — nothing in poster-renderer.ts
+   *  reads a component signal directly, so every figure on the poster traces back to here. */
+  private buildPosterData(): PosterData {
+    const vehicle = this.selectedVehicle();
+    const advisorProfile = this.advisor.profile();
+    return {
+      brand: vehicle.brand,
+      modelTitle: modelVariantLabel(vehicle.model, vehicle.variant),
+      year: this.modelYear(),
+      dateStr: this.quoteDate(),
+      logoUrl: this.brandLogo(),
+      carImageUrl: vehicle.imageUrl ?? null,
+
+      sellingPrice: this.allInPrice(),
+      downpayment: this.downpaymentCash(),
+      loanAmount: this.loanAmount(),
+      advisor: {
+        name: advisorProfile.name,
+        role: advisorProfile.role,
+        initials: this.advisor.initials(),
+        photoUrl: advisorProfile.photoUrl ?? null,
+        phoneDisplay: advisorProfile.phoneDisplay,
+      },
+
+      otrPrice: this.basePrice(),
+      ncdPct: this.ncd(),
+      insurance: this.insurance(),
+      rebate: this.effectiveRebate(),
+      totalAmountDue: this.allInPrice(),
+
+      rateLabel: `${this.interestRate()}% ${this.rateType() === 'flat' ? 'FLAT' : 'EIR'}`,
+      tenureRows: this.repaymentRows().map((row) => ({
+        label: row.label,
+        monthly: row.monthly,
+        isLowest: row.months === Math.max(...this.repaymentRows().map((r) => r.months)),
+      })),
+
+      offers: this.offers(),
+    };
+  }
+
+  /** Bumped on every draw call so an in-flight async redraw (image loads for the logo/car photo)
+   *  never paints over the canvas after a newer redraw has already started — the last call to
+   *  drawPoster() always wins. */
+  private drawGeneration = 0;
+
+  private async drawPoster(data: PosterData) {
+    const canvas = this.posterCanvasRef?.nativeElement;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const generation = ++this.drawGeneration;
+    const scale = 2;
+    // Measure/layout at design-pixel scale first, then size the actual bitmap at 2x — layout
+    // math (chip wrapping) should reason in the same units the spec is written in.
+    const layout = computePosterLayout(ctx, data.offers, labelFont(13));
+
+    canvas.width = 900 * scale;
+    canvas.height = layout.totalHeight * scale;
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+
+    drawPosterSkeleton(ctx, layout);
+    await drawHeader(ctx, data);
+    if (generation !== this.drawGeneration) return;
+    await drawCarHero(ctx, layout, data);
+    if (generation !== this.drawGeneration) return;
+    await drawPricePanel(ctx, data);
+    if (generation !== this.drawGeneration) return;
+    drawInclusions(ctx, layout);
+    drawDataSection(ctx, layout, data);
+    drawFooter(ctx, layout, data);
+  }
+
+  ngAfterViewInit() {
+    if (this.fontsReady()) this.drawPoster(this.buildPosterData());
+  }
 
   openLeadModal() {
     this.leadName = '';
@@ -998,6 +1089,7 @@ export class CalculatorComponent {
         additionalRebateValue: this.additionalRebateValue(),
         ncd: this.ncd(),
         interestRate: this.interestRate(),
+        rateType: this.rateType(),
         downpaymentType: this.downpaymentType(),
         downpaymentValue: this.downpaymentValue(),
         tenureMonths: this.highlightedTenure(),
@@ -1034,7 +1126,7 @@ export class CalculatorComponent {
       downpaymentCash: this.downpaymentCash(),
       loanAmount: this.loanAmount(),
       interestRate: this.interestRate(),
-      eir: this.eir(),
+      rateType: this.rateType(),
       repaymentRows: [{ label: this.selectedTenureLabel(), monthly: this.selectedTenureMonthly() }],
       insuranceBreakdown: this.insuranceBreakdown(),
     });
@@ -1057,6 +1149,23 @@ export class CalculatorComponent {
     return `Quotation-${v.brand}-${v.model}-${who}.pdf`.replace(/\s+/g, '-');
   }
 
+  /** Downloads the poster canvas as-is — it's drawn at 2x the design grid already, so this is
+   *  just handing the browser the exact bitmap on screen, no separate capture/composite step
+   *  the way the old DOM+html2canvas pipeline needed. Works standalone, with no lead saved and no
+   *  name/phone typed in yet. */
+  async downloadPoster() {
+    const canvas = this.posterCanvasRef?.nativeElement;
+    if (!canvas || this.downloadingPoster()) return;
+    this.downloadingPoster.set(true);
+    try {
+      const v = this.selectedVehicle();
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+      if (blob) downloadBlob(new Uint8Array(await blob.arrayBuffer()), `Quote-${v.brand}-${v.model}.jpg`.replace(/\s+/g, '-'), 'image/jpeg');
+    } finally {
+      this.downloadingPoster.set(false);
+    }
+  }
+
   reset() {
     const defaults = this.settingsService.settings().salesDefaults;
     const preferred = this.preferredVehicle();
@@ -1069,9 +1178,12 @@ export class CalculatorComponent {
     this.additionalRebateEnabledManual.set(null);
     this.ncd.set(defaults.ncd);
     this.interestRateManual.set(null);
+    this.rateType.set(defaults.defaultRateType);
     this.downpaymentType.set('percent');
     this.downpaymentValue.set(defaults.downpaymentPct);
-    this.highlightedTenure.set(TENURE_OPTIONS[0].months);
+    this.highlightedTenure.set(Math.max(...defaults.defaultTenureYears) * 12);
+    this.posterTenureYears.set([...defaults.defaultTenureYears]);
+    this.customTenureActive.set(false);
     this.insuranceOverride.set(null);
     this.loanAmountDraft.set(null);
   }

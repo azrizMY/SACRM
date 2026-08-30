@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { CustomerService } from '../shared/customer.service';
+import { compressImageFile } from '../shared/image-compress';
 import { CUSTOMER_STATUS_META } from '../data/customer-data';
 import type { AdvisorProfile } from '../data/advisor-data';
 
@@ -17,13 +18,42 @@ import type { AdvisorProfile } from '../data/advisor-data';
       <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
         <div class="flex flex-col gap-5 bg-gradient-to-br from-primary/12 via-card to-card p-6 sm:flex-row sm:items-start sm:justify-between">
           <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div
-              class="flex size-20 shrink-0 items-center justify-center rounded-2xl border border-border text-2xl font-bold text-white/90"
-              [style.background]="avatarGradient"
-            >
-              {{ advisor.initials() }}
+            <div class="relative flex size-20 shrink-0">
+              @if ((editing() ? form.photoUrl : advisor.profile().photoUrl); as photo) {
+                <img [src]="photo" alt="" class="size-20 shrink-0 rounded-2xl border border-border object-cover" />
+              } @else {
+                <div
+                  class="flex size-20 shrink-0 items-center justify-center rounded-2xl border border-border text-2xl font-bold text-white/90"
+                  [style.background]="avatarGradient"
+                >
+                  {{ advisor.initials() }}
+                </div>
+              }
+              @if (editing()) {
+                <button
+                  type="button"
+                  (click)="photoInput.click()"
+                  aria-label="Change photo"
+                  class="absolute -bottom-1.5 -right-1.5 flex size-7 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition-colors hover:bg-accent"
+                >
+                  <app-icon name="upload" [size]="13" />
+                </button>
+                <input #photoInput type="file" accept="image/*" class="hidden" (change)="onPhotoFileChange($event)" />
+              }
             </div>
             <div class="flex flex-col gap-1.5">
+              @if (editing() && form.photoUrl) {
+                <button
+                  type="button"
+                  (click)="removePhoto()"
+                  class="w-fit text-[11px] font-medium text-muted-foreground underline-offset-2 hover:text-destructive hover:underline"
+                >
+                  Remove photo
+                </button>
+              }
+              @if (photoError(); as err) {
+                <span class="text-[11px] font-medium text-destructive">{{ err }}</span>
+              }
               @if (!editing()) {
                 <h2 class="text-xl font-semibold tracking-tight">{{ advisor.profile().name }}</h2>
                 <span class="w-fit rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{{ advisor.profile().role }}</span>
@@ -187,6 +217,7 @@ export class ProfileComponent {
     'radial-gradient(circle at 30% 20%, var(--primary), transparent 70%), linear-gradient(145deg, var(--primary), color-mix(in oklch, var(--primary), black 55%))';
 
   editing = signal(false);
+  photoError = signal<string | null>(null);
   form: AdvisorProfile;
 
   constructor(
@@ -202,15 +233,41 @@ export class ProfileComponent {
 
   startEdit() {
     this.form = { ...this.advisor.profile() };
+    this.photoError.set(null);
     this.editing.set(true);
   }
 
   cancelEdit() {
+    this.photoError.set(null);
     this.editing.set(false);
   }
 
   saveEdit() {
     this.advisor.update(this.form);
+    this.photoError.set(null);
     this.editing.set(false);
+  }
+
+  async onPhotoFileChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      this.photoError.set(`"${file.name}" isn't an image file.`);
+      return;
+    }
+    try {
+      const compressed = await compressImageFile(file, { maxDimension: 480, maxBytes: 150 * 1024, format: 'image/jpeg' });
+      this.photoError.set(null);
+      this.form.photoUrl = compressed;
+    } catch {
+      this.photoError.set(`Couldn't process "${file.name}".`);
+    }
+  }
+
+  removePhoto() {
+    this.photoError.set(null);
+    this.form.photoUrl = undefined;
   }
 }
