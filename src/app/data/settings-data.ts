@@ -27,6 +27,13 @@ export type VehicleOffersOverrides = Record<string, string[]>;
  *  as text. */
 export type BrandLogos = Record<string, string>;
 
+/** Per-variant car photo shown as the Calculator's Quote Preview hero image, keyed by
+ *  variantKey(brand, model, variant) — shared across every model year of that variant rather than
+ *  duplicated per year-row, since the photo only actually changes on a facelift, which is a new
+ *  variant identity (Add Model), not a new year of this one. Absent entries fall back to a plain
+ *  background. */
+export type VariantPhotos = Record<string, string>;
+
 export type NotificationPrefs = {
   newLeadAlerts: boolean;
   bookingReminders: boolean;
@@ -46,6 +53,7 @@ export type AppSettings = {
   vehicleInsurance: VehicleInsuranceOverrides;
   vehicleOffers: VehicleOffersOverrides;
   brandLogos: BrandLogos;
+  variantPhotos: VariantPhotos;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -55,4 +63,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   vehicleInsurance: {},
   vehicleOffers: {},
   brandLogos: {},
+  variantPhotos: {},
 };

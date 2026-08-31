@@ -23,10 +23,15 @@ export type Vehicle = {
   rebate?: number;
   /** Model-specific additional rebate (e.g. a promo top-up) — pre-fills and enables Additional Rebate when set. */
   additionalRebate?: number;
-  /** Uploaded photo (data URL) for this exact model year, shown as the hero image on the
-   *  Calculator's Quote Preview poster. Absent means no photo yet for this row. */
-  imageUrl?: string;
 };
+
+/** Groups every year-row of one model-variant under a single key — used to key the photo and
+ *  brochure stores, which are genuinely shared across a variant's model years rather than
+ *  duplicated per row: a facelift that actually changes the photo/brochure is a new variant
+ *  identity (Add Model), not a new year of the same one. */
+export function variantKey(brand: string, model: string, variant: string): string {
+  return `${brand}::${model}::${variant}`;
+}
 
 /** Brand → model → variant catalog for the quotation calculator. */
 export const VEHICLES: Vehicle[] = [

@@ -91,6 +91,9 @@ export class VehicleCatalogService {
       this.settingsService.removeVehicleInsurance(id);
       this.settingsService.removeVehicleOffers(id);
     }
+    // The photo is shared across every model year of this variant (see variantKey) — safe to drop
+    // only here, once every year-row is gone, not from a single-year removeVehicle().
+    this.settingsService.removeVariantPhoto(brand, model, variant);
     this.persist();
   }
 

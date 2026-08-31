@@ -60,6 +60,7 @@ type PricingForm = {
   year: number;
   price: number | null;
   interestRate: number | null;
+  effectiveRate: number | null;
   basicPremium: number | null;
   addBenefits: number | null;
   rebate: number | null;
@@ -74,6 +75,7 @@ function blankPricingForm(brand: string): PricingForm {
     year: new Date().getFullYear(),
     price: null,
     interestRate: null,
+    effectiveRate: null,
     basicPremium: null,
     addBenefits: null,
     rebate: null,
@@ -228,24 +230,35 @@ type BrandGroup = { brand: string; models: ModelGroup[] };
                 <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">{{ modelGroup.model }}</span>
                 <div class="flex flex-col gap-2">
                   @for (v of modelGroup.rows; track v.id) {
-                    <button
-                      type="button"
-                      (click)="openEditor(v)"
-                      class="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm transition-colors hover:bg-accent/60"
-                    >
-                      <div class="flex min-w-0 flex-col gap-1">
-                        <span class="truncate text-sm font-semibold text-foreground">
-                          {{ variantLabel(v.variant) || modelGroup.model }}
-                          <span class="font-normal text-muted-foreground">— {{ v.year }}</span>
-                        </span>
-                        <span class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                          <span>Price <strong class="font-semibold text-foreground">{{ fmt(v.price) }}</strong></span>
-                          <span>Insurance <strong class="font-semibold text-foreground">{{ v.basicPremium != null ? fmt(v.basicPremium) : 'Auto' }}</strong></span>
-                          <span>Rate <strong class="font-semibold text-foreground">{{ v.interestRate != null ? v.interestRate + '%' : 'Default' }}</strong></span>
-                        </span>
-                      </div>
-                      <app-icon name="chevron-right" [size]="16" class="shrink-0 text-muted-foreground" />
-                    </button>
+                    <div class="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        (click)="openEditor(v)"
+                        class="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm transition-colors hover:bg-accent/60"
+                      >
+                        <div class="flex min-w-0 flex-col gap-1">
+                          <span class="truncate text-sm font-semibold text-foreground">
+                            {{ variantLabel(v.variant) || modelGroup.model }}
+                            <span class="font-normal text-muted-foreground">— {{ v.year }}</span>
+                          </span>
+                          <span class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                            <span>Price <strong class="font-semibold text-foreground">{{ fmt(v.price) }}</strong></span>
+                            <span>Insurance <strong class="font-semibold text-foreground">{{ v.basicPremium != null ? fmt(v.basicPremium) : 'Auto' }}</strong></span>
+                            <span>Rate <strong class="font-semibold text-foreground">{{ v.interestRate != null ? v.interestRate + '%' : 'Default' }}</strong></span>
+                          </span>
+                        </div>
+                        <app-icon name="chevron-right" [size]="16" class="shrink-0 text-muted-foreground" />
+                      </button>
+                      <button
+                        type="button"
+                        (click)="openAddPricingFor(v)"
+                        title="Add another year for this variant"
+                        aria-label="Add another year for this variant"
+                        class="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <app-icon name="plus" [size]="15" />
+                      </button>
+                    </div>
                   }
                 </div>
               </div>
@@ -339,23 +352,23 @@ type BrandGroup = { brand: string; models: ModelGroup[] };
                   <div class="flex items-center gap-3">
                     <div
                       class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-card"
-                      [ngClass]="v.imageUrl ? 'border-solid' : ''"
+                      [ngClass]="photoFor(v) ? 'border-solid' : ''"
                     >
-                      @if (v.imageUrl) {
-                        <img [src]="v.imageUrl" [alt]="modelVariantLabel(v.model, v.variant)" class="size-full object-cover" />
+                      @if (photoFor(v); as photo) {
+                        <img [src]="photo" [alt]="modelVariantLabel(v.model, v.variant)" class="size-full object-cover" />
                       } @else {
                         <app-icon name="car" [size]="20" class="text-muted-foreground" />
                       }
                     </div>
                     <div class="flex min-w-0 flex-1 flex-col gap-1">
                       <span class="text-xs text-muted-foreground">
-                        {{ v.imageUrl ? "Shown as the hero image on this year's Quote Preview poster." : 'No photo — the poster falls back to a plain background for this year.' }}
+                        {{ photoFor(v) ? 'Shown as the hero image on the Quote Preview poster, shared across every model year of this variant.' : 'No photo — the poster falls back to a plain background for every year of this variant.' }}
                       </span>
                       <div class="flex items-center gap-2">
                         <button type="button" (click)="photoFileInput.click()" class="rounded-md border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                          {{ v.imageUrl ? 'Replace' : 'Upload' }}
+                          {{ photoFor(v) ? 'Replace' : 'Upload' }}
                         </button>
-                        @if (v.imageUrl) {
+                        @if (photoFor(v)) {
                           <button type="button" (click)="removePhotoFor(v)" class="flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-[var(--destructive)]">
                             <app-icon name="trash" [size]="11" />
                             Remove
@@ -566,7 +579,7 @@ type BrandGroup = { brand: string; models: ModelGroup[] };
               </label>
               <p class="text-[11px] text-muted-foreground">
                 Price and every other financing figure are set afterward by opening this car's row — this just creates its identity. Adding another year
-                for this same variant later? Use Add Pricing instead — it reuses this brochure automatically.
+                for this same variant later? Use the + button on its row instead — it reuses this variant's photo, brochure, and pricing automatically.
               </p>
             }
           </div>
@@ -614,35 +627,54 @@ type BrandGroup = { brand: string; models: ModelGroup[] };
               } @else {
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Variant
-                  <select [(ngModel)]="pricingForm.variant" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
+                  <select [ngModel]="pricingForm.variant" (ngModelChange)="onPricingVariantChange($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
                     @for (v of variantsForPricingModel(); track v) { <option [value]="v">{{ variantLabel(v) || '-' }}</option> }
                   </select>
                 </label>
                 <div class="grid grid-cols-2 gap-3">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Model Year
-                    <input type="number" min="1900" step="1" [(ngModel)]="pricingForm.year" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+                    <input
+                      type="number"
+                      min="1900"
+                      step="1"
+                      [ngClass]="pricingDuplicateExists() ? 'border-[var(--destructive)]' : 'border-input'"
+                      [(ngModel)]="pricingForm.year"
+                      class="h-10 rounded-lg border bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
+                    />
                   </label>
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Price (RM)
                     <input type="number" min="0" step="100" [(ngModel)]="pricingForm.price" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                   </label>
                 </div>
+                @if (pricingDuplicateExists()) {
+                  <p class="flex items-center gap-1.5 text-[11px] text-[var(--destructive)]">
+                    <app-icon name="alert-triangle" [size]="12" class="shrink-0" />
+                    {{ modelVariantLabel(pricingForm.model, pricingForm.variant) }} {{ pricingForm.year }} already exists — pick a different year or edit that row instead.
+                  </p>
+                }
                 <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Optional overrides</p>
                 <div class="grid grid-cols-2 gap-3">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Interest Rate (%)
+                    Interest Rate — Flat (%)
                     <input type="number" min="0" step="0.1" [(ngModel)]="pricingForm.interestRate" placeholder="Use account default" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                   </label>
+                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                    Effective Rate — EIR (%)
+                    <input type="number" min="0" step="0.1" [(ngModel)]="pricingForm.effectiveRate" placeholder="Not set" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+                  </label>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Basic Premium (RM)
                     <input type="number" min="0" step="1" [(ngModel)]="pricingForm.basicPremium" placeholder="Auto from price" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                   </label>
+                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                    Add Benefits (RM)
+                    <input type="number" min="0" step="1" [(ngModel)]="pricingForm.addBenefits" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+                  </label>
                 </div>
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Add Benefits (RM)
-                  <input type="number" min="0" step="1" [(ngModel)]="pricingForm.addBenefits" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                </label>
                 <div class="grid grid-cols-2 gap-3">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Rebate (RM)
@@ -920,6 +952,11 @@ export class PriceSettingsComponent {
 
   // ---------- Car Photo ----------
 
+  /** Shared across every model year of this variant — see variantKey. */
+  photoFor(v: Vehicle): string | null {
+    return this.settingsService.getVariantPhoto(v.brand, v.model, v.variant);
+  }
+
   async onPhotoFileChange(event: Event, v: Vehicle) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -934,7 +971,7 @@ export class PriceSettingsComponent {
       // and JPEG has no alpha channel: it would flatten that transparency to solid black.
       const compressed = await compressImageFile(file, { maxDimension: 1280, maxBytes: 300 * 1024, format: 'image/png', trimTransparent: true });
       this.photoError.set(null);
-      this.catalog.updateVehicle(v.id, { imageUrl: compressed });
+      this.settingsService.updateVariantPhoto(v.brand, v.model, v.variant, compressed);
     } catch {
       this.photoError.set(`Couldn't process "${file.name}".`);
     }
@@ -942,7 +979,7 @@ export class PriceSettingsComponent {
 
   removePhotoFor(v: Vehicle) {
     this.photoError.set(null);
-    this.catalog.updateVehicle(v.id, { imageUrl: undefined });
+    this.settingsService.removeVariantPhoto(v.brand, v.model, v.variant);
   }
 
   requestRemove() {
@@ -1135,11 +1172,41 @@ export class PriceSettingsComponent {
     this.pricingForm = blankPricingForm(defaultBrand);
     this.pricingForm.model = modelsForBrand(defaultBrand)[0] ?? '';
     this.pricingForm.variant = variantsForModel(defaultBrand, this.pricingForm.model)[0] ?? '';
+    this.pricingTemplateId = null;
     this.addingPricing.set(true);
   }
 
   closeAddPricing() {
     this.addingPricing.set(false);
+    this.pricingTemplateId = null;
+  }
+
+  /** The exact row "+ Add Year" was launched from, if any — submitAddPricing() prefers this over
+   *  re-searching for "any row of this variant" so the itemized insurance it copies always comes
+   *  from the same row the rest of the form was pre-filled from, not just whichever year happens
+   *  to be first in the catalog array. Cleared whenever the brand/model/variant is changed by
+   *  hand, since the remembered row no longer matches what's being added. */
+  private pricingTemplateId: string | null = null;
+
+  /** Quick "+ Add Year" from an existing row: pre-fills everything from it except Rebate, which
+   *  is the one figure that actually tends to differ year to year — a genuine spec/photo/brochure
+   *  change is a facelift, i.e. a new variant (Add Model), not a new year of this one. */
+  openAddPricingFor(v: Vehicle) {
+    this.pricingForm = {
+      brand: v.brand,
+      model: v.model,
+      variant: v.variant,
+      year: new Date().getFullYear(),
+      price: v.price,
+      interestRate: v.interestRate ?? null,
+      effectiveRate: v.effectiveRate ?? null,
+      basicPremium: v.basicPremium ?? null,
+      addBenefits: v.addBenefits ?? null,
+      rebate: null,
+      additionalRebate: v.additionalRebate ?? null,
+    };
+    this.pricingTemplateId = v.id;
+    this.addingPricing.set(true);
   }
 
   modelsForPricingBrand(): string[] {
@@ -1154,35 +1221,80 @@ export class PriceSettingsComponent {
     this.pricingForm.brand = brand;
     this.pricingForm.model = modelsForBrand(brand)[0] ?? '';
     this.pricingForm.variant = variantsForModel(brand, this.pricingForm.model)[0] ?? '';
+    this.pricingTemplateId = null;
   }
 
   onPricingModelChange(model: string) {
     this.pricingForm.model = model;
     this.pricingForm.variant = variantsForModel(this.pricingForm.brand, model)[0] ?? '';
+    this.pricingTemplateId = null;
+  }
+
+  onPricingVariantChange(variant: string) {
+    this.pricingForm.variant = variant;
+    this.pricingTemplateId = null;
+  }
+
+  /** True when this exact brand/model/variant/year already exists — e.g. Chery Tiggo Cross Turbo
+   *  2026 already has a row, so "adding" 2026 again would just be a duplicate of the same car,
+   *  not a new one. */
+  pricingDuplicateExists(): boolean {
+    return this.catalog
+      .vehicles()
+      .some(
+        (v) =>
+          v.brand === this.pricingForm.brand &&
+          v.model === this.pricingForm.model &&
+          v.variant === this.pricingForm.variant &&
+          v.year === this.pricingForm.year,
+      );
   }
 
   canSubmitAddPricing(): boolean {
-    return !!this.pricingForm.brand && !!this.pricingForm.model && !!this.pricingForm.year && this.pricingForm.year > 1900 && !!this.pricingForm.price && this.pricingForm.price > 0;
+    return (
+      !!this.pricingForm.brand &&
+      !!this.pricingForm.model &&
+      !!this.pricingForm.year &&
+      this.pricingForm.year > 1900 &&
+      !!this.pricingForm.price &&
+      this.pricingForm.price > 0 &&
+      !this.pricingDuplicateExists()
+    );
   }
 
   submitAddPricing() {
     if (!this.canSubmitAddPricing()) return;
-    const template = this.catalog
-      .vehicles()
-      .find((v) => v.brand === this.pricingForm.brand && v.model === this.pricingForm.model && v.variant === this.pricingForm.variant);
+    const matchesForm = (v: Vehicle) => v.brand === this.pricingForm.brand && v.model === this.pricingForm.model && v.variant === this.pricingForm.variant;
+    // Prefer the exact row "+ Add Year" was launched from — same row the rest of the form was
+    // pre-filled from — falling back to "any row of this variant" for the generic Add Pricing
+    // button, or if the brand/model/variant was changed by hand since.
+    const remembered = this.pricingTemplateId ? this.catalog.vehicles().find((v) => v.id === this.pricingTemplateId && matchesForm(v)) : undefined;
+    const template = remembered ?? this.catalog.vehicles().find(matchesForm);
     if (!template) return;
-    this.catalog.addVehicle({
+    const created = this.catalog.addVehicle({
       brand: this.pricingForm.brand,
       model: this.pricingForm.model,
       variant: this.pricingForm.variant,
       year: this.pricingForm.year,
       price: this.pricingForm.price!,
       interestRate: this.pricingForm.interestRate ?? undefined,
+      effectiveRate: this.pricingForm.effectiveRate ?? undefined,
       basicPremium: this.pricingForm.basicPremium ?? undefined,
       addBenefits: this.pricingForm.addBenefits ?? undefined,
       rebate: this.pricingForm.rebate ?? undefined,
       additionalRebate: this.pricingForm.additionalRebate ?? undefined,
     });
+    // Carry over everything else that's still per-year-row rather than shared (photo/brochure
+    // already are) — itemized insurance and the "What's Included" checklist — same as
+    // price/rate/rebate above: only when the template row actually has something saved.
+    const templateInsurance = this.settingsService.settings().vehicleInsurance[template.id];
+    if (templateInsurance) {
+      this.settingsService.updateVehicleInsurance(created.id, templateInsurance);
+    }
+    const templateOffers = this.settingsService.getVehicleOffers(template.id);
+    if (templateOffers.length > 0) {
+      this.settingsService.updateVehicleOffers(created.id, templateOffers);
+    }
     this.brandFilter.set(this.pricingForm.brand);
     this.closeAddPricing();
   }

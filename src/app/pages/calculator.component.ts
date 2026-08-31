@@ -26,10 +26,11 @@ import {
   type Vehicle,
 } from '../data/calculator-data';
 import { buildQuotationPdfBytes, downloadBlob } from '../shared/pdf-writer';
-import { labelFont, posterFontsReady } from '../shared/poster-theme';
-import { computePosterLayout } from '../shared/poster-layout';
-import { drawPosterSkeleton, drawHeader, drawCarHero, drawPricePanel, drawDataSection, drawFooter, drawInclusions } from '../shared/poster-renderer';
+import { posterFontsReady } from '../shared/poster-theme';
+import { classicTemplate } from '../shared/poster-template-classic';
+import { compactMyTemplate } from '../shared/poster-template-my';
 import type { PosterData } from '../shared/poster-data';
+import type { PosterTemplate, PosterTemplateId } from '../shared/poster-templates';
 
 @Component({
   selector: 'app-calculator',
@@ -70,25 +71,40 @@ import type { PosterData } from '../shared/poster-data';
       <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
         <!-- Quote preview -->
         <div
-          class="flex-col gap-2 xl:sticky xl:top-4 xl:col-span-2 xl:flex"
+          class="flex-col gap-2 xl:sticky xl:top-4 xl:col-span-2 xl:flex xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain"
           [ngClass]="mobileTab() === 'preview' ? 'flex' : 'hidden'"
         >
-          <div class="flex items-center justify-end">
-            <button
-              type="button"
-              (click)="downloadPoster()"
-              [disabled]="downloadingPoster()"
-              class="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
-            >
-              <app-icon name="download" [size]="13" />
-              {{ downloadingPoster() ? 'Preparing…' : 'Download JPEG' }}
-            </button>
-          </div>
-          <div class="overflow-hidden rounded-xl shadow-md">
+          @if (templates.length > 1) {
+            <div role="radiogroup" aria-label="Poster template" class="flex shrink-0 gap-1.5 self-start rounded-xl border border-border bg-muted/40 p-1.5">
+              @for (t of templates; track t.id) {
+                <button
+                  type="button"
+                  role="radio"
+                  [attr.aria-checked]="selectedTemplateId() === t.id"
+                  (click)="selectedTemplateId.set(t.id)"
+                  class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
+                  [ngClass]="selectedTemplateId() === t.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                >
+                  {{ t.label }}
+                </button>
+              }
+            </div>
+          }
+          <div class="shrink-0 overflow-hidden rounded-xl shadow-md">
             <canvas #posterCanvas class="block w-full h-auto"></canvas>
           </div>
 
-          <p class="flex items-center justify-center gap-1.5 text-center text-[10px] leading-relaxed text-muted-foreground">
+          <button
+            type="button"
+            (click)="copyPosterImage()"
+            [disabled]="copyingPoster()"
+            class="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          >
+            <app-icon [name]="posterCopied() ? 'check' : 'clipboard-check'" [size]="15" />
+            {{ copyingPoster() ? 'Copying…' : posterCopied() ? 'Copied!' : 'Copy Image' }}
+          </button>
+
+          <p class="flex shrink-0 items-center justify-center gap-1.5 text-center text-[10px] leading-relaxed text-muted-foreground">
             <app-icon name="info" [size]="12" class="shrink-0" />
             Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here.
           </p>
@@ -610,7 +626,9 @@ import type { PosterData } from '../shared/poster-data';
 })
 export class CalculatorComponent implements AfterViewInit {
   @ViewChild('posterCanvas') posterCanvasRef?: ElementRef<HTMLCanvasElement>;
-  downloadingPoster = signal(false);
+  copyingPoster = signal(false);
+  /** Brief "Copied!" confirmation on the button after a successful clipboard write. */
+  posterCopied = signal(false);
   /** Set once fonts.google.com's Barlow Semi Condensed + Inter are ready to paint — the draw
    *  effect waits on this so the very first frame never falls back to a system font. */
   private fontsReady = signal(false);
@@ -965,15 +983,21 @@ export class CalculatorComponent implements AfterViewInit {
   ) {
     posterFontsReady().then(() => this.fontsReady.set(true));
 
-    // Stage-by-stage scaffolding: redraws the poster canvas whenever the data behind it changes.
-    // Each stage adds its own drawXxx() call into drawPoster() below, so this wiring won't need
-    // to change again as later sections come online.
+    // Redraws the poster canvas whenever the data behind it, or the chosen template, changes.
     effect(() => {
       if (!this.fontsReady()) return;
+      this.selectedTemplateId(); // tracked so switching templates alone triggers a redraw
       const data = this.buildPosterData();
       this.drawPoster(data);
     });
   }
+
+  /** Every poster design the Quote Preview can render — all consuming the same PosterData, so
+   *  adding one is purely a new layout/renderer pair (see poster-templates.ts), never a change to
+   *  how data is gathered above. */
+  readonly templates: PosterTemplate[] = [classicTemplate, compactMyTemplate];
+  selectedTemplateId = signal<PosterTemplateId>('classic');
+  currentTemplate = computed(() => this.templates.find((t) => t.id === this.selectedTemplateId()) ?? this.templates[0]);
 
   /** Assembles the plain data object the renderer draws from — nothing in poster-renderer.ts
    *  reads a component signal directly, so every figure on the poster traces back to here. */
@@ -986,7 +1010,7 @@ export class CalculatorComponent implements AfterViewInit {
       year: this.modelYear(),
       dateStr: this.quoteDate(),
       logoUrl: this.brandLogo(),
-      carImageUrl: vehicle.imageUrl ?? null,
+      carImageUrl: this.settingsService.getVariantPhoto(vehicle.brand, vehicle.model, vehicle.variant),
 
       sellingPrice: this.allInPrice(),
       downpayment: this.downpaymentCash(),
@@ -1006,8 +1030,10 @@ export class CalculatorComponent implements AfterViewInit {
       totalAmountDue: this.allInPrice(),
 
       rateLabel: `${this.interestRate()}% ${this.rateType() === 'flat' ? 'FLAT' : 'EIR'}`,
+      interestRatePct: this.interestRate(),
       tenureRows: this.repaymentRows().map((row) => ({
         label: row.label,
+        months: row.months,
         monthly: row.monthly,
         isLowest: row.months === Math.max(...this.repaymentRows().map((r) => r.months)),
       })),
@@ -1021,32 +1047,18 @@ export class CalculatorComponent implements AfterViewInit {
    *  drawPoster() always wins. */
   private drawGeneration = 0;
 
+  /** Live preview only — kept cheap and fixed at the spec's own 2x, since the on-screen canvas is
+   *  shown at its full native ~900px design width (see the template's own-scroll preview column)
+   *  rather than shrunk to fit a screen, so there's no HiDPI stretching to compensate for here.
+   *  downloadPoster() renders its own higher-resolution copy separately — see renderPosterForExport
+   *  — so preview quality and download quality are free to differ. */
+  private static readonly PREVIEW_SCALE = 2;
+
   private async drawPoster(data: PosterData) {
     const canvas = this.posterCanvasRef?.nativeElement;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
     const generation = ++this.drawGeneration;
-    const scale = 2;
-    // Measure/layout at design-pixel scale first, then size the actual bitmap at 2x — layout
-    // math (chip wrapping) should reason in the same units the spec is written in.
-    const layout = computePosterLayout(ctx, data.offers, labelFont(13));
-
-    canvas.width = 900 * scale;
-    canvas.height = layout.totalHeight * scale;
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);
-
-    drawPosterSkeleton(ctx, layout);
-    await drawHeader(ctx, data);
-    if (generation !== this.drawGeneration) return;
-    await drawCarHero(ctx, layout, data);
-    if (generation !== this.drawGeneration) return;
-    await drawPricePanel(ctx, data);
-    if (generation !== this.drawGeneration) return;
-    drawInclusions(ctx, layout);
-    drawDataSection(ctx, layout, data);
-    drawFooter(ctx, layout, data);
+    await this.currentTemplate().render(canvas, data, CalculatorComponent.PREVIEW_SCALE, () => generation !== this.drawGeneration);
   }
 
   ngAfterViewInit() {
@@ -1149,20 +1161,64 @@ export class CalculatorComponent implements AfterViewInit {
     return `Quotation-${v.brand}-${v.model}-${who}.pdf`.replace(/\s+/g, '-');
   }
 
-  /** Downloads the poster canvas as-is — it's drawn at 2x the design grid already, so this is
-   *  just handing the browser the exact bitmap on screen, no separate capture/composite step
-   *  the way the old DOM+html2canvas pipeline needed. Works standalone, with no lead saved and no
-   *  name/phone typed in yet. */
-  async downloadPoster() {
-    const canvas = this.posterCanvasRef?.nativeElement;
-    if (!canvas || this.downloadingPoster()) return;
-    this.downloadingPoster.set(true);
+  /** Download quality is independent of preview quality — a dedicated (never-visible) canvas
+   *  rendered fresh at 3x the design grid, well above the on-screen preview's 2x, so a shared
+   *  quote image still looks sharp after WhatsApp/social recompression even though the preview
+   *  itself doesn't need to work that hard. */
+  private static readonly EXPORT_SCALE = 3;
+
+  private async renderPosterForExport(data: PosterData): Promise<HTMLCanvasElement> {
+    const canvas = document.createElement('canvas');
+    // A fresh, never-visible canvas with no concurrent redraw risk — isStale can just say "never".
+    await this.currentTemplate().render(canvas, data, CalculatorComponent.EXPORT_SCALE, () => false);
+    return canvas;
+  }
+
+  /** Renders its own high-resolution copy of the poster rather than exporting whatever the
+   *  on-screen preview happens to be showing — see renderPosterForExport. PNG rather than JPEG:
+   *  the Clipboard API only reliably accepts image/png across browsers, and using the same format
+   *  for the download fallback keeps this one render path shared between both. */
+  private async renderPosterPngBlob(): Promise<Blob> {
+    const canvas = await this.renderPosterForExport(this.buildPosterData());
+    return new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Canvas toBlob failed'))), 'image/png');
+    });
+  }
+
+  private async downloadPosterBlob(blob: Blob): Promise<void> {
+    const v = this.selectedVehicle();
+    downloadBlob(new Uint8Array(await blob.arrayBuffer()), `Quote-${v.brand}-${v.model}.png`.replace(/\s+/g, '-'), 'image/png');
+  }
+
+  /** Copies the poster straight onto the system clipboard so it can be pasted directly into
+   *  WhatsApp/Telegram/email without a save-then-attach round trip for every new quotation — the
+   *  whole point of switching this off download. Works standalone, with no lead saved and no
+   *  name/phone typed in yet. Falls back to a plain download when the Clipboard API can't write
+   *  images (older browser, non-secure context, or the user denies the permission prompt), so the
+   *  quote is never unreachable, just less convenient to hand over in that case. */
+  async copyPosterImage() {
+    if (this.copyingPoster()) return;
+    this.copyingPoster.set(true);
     try {
-      const v = this.selectedVehicle();
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
-      if (blob) downloadBlob(new Uint8Array(await blob.arrayBuffer()), `Quote-${v.brand}-${v.model}.jpg`.replace(/\s+/g, '-'), 'image/jpeg');
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        // Passing the still-pending blob promise (rather than awaiting it first) is what Chrome/Edge
+        // need to honour a clipboard write from inside this async click handler — awaiting the
+        // render first can burn through the click's "user activation" window and get the write
+        // silently rejected.
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': this.renderPosterPngBlob() })]);
+        this.posterCopied.set(true);
+        setTimeout(() => this.posterCopied.set(false), 2000);
+      } else {
+        await this.downloadPosterBlob(await this.renderPosterPngBlob());
+      }
+    } catch {
+      try {
+        await this.downloadPosterBlob(await this.renderPosterPngBlob());
+      } catch {
+        /* best-effort fallback only — nothing more we can do if this also fails */
+      }
     } finally {
-      this.downloadingPoster.set(false);
+      this.copyingPoster.set(false);
     }
   }
 

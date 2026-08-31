@@ -4,6 +4,10 @@
  *  structural rather than just a convention. */
 export type PosterTenureRow = {
   label: string;
+  /** Raw tenure length in months — kept alongside the already-formatted English `label` so a
+   *  template in another language (e.g. "9 Tahun" instead of "9 Yrs") can format its own caption
+   *  instead of parsing the English string. */
+  months: number;
   monthly: number;
   isLowest: boolean;
 };
@@ -36,6 +40,9 @@ export type PosterData = {
   totalAmountDue: number;
 
   rateLabel: string;
+  /** Same rate as rateLabel, as a plain number — for a template that formats its own caption
+   *  (e.g. just "2.3%") instead of using the English "2.3% FLAT" label. */
+  interestRatePct: number;
   tenureRows: PosterTenureRow[];
 
   offers: string[];

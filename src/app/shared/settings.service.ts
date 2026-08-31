@@ -6,7 +6,7 @@ import {
   type NotificationPrefs,
   type SalesDefaults,
 } from '../data/settings-data';
-import { DEFAULT_EPR, defaultInsuranceQuotation, type InsuranceQuotationDetails, type Vehicle } from '../data/calculator-data';
+import { DEFAULT_EPR, defaultInsuranceQuotation, variantKey, type InsuranceQuotationDetails, type Vehicle } from '../data/calculator-data';
 
 const STORAGE_KEY = 'redline-app-settings';
 
@@ -22,6 +22,7 @@ function loadSettings(): AppSettings {
         vehicleInsurance: { ...DEFAULT_SETTINGS.vehicleInsurance, ...parsed.vehicleInsurance },
         vehicleOffers: { ...DEFAULT_SETTINGS.vehicleOffers, ...parsed.vehicleOffers },
         brandLogos: { ...DEFAULT_SETTINGS.brandLogos, ...parsed.brandLogos },
+        variantPhotos: { ...DEFAULT_SETTINGS.variantPhotos, ...parsed.variantPhotos },
       };
     }
   } catch {
@@ -95,6 +96,25 @@ export class SettingsService {
   removeBrandLogo(brand: string) {
     const { [brand]: _removed, ...rest } = this.settings().brandLogos;
     this.persist({ ...this.settings(), brandLogos: rest });
+  }
+
+  /** The uploaded photo shared across every model year of this variant, or null when the SA
+   *  hasn't uploaded one yet — see variantKey for why this isn't per model-year. */
+  getVariantPhoto(brand: string, model: string, variant: string): string | null {
+    return this.settings().variantPhotos[variantKey(brand, model, variant)] ?? null;
+  }
+
+  updateVariantPhoto(brand: string, model: string, variant: string, dataUrl: string) {
+    this.persist({ ...this.settings(), variantPhotos: { ...this.settings().variantPhotos, [variantKey(brand, model, variant)]: dataUrl } });
+  }
+
+  /** Drops a variant's saved photo — used from its own "Remove" action, or when the whole variant
+   *  (every model year of it) is removed from the Car Database. Removing a single model-year row
+   *  must NOT call this — the other years still share the same photo. */
+  removeVariantPhoto(brand: string, model: string, variant: string) {
+    const key = variantKey(brand, model, variant);
+    const { [key]: _removed, ...rest } = this.settings().variantPhotos;
+    this.persist({ ...this.settings(), variantPhotos: rest });
   }
 
   resetToDefaults() {

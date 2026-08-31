@@ -1,6 +1,6 @@
 import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
 import { MARGIN, POSTER_WIDTH, CHIP_HEIGHT, CHIP_GAP, CHIP_NOTCH, CHIP_PADDING_X, CHIP_ICON_AND_GAP, type PosterLayout } from './poster-layout';
-import { fillPolygon, fillTrackedText, fillNotchedRect, notchedRectPath, formatPosterCurrency, measureTrackedText } from './poster-draw-utils';
+import { fillPolygon, fillTrackedText, fillNotchedRect, formatPosterCurrency, measureTrackedText } from './poster-draw-utils';
 import { loadPosterImage } from './poster-images';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
 import type { PosterData } from './poster-data';
@@ -130,8 +130,8 @@ export async function drawHeader(ctx: CanvasRenderingContext2D, data: PosterData
 }
 
 /** Section 2 — car hero (background --paper): the uploaded cutout, object-contain within its
- *  528x298 box, plus a blurred contact-shadow ellipse. Draws nothing when the vehicle has no
- *  photo yet — the white band stays empty rather than showing a placeholder. */
+ *  528x298 box. Draws nothing when the vehicle has no photo yet — the white band stays empty
+ *  rather than showing a placeholder. */
 export async function drawCarHero(ctx: CanvasRenderingContext2D, layout: PosterLayout, data: PosterData): Promise<void> {
   if (!data.carImageUrl) return;
 
@@ -139,23 +139,6 @@ export async function drawCarHero(ctx: CanvasRenderingContext2D, layout: PosterL
   const heroHeight = 298;
   const heroX = (POSTER_WIDTH - heroWidth) / 2;
   const heroY = layout.carHeroTop;
-
-  const shadowLeft = heroX + 74;
-  const shadowTop = heroY + 278;
-  const shadowRight = heroX + 454;
-  const shadowBottom = heroY + 304;
-  const cx = (shadowLeft + shadowRight) / 2;
-  const cy = (shadowTop + shadowBottom) / 2;
-  const rx = (shadowRight - shadowLeft) / 2;
-  const ry = (shadowBottom - shadowTop) / 2;
-
-  ctx.save();
-  ctx.filter = 'blur(8px)';
-  ctx.fillStyle = 'rgba(70, 70, 78, 0.43)';
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
 
   try {
     const img = await loadPosterImage(data.carImageUrl);
@@ -229,6 +212,15 @@ export async function drawPricePanel(ctx: CanvasRenderingContext2D, data: Poster
     ctx.fillText(formatPosterCurrency(box.value), box.x + 18, boxY + 54);
   }
 
+  // Vertical partition separating the selling-price/stat-tile column from the consultant column
+  // — sits centred in the gap between the Loan Amount tile (ends at M+210+196=462) and the
+  // avatar tile (starts at 528). Content-bound, not full-bleed: starts level with the accent bar
+  // (this column's first element) and ends level with the stat tiles' bottom edge (its last) —
+  // the same "first element to last element" rule drawDataSection's divider uses, so the two
+  // partitions read as the same design element rather than two different-looking rules.
+  ctx.fillStyle = POSTER_COLORS.partition;
+  ctx.fillRect(495, 522, 2, 634 + 74 - 522);
+
   // Consultant block — avatar tile, name, role, WhatsApp label, phone.
   const avatarX = 528;
   const avatarY = 550;
@@ -237,7 +229,8 @@ export async function drawPricePanel(ctx: CanvasRenderingContext2D, data: Poster
     try {
       const img = await loadPosterImage(data.advisor.photoUrl);
       ctx.save();
-      notchedRectPath(ctx, avatarX, avatarY, avatarSize, avatarSize, 14);
+      ctx.beginPath();
+      ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
       ctx.clip();
       drawImageCover(ctx, img, avatarX, avatarY, avatarSize, avatarSize);
       ctx.restore();
@@ -268,7 +261,10 @@ export async function drawPricePanel(ctx: CanvasRenderingContext2D, data: Poster
 }
 
 function drawAdvisorInitialsTile(ctx: CanvasRenderingContext2D, data: PosterData, x: number, y: number, size: number): void {
-  fillNotchedRect(ctx, x, y, size, size, 14, POSTER_COLORS.panelCard);
+  ctx.beginPath();
+  ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+  ctx.fillStyle = POSTER_COLORS.panelCard;
+  ctx.fill();
   ctx.font = displayFont(22, 700);
   ctx.fillStyle = POSTER_COLORS.acc;
   ctx.textAlign = 'center';
@@ -290,6 +286,20 @@ export function drawDataSection(ctx: CanvasRenderingContext2D, layout: PosterLay
   // The spec's base case has content start 28px below the section labels (816 - 788 = 28) —
   // the same offset it uses for the inclusions chips below their own label.
   const contentTop = labelY + 28;
+  // Shared by the selling-price strip below the breakdown rows and the monthly-estimate cards —
+  // both are the same height, so the two blocks read as matching siblings.
+  const cardHeight = 56;
+  const rowHeight = 46;
+  const breakdownRowCount = 3;
+  const breakdownBlockHeight = rowHeight * breakdownRowCount + cardHeight;
+  const monthlyBlockHeight = cardHeight * 3 + 10 * 2;
+
+  // Vertical partition separating the price-breakdown column from the monthly-estimate column —
+  // centred in the gap between them (left column ends at 428, right starts at 488). Content-bound
+  // like the price panel's own divider: starts level with the section labels (this column's first
+  // element) and ends level with the taller column's bottom edge.
+  ctx.fillStyle = POSTER_COLORS.partition;
+  ctx.fillRect(458, labelY - 6, 2, contentTop + Math.max(breakdownBlockHeight, monthlyBlockHeight) - (labelY - 6));
 
   // Section labels + rate.
   ctx.font = labelFont(9.5, 700);
@@ -322,13 +332,12 @@ export function drawDataSection(ctx: CanvasRenderingContext2D, layout: PosterLay
     },
     {
       label: 'Rebate',
-      sub: 'you save',
+      sub: '',
       subColor: POSTER_COLORS.green,
       value: `− ${formatPosterCurrency(data.rebate)}`,
       valueColor: POSTER_COLORS.green,
     },
   ];
-  const rowHeight = 46;
   const tableTop = contentTop;
   ctx.fillStyle = POSTER_COLORS.block;
   ctx.fillRect(leftX, tableTop, leftWidth, rowHeight * rows.length);
@@ -348,9 +357,11 @@ export function drawDataSection(ctx: CanvasRenderingContext2D, layout: PosterLay
     ctx.fillText(row.label, 74, centerY);
     const labelWidth = ctx.measureText(row.label).width;
 
-    ctx.font = labelFont(11, 400);
-    ctx.fillStyle = row.subColor;
-    ctx.fillText(row.sub, 74 + labelWidth + 6, centerY);
+    if (row.sub) {
+      ctx.font = labelFont(11, 400);
+      ctx.fillStyle = row.subColor;
+      ctx.fillText(row.sub, 74 + labelWidth + 6, centerY);
+    }
 
     ctx.font = labelFont(14.5, 700);
     ctx.fillStyle = row.valueColor;
@@ -358,26 +369,23 @@ export function drawDataSection(ctx: CanvasRenderingContext2D, layout: PosterLay
     ctx.fillText(row.value, 410, centerY);
   });
 
-  // Total strip.
+  // Selling price strip — same height as a monthly-estimate card (56px) and the same notched
+  // tile styling, so the two blocks read as matching siblings rather than one taller than the
+  // other; no accent spine or near-black fill here, just the same --panel-card the stat tiles use.
   const totalStripTop = tableTop + rowHeight * rows.length;
-  const totalStripHeight = 68;
-  ctx.fillStyle = POSTER_COLORS.blockTotal;
-  ctx.fillRect(leftX, totalStripTop, leftWidth, totalStripHeight);
-  ctx.fillStyle = POSTER_COLORS.acc;
-  ctx.fillRect(leftX, totalStripTop, 4, totalStripHeight);
+  fillNotchedRect(ctx, leftX, totalStripTop, leftWidth, cardHeight, 14, POSTER_COLORS.panelCard);
 
   ctx.font = labelFont(9, 700);
   ctx.fillStyle = POSTER_COLORS.panelGray;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  fillTrackedText(ctx, 'TOTAL AMOUNT DUE', 76, totalStripTop + 23, 2.2);
+  fillTrackedText(ctx, 'SELLING PRICE', 74, totalStripTop + 18, 2.2);
 
-  ctx.font = displayFont(27, 700);
+  ctx.font = displayFont(24, 700);
   ctx.fillStyle = POSTER_COLORS.paper;
-  ctx.fillText(formatPosterCurrency(data.totalAmountDue), 76, totalStripTop + 48);
+  ctx.fillText(formatPosterCurrency(data.totalAmountDue), 74, totalStripTop + 39);
 
   // ---- Right: monthly estimate cards ----
-  const cardHeight = 56;
   const cardGap = 10;
   data.tenureRows.forEach((row, i) => {
     const cardTop = contentTop + i * (cardHeight + cardGap);
