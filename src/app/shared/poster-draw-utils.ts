@@ -55,6 +55,12 @@ export function measureTrackedText(ctx: CanvasRenderingContext2D, text: string, 
   return width - spacing;
 }
 
+/** Right-aligned tracked text — measures first, then draws left-to-right from the resulting
+ *  left edge so the whole run's right edge lands exactly on `rightX`. */
+export function fillTrackedTextRight(ctx: CanvasRenderingContext2D, text: string, rightX: number, y: number, spacing: number): void {
+  fillTrackedText(ctx, text, rightX - measureTrackedText(ctx, text, spacing), y, spacing);
+}
+
 /** Every currency figure on the poster — always 2 decimal places plus thousands separators
  *  (matching the reference design, e.g. "RM 82,457.58"), never the rounded/compact forms used
  *  elsewhere in the app. */

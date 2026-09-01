@@ -1,9 +1,18 @@
-/** Second poster template — a compact, Malay-language, monthly-payment-forward design: white top
- *  half (headline, car), black bottom half (big monthly figure, stats, tenure table, WhatsApp
- *  CTA). Rebuilt to match a detailed reference the user provided; per their instruction it follows
- *  that reference's LAYOUT closely but reuses this app's own established colour tokens
- *  (POSTER_COLORS) and fonts (Barlow Semi Condensed / Inter) rather than the reference's own
- *  palette/Poppins, so it reads as a sibling of the classic template. */
+/** Second poster template — a compact, monthly-payment-forward design: white top half (headline,
+ *  car), black bottom half (big monthly figure, stats, tenure table, WhatsApp CTA). Rebuilt to
+ *  match a detailed reference the user provided; per their instruction it follows that reference's
+ *  LAYOUT closely but reuses this app's own established colour tokens (POSTER_COLORS) and fonts
+ *  (Barlow Semi Condensed / Inter) rather than the reference's own palette/Poppins, so it reads as
+ *  a sibling of the classic template.
+ *
+ *  Canvas width is 900 — exactly the classic template's own POSTER_WIDTH, not a separately-chosen
+ *  size — specifically so the header (slash + eyebrow + headline) can reuse the classic template's
+ *  literal numbers with zero scale-factor math. The two templates are shown at the same on-screen
+ *  width, so any mismatch between their design-pixel widths would make identical raw values render
+ *  at different visual sizes; matching the width outright is more robust than scaling every shared
+ *  measurement by hand (which is what this file did before, and kept drifting out of sync). Every
+ *  other measurement below — this template's own content, not shared with the classic one — is the
+ *  original 1024-wide design scaled down by the same 900/1024 factor, so proportions stay intact. */
 import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
 import { loadPosterImage } from './poster-images';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
@@ -11,11 +20,11 @@ import { fillPolygon, fillTrackedText } from './poster-draw-utils';
 import type { PosterData } from './poster-data';
 import type { PosterTemplate } from './poster-templates';
 
-const WIDTH = 1024;
-const MARGIN = 60;
-const WHITE_HEIGHT = 640;
+const WIDTH = 900;
+const MARGIN = 56;
+const WHITE_HEIGHT = 563;
 
-function formatCurrencyMy(value: number): string {
+function formatCurrencyCompact(value: number): string {
   return `RM${value.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
@@ -41,62 +50,61 @@ async function drawWhiteTop(ctx: CanvasRenderingContext2D, data: PosterData): Pr
   if (data.logoUrl) {
     try {
       const img = await loadPosterImage(data.logoUrl);
-      const logoWidth = 150;
+      const logoWidth = 132;
       const logoHeight = (img.naturalHeight / img.naturalWidth) * logoWidth;
-      ctx.drawImage(img, rightEdge - logoWidth, 52, logoWidth, logoHeight);
+      ctx.drawImage(img, rightEdge - logoWidth, 46, logoWidth, logoHeight);
     } catch {
-      ctx.font = labelFont(15, 700);
+      ctx.font = labelFont(13, 700);
       ctx.fillStyle = POSTER_COLORS.ink;
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      ctx.fillText(data.brand.toUpperCase(), rightEdge, 74);
+      ctx.fillText(data.brand.toUpperCase(), rightEdge, 65);
     }
   } else {
-    ctx.font = labelFont(15, 700);
+    ctx.font = labelFont(13, 700);
     ctx.fillStyle = POSTER_COLORS.ink;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    ctx.fillText(data.brand.toUpperCase(), rightEdge, 74);
+    ctx.fillText(data.brand.toUpperCase(), rightEdge, 65);
   }
 
-  ctx.font = displayFont(60, 700);
-  ctx.fillStyle = POSTER_COLORS.ink;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillText(data.modelTitle, M, 110);
-
-  // Same slash + eyebrow treatment as the classic template's "VEHICLE LOAN ESTIMATE" line, scaled
-  // up by 1024/900 (this canvas's own design width over the classic template's) — both posters
-  // are displayed at the same on-screen width, so matching only the raw design-px values would
-  // actually render smaller here; this keeps the two visually identical size on screen.
-  const eyebrowScale = WIDTH / 900;
+  // Same slash + eyebrow + headline as the classic template's own header — same literal design-px
+  // values, not scaled, since this canvas is now the same 900px width as the classic one.
   fillPolygon(
     ctx,
     [
-      [M + 7, 142],
-      [M + 11, 142],
-      [M + 5, 160],
-      [M, 160],
+      [M + 6, 40],
+      [M + 10, 40],
+      [M + 4, 56],
+      [M, 56],
     ],
     POSTER_COLORS.acc,
   );
 
-  ctx.font = labelFont(9.5 * eyebrowScale, 700);
+  ctx.font = labelFont(9.5, 700);
   ctx.fillStyle = POSTER_COLORS.gray;
   ctx.textBaseline = 'middle';
-  fillTrackedText(ctx, 'ANGGARAN BAYARAN BULANAN', M + 18, 152, 2.8 * eyebrowScale);
+  fillTrackedText(ctx, 'MONTHLY PAYMENT ESTIMATE', M + 16, 48, 2.8);
+
+  // Model/variant headline sits below the eyebrow, mirroring the classic template's own vertical
+  // order (eyebrow first, headline second) rather than the reverse.
+  ctx.font = displayFont(46, 700);
+  ctx.fillStyle = POSTER_COLORS.ink;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(data.modelTitle, M, 108);
 
   // Soft swoosh ribbons behind the car — a plain white bg has none of the classic template's dark
   // panels to give the hero visual weight, so these light neutral strokes stand in for that.
-  drawSwoosh(ctx, 400, 26, '#ECECEC', 30);
-  drawSwoosh(ctx, 440, 22, '#F4F4F4', 40);
+  drawSwoosh(ctx, 352, 23, '#ECECEC', 26);
+  drawSwoosh(ctx, 387, 19, '#F4F4F4', 35);
 }
 
 async function drawCarHero(ctx: CanvasRenderingContext2D, data: PosterData): Promise<void> {
   if (!data.carImageUrl) return;
-  const boxWidth = 760;
-  const boxHeight = 360;
-  const boxBottom = WHITE_HEIGHT - 10;
+  const boxWidth = 668;
+  const boxHeight = 316;
+  const boxBottom = WHITE_HEIGHT - 9;
   try {
     const img = await loadPosterImage(data.carImageUrl);
     const scale = Math.min(boxWidth / img.naturalWidth, boxHeight / img.naturalHeight);
@@ -105,7 +113,7 @@ async function drawCarHero(ctx: CanvasRenderingContext2D, data: PosterData): Pro
     const drawX = (WIDTH - drawWidth) / 2;
     const drawY = boxBottom - drawHeight;
     ctx.save();
-    ctx.filter = 'drop-shadow(0px 16px 14px rgba(0,0,0,0.22))';
+    ctx.filter = 'drop-shadow(0px 14px 12px rgba(0,0,0,0.22))';
     ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
     ctx.restore();
   } catch {
@@ -121,8 +129,8 @@ function drawPriceBlock(ctx: CanvasRenderingContext2D, data: PosterData, top: nu
   // narrower box) so it actually fades to transparent before its edge instead of getting hard-cut
   // by the fill rect — and clipped to the black section only, since the gradient's radius reaches
   // above the white/black boundary and would otherwise tint the white header pink.
-  const glowCenterY = top + 90;
-  const glowRadius = 260;
+  const glowCenterY = top + 79;
+  const glowRadius = 229;
   ctx.save();
   ctx.beginPath();
   ctx.rect(0, WHITE_HEIGHT + 3, WIDTH, glowRadius * 2);
@@ -134,53 +142,53 @@ function drawPriceBlock(ctx: CanvasRenderingContext2D, data: PosterData, top: nu
   ctx.fillRect(centerX - glowRadius, glowCenterY - glowRadius, glowRadius * 2, glowRadius * 2);
   ctx.restore();
 
-  const amountBaseline = top + 100;
+  const amountBaseline = top + 88;
   const amountText = lowest ? Math.floor(lowest.monthly).toLocaleString('en-MY') : '0';
-  ctx.font = displayFont(90, 700);
+  ctx.font = displayFont(79, 700);
   const amountWidth = ctx.measureText(amountText).width;
-  ctx.font = displayFont(30, 700);
+  ctx.font = displayFont(26, 700);
   const rmWidth = ctx.measureText('RM').width;
-  const gap = 9;
+  const gap = 8;
   const groupWidth = rmWidth + gap + amountWidth;
   const groupLeft = centerX - groupWidth / 2;
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  ctx.font = displayFont(30, 700);
+  ctx.font = displayFont(26, 700);
   ctx.fillStyle = '#E6303F';
-  ctx.fillText('RM', groupLeft, amountBaseline - 6);
+  ctx.fillText('RM', groupLeft, amountBaseline - 5);
 
-  ctx.font = displayFont(90, 700);
+  ctx.font = displayFont(79, 700);
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.fillText(amountText, groupLeft + rmWidth + gap, amountBaseline);
 
-  const sebulanBaseline = amountBaseline + 50;
-  ctx.font = displayFont(30, 700);
+  const perMonthBaseline = amountBaseline + 44;
+  ctx.font = displayFont(26, 700);
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.textAlign = 'center';
-  ctx.fillText('sebulan', centerX, sebulanBaseline);
+  ctx.fillText('per month', centerX, perMonthBaseline);
 
-  const captionY = sebulanBaseline + 46;
+  const captionY = perMonthBaseline + 40;
   if (lowest) {
     const years = Math.round(lowest.months / 12);
-    ctx.font = labelFont(14, 700);
+    ctx.font = labelFont(12, 700);
     ctx.fillStyle = POSTER_COLORS.grayD;
     ctx.textBaseline = 'middle';
-    const caption = `ANGGARAN ${years} TAHUN`;
+    const caption = `ESTIMATE OVER ${years} YEARS`;
     const captionWidth = ctx.measureText(caption).width;
-    const lineGap = 16;
+    const lineGap = 14;
     ctx.fillText(caption, centerX, captionY);
     ctx.strokeStyle = POSTER_COLORS.partition;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(centerX - captionWidth / 2 - lineGap - 60, captionY);
+    ctx.moveTo(centerX - captionWidth / 2 - lineGap - 53, captionY);
     ctx.lineTo(centerX - captionWidth / 2 - lineGap, captionY);
     ctx.moveTo(centerX + captionWidth / 2 + lineGap, captionY);
-    ctx.lineTo(centerX + captionWidth / 2 + lineGap + 60, captionY);
+    ctx.lineTo(centerX + captionWidth / 2 + lineGap + 53, captionY);
     ctx.stroke();
   }
 
-  return captionY + 40;
+  return captionY + 35;
 }
 
 function drawStatsRow(ctx: CanvasRenderingContext2D, data: PosterData, top: number): number {
@@ -189,43 +197,43 @@ function drawStatsRow(ctx: CanvasRenderingContext2D, data: PosterData, top: numb
   ctx.fillRect(M, top, WIDTH - 2 * M, 1);
 
   const columns = [
-    { label: 'HARGA KERETA', value: formatCurrencyMy(data.otrPrice).replace('.00', '') },
-    { label: 'DP SELEPAS REBATE', value: formatCurrencyMy(data.downpayment) },
-    { label: 'KADAR FAEDAH', value: `${data.interestRatePct}%` },
+    { label: 'OTR PRICE', value: formatCurrencyCompact(data.otrPrice).replace('.00', '') },
+    { label: 'DOWNPAYMENT', value: formatCurrencyCompact(data.downpayment) },
+    { label: 'INTEREST RATE', value: `${data.interestRatePct}%` },
   ];
   const colWidth = (WIDTH - 2 * M) / 3;
-  const labelY = top + 40;
-  const valueY = top + 74;
+  const labelY = top + 35;
+  const valueY = top + 65;
 
   columns.forEach((col, i) => {
     const cx = M + colWidth * i + colWidth / 2;
 
-    ctx.font = labelFont(12.5, 700);
+    ctx.font = labelFont(11, 700);
     ctx.fillStyle = POSTER_COLORS.panelGray;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(col.label, cx, labelY);
 
-    ctx.font = displayFont(24, 700);
+    ctx.font = displayFont(21, 700);
     ctx.fillStyle = POSTER_COLORS.paper;
     ctx.fillText(col.value, cx, valueY);
 
     if (i > 0) {
       const dividerX = M + colWidth * i;
       ctx.fillStyle = POSTER_COLORS.partition;
-      ctx.fillRect(dividerX, top + 16, 1, 80);
+      ctx.fillRect(dividerX, top + 14, 1, 70);
     }
   });
 
-  return top + 112;
+  return top + 98;
 }
 
 function drawTenureTable(ctx: CanvasRenderingContext2D, data: PosterData, top: number): number {
   const M = MARGIN;
   const tableWidth = WIDTH - 2 * M;
-  const headerHeight = 54;
-  const rowHeight = 68;
-  const radius = 16;
+  const headerHeight = 47;
+  const rowHeight = 60;
+  const radius = 14;
   const tableHeight = headerHeight + rowHeight * data.tenureRows.length;
 
   ctx.save();
@@ -241,13 +249,13 @@ function drawTenureTable(ctx: CanvasRenderingContext2D, data: PosterData, top: n
   ctx.fillStyle = POSTER_COLORS.acc;
   ctx.fillRect(M, top + headerHeight - 2, tableWidth, 2);
 
-  ctx.font = labelFont(13, 700);
+  ctx.font = labelFont(11, 700);
   ctx.fillStyle = POSTER_COLORS.panelGray;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
-  ctx.fillText('TEMPOH', M + 28, top + headerHeight / 2);
+  ctx.fillText('TENURE', M + 25, top + headerHeight / 2);
   ctx.textAlign = 'right';
-  ctx.fillText('BULANAN', WIDTH - M - 28, top + headerHeight / 2);
+  ctx.fillText('MONTHLY', WIDTH - M - 25, top + headerHeight / 2);
 
   data.tenureRows.forEach((row, i) => {
     const rowTop = top + headerHeight + i * rowHeight;
@@ -260,15 +268,15 @@ function drawTenureTable(ctx: CanvasRenderingContext2D, data: PosterData, top: n
     }
 
     const years = Math.round(row.months / 12);
-    ctx.font = labelFont(17, 700);
+    ctx.font = labelFont(15, 700);
     ctx.fillStyle = '#ECECF0';
     ctx.textAlign = 'left';
-    ctx.fillText(`${years} Tahun`, M + 28, centerY);
+    ctx.fillText(`${years} Yrs`, M + 25, centerY);
 
-    ctx.font = displayFont(24, 700);
+    ctx.font = displayFont(21, 700);
     ctx.fillStyle = POSTER_COLORS.acc;
     ctx.textAlign = 'right';
-    ctx.fillText(formatCurrencyMy(row.monthly), WIDTH - M - 28, centerY);
+    ctx.fillText(formatCurrencyCompact(row.monthly), WIDTH - M - 25, centerY);
   });
 
   ctx.restore();
@@ -277,8 +285,8 @@ function drawTenureTable(ctx: CanvasRenderingContext2D, data: PosterData, top: n
 
 async function drawAdvisorRow(ctx: CanvasRenderingContext2D, data: PosterData, top: number): Promise<number> {
   const M = MARGIN;
-  const avatarSize = 70;
-  const ringWidth = 2.5;
+  const avatarSize = 81;
+  const ringWidth = 2.6;
   const centerY = top + avatarSize / 2;
   const cx = M + avatarSize / 2;
 
@@ -312,16 +320,18 @@ async function drawAdvisorRow(ctx: CanvasRenderingContext2D, data: PosterData, t
     drawRing();
   }
 
+  // Sized up alongside the bigger avatar — this is the sales advisor's own personal branding on
+  // the poster, so name/role need to actually read at a glance, not just technically be present.
   const textX = M + avatarSize + 18;
-  ctx.font = displayFont(23, 700);
+  ctx.font = displayFont(26, 700);
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(data.advisor.name, textX, centerY - 12);
+  ctx.fillText(data.advisor.name, textX, centerY - 13);
 
-  ctx.font = labelFont(14, 400);
+  ctx.font = labelFont(16, 400);
   ctx.fillStyle = POSTER_COLORS.grayD;
-  ctx.fillText(data.advisor.role, textX, centerY + 14);
+  ctx.fillText(data.advisor.role, textX, centerY + 15);
 
   return top + avatarSize;
 }
@@ -331,7 +341,7 @@ function drawAdvisorInitials(ctx: CanvasRenderingContext2D, data: PosterData, x:
   ctx.arc(x + size / 2, centerY, size / 2, 0, Math.PI * 2);
   ctx.fillStyle = POSTER_COLORS.panelCard;
   ctx.fill();
-  ctx.font = displayFont(22, 700);
+  ctx.font = displayFont(19, 700);
   ctx.fillStyle = POSTER_COLORS.acc;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -341,8 +351,8 @@ function drawAdvisorInitials(ctx: CanvasRenderingContext2D, data: PosterData, x:
 function drawCtaBar(ctx: CanvasRenderingContext2D, data: PosterData, top: number): number {
   const M = MARGIN;
   const barWidth = WIDTH - 2 * M;
-  const barHeight = 90;
-  const radius = 18;
+  const barHeight = 60;
+  const radius = 12;
 
   const gradient = ctx.createLinearGradient(M, 0, M + barWidth, 0);
   gradient.addColorStop(0, '#1FB955');
@@ -353,8 +363,8 @@ function drawCtaBar(ctx: CanvasRenderingContext2D, data: PosterData, top: number
   ctx.fill();
 
   const centerY = top + barHeight / 2;
-  const iconX = M + 30;
-  const iconSize = 36;
+  const iconX = M + 23;
+  const iconSize = 26;
 
   // Green bubble on a translucent white circle would barely contrast against this already-green
   // bar — filling the bubble in the bar's own green instead makes it disappear into the
@@ -362,36 +372,36 @@ function drawCtaBar(ctx: CanvasRenderingContext2D, data: PosterData, top: number
   // WhatsApp-button look), rather than the near-invisible white-on-white result of a white bubble.
   drawWhatsAppIcon(ctx, iconX, centerY - iconSize / 2, iconSize, POSTER_COLORS.waGreen);
 
-  ctx.font = displayFont(21, 700);
+  ctx.font = displayFont(18, 700);
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText('Semak Kelayakan Sekarang', iconX + iconSize + 18, centerY);
+  ctx.fillText('WhatsApp Me Now', iconX + iconSize + 16, centerY);
 
-  ctx.font = displayFont(23, 700);
+  ctx.font = displayFont(20, 700);
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.textAlign = 'right';
-  ctx.fillText(data.advisor.phoneDisplay, M + barWidth - 30, centerY);
+  ctx.fillText(data.advisor.phoneDisplay, M + barWidth - 26, centerY);
 
   return top + barHeight;
 }
 
 /** Every block below the black top rule is a fixed height except the tenure table, which grows
- *  by one row (68px) per tenure — this closed-form total lets the canvas be sized correctly on
+ *  by one row (60px) per tenure — this closed-form total lets the canvas be sized correctly on
  *  the very first (and only) draw pass, rather than rendering once to measure and again for real. */
 function computeTotalHeight(data: PosterData): number {
-  const priceBlockHeight = 236;
-  const statsRowHeight = 112 + 24;
-  const tableHeight = 54 + 68 * data.tenureRows.length + 40;
-  const advisorHeight = 70 + 40;
-  const ctaHeight = 90 + 46;
-  const contentTop = WHITE_HEIGHT + 3 + 55;
+  const priceBlockHeight = 207;
+  const statsRowHeight = 98 + 21;
+  const tableHeight = 47 + 60 * data.tenureRows.length + 35;
+  const advisorHeight = 81 + 35;
+  const ctaHeight = 60 + 40;
+  const contentTop = WHITE_HEIGHT + 3 + 48;
   return contentTop + priceBlockHeight + statsRowHeight + tableHeight + advisorHeight + ctaHeight;
 }
 
 export const compactMyTemplate: PosterTemplate = {
   id: 'compact-my',
-  label: 'Bulanan (Malay)',
+  label: 'Monthly Estimate',
   async render(canvas, data, scale, isStale) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -416,11 +426,11 @@ export const compactMyTemplate: PosterTemplate = {
     await drawCarHero(ctx, data);
     if (isStale()) return;
 
-    let cursor = WHITE_HEIGHT + 3 + 55;
+    let cursor = WHITE_HEIGHT + 3 + 48;
     cursor = drawPriceBlock(ctx, data, cursor);
-    cursor = drawStatsRow(ctx, data, cursor) + 24;
-    cursor = drawTenureTable(ctx, data, cursor) + 40;
-    cursor = (await drawAdvisorRow(ctx, data, cursor)) + 40;
+    cursor = drawStatsRow(ctx, data, cursor) + 21;
+    cursor = drawTenureTable(ctx, data, cursor) + 35;
+    cursor = (await drawAdvisorRow(ctx, data, cursor)) + 35;
     if (isStale()) return;
     drawCtaBar(ctx, data, cursor);
   },

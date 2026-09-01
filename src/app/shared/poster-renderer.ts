@@ -369,11 +369,13 @@ export function drawDataSection(ctx: CanvasRenderingContext2D, layout: PosterLay
     ctx.fillText(row.value, 410, centerY);
   });
 
-  // Selling price strip — same height as a monthly-estimate card (56px) and the same notched
-  // tile styling, so the two blocks read as matching siblings rather than one taller than the
-  // other; no accent spine or near-black fill here, just the same --panel-card the stat tiles use.
+  // Selling price strip — same height as a monthly-estimate card (56px), so the two blocks read
+  // as matching siblings rather than one taller than the other; no accent spine or near-black
+  // fill here, just the same --panel-card the stat tiles use. Plain corners, not notched — this
+  // strip is the table's own closing row, not a standalone tile like the cards beside it.
   const totalStripTop = tableTop + rowHeight * rows.length;
-  fillNotchedRect(ctx, leftX, totalStripTop, leftWidth, cardHeight, 14, POSTER_COLORS.panelCard);
+  ctx.fillStyle = POSTER_COLORS.panelCard;
+  ctx.fillRect(leftX, totalStripTop, leftWidth, cardHeight);
 
   ctx.font = labelFont(9, 700);
   ctx.fillStyle = POSTER_COLORS.panelGray;
