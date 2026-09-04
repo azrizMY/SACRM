@@ -29,6 +29,19 @@ export function brandInitials(brand: string): string {
   return brand.slice(0, 2).toUpperCase();
 }
 
+/** Brand logo files hardcoded by the developer — drop the image at this path under `public/` (e.g.
+ *  `public/brands/proton.png` for the `/brands/proton.png` entry below) and add the brand's entry
+ *  here. Brands without one fall back to their initials badge (brandInitials/brandStyle above)
+ *  wherever a logo is shown. */
+const BRAND_LOGOS: Record<string, string> = {
+  Chery: '/brands/chery.png',
+  Proton: '/brands/proton.png',
+};
+
+export function brandLogo(brand: string): string | null {
+  return BRAND_LOGOS[brand] ?? null;
+}
+
 /** Won/Lost — the deal outcome badge used on the Recent Deals table. */
 export const STATUS_BADGE_CLASS: Record<string, string> = {
   Won: 'bg-[var(--success)]/12 text-[var(--success)]',

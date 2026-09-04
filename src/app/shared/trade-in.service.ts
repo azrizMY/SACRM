@@ -9,9 +9,24 @@ export class TradeInService {
   favourites = computed(() => this.contacts().filter((c) => c.favourite));
 
   constructor() {
-    getAllTradeInContacts().then((all) => {
+    this.load();
+  }
+
+  /** Refetches this account's trade-in contacts — called again by AuthService after a fresh
+   *  login/signup, since this service is a singleton that otherwise only fetches once for the
+   *  app's lifetime, which would leak the previous account's list into a same-tab account switch. */
+  async load(): Promise<void> {
+    try {
+      const all = await getAllTradeInContacts();
       this.contacts.set(all.sort((a, b) => b.createdAt - a.createdAt));
-    });
+    } catch {
+      this.contacts.set([]);
+    }
+  }
+
+  /** Clears to empty on logout so the next login on this tab never flashes the previous account's contacts. */
+  reset(): void {
+    this.contacts.set([]);
   }
 
   async addContact(input: NewTradeInContactInput): Promise<void> {

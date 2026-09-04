@@ -1,6 +1,5 @@
-import { Component, Input, inject } from '@angular/core';
-import { brandInitials, brandStyle } from '../data/dashboard-data';
-import { SettingsService } from './settings.service';
+import { Component, Input } from '@angular/core';
+import { brandInitials, brandLogo, brandStyle } from '../data/dashboard-data';
 
 @Component({
   selector: 'app-brand-mark',
@@ -25,10 +24,8 @@ export class BrandMarkComponent {
   @Input({ required: true }) brand!: string;
   @Input() class = '';
 
-  private settingsService = inject(SettingsService);
-
   logo() {
-    return this.settingsService.getBrandLogo(this.brand);
+    return brandLogo(this.brand);
   }
 
   get style() {

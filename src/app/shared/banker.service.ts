@@ -9,9 +9,24 @@ export class BankerService {
   favourites = computed(() => this.bankers().filter((b) => b.favourite));
 
   constructor() {
-    getAllBankers().then((all) => {
+    this.load();
+  }
+
+  /** Refetches this account's bankers — called again by AuthService after a fresh login/signup,
+   *  since this service is a singleton that otherwise only fetches once for the app's lifetime,
+   *  which would leak the previous account's list into a same-tab account switch. */
+  async load(): Promise<void> {
+    try {
+      const all = await getAllBankers();
       this.bankers.set(all.sort((a, b) => b.createdAt - a.createdAt));
-    });
+    } catch {
+      this.bankers.set([]);
+    }
+  }
+
+  /** Clears to empty on logout so the next login on this tab never flashes the previous account's bankers. */
+  reset(): void {
+    this.bankers.set([]);
   }
 
   async addBanker(input: NewBankerInput): Promise<void> {

@@ -1,97 +1,109 @@
 import { Injectable, computed, signal } from '@angular/core';
-import { DEMO_ACCOUNT, type AuthAccount, type AuthUser } from '../data/auth-data';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import type { AuthUser } from '../data/auth-data';
 import { AdvisorService } from './advisor.service';
-
-const ACCOUNTS_KEY = 'redline-auth-accounts';
-const SESSION_KEY = 'redline-auth-session';
+import { SettingsService } from './settings.service';
+import { VehicleCatalogService } from './vehicle-catalog.service';
+import { BankerService } from './banker.service';
+import { TradeInService } from './trade-in.service';
+import { CustomerService } from './customer.service';
 
 export type AuthResult = { ok: true } | { ok: false; error: string };
 
-function loadAccounts(): AuthAccount[] {
-  try {
-    const raw = localStorage.getItem(ACCOUNTS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {
-    /* ignore corrupt/unavailable storage */
+function extractError(err: unknown, fallback: string): string {
+  if (err instanceof HttpErrorResponse) {
+    const message = (err.error as { error?: string } | null)?.error;
+    if (message) return message;
   }
-  // First run: seed a demo account so the login page is never a dead end.
-  const seeded = [DEMO_ACCOUNT];
-  try {
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(seeded));
-  } catch {
-    /* ignore */
-  }
-  return seeded;
-}
-
-function loadSession(): AuthUser | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+  return fallback;
 }
 
 /**
- * Local, backend-free "auth" for this prototype: accounts and the active
- * session both live in the browser's localStorage. Good enough to gate the
- * app and demo a real login/sign-up flow — not a substitute for real auth.
+ * Real accounts backed by the Worker API (`/api/auth/*`) — the session lives in an HttpOnly cookie
+ * the browser sends automatically, so nothing sensitive is kept client-side. `currentUser` is only
+ * known for certain after `restoreSession()` resolves (see the app initializer in app.config.ts),
+ * which is why every route sits behind `authGuard`/`guestGuard` rather than reading this signal
+ * before that first check completes.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  currentUser = signal<AuthUser | null>(loadSession());
+  currentUser = signal<AuthUser | null>(null);
   isAuthenticated = computed(() => this.currentUser() !== null);
 
-  constructor(private advisor: AdvisorService) {}
+  constructor(
+    private http: HttpClient,
+    private settingsService: SettingsService,
+    private advisorService: AdvisorService,
+    private vehicleCatalogService: VehicleCatalogService,
+    private bankerService: BankerService,
+    private tradeInService: TradeInService,
+    private customerService: CustomerService,
+  ) {}
 
-  signUp(name: string, email: string, password: string): AuthResult {
-    const normalizedEmail = email.trim().toLowerCase();
-    const accounts = loadAccounts();
-    if (accounts.some((a) => a.email === normalizedEmail)) {
-      return { ok: false, error: 'An account with this email already exists.' };
+  /** Checks whether the browser's session cookie (if any) still points at a valid session —
+   *  called once at app bootstrap, before routing/guards evaluate, and never again. */
+  async restoreSession(): Promise<void> {
+    try {
+      const user = await firstValueFrom(this.http.get<AuthUser>('/api/auth/me'));
+      this.currentUser.set(user);
+      await this.loadUserData();
+    } catch {
+      this.currentUser.set(null);
     }
-    const account: AuthAccount = { name: name.trim(), email: normalizedEmail, password };
-    this.saveAccounts([...accounts, account]);
-    this.startSession({ name: account.name, email: account.email });
-    return { ok: true };
   }
 
-  login(email: string, password: string): AuthResult {
-    const normalizedEmail = email.trim().toLowerCase();
-    const account = loadAccounts().find((a) => a.email === normalizedEmail);
-    if (!account || account.password !== password) {
-      return { ok: false, error: 'Incorrect email or password.' };
+  async signUp(name: string, email: string, password: string): Promise<AuthResult> {
+    try {
+      const user = await firstValueFrom(this.http.post<AuthUser>('/api/auth/signup', { name, email, password }));
+      this.currentUser.set(user);
+      await this.loadUserData();
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: extractError(err, "Couldn't create your account. Please try again.") };
     }
-    this.startSession({ name: account.name, email: account.email });
-    return { ok: true };
   }
 
-  logout() {
+  async login(email: string, password: string): Promise<AuthResult> {
+    try {
+      const user = await firstValueFrom(this.http.post<AuthUser>('/api/auth/login', { email, password }));
+      this.currentUser.set(user);
+      await this.loadUserData();
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: extractError(err, "Couldn't log in. Please try again.") };
+    }
+  }
+
+  /** Signs out immediately client-side (so guards redirect right away) and clears the server
+   *  session in the background — nothing meaningful for the caller to wait on. */
+  logout(): void {
     this.currentUser.set(null);
-    try {
-      localStorage.removeItem(SESSION_KEY);
-    } catch {
-      /* ignore */
-    }
+    this.settingsService.reset();
+    this.advisorService.reset();
+    this.vehicleCatalogService.resetOverrides();
+    this.bankerService.reset();
+    this.tradeInService.reset();
+    this.customerService.reset();
+    firstValueFrom(this.http.post('/api/auth/logout', {})).catch(() => {
+      /* session cookie is cleared client-side regardless; a failed server call just leaves an
+       * orphaned row that expires on its own */
+    });
   }
 
-  private startSession(user: AuthUser) {
-    this.currentUser.set(user);
-    try {
-      localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-    } catch {
-      /* session still holds for this tab even if storage fails */
-    }
-    // Keep the rest of the app (sidebar, topbar, profile) in sync with whoever is signed in.
-    this.advisor.update({ name: user.name, email: user.email });
-  }
-
-  private saveAccounts(accounts: AuthAccount[]) {
-    try {
-      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-    } catch {
-      /* ignore */
-    }
+  /** Every other per-account slice of data is only knowable once we know who's signed in — loaded
+   *  together right after that, on every path that establishes a session (restore, login, signup).
+   *  Bankers/trade-ins/customers already self-load once on construction, but since each is a
+   *  singleton that otherwise only fetches once for the app's lifetime, they need an explicit
+   *  reload here too, or a same-tab account switch would keep showing the previous account's data. */
+  private async loadUserData(): Promise<void> {
+    await Promise.all([
+      this.settingsService.load(),
+      this.advisorService.load(),
+      this.vehicleCatalogService.loadOverrides(),
+      this.bankerService.load(),
+      this.tradeInService.load(),
+      this.customerService.load(),
+    ]);
   }
 }

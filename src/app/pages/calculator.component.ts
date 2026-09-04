@@ -8,6 +8,7 @@ import { CustomerService } from '../shared/customer.service';
 import { SettingsService } from '../shared/settings.service';
 import { FINANCING_TYPE_OPTIONS, SOURCE_TYPES, TO_BE_CONFIRMED_COLOUR, type FinancingType } from '../data/customer-data';
 import { todayStr } from '../shared/date-utils';
+import { brandLogo } from '../data/dashboard-data';
 import {
   NCD_OPTIONS,
   DEFAULT_REBATE,
@@ -18,22 +19,21 @@ import {
   formatRM,
   modelVariantLabel,
   monthlyPayment,
+  additionalRebateForYear,
+  rebateForYear,
   roundCents,
-  variantKey,
   yearsForVariant,
   type DownpaymentType,
   type InsuranceQuotationDetails,
   type RateType,
   type Vehicle,
 } from '../data/calculator-data';
-import { buildQuotationPdfBytes, downloadBlob, assembleImagePdfBytes, type PdfImagePage } from '../shared/pdf-writer';
+import { buildQuotationPdfBytes, downloadBlob } from '../shared/pdf-writer';
 import { posterFontsReady } from '../shared/poster-theme';
 import { classicTemplate } from '../shared/poster-template-classic';
 import { compactMyTemplate } from '../shared/poster-template-my';
-import { renderBrochurePage, paginateBrochureRows } from '../shared/poster-brochure-renderer';
 import type { PosterData } from '../shared/poster-data';
 import type { PosterTemplate, PosterTemplateId } from '../shared/poster-templates';
-import type { BrochureData, BrochureRow } from '../shared/poster-brochure-data';
 
 @Component({
   selector: 'app-calculator',
@@ -41,31 +41,6 @@ import type { BrochureData, BrochureRow } from '../shared/poster-brochure-data';
   imports: [CommonModule, FormsModule, IconComponent, InsuranceQuotationEditorComponent],
   template: `
     <div class="mx-auto flex max-w-7xl flex-col gap-6">
-      <!-- Quote / Brochure switcher -->
-      <div role="tablist" aria-label="Calculator mode" class="flex w-fit rounded-lg border border-border bg-muted/30 p-1">
-        <button
-          type="button"
-          role="tab"
-          [attr.aria-selected]="pageMode() === 'quote'"
-          (click)="pageMode.set('quote')"
-          class="rounded-md px-4 py-1.5 text-xs font-semibold transition-colors"
-          [ngClass]="pageMode() === 'quote' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
-        >
-          Quote
-        </button>
-        <button
-          type="button"
-          role="tab"
-          [attr.aria-selected]="pageMode() === 'brochure'"
-          (click)="pageMode.set('brochure')"
-          class="rounded-md px-4 py-1.5 text-xs font-semibold transition-colors"
-          [ngClass]="pageMode() === 'brochure' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
-        >
-          Brochure
-        </button>
-      </div>
-
-      @if (pageMode() === 'quote') {
       <!-- Mobile Preview/Customize switcher -->
       <div class="sticky -top-4 z-10 -mx-4 -mt-4 flex flex-col gap-2 bg-background px-4 pb-2 pt-4 md:-top-6 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 xl:hidden">
         <div class="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
@@ -506,98 +481,6 @@ import type { BrochureData, BrochureRow } from '../shared/poster-brochure-data';
           </div>
         </div>
       </div>
-      }
-
-      @if (pageMode() === 'brochure') {
-        <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
-          <!-- Brochure preview -->
-          <div class="flex flex-col gap-3 xl:sticky xl:top-4 xl:col-span-2 xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain">
-            <button
-              type="button"
-              (click)="downloadBrochurePdf()"
-              [disabled]="downloadingBrochure() || brochureRows().length === 0"
-              class="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-            >
-              <app-icon name="download" [size]="15" />
-              {{ downloadingBrochure() ? 'Preparing…' : 'Download PDF' }}
-            </button>
-
-            @if (brochureRows().length === 0) {
-              <p class="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                {{ brochureBrand() }} has no cars in the Car Database yet — add some in Price Settings first.
-              </p>
-            }
-
-            <div #brochureContainer class="flex flex-col gap-4"></div>
-          </div>
-
-          <!-- Brochure settings -->
-          <div class="flex flex-col gap-4 xl:sticky xl:top-4 xl:col-span-1">
-            <h3 class="text-base font-semibold leading-none">Brochure Settings</h3>
-
-            <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-              <div class="flex flex-col gap-2">
-                <label for="brochureTitleInput" class="text-xs font-medium text-muted-foreground">Title</label>
-                <input
-                  id="brochureTitleInput"
-                  type="text"
-                  [ngModel]="brochureTitle()"
-                  (ngModelChange)="brochureTitle.set($event)"
-                  placeholder="e.g. September 2026 Offers"
-                  class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
-                />
-              </div>
-
-              <div class="flex flex-col gap-2">
-                <label for="brochureBrandSelect" class="text-xs font-medium text-muted-foreground">Brand</label>
-                <select
-                  id="brochureBrandSelect"
-                  [ngModel]="brochureBrand()"
-                  (ngModelChange)="brochureBrand.set($event)"
-                  class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
-                >
-                  @for (b of brands; track b) {
-                    <option [value]="b">{{ b }}</option>
-                  }
-                </select>
-                <span class="text-[11px] text-muted-foreground">Every model, variant, and year of this brand gets its own row on the brochure.</span>
-              </div>
-
-              <div class="flex flex-col gap-2">
-                <span class="text-xs font-medium text-muted-foreground">Compare 3 Tenures</span>
-                <div role="group" aria-label="Brochure tenures" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
-                  @for (y of posterYearOptions; track y) {
-                    <button
-                      type="button"
-                      [attr.aria-pressed]="brochureTenureYears().includes(y)"
-                      (click)="toggleBrochureTenureYear(y)"
-                      class="flex aspect-square items-center justify-center rounded-full text-xs font-semibold transition-colors"
-                      [ngClass]="brochureTenureYears().includes(y) ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                    >
-                      {{ y }}
-                    </button>
-                  }
-                </div>
-                <span class="text-[11px] text-muted-foreground">Each row shows a monthly instalment column for each of these {{ brochureTenureYears().length }} tenure years.</span>
-              </div>
-
-              <label class="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  [ngModel]="brochureIncludeAdditionalRebate()"
-                  (ngModelChange)="brochureIncludeAdditionalRebate.set($event)"
-                  class="size-4 shrink-0 rounded border-input accent-primary"
-                />
-                <span class="text-xs font-medium text-muted-foreground">Include Additional Rebate</span>
-              </label>
-
-              <p class="text-[11px] text-muted-foreground">
-                Insurance is always shown at 0% NCD — a general offer sheet, not a specific customer's quote. Selling price and monthly use the account's default downpayment and rate settings.
-              </p>
-            </div>
-          </div>
-        </div>
-      }
     </div>
 
     <!-- Add Lead modal -->
@@ -722,12 +605,7 @@ import type { BrochureData, BrochureRow } from '../shared/poster-brochure-data';
 })
 export class CalculatorComponent implements AfterViewInit {
   @ViewChild('posterCanvas') posterCanvasRef?: ElementRef<HTMLCanvasElement>;
-  @ViewChild('brochureContainer') brochureContainerRef?: ElementRef<HTMLDivElement>;
 
-  /** "Quote" is the existing single-vehicle flow above; "Brochure" is a whole brand's catalog —
-   *  different enough (many vehicles, print-resolution A5 pages, no customer context) that it gets
-   *  its own top-level mode rather than living inside the single-quote Customize panel. */
-  pageMode = signal<'quote' | 'brochure'>('quote');
   copyingPoster = signal(false);
   /** Brief "Copied!" confirmation on the button after a successful clipboard write. */
   posterCopied = signal(false);
@@ -753,7 +631,7 @@ export class CalculatorComponent implements AfterViewInit {
   mobileTab = signal<'preview' | 'customize'>('preview');
   /** Read from the preferred car's own database row, never assumed — a car listed only under
    *  2025 starts on 2025, not "the current year." */
-  modelYear = signal(this.preferredVehicle().year);
+  modelYear = signal(Math.max(...this.preferredVehicle().years.map((y) => y.year)));
   private rebateManual = signal<number | null>(null);
   private additionalRebateManual = signal<number | null>(null);
   private additionalRebateEnabledManual = signal<boolean | null>(null);
@@ -840,15 +718,13 @@ export class CalculatorComponent implements AfterViewInit {
    *  its own. Drives the Model Year switch: nothing to switch when there's only one. */
   availableYears = computed(() => yearsForVariant(this.selectedBrand(), this.selectedModelName(), this.selectedVariant()));
 
-  private matchingVehicles = computed(() =>
-    VEHICLES.filter((v) => v.brand === this.selectedBrand() && v.model === this.selectedModelName() && v.variant === this.selectedVariant()),
+  /** One row per variant now (see Vehicle.years) — falls back to the catalog's first car if this
+   *  exact brand/model/variant combination doesn't exist (e.g. mid-switch). */
+  selectedVehicle = computed(
+    () =>
+      VEHICLES.find((v) => v.brand === this.selectedBrand() && v.model === this.selectedModelName() && v.variant === this.selectedVariant()) ??
+      VEHICLES[0],
   );
-  /** The exact year-row in effect — falls back to whatever's available if the selected year doesn't
-   *  exist for this variant (e.g. right after switching to a variant with a different year lineup). */
-  selectedVehicle = computed(() => {
-    const rows = this.matchingVehicles();
-    return rows.find((v) => v.year === this.modelYear()) ?? rows[0] ?? VEHICLES[0];
-  });
   basePrice = computed(() => this.selectedVehicle().price);
 
   /** The account's Default Brand (Account Settings → Dashboard) starts every fresh quote — falls
@@ -885,17 +761,20 @@ export class CalculatorComponent implements AfterViewInit {
     this.loanAmountDraft.set(null);
   }
 
-  /** The model's own dealer rebate, when known, beats the standard starting rebate. */
-  autoRebate = computed(() => this.selectedVehicle().rebate ?? DEFAULT_REBATE);
+  /** The model's own dealer rebate for the selected model year, when known, beats the standard
+   *  starting rebate. */
+  autoRebate = computed(() => rebateForYear(this.selectedVehicle(), this.modelYear()));
   rebateIsManual = computed(() => this.rebateManual() !== null);
   rebateInput = computed(() => this.rebateManual() ?? this.autoRebate());
 
-  /** The model's own additional-rebate promo, when known, pre-fills and enables this by default. */
-  autoAdditionalRebate = computed(() => this.selectedVehicle().additionalRebate ?? 0);
+  /** The model's own additional-rebate promo for the selected model year, when known, pre-fills
+   *  and enables this by default — independent of Rebate above, since either can differ year to
+   *  year on its own. */
+  autoAdditionalRebate = computed(() => additionalRebateForYear(this.selectedVehicle(), this.modelYear()));
   additionalRebateIsManual = computed(() => this.additionalRebateManual() !== null);
   additionalRebateValue = computed(() => this.additionalRebateManual() ?? this.autoAdditionalRebate());
 
-  autoAdditionalRebateEnabled = computed(() => (this.selectedVehicle().additionalRebate ?? 0) > 0);
+  autoAdditionalRebateEnabled = computed(() => additionalRebateForYear(this.selectedVehicle(), this.modelYear()) > 0);
   additionalRebateEnabled = computed(() => this.additionalRebateEnabledManual() ?? this.autoAdditionalRebateEnabled());
 
   // No separate "prior-year bonus" — switching Model Year switches selectedVehicle() to that
@@ -1048,11 +927,7 @@ export class CalculatorComponent implements AfterViewInit {
     }
   }
 
-  brandLogo = computed(() => this.settingsService.getBrandLogo(this.selectedVehicle().brand));
-
-  /** Blank checklist items (mid-edit in Price Settings, not yet filled in) never reach the poster
-   *  as an empty chip. */
-  offers = computed(() => this.settingsService.getVehicleOffers(this.selectedVehicle().id).filter((o) => o.trim().length > 0));
+  brandLogoUrl = computed(() => brandLogo(this.selectedVehicle().brand));
 
   quoteDate = computed(() => new Date().toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' }));
 
@@ -1080,164 +955,6 @@ export class CalculatorComponent implements AfterViewInit {
       this.drawPoster(data);
     });
 
-    // Redraws every brochure page whenever its own settings (brand/tenure/rebate toggle) or the
-    // underlying vehicle data changes — only while the Brochure tab is actually open, since
-    // rendering N print-resolution A5 canvases isn't free and the Quote tab doesn't need it.
-    effect(() => {
-      if (!this.fontsReady() || this.pageMode() !== 'brochure') return;
-      const data = this.buildBrochureData();
-      this.renderBrochure(data);
-    });
-  }
-
-  // ---------- Brochure ----------
-
-  brochureBrand = signal(this.preferredVehicle().brand);
-  brochureTitle = signal(`${new Date().toLocaleDateString('en-MY', { month: 'long', year: 'numeric' })} Offers`);
-  /** Exactly 3 tenure years, each getting its own monthly-instalment column on the brochure. */
-  brochureTenureYears = signal<number[]>([3, 5, 7]);
-  brochureIncludeAdditionalRebate = signal(true);
-  downloadingBrochure = signal(false);
-
-  /** Toggles one tenure year in/out of the 3 compared on the brochure. Below 3 selected, a click
-   *  just adds the year; at 3 already selected, the oldest pick is bumped out (FIFO) so there's
-   *  always a click that does something instead of the button going dead. */
-  toggleBrochureTenureYear(year: number): void {
-    const current = this.brochureTenureYears();
-    if (current.includes(year)) {
-      if (current.length > 1) this.brochureTenureYears.set(current.filter((y) => y !== year).sort((a, b) => a - b));
-    } else if (current.length < 3) {
-      this.brochureTenureYears.set([...current, year].sort((a, b) => a - b));
-    } else {
-      this.brochureTenureYears.set([...current.slice(1), year].sort((a, b) => a - b));
-    }
-  }
-
-  /** One vehicle per model-variant of this brand: the current-year row when the catalog has it,
-   *  otherwise whichever year is the latest on file for that variant (e.g. Tiggo 9 still only has
-   *  a 2025 listing while it's 2026) — a brochure should never show a stale year next to a current
-   *  one just because every variant happened to get its catalog entry refreshed at a different time. */
-  private brochureLatestYearVehicles(brand: string): Vehicle[] {
-    const currentYear = new Date().getFullYear();
-    const byVariant = new Map<string, Vehicle[]>();
-    for (const v of VEHICLES) {
-      if (v.brand !== brand) continue;
-      const key = variantKey(v.brand, v.model, v.variant);
-      const list = byVariant.get(key);
-      if (list) list.push(v);
-      else byVariant.set(key, [v]);
-    }
-    return Array.from(byVariant.values()).map((list) => list.find((v) => v.year === currentYear) ?? list.reduce((latest, v) => (v.year > latest.year ? v : latest)));
-  }
-
-  /** Just the rows — read by the template to show/hide the "no cars" empty state without
-   *  re-triggering a full BrochureData rebuild (brand logo lookup, advisor profile, etc). */
-  brochureRows = computed<BrochureRow[]>(() => {
-    const brand = this.brochureBrand();
-    const defaults = this.settingsService.settings().salesDefaults;
-    const includeAdditional = this.brochureIncludeAdditionalRebate();
-    const tenureYears = this.brochureTenureYears();
-    return this.brochureLatestYearVehicles(brand).map((v) => {
-      const basicPremiumFallback = basicPremiumDefault(v.price, defaults.basicPremiumRatePct);
-      const insuranceDetails = this.settingsService.getVehicleInsurance(v, basicPremiumFallback);
-      // Forced to 0% regardless of any saved customer quote's NCD — a general offer sheet quotes
-      // the sticker insurance figure, not whichever NCD the last customer happened to have.
-      const insurance = computeInsuranceBreakdown(insuranceDetails, 0).totalDue;
-      const rebate = (v.rebate ?? DEFAULT_REBATE) + (includeAdditional ? (v.additionalRebate ?? 0) : 0);
-      const totals = computeQuotationTotals({
-        basePrice: v.price,
-        effectiveRebate: rebate,
-        insuranceAmount: insurance,
-        downpaymentType: 'percent',
-        downpaymentValue: defaults.downpaymentPct,
-      });
-      const interestRate = defaults.defaultRateType === 'effective' ? (v.effectiveRate ?? defaults.interestRate) : (v.interestRate ?? defaults.interestRate);
-      const monthlyByTenure = tenureYears.map((y) => monthlyPayment(totals.loanAmount, interestRate, y * 12, defaults.defaultRateType));
-      return {
-        modelTitle: modelVariantLabel(v.model, v.variant),
-        year: v.year,
-        sellingPrice: totals.totalAmountDue,
-        rebate,
-        downpayment: totals.downpaymentCash,
-        loanAmount: totals.loanAmount,
-        monthlyByTenure,
-      };
-    });
-  });
-
-  private buildBrochureData(): BrochureData {
-    const brand = this.brochureBrand();
-    const advisorProfile = this.advisor.profile();
-    return {
-      brand,
-      logoUrl: this.settingsService.getBrandLogo(brand),
-      title: this.brochureTitle(),
-      tenureYears: this.brochureTenureYears(),
-      rows: this.brochureRows(),
-      advisor: {
-        name: advisorProfile.name,
-        role: advisorProfile.role,
-        phoneDisplay: advisorProfile.phoneDisplay,
-      },
-    };
-  }
-
-  private async renderBrochure(data: BrochureData): Promise<void> {
-    let container = this.brochureContainerRef?.nativeElement;
-    if (!container) {
-      // The very first time pageMode flips to 'brochure', this effect can run before Angular has
-      // finished creating the @if block's DOM, so the ViewChild isn't resolved yet on this same
-      // synchronous tick — nothing else changes afterward to naturally retry it, so wait one tick
-      // for change detection to catch up and look again.
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      container = this.brochureContainerRef?.nativeElement;
-      if (!container) return;
-    }
-    const generation = ++this.brochureRenderGeneration;
-    const pages = paginateBrochureRows(data.rows);
-    container.innerHTML = '';
-    const canvases = pages.map(() => {
-      const canvas = document.createElement('canvas');
-      canvas.className = 'w-full h-auto rounded-lg border border-border shadow-md bg-white';
-      container.appendChild(canvas);
-      return canvas;
-    });
-    for (let i = 0; i < pages.length; i++) {
-      await renderBrochurePage(canvases[i], data, pages[i], i, pages.length);
-      if (generation !== this.brochureRenderGeneration) return;
-    }
-  }
-
-  private brochureRenderGeneration = 0;
-
-  /** Renders straight from the canvases already in the preview — they're already at print
-   *  resolution (unlike the single poster's screen preview vs. higher-resolution export split),
-   *  so there's no separate higher-quality render pass needed here. */
-  async downloadBrochurePdf() {
-    const container = this.brochureContainerRef?.nativeElement;
-    if (!container || this.downloadingBrochure()) return;
-    const canvases = Array.from(container.querySelectorAll('canvas'));
-    if (canvases.length === 0) return;
-    this.downloadingBrochure.set(true);
-    try {
-      const pages: PdfImagePage[] = [];
-      for (const canvas of canvases) {
-        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
-        if (!blob) continue;
-        const jpegBytes = new Uint8Array(await blob.arrayBuffer());
-        pages.push({
-          jpegBytes,
-          widthPx: canvas.width,
-          heightPx: canvas.height,
-          widthPt: (canvas.width / 300) * 72,
-          heightPt: (canvas.height / 300) * 72,
-        });
-      }
-      const bytes = assembleImagePdfBytes(pages);
-      downloadBlob(bytes, `${this.brochureBrand()}-Brochure.pdf`.replace(/\s+/g, '-'), 'application/pdf');
-    } finally {
-      this.downloadingBrochure.set(false);
-    }
   }
 
   /** Every poster design the Quote Preview can render — all consuming the same PosterData, so
@@ -1257,8 +974,8 @@ export class CalculatorComponent implements AfterViewInit {
       modelTitle: modelVariantLabel(vehicle.model, vehicle.variant),
       year: this.modelYear(),
       dateStr: this.quoteDate(),
-      logoUrl: this.brandLogo(),
-      carImageUrl: this.settingsService.getVariantPhoto(vehicle.brand, vehicle.model, vehicle.variant),
+      logoUrl: this.brandLogoUrl(),
+      carImageUrl: vehicle.photoUrl ?? null,
 
       sellingPrice: this.allInPrice(),
       downpayment: this.downpaymentCash(),
@@ -1285,8 +1002,6 @@ export class CalculatorComponent implements AfterViewInit {
         monthly: row.monthly,
         isLowest: row.months === Math.max(...this.repaymentRows().map((r) => r.months)),
       })),
-
-      offers: this.offers(),
     };
   }
 

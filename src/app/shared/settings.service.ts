@@ -1,4 +1,6 @@
 import { Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import {
   DEFAULT_SETTINGS,
   type AppSettings,
@@ -6,35 +8,45 @@ import {
   type NotificationPrefs,
   type SalesDefaults,
 } from '../data/settings-data';
-import { DEFAULT_EPR, defaultInsuranceQuotation, variantKey, type InsuranceQuotationDetails, type Vehicle } from '../data/calculator-data';
+import { DEFAULT_EPR, defaultInsuranceQuotation, type InsuranceQuotationDetails, type Vehicle } from '../data/calculator-data';
 
-const STORAGE_KEY = 'redline-app-settings';
-
-function loadSettings(): AppSettings {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        salesDefaults: { ...DEFAULT_SETTINGS.salesDefaults, ...parsed.salesDefaults },
-        notifications: { ...DEFAULT_SETTINGS.notifications, ...parsed.notifications },
-        dashboardTarget: { ...DEFAULT_SETTINGS.dashboardTarget, ...parsed.dashboardTarget },
-        vehicleInsurance: { ...DEFAULT_SETTINGS.vehicleInsurance, ...parsed.vehicleInsurance },
-        vehicleOffers: { ...DEFAULT_SETTINGS.vehicleOffers, ...parsed.vehicleOffers },
-        brandLogos: { ...DEFAULT_SETTINGS.brandLogos, ...parsed.brandLogos },
-        variantPhotos: { ...DEFAULT_SETTINGS.variantPhotos, ...parsed.variantPhotos },
-      };
-    }
-  } catch {
-    /* ignore corrupt/unavailable storage, fall back to default */
-  }
-  return DEFAULT_SETTINGS;
+/** Merges whatever the server actually has on file onto the shipped defaults — an account with no
+ *  saved settings yet just gets `{}` back, and a partially-saved blob from before a field existed
+ *  still works, same defensive merge this did when it read straight from localStorage. */
+function mergeSettings(saved: Partial<AppSettings> | null): AppSettings {
+  return {
+    salesDefaults: { ...DEFAULT_SETTINGS.salesDefaults, ...saved?.salesDefaults },
+    notifications: { ...DEFAULT_SETTINGS.notifications, ...saved?.notifications },
+    dashboardTarget: { ...DEFAULT_SETTINGS.dashboardTarget, ...saved?.dashboardTarget },
+    vehicleInsurance: { ...DEFAULT_SETTINGS.vehicleInsurance, ...saved?.vehicleInsurance },
+  };
 }
 
-/** App-wide preferences: Calculator defaults, notification toggles, and dashboard focus brand — editable from Account Settings. */
+/** App-wide preferences: Calculator defaults, notification toggles, and dashboard focus brand —
+ *  editable from Account Settings, persisted per-account via the Worker API (`/api/settings`) so
+ *  they follow the signed-in user across devices instead of living in this browser's storage. */
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
-  settings = signal<AppSettings>(loadSettings());
+  settings = signal<AppSettings>(DEFAULT_SETTINGS);
+
+  constructor(private http: HttpClient) {}
+
+  /** Populates `settings` from the signed-in account — called once per login/session-restore by
+   *  AuthService, never directly by components. */
+  async load(): Promise<void> {
+    try {
+      const saved = await firstValueFrom(this.http.get<Partial<AppSettings>>('/api/settings'));
+      this.settings.set(mergeSettings(saved));
+    } catch {
+      this.settings.set(DEFAULT_SETTINGS);
+    }
+  }
+
+  /** Drops back to shipped defaults — called on logout so the next login on this tab never shows
+   *  a flash of the previous account's settings. */
+  reset() {
+    this.settings.set(DEFAULT_SETTINGS);
+  }
 
   updateSalesDefaults(patch: Partial<SalesDefaults>) {
     this.persist({ ...this.settings(), salesDefaults: { ...this.settings().salesDefaults, ...patch } });
@@ -61,72 +73,17 @@ export class SettingsService {
     this.persist({ ...this.settings(), vehicleInsurance: { ...this.settings().vehicleInsurance, [vehicleId]: details } });
   }
 
-  /** Drops a car's saved insurance override — used when the car itself is removed from the database. */
-  removeVehicleInsurance(vehicleId: string) {
-    const { [vehicleId]: _removed, ...rest } = this.settings().vehicleInsurance;
-    this.persist({ ...this.settings(), vehicleInsurance: rest });
-  }
-
-  /** The "What's Included" checklist for this exact car (brand/model/variant/year) — empty
-   *  (checklist hidden) unless the SA has set one, since only a handful of variants carry a
-   *  special offer. */
-  getVehicleOffers(vehicleId: string): string[] {
-    return this.settings().vehicleOffers[vehicleId] ?? [];
-  }
-
-  updateVehicleOffers(vehicleId: string, offers: string[]) {
-    this.persist({ ...this.settings(), vehicleOffers: { ...this.settings().vehicleOffers, [vehicleId]: offers } });
-  }
-
-  /** Drops a car's saved offers checklist — used when the car itself is removed from the database. */
-  removeVehicleOffers(vehicleId: string) {
-    const { [vehicleId]: _removed, ...rest } = this.settings().vehicleOffers;
-    this.persist({ ...this.settings(), vehicleOffers: rest });
-  }
-
-  /** The uploaded logo for this brand (a data URL), or null when the SA hasn't uploaded one yet. */
-  getBrandLogo(brand: string): string | null {
-    return this.settings().brandLogos[brand] ?? null;
-  }
-
-  updateBrandLogo(brand: string, dataUrl: string) {
-    this.persist({ ...this.settings(), brandLogos: { ...this.settings().brandLogos, [brand]: dataUrl } });
-  }
-
-  removeBrandLogo(brand: string) {
-    const { [brand]: _removed, ...rest } = this.settings().brandLogos;
-    this.persist({ ...this.settings(), brandLogos: rest });
-  }
-
-  /** The uploaded photo shared across every model year of this variant, or null when the SA
-   *  hasn't uploaded one yet — see variantKey for why this isn't per model-year. */
-  getVariantPhoto(brand: string, model: string, variant: string): string | null {
-    return this.settings().variantPhotos[variantKey(brand, model, variant)] ?? null;
-  }
-
-  updateVariantPhoto(brand: string, model: string, variant: string, dataUrl: string) {
-    this.persist({ ...this.settings(), variantPhotos: { ...this.settings().variantPhotos, [variantKey(brand, model, variant)]: dataUrl } });
-  }
-
-  /** Drops a variant's saved photo — used from its own "Remove" action, or when the whole variant
-   *  (every model year of it) is removed from the Car Database. Removing a single model-year row
-   *  must NOT call this — the other years still share the same photo. */
-  removeVariantPhoto(brand: string, model: string, variant: string) {
-    const key = variantKey(brand, model, variant);
-    const { [key]: _removed, ...rest } = this.settings().variantPhotos;
-    this.persist({ ...this.settings(), variantPhotos: rest });
-  }
-
   resetToDefaults() {
     this.persist(DEFAULT_SETTINGS);
   }
 
+  /** Updates the signal immediately (so the UI never waits on the network) and saves in the
+   *  background — a failed save just means the edit won't survive a reload, same risk profile as
+   *  the old localStorage version silently failing on a full quota. */
   private persist(value: AppSettings) {
     this.settings.set(value);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-    } catch {
-      /* localStorage unavailable — settings still hold for this session */
-    }
+    firstValueFrom(this.http.put('/api/settings', value)).catch((err) => {
+      console.error('Failed to save settings.', err);
+    });
   }
 }

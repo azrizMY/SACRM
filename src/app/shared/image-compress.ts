@@ -99,21 +99,38 @@ export async function compressImageFile(file: File, options: CompressOptions): P
     source = trimTransparentMargins(source);
   }
 
-  const scale = Math.min(1, options.maxDimension / Math.max(source.width, source.height));
-  const width = Math.max(1, Math.round(source.width * scale));
-  const height = Math.max(1, Math.round(source.height * scale));
+  const drawAt = (width: number, height: number): HTMLCanvasElement => {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas rendering is not supported in this browser.');
+    ctx.drawImage(source, 0, 0, width, height);
+    return canvas;
+  };
 
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas rendering is not supported in this browser.');
-  ctx.drawImage(source, 0, 0, width, height);
+  const initialScale = Math.min(1, options.maxDimension / Math.max(source.width, source.height));
+  let width = Math.max(1, Math.round(source.width * initialScale));
+  let height = Math.max(1, Math.round(source.height * initialScale));
 
   if (options.format === 'image/png') {
-    return canvas.toDataURL('image/png');
+    // PNG has no quality knob, so maxBytes can only be reached by shrinking the pixel count —
+    // step the resolution down (not just relying on maxDimension) until it actually fits, the
+    // same way the JPEG branch below steps quality down. Without this, a photo-realistic PNG
+    // (e.g. a car cutout) routinely lands well over maxBytes at maxDimension alone, silently
+    // blowing past the caller's storage budget (localStorage quota) with no error raised here.
+    let dataUrl = drawAt(width, height).toDataURL('image/png');
+    let attempts = 0;
+    while (dataUrlBytes(dataUrl) > options.maxBytes && Math.max(width, height) > 64 && attempts < 12) {
+      width = Math.max(1, Math.round(width * 0.85));
+      height = Math.max(1, Math.round(height * 0.85));
+      dataUrl = drawAt(width, height).toDataURL('image/png');
+      attempts++;
+    }
+    return dataUrl;
   }
 
+  const canvas = drawAt(width, height);
   let quality = 0.9;
   let dataUrl = canvas.toDataURL('image/jpeg', quality);
   while (dataUrlBytes(dataUrl) > options.maxBytes && quality > 0.3) {

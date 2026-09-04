@@ -42,9 +42,24 @@ export class CustomerService {
   cancelled = computed(() => this.records().filter((r) => r.status === 'Cancelled'));
 
   constructor() {
-    getAllCustomers().then((all) => {
+    this.load();
+  }
+
+  /** Refetches this account's customers — called again by AuthService after a fresh login/signup,
+   *  since this service is a singleton that otherwise only fetches once for the app's lifetime,
+   *  which would leak the previous account's records into a same-tab account switch. */
+  async load(): Promise<void> {
+    try {
+      const all = await getAllCustomers();
       this.records.set(all.sort((a, b) => b.createdAt - a.createdAt));
-    });
+    } catch {
+      this.records.set([]);
+    }
+  }
+
+  /** Clears to empty on logout so the next login on this tab never flashes the previous account's records. */
+  reset(): void {
+    this.records.set([]);
   }
 
   async addLead(input: NewLeadInput): Promise<void> {

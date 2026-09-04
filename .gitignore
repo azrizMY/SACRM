@@ -15,3 +15,7 @@ node_modules
 .DS_Store
 dist/
 .angular/
+
+# Cloudflare Worker (server/) local state and secrets
+.wrangler/
+.dev.vars

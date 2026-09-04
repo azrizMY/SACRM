@@ -22,9 +22,11 @@ import {
   basicPremiumDefault,
   computeInsuranceBreakdown,
   computeQuotationTotals,
+  additionalRebateForYear,
   modelVariantLabel,
   modelsForBrand,
   monthlyPayment,
+  rebateForYear,
   variantsForModel,
   type RateType,
   type Vehicle,
@@ -1976,9 +1978,10 @@ export class CustomerManagerComponent {
    *  defaults, same as switching cars in the Calculator. */
   private syncLeadRebateDefaults() {
     const vehicle = VEHICLES.find((v) => v.brand === this.leadForm.brand && v.model === this.leadForm.model && v.variant === this.leadForm.variant);
-    this.leadQuotationForm.rebate = vehicle?.rebate ?? DEFAULT_REBATE;
-    this.leadQuotationForm.additionalRebateValue = vehicle?.additionalRebate ?? 0;
-    this.leadQuotationForm.additionalRebateEnabled = (vehicle?.additionalRebate ?? 0) > 0;
+    this.leadQuotationForm.rebate = vehicle ? rebateForYear(vehicle, this.leadForm.yearMade) : DEFAULT_REBATE;
+    const additionalRebate = vehicle ? additionalRebateForYear(vehicle, this.leadForm.yearMade) : 0;
+    this.leadQuotationForm.additionalRebateValue = additionalRebate;
+    this.leadQuotationForm.additionalRebateEnabled = additionalRebate > 0;
   }
 
   testDriveForm: TestDriveInput = this.blankTestDriveForm();
@@ -2175,18 +2178,22 @@ export class CustomerManagerComponent {
 
   activeQuotationRecord = computed(() => this.customers.records().find((r) => r.id === this.quotationModalId()) ?? null);
 
-  /** Rebate and Additional Rebate seed from the car's Finance Database defaults when given its vehicle. */
-  private blankQuotationForm(vehicle?: Vehicle): QuotationDetails {
+  /** Rebate and Additional Rebate seed from the car's Finance Database defaults when given its
+   *  vehicle, from whichever model year the record is for — both can vary year to year, each
+   *  independently of the other. */
+  private blankQuotationForm(vehicle?: Vehicle, yearMade?: number): QuotationDetails {
+    const hasYear = vehicle && yearMade != null;
+    const additionalRebate = hasYear ? additionalRebateForYear(vehicle, yearMade) : 0;
     return {
-      rebate: vehicle?.rebate ?? DEFAULT_REBATE,
+      rebate: hasYear ? rebateForYear(vehicle, yearMade) : DEFAULT_REBATE,
       ncd: 0,
       interestRate: 3.5,
       rateType: 'flat',
       downpaymentType: 'percent',
       downpaymentValue: 10,
       tenureMonths: TENURE_OPTIONS[0].months,
-      additionalRebateEnabled: (vehicle?.additionalRebate ?? 0) > 0,
-      additionalRebateValue: vehicle?.additionalRebate ?? 0,
+      additionalRebateEnabled: additionalRebate > 0,
+      additionalRebateValue: additionalRebate,
     };
   }
 
@@ -2196,7 +2203,7 @@ export class CustomerManagerComponent {
 
   openQuotation(record: CustomerRecord) {
     this.quotationModalId.set(record.id);
-    this.quotationForm = record.quotation ? { ...record.quotation } : this.blankQuotationForm(this.findRecordVehicle(record));
+    this.quotationForm = record.quotation ? { ...record.quotation } : this.blankQuotationForm(this.findRecordVehicle(record), record.yearMade);
     this.quotationEditing.set(!record.quotation);
   }
 
@@ -2227,11 +2234,7 @@ export class CustomerManagerComponent {
   }
 
   private computeQuotationNumbers(spec: { brand: string; model: string; variant: string; yearMade: number }, q: QuotationDetails) {
-    // Same brand/model/variant can have a separate database row per model year, each with its own
-    // price and rebate — match the exact year first; only fall back to any row (e.g. a record whose
-    // year was since removed from the catalog) if that exact year isn't there.
-    const vehicleRows = VEHICLES.filter((v) => v.brand === spec.brand && v.model === spec.model && v.variant === spec.variant);
-    const vehicle = vehicleRows.find((v) => v.year === spec.yearMade) ?? vehicleRows[0];
+    const vehicle = VEHICLES.find((v) => v.brand === spec.brand && v.model === spec.model && v.variant === spec.variant);
     const basePrice = vehicle?.price ?? 0;
     const additionalRebate = q.additionalRebateEnabled ? (q.additionalRebateValue ?? 0) : 0;
     const effectiveRebate = q.rebate + additionalRebate;

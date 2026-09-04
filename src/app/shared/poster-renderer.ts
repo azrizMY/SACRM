@@ -1,5 +1,5 @@
 import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
-import { MARGIN, POSTER_WIDTH, CHIP_HEIGHT, CHIP_GAP, CHIP_NOTCH, CHIP_PADDING_X, CHIP_ICON_AND_GAP, type PosterLayout } from './poster-layout';
+import { MARGIN, POSTER_WIDTH, type PosterLayout } from './poster-layout';
 import { fillPolygon, fillTrackedText, fillNotchedRect, formatPosterCurrency, measureTrackedText } from './poster-draw-utils';
 import { loadPosterImage } from './poster-images';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
@@ -446,43 +446,3 @@ export function drawFooter(ctx: CanvasRenderingContext2D, layout: PosterLayout, 
   ctx.fillText(data.advisor.phoneDisplay, 844, top + 64);
 }
 
-/** Optional "What's Included" chips, sitting in the gap between the price panel and the data
- *  section — no-ops entirely when the vehicle has no offers, so 0-item posters render exactly as
- *  if this stage didn't exist. `layout.offerRows` is already wrapped by computePosterLayout; this
- *  only has to re-measure each label to find its chip's x position within its row, using the same
- *  width formula the wrapping pass used so the two never disagree. */
-export function drawInclusions(ctx: CanvasRenderingContext2D, layout: PosterLayout): void {
-  if (!layout.hasOffers) return;
-  const M = MARGIN;
-
-  ctx.font = labelFont(9.5, 700);
-  ctx.fillStyle = POSTER_COLORS.panelGrayD;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  fillTrackedText(ctx, "WHAT'S INCLUDED", M, layout.inclusionsLabelY, 2.8);
-
-  const chipFont = labelFont(13, 400);
-  layout.offerRows.forEach((row, rowIndex) => {
-    const rowTop = layout.inclusionsChipsTop + rowIndex * (CHIP_HEIGHT + CHIP_GAP);
-    const centerY = rowTop + CHIP_HEIGHT / 2;
-    let x = M;
-    for (const item of row) {
-      ctx.font = chipFont;
-      const textWidth = ctx.measureText(item).width;
-      const chipWidth = textWidth + CHIP_PADDING_X * 2 + CHIP_ICON_AND_GAP;
-      fillNotchedRect(ctx, x, rowTop, chipWidth, CHIP_HEIGHT, CHIP_NOTCH, POSTER_COLORS.block);
-
-      ctx.font = labelFont(13, 700);
-      ctx.fillStyle = POSTER_COLORS.green;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('✓', x + CHIP_PADDING_X, centerY);
-
-      ctx.font = chipFont;
-      ctx.fillStyle = POSTER_COLORS.paper;
-      ctx.fillText(item, x + CHIP_PADDING_X + CHIP_ICON_AND_GAP, centerY);
-
-      x += chipWidth + CHIP_GAP;
-    }
-  });
-}

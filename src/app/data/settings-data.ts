@@ -17,23 +17,6 @@ export type SalesDefaults = {
  *  defaultInsuranceQuotation() computed from the vehicle's own catalog figures. */
 export type VehicleInsuranceOverrides = Record<string, InsuranceQuotationDetails>;
 
-/** Per-vehicle "What's Included" checklist shown on the Calculator's Quote Preview, keyed by
- *  Vehicle.id — edited from the Car Database. Only a handful of variants carry a special offer
- *  (e.g. Tiggo 9's free service), so an absent entry means the checklist stays hidden. */
-export type VehicleOffersOverrides = Record<string, string[]>;
-
-/** Per-brand logo shown on the Calculator's Quote Preview letterhead, keyed by brand name — a
- *  data URL uploaded from Account Settings. Absent entries fall back to writing the brand name
- *  as text. */
-export type BrandLogos = Record<string, string>;
-
-/** Per-variant car photo shown as the Calculator's Quote Preview hero image, keyed by
- *  variantKey(brand, model, variant) — shared across every model year of that variant rather than
- *  duplicated per year-row, since the photo only actually changes on a facelift, which is a new
- *  variant identity (Add Model), not a new year of this one. Absent entries fall back to a plain
- *  background. */
-export type VariantPhotos = Record<string, string>;
-
 export type NotificationPrefs = {
   newLeadAlerts: boolean;
   bookingReminders: boolean;
@@ -51,9 +34,6 @@ export type AppSettings = {
   notifications: NotificationPrefs;
   dashboardTarget: DashboardTarget;
   vehicleInsurance: VehicleInsuranceOverrides;
-  vehicleOffers: VehicleOffersOverrides;
-  brandLogos: BrandLogos;
-  variantPhotos: VariantPhotos;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -61,7 +41,4 @@ export const DEFAULT_SETTINGS: AppSettings = {
   notifications: { newLeadAlerts: true, bookingReminders: true, weeklySummary: false },
   dashboardTarget: { brand: 'Chery', target: 20 },
   vehicleInsurance: {},
-  vehicleOffers: {},
-  brandLogos: {},
-  variantPhotos: {},
 };

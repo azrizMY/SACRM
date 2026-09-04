@@ -3,6 +3,11 @@
 export type BrochureRow = {
   modelTitle: string;
   year: number;
+  carImageUrl: string | null;
+  otrPrice: number;
+  /** Total insurance due at 0% NCD (basic premium + additional coverages) — never just the basic
+   *  premium alone. */
+  insurance: number;
   sellingPrice: number;
   /** Base rebate, plus the additional rebate when the "Include Additional Rebate" toggle is on. */
   rebate: number;
@@ -24,5 +29,8 @@ export type BrochureData = {
     name: string;
     role: string;
     phoneDisplay: string;
+    /** Digits-only, country-code-prefixed (e.g. "601153206966") — what a wa.me link needs. */
+    phoneWa: string;
+    photoUrl: string | null;
   };
 };

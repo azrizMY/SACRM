@@ -61,7 +61,7 @@ import { AuthService } from '../shared/auth.service';
                   name="password"
                   autocomplete="new-password"
                   [(ngModel)]="password"
-                  placeholder="At least 6 characters"
+                  placeholder="At least 8 characters"
                   class="h-10 w-full bg-transparent text-sm text-foreground outline-none"
                 />
                 <button type="button" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" class="-mr-2 flex size-9 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground">
@@ -117,7 +117,7 @@ export class SignupComponent {
     private router: Router,
   ) {}
 
-  submit() {
+  async submit() {
     this.error.set(null);
 
     if (!this.name.trim() || !this.email.trim() || !this.password) {
@@ -128,8 +128,8 @@ export class SignupComponent {
       this.error.set('Enter a valid email address.');
       return;
     }
-    if (this.password.length < 6) {
-      this.error.set('Password must be at least 6 characters.');
+    if (this.password.length < 8) {
+      this.error.set('Password must be at least 8 characters.');
       return;
     }
     if (this.password !== this.confirmPassword) {
@@ -138,7 +138,7 @@ export class SignupComponent {
     }
 
     this.submitting.set(true);
-    const result = this.auth.signUp(this.name, this.email, this.password);
+    const result = await this.auth.signUp(this.name, this.email, this.password);
     this.submitting.set(false);
     if (!result.ok) {
       this.error.set(result.error);

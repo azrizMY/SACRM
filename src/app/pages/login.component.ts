@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { IconComponent } from '../shared/icon.component';
 import { AuthService } from '../shared/auth.service';
-import { DEMO_ACCOUNT } from '../data/auth-data';
 
 @Component({
   selector: 'app-login',
@@ -78,15 +77,6 @@ import { DEMO_ACCOUNT } from '../data/auth-data';
               Log In
             </button>
           </form>
-
-          <button
-            type="button"
-            (click)="fillDemo()"
-            class="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-          >
-            <span>Demo account: <strong class="font-medium text-foreground">{{ demoAccount.email }}</strong></span>
-            <span class="shrink-0 font-medium text-primary">Use it</span>
-          </button>
         </div>
 
         <p class="text-center text-sm text-muted-foreground">
@@ -103,7 +93,6 @@ export class LoginComponent {
   showPassword = signal(false);
   error = signal<string | null>(null);
   submitting = signal(false);
-  demoAccount = DEMO_ACCOUNT;
 
   constructor(
     private auth: AuthService,
@@ -111,20 +100,14 @@ export class LoginComponent {
     private route: ActivatedRoute,
   ) {}
 
-  fillDemo() {
-    this.email = this.demoAccount.email;
-    this.password = this.demoAccount.password;
-    this.error.set(null);
-  }
-
-  submit() {
+  async submit() {
     this.error.set(null);
     if (!this.email || !this.password) {
       this.error.set('Enter your email and password.');
       return;
     }
     this.submitting.set(true);
-    const result = this.auth.login(this.email, this.password);
+    const result = await this.auth.login(this.email, this.password);
     this.submitting.set(false);
     if (!result.ok) {
       this.error.set(result.error);

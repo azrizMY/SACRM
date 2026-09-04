@@ -1,13 +1,21 @@
 import { formatRM } from './dashboard-data';
 
+export type VehicleYear = {
+  year: number;
+  /** This model year's dealer rebate — overrides DEFAULT_REBATE when set. */
+  rebate?: number;
+  /** This model year's additional rebate (e.g. a promo top-up) — pre-fills and enables Additional
+   *  Rebate when set. Rebate and Additional Rebate can each differ independently year to year
+   *  (e.g. clearance stock might get a bigger base rebate but no extra promo top-up, or vice
+   *  versa), so both live per year rather than one being shared across the variant. */
+  additionalRebate?: number;
+};
+
 export type Vehicle = {
   id: string;
   brand: string;
   model: string;
   variant: string;
-  /** Same brand/model/variant can exist as several rows, one per model year, each with its own
-   *  price, rebate, and every other figure — clearance-year deals rarely match the current year's. */
-  year: number;
   price: number;
   /** Vehicle-specific promo interest rate — overrides the SA's default when set. This is the flat
    *  rate; effectiveRate below is a separate, independently-quoted figure, not derived from it. */
@@ -19,93 +27,93 @@ export type Vehicle = {
   basicPremium?: number;
   /** Insurer's exact Additional Benefits (riders) total for this model. */
   addBenefits?: number;
-  /** Model-specific dealer rebate — overrides DEFAULT_REBATE as the starting rebate when set. */
-  rebate?: number;
-  /** Model-specific additional rebate (e.g. a promo top-up) — pre-fills and enables Additional Rebate when set. */
-  additionalRebate?: number;
+  /** Static file path under `public/` (e.g. `/cars/proton-saga-standard.png`) for this variant's
+   *  hero image on the Quote Preview poster — hardcoded by the developer, not uploaded at runtime. */
+  photoUrl?: string;
+  /** Static file path under `public/` (e.g. `/brochures/proton-saga.pdf`) for this variant's
+   *  brochure — hardcoded by the developer. */
+  brochureUrl?: string;
+  /** Every model year this variant is available in — e.g. an older year a showroom still has in
+   *  stock — each with its own rebate and additional rebate (see VehicleYear); price, rates, and
+   *  insurance are identical across a variant's model years, so they live once here instead.
+   *  Always at least one entry. */
+  years: VehicleYear[];
 };
 
-/** Groups every year-row of one model-variant under a single key — used to key the photo and
- *  brochure stores, which are genuinely shared across a variant's model years rather than
- *  duplicated per row: a facelift that actually changes the photo/brochure is a new variant
- *  identity (Add Model), not a new year of the same one. */
+/** brand::model::variant — keys data that's shared across a whole variant (the itemized insurance
+ *  quotation). */
 export function variantKey(brand: string, model: string, variant: string): string {
   return `${brand}::${model}::${variant}`;
 }
 
-/** Brand → model → variant catalog for the quotation calculator. */
+/** The one row for this exact brand/model/variant — every model year of a variant lives on the
+ *  same row (see Vehicle.years), so there's never more than one match. */
+export function findVehicle(brand: string, model: string, variant: string): Vehicle | null {
+  return VEHICLES.find((v) => v.brand === brand && v.model === model && v.variant === variant) ?? null;
+}
+
+/** This model year's rebate, or the account default when this year has no override of its own. */
+export function rebateForYear(vehicle: Vehicle, year: number): number {
+  return vehicle.years.find((y) => y.year === year)?.rebate ?? DEFAULT_REBATE;
+}
+
+/** This model year's additional rebate, or 0 when this year has none. */
+export function additionalRebateForYear(vehicle: Vehicle, year: number): number {
+  return vehicle.years.find((y) => y.year === year)?.additionalRebate ?? 0;
+}
+
+/** Brand → model → variant catalog for the quotation calculator. Brands, models, and variants are
+ *  hardcoded here by the developer, not editable at runtime — only pricing (incl. adding older
+ *  model years still in dealer stock) is editable from Price Settings. Currently limited to Proton
+ *  and Chery; other brands will be added back gradually. */
 export const VEHICLES: Vehicle[] = [
-  { id: 'perodua-axia-se', brand: 'Perodua', model: 'Axia', variant: 'SE', year: 2026, price: 40200 },
-  { id: 'perodua-axia-av', brand: 'Perodua', model: 'Axia', variant: 'AV', year: 2026, price: 48200 },
-  { id: 'perodua-bezza-premium-x', brand: 'Perodua', model: 'Bezza', variant: '1.3 Premium X', year: 2026, price: 46800 },
-  { id: 'perodua-bezza-av', brand: 'Perodua', model: 'Bezza', variant: '1.3 AV', year: 2026, price: 52800 },
-  { id: 'perodua-myvi-x', brand: 'Perodua', model: 'Myvi', variant: '1.3 X', year: 2026, price: 54600 },
-  { id: 'perodua-myvi-av', brand: 'Perodua', model: 'Myvi', variant: '1.5 AV', year: 2026, price: 58600 },
-  { id: 'perodua-ativa-av', brand: 'Perodua', model: 'Ativa', variant: '1.0T AV', year: 2026, price: 65500 },
-  { id: 'perodua-ativa-av-se', brand: 'Perodua', model: 'Ativa', variant: '1.0T AV SE', year: 2026, price: 68500 },
-
-  { id: 'proton-saga-standard', brand: 'Proton', model: 'Saga', variant: 'Standard', year: 2026, price: 41500 },
-  { id: 'proton-saga-premium', brand: 'Proton', model: 'Saga', variant: 'Premium', year: 2026, price: 46500 },
-  { id: 'proton-s70-executive', brand: 'Proton', model: 'S70', variant: 'Executive', year: 2026, price: 78900 },
-  { id: 'proton-s70-flagship', brand: 'Proton', model: 'S70', variant: 'Flagship', year: 2026, price: 92900 },
-  { id: 'proton-x50-standard', brand: 'Proton', model: 'X50', variant: 'Standard', year: 2026, price: 79800 },
-  { id: 'proton-x50-flagship', brand: 'Proton', model: 'X50', variant: 'Flagship', year: 2026, price: 103800 },
-  { id: 'proton-x70-premium', brand: 'Proton', model: 'X70', variant: 'Premium', year: 2026, price: 108800 },
-  { id: 'proton-x70-flagship-x', brand: 'Proton', model: 'X70', variant: 'Flagship X', year: 2026, price: 118000 },
-
-  { id: 'toyota-vios-e', brand: 'Toyota', model: 'Vios', variant: 'E', year: 2026, price: 89500 },
-  { id: 'toyota-vios-g', brand: 'Toyota', model: 'Vios', variant: 'G', year: 2026, price: 92500 },
-  { id: 'toyota-corolla-1-8g', brand: 'Toyota', model: 'Corolla Altis', variant: '1.8G', year: 2026, price: 128500 },
-  { id: 'toyota-corolla-1-8v', brand: 'Toyota', model: 'Corolla Altis', variant: '1.8V', year: 2026, price: 130500 },
-
-  { id: 'honda-city-e', brand: 'Honda', model: 'City', variant: 'E', year: 2026, price: 105900 },
-  { id: 'honda-city-rs', brand: 'Honda', model: 'City', variant: 'RS', year: 2026, price: 111500 },
-  { id: 'honda-hrv-s', brand: 'Honda', model: 'HR-V', variant: 'e:HEV S', year: 2026, price: 128900 },
-  { id: 'honda-hrv-rs', brand: 'Honda', model: 'HR-V', variant: 'e:HEV RS', year: 2026, price: 148900 },
+  { id: 'proton-saga-standard', brand: 'Proton', model: 'Saga', variant: 'Standard', price: 38990, photoUrl: '/cars/proton-saga.png', years: [{ year: 2026 }] },
+  { id: 'proton-saga-executive', brand: 'Proton', model: 'Saga', variant: 'Executive', price: 44990, photoUrl: '/cars/proton-saga.png', years: [{ year: 2026 }] },
+  { id: 'proton-saga-premium', brand: 'Proton', model: 'Saga', variant: 'Premium', price: 49990, photoUrl: '/cars/proton-saga.png', years: [{ year: 2026 }] },
+  { id: 'proton-persona-standard', brand: 'Proton', model: 'Persona', variant: 'Standard', price: 47800, photoUrl: '/cars/proton-persona.png', years: [{ year: 2026 }] },
+  { id: 'proton-persona-executive', brand: 'Proton', model: 'Persona', variant: 'Executive', price: 53300, photoUrl: '/cars/proton-persona.png', years: [{ year: 2026 }] },
+  { id: 'proton-persona-premium', brand: 'Proton', model: 'Persona', variant: 'Premium', price: 58300, photoUrl: '/cars/proton-persona.png', years: [{ year: 2026 }] },
+  { id: 'proton-s70-executive', brand: 'Proton', model: 'S70', variant: 'Executive', price: 73800, photoUrl: '/cars/proton-s70.png', years: [{ year: 2026 }] },
+  { id: 'proton-s70-premium', brand: 'Proton', model: 'S70', variant: 'Premium', price: 79800, photoUrl: '/cars/proton-s70.png', years: [{ year: 2026 }] },
+  { id: 'proton-s70-flagship', brand: 'Proton', model: 'S70', variant: 'Flagship', price: 89800, photoUrl: '/cars/proton-s70.png', years: [{ year: 2026 }] },
+  { id: 'proton-s70-flagship-x', brand: 'Proton', model: 'S70', variant: 'Flagship X', price: 94800, photoUrl: '/cars/proton-s70.png', years: [{ year: 2026 }] },
+  { id: 'proton-x50-executive', brand: 'Proton', model: 'X50', variant: 'Executive', price: 89800, photoUrl: '/cars/proton-x50.png', years: [{ year: 2026 }] },
+  { id: 'proton-x50-premium', brand: 'Proton', model: 'X50', variant: 'Premium', price: 101800, photoUrl: '/cars/proton-x50.png', years: [{ year: 2026 }] },
+  { id: 'proton-x50-flagship', brand: 'Proton', model: 'X50', variant: 'Flagship', price: 113300, photoUrl: '/cars/proton-x50.png', years: [{ year: 2026 }] },
+  { id: 'proton-x70-executive', brand: 'Proton', model: 'X70', variant: 'Executive', price: 106800, photoUrl: '/cars/proton-x70.png', years: [{ year: 2026 }] },
+  { id: 'proton-x70-premium', brand: 'Proton', model: 'X70', variant: 'Premium', price: 119800, photoUrl: '/cars/proton-x70.png', years: [{ year: 2026 }] },
+  { id: 'proton-x90-lite', brand: 'Proton', model: 'X90', variant: 'Lite', price: 106800, photoUrl: '/cars/proton-x90.png', years: [{ year: 2026 }] },
+  { id: 'proton-x90-prime', brand: 'Proton', model: 'X90', variant: 'Prime', price: 116800, photoUrl: '/cars/proton-x90.png', years: [{ year: 2026 }] },
+  { id: 'proton-x90-prime-x', brand: 'Proton', model: 'X90', variant: 'Prime X', price: 122800, photoUrl: '/cars/proton-x90.png', years: [{ year: 2026 }] },
 
   // Chery Malaysia lineup — synced from the dealer's own live pricing feed (chery-shared-data
   // .data-quotation.workers.dev), which also supplies the exact per-model Basic Premium,
   // Additional Benefits, and promo interest rate figures below. Tiggo 7 Pro and Tiggo 8 Pro
   // (ICE) are still sold alongside their PHEV siblings, not discontinued.
-  { id: 'chery-tiggo-cross-turbo', brand: 'Chery', model: 'Tiggo Cross', variant: 'Turbo', year: 2026, price: 88800, interestRate: 2.3, basicPremium: 2206.67, addBenefits: 620.5 },
-  { id: 'chery-tiggo-cross-hev', brand: 'Chery', model: 'Tiggo Cross', variant: 'Hybrid', year: 2026, price: 99800, interestRate: 2.3, basicPremium: 2435.47, addBenefits: 642.5 },
-  { id: 'chery-o5-1-5t', brand: 'Chery', model: 'O5', variant: '1.5 Turbo', year: 2026, price: 116800, interestRate: 2.3, basicPremium: 2789.07, addBenefits: 715.5 },
-  { id: 'chery-tiggo7-pro', brand: 'Chery', model: 'Tiggo 7', variant: 'Pro', year: 2026, price: 123800, interestRate: 2.3, basicPremium: 2934.67, addBenefits: 820.5 },
-  { id: 'chery-tiggo7-phev', brand: 'Chery', model: 'Tiggo 7', variant: 'PHEV CSH', year: 2026, price: 129800, interestRate: 2.3, basicPremium: 3088.44, addBenefits: 832.5 },
-  { id: 'chery-tiggo8-1-6t', brand: 'Chery', model: 'Tiggo 8', variant: '1.6 TGDi', year: 2026, price: 129800, interestRate: 2.3, basicPremium: 3059.47, addBenefits: 832.5 },
-  { id: 'chery-tiggo8-pro', brand: 'Chery', model: 'Tiggo 8', variant: 'Pro', year: 2026, price: 159800, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5 },
-  { id: 'chery-tiggo8-phev', brand: 'Chery', model: 'Tiggo 8', variant: 'PHEV CSH', year: 2026, price: 159800, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5 },
-  { id: 'chery-tiggo9-flexi', brand: 'Chery', model: 'Tiggo 9', variant: 'Flexi Package', year: 2026, price: 179800, interestRate: 2.3, basicPremium: 4126.35, addBenefits: 1192.5 },
-  { id: 'chery-tiggo9-premium', brand: 'Chery', model: 'Tiggo 9', variant: 'Premium Package', year: 2026, price: 179800, interestRate: 2.3, basicPremium: 4126.35, addBenefits: 1192.5 },
-  { id: 'chery-omoda-e5', brand: 'Chery', model: 'Omoda E5', variant: 'BEV', year: 2026, price: 146978, interestRate: 2.1, basicPremium: 3731.1, addBenefits: 775.5 },
+  { id: 'chery-tiggo-cross-turbo', brand: 'Chery', model: 'Tiggo Cross', variant: 'Turbo', price: 88800, interestRate: 2.3, basicPremium: 2206.67, addBenefits: 620.5, photoUrl: '/cars/chery-tiggo-cross-turbo.png', years: [{ year: 2026 }] },
+  { id: 'chery-tiggo-cross-hev', brand: 'Chery', model: 'Tiggo Cross', variant: 'Hybrid', price: 99800, interestRate: 2.3, basicPremium: 2435.47, addBenefits: 642.5, photoUrl: '/cars/chery-tiggo-cross-hybrid.png', years: [{ year: 2026 }] },
+  { id: 'chery-o5-1-5t', brand: 'Chery', model: 'Chery O5', variant: '', price: 116800, interestRate: 2.3, basicPremium: 2789.07, addBenefits: 715.5, photoUrl: '/cars/chery-o5.png', years: [{ year: 2026 }] },
+  { id: 'chery-tiggo7-pro', brand: 'Chery', model: 'Tiggo 7', variant: 'Pro', price: 123800, interestRate: 2.3, basicPremium: 2934.67, addBenefits: 820.5, photoUrl: '/cars/chery-tiggo7-pro.png', years: [{ year: 2026 }] },
+  { id: 'chery-tiggo7-phev', brand: 'Chery', model: 'Tiggo 7', variant: 'PHEV', price: 129800, interestRate: 2.3, basicPremium: 3088.44, addBenefits: 832.5, photoUrl: '/cars/chery-tiggo7-phev.png', years: [{ year: 2026 }] },
+  { id: 'chery-tiggo8-1-6t', brand: 'Chery', model: 'Tiggo 8', variant: '', price: 129800, interestRate: 2.3, basicPremium: 3059.47, addBenefits: 832.5, photoUrl: '/cars/chery-tiggo8.png', years: [{ year: 2026 }] },
+  { id: 'chery-tiggo8-pro', brand: 'Chery', model: 'Tiggo 8', variant: 'Pro', price: 159800, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-pro.png', years: [{ year: 2026 }] },
+  { id: 'chery-tiggo8-phev', brand: 'Chery', model: 'Tiggo 8', variant: 'PHEV', price: 159800, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-phev.png', years: [{ year: 2026 }] },
+  { id: 'chery-tiggo9', brand: 'Chery', model: 'Tiggo 9', variant: '', price: 179800, interestRate: 2.3, basicPremium: 4126.35, addBenefits: 1192.5, photoUrl: '/cars/chery-tiggo9.png', years: [{ year: 2026 }] },
+  { id: 'chery-omoda-e5', brand: 'Chery', model: 'Omoda E5', variant: '', price: 146978, interestRate: 2.1, basicPremium: 3731.1, addBenefits: 775.5, photoUrl: '/cars/chery-omoda-e5.png', years: [{ year: 2026 }] },
 ];
 
-/** Factory-default catalog, snapshotted before any persisted overrides are applied below —
- *  kept only so a from-scratch reset is possible later; never mutated itself. */
-export const DEFAULT_VEHICLES: Vehicle[] = VEHICLES.map((v) => ({ ...v }));
+/** Factory-default catalog, snapshotted before any account's saved overrides are applied on top —
+ *  kept only so a from-scratch reset is possible later; never mutated itself. Clones `years` too,
+ *  since it's an array a reset must not still be sharing with the live (possibly edited) catalog. */
+export const DEFAULT_VEHICLES: Vehicle[] = VEHICLES.map((v) => ({ ...v, years: v.years.map((y) => ({ ...y })) }));
 
-export const VEHICLE_CATALOG_STORAGE_KEY = 'redline-vehicle-catalog';
-
-/** The car database (Account Settings → Car Database) is fully editable — cars and brands can be
- *  added, edited, and removed at runtime. VEHICLES is imported by name across the app, so instead
- *  of swapping the reference, any saved catalog is spliced into the same array in place, once, as
- *  soon as this module loads — every consumer sees the SA's own cars from their very first read. */
-function loadSavedVehicleCatalog(): Vehicle[] | null {
-  try {
-    const raw = localStorage.getItem(VEHICLE_CATALOG_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-const savedVehicleCatalog = loadSavedVehicleCatalog();
-if (savedVehicleCatalog) {
-  VEHICLES.length = 0;
-  VEHICLES.push(...savedVehicleCatalog);
-}
+/** Only the fields Price Settings can actually edit at runtime — price, rates, and model
+ *  years/rebates. Brand/model/variant identity, insurance figures, and photo/brochure paths are
+ *  hardcoded by the developer and never saved as an override. Persisted per-account via the Worker
+ *  API (`/api/vehicle-overrides`) and applied onto this hardcoded catalog by
+ *  VehicleCatalogService.loadOverrides() once the signed-in account is known — never at module
+ *  load, since which overrides apply depends on who's logged in. */
+export type VehicleOverride = Partial<Pick<Vehicle, 'price' | 'interestRate' | 'effectiveRate' | 'years'>>;
 
 /** Unique models for a brand, in catalog order — used to drive cascading brand→model selects. */
 export function modelsForBrand(brand: string): string[] {
@@ -113,31 +121,20 @@ export function modelsForBrand(brand: string): string[] {
 }
 
 /** Unique variants for a brand+model, in catalog order — used to drive cascading model→variant
- *  selects. A variant can have several rows (one per model year), so this dedupes by name. */
+ *  selects. */
 export function variantsForModel(brand: string, model: string): string[] {
   return Array.from(new Set(VEHICLES.filter((v) => v.brand === brand && v.model === model).map((v) => v.variant)));
 }
 
-/** Every model year actually in the database for this exact brand/model/variant, newest first —
- *  never assumed or hardcoded, so a newly added "2027" row shows up on its own. Drives the
- *  Calculator's model-year switch: one year and there's nothing to switch, several and there is. */
+/** Every model year this exact brand/model/variant is available in, newest first — never assumed
+ *  or hardcoded, so a newly added year shows up on its own. Drives the Calculator's model-year
+ *  switch: one year and there's nothing to switch, several and there is. */
 export function yearsForVariant(brand: string, model: string, variant: string): number[] {
-  return Array.from(new Set(VEHICLES.filter((v) => v.brand === brand && v.model === model && v.variant === variant).map((v) => v.year))).sort(
-    (a, b) => b - a,
+  return (
+    findVehicle(brand, model, variant)
+      ?.years.map((y) => y.year)
+      .sort((a, b) => b - a) ?? []
   );
-}
-
-/** One row per brand+model+variant, ignoring model year — the newest year stands in for the
- *  variant since the brochure doesn't change year to year, only price/rebate do. For pages
- *  that browse the catalog itself (e.g. Brochures) rather than quote a specific model year. */
-export function latestVehiclePerVariant(vehicles: Vehicle[] = VEHICLES): Vehicle[] {
-  const byKey = new Map<string, Vehicle>();
-  for (const v of vehicles) {
-    const key = `${v.brand}::${v.model}::${v.variant}`;
-    const existing = byKey.get(key);
-    if (!existing || v.year > existing.year) byKey.set(key, v);
-  }
-  return Array.from(byKey.values());
 }
 
 export type ModelSummary = { key: string; brand: string; model: string; fromPrice: number };
