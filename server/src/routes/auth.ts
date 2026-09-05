@@ -1,4 +1,4 @@
-import { clearSessionCookieHeader, createSession, deleteSession, getUserFromSession, hashPassword, sessionCookieHeader, verifyPassword } from '../auth';
+import { clearSessionCookieHeader, createSession, deleteSession, generatePublicToken, getUserFromSession, hashPassword, sessionCookieHeader, verifyPassword } from '../auth';
 import { json, readJsonBody } from '../http';
 import type { Env } from '../index';
 
@@ -21,17 +21,18 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
 
     const id = crypto.randomUUID();
     const passwordHash = await hashPassword(password);
+    const publicToken = generatePublicToken();
     // Seeds the new account's advisor profile with its own name/email so the sidebar/quotes show
     // this SA from the very first login, not the client's hardcoded DEFAULT_ADVISOR placeholder —
     // the client already merges onto its own defaults for role/phone/bio, so a partial profile is
     // exactly what's expected here, not the whole shape.
     await env.DB.batch([
-      env.DB.prepare('INSERT INTO users (id, email, password_hash, name, created_at) VALUES (?, ?, ?, ?, ?)').bind(id, email, passwordHash, name, Date.now()),
+      env.DB.prepare('INSERT INTO users (id, email, password_hash, name, created_at, public_token) VALUES (?, ?, ?, ?, ?, ?)').bind(id, email, passwordHash, name, Date.now(), publicToken),
       env.DB.prepare('INSERT INTO advisor_profiles (user_id, data) VALUES (?, ?)').bind(id, JSON.stringify({ name, email })),
     ]);
 
     const { token, expiresAt } = await createSession(env.DB, id);
-    return json({ id, email, name }, 201, { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) });
+    return json({ id, email, name, publicToken }, 201, { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) });
   }
 
   if (url.pathname === '/api/auth/login' && request.method === 'POST') {
@@ -40,15 +41,15 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
     const password = body?.password;
     if (!email || !password) return json({ error: 'Email and password are required.' }, 400);
 
-    const user = await env.DB.prepare('SELECT id, email, name, password_hash FROM users WHERE email = ?')
+    const user = await env.DB.prepare('SELECT id, email, name, password_hash, public_token FROM users WHERE email = ?')
       .bind(email)
-      .first<{ id: string; email: string; name: string; password_hash: string }>();
+      .first<{ id: string; email: string; name: string; password_hash: string; public_token: string }>();
     if (!user || !(await verifyPassword(password, user.password_hash))) {
       return json({ error: 'Incorrect email or password.' }, 401);
     }
 
     const { token, expiresAt } = await createSession(env.DB, user.id);
-    return json({ id: user.id, email: user.email, name: user.name }, 200, { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) });
+    return json({ id: user.id, email: user.email, name: user.name, publicToken: user.public_token }, 200, { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) });
   }
 
   if (url.pathname === '/api/auth/logout' && request.method === 'POST') {

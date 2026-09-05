@@ -5,6 +5,7 @@ import { handleVehicleOverridesRoute } from './routes/vehicle-overrides';
 import { handleBankersRoute } from './routes/bankers';
 import { handleTradeInContactsRoute } from './routes/trade-in-contacts';
 import { handleCustomersRoute } from './routes/customers';
+import { handlePublicRoute } from './routes/public';
 import { json } from './http';
 
 export interface Env {
@@ -28,6 +29,7 @@ export default {
 } satisfies ExportedHandler<Env>;
 
 async function handleApi(request: Request, env: Env, url: URL): Promise<Response> {
+  if (url.pathname.startsWith('/api/public/')) return handlePublicRoute(request, env, url);
   if (url.pathname.startsWith('/api/auth/')) return handleAuthRoute(request, env, url);
   if (url.pathname === '/api/settings') return handleSettingsRoute(request, env);
   if (url.pathname === '/api/advisor') return handleAdvisorRoute(request, env);

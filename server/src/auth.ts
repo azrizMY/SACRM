@@ -2,7 +2,7 @@ export const SESSION_COOKIE = 'redline_session';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const PBKDF2_ITERATIONS = 100_000;
 
-export type SessionUser = { id: string; email: string; name: string };
+export type SessionUser = { id: string; email: string; name: string; publicToken: string };
 
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes)
@@ -53,6 +53,12 @@ function generateToken(): string {
   return toHex(crypto.getRandomValues(new Uint8Array(32)));
 }
 
+/** Shorter than a session token (16 bytes vs 32) since this one goes in a URL a customer might
+ *  have to retype — still random and unguessable, just friendlier to share. */
+export function generatePublicToken(): string {
+  return toHex(crypto.getRandomValues(new Uint8Array(16)));
+}
+
 export async function createSession(db: D1Database, userId: string): Promise<{ token: string; expiresAt: number }> {
   const token = generateToken();
   const expiresAt = Date.now() + SESSION_TTL_MS;
@@ -89,18 +95,18 @@ export async function getUserFromSession(db: D1Database, request: Request): Prom
   if (!token) return null;
   const row = await db
     .prepare(
-      `SELECT users.id as id, users.email as email, users.name as name, sessions.expires_at as expiresAt
+      `SELECT users.id as id, users.email as email, users.name as name, users.public_token as publicToken, sessions.expires_at as expiresAt
        FROM sessions JOIN users ON users.id = sessions.user_id
        WHERE sessions.id = ?`,
     )
     .bind(token)
-    .first<{ id: string; email: string; name: string; expiresAt: number }>();
+    .first<{ id: string; email: string; name: string; publicToken: string; expiresAt: number }>();
   if (!row) return null;
   if (row.expiresAt < Date.now()) {
     await db.prepare('DELETE FROM sessions WHERE id = ?').bind(token).run();
     return null;
   }
-  return { id: row.id, email: row.email, name: row.name };
+  return { id: row.id, email: row.email, name: row.name, publicToken: row.publicToken };
 }
 
 export async function deleteSession(db: D1Database, request: Request): Promise<void> {

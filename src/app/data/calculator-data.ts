@@ -90,16 +90,16 @@ export const VEHICLES: Vehicle[] = [
   // .data-quotation.workers.dev), which also supplies the exact per-model Basic Premium,
   // Additional Benefits, and promo interest rate figures below. Tiggo 7 Pro and Tiggo 8 Pro
   // (ICE) are still sold alongside their PHEV siblings, not discontinued.
+  { id: 'chery-o5-1-5t', brand: 'Chery', model: 'Chery O5', variant: '', price: 116800, interestRate: 2.3, basicPremium: 2789.07, addBenefits: 715.5, photoUrl: '/cars/chery-o5.png', years: [{ year: 2026 }] },
+  { id: 'chery-omoda-e5', brand: 'Chery', model: 'Omoda E5', variant: '', price: 146978, interestRate: 2.1, basicPremium: 3731.1, addBenefits: 775.5, photoUrl: '/cars/chery-omoda-e5.png', years: [{ year: 2026 }] },
   { id: 'chery-tiggo-cross-turbo', brand: 'Chery', model: 'Tiggo Cross', variant: 'Turbo', price: 88800, interestRate: 2.3, basicPremium: 2206.67, addBenefits: 620.5, photoUrl: '/cars/chery-tiggo-cross-turbo.png', years: [{ year: 2026 }] },
   { id: 'chery-tiggo-cross-hev', brand: 'Chery', model: 'Tiggo Cross', variant: 'Hybrid', price: 99800, interestRate: 2.3, basicPremium: 2435.47, addBenefits: 642.5, photoUrl: '/cars/chery-tiggo-cross-hybrid.png', years: [{ year: 2026 }] },
-  { id: 'chery-o5-1-5t', brand: 'Chery', model: 'Chery O5', variant: '', price: 116800, interestRate: 2.3, basicPremium: 2789.07, addBenefits: 715.5, photoUrl: '/cars/chery-o5.png', years: [{ year: 2026 }] },
   { id: 'chery-tiggo7-pro', brand: 'Chery', model: 'Tiggo 7', variant: 'Pro', price: 123800, interestRate: 2.3, basicPremium: 2934.67, addBenefits: 820.5, photoUrl: '/cars/chery-tiggo7-pro.png', years: [{ year: 2026 }] },
   { id: 'chery-tiggo7-phev', brand: 'Chery', model: 'Tiggo 7', variant: 'PHEV', price: 129800, interestRate: 2.3, basicPremium: 3088.44, addBenefits: 832.5, photoUrl: '/cars/chery-tiggo7-phev.png', years: [{ year: 2026 }] },
   { id: 'chery-tiggo8-1-6t', brand: 'Chery', model: 'Tiggo 8', variant: '', price: 129800, interestRate: 2.3, basicPremium: 3059.47, addBenefits: 832.5, photoUrl: '/cars/chery-tiggo8.png', years: [{ year: 2026 }] },
   { id: 'chery-tiggo8-pro', brand: 'Chery', model: 'Tiggo 8', variant: 'Pro', price: 159800, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-pro.png', years: [{ year: 2026 }] },
   { id: 'chery-tiggo8-phev', brand: 'Chery', model: 'Tiggo 8', variant: 'PHEV', price: 159800, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-phev.png', years: [{ year: 2026 }] },
   { id: 'chery-tiggo9', brand: 'Chery', model: 'Tiggo 9', variant: '', price: 179800, interestRate: 2.3, basicPremium: 4126.35, addBenefits: 1192.5, photoUrl: '/cars/chery-tiggo9.png', years: [{ year: 2026 }] },
-  { id: 'chery-omoda-e5', brand: 'Chery', model: 'Omoda E5', variant: '', price: 146978, interestRate: 2.1, basicPremium: 3731.1, addBenefits: 775.5, photoUrl: '/cars/chery-omoda-e5.png', years: [{ year: 2026 }] },
 ];
 
 /** Factory-default catalog, snapshotted before any account's saved overrides are applied on top —

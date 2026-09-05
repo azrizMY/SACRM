@@ -10,6 +10,7 @@ import { LoginComponent } from './pages/login.component';
 import { MyCarsComponent } from './pages/my-cars.component';
 import { PriceSettingsComponent } from './pages/price-settings.component';
 import { ProfileComponent } from './pages/profile.component';
+import { PublicQuoteComponent } from './pages/public-quote.component';
 import { SignupComponent } from './pages/signup.component';
 import { TradeInsComponent } from './pages/trade-ins.component';
 import { authGuard, guestGuard } from './shared/auth.guard';
@@ -19,6 +20,8 @@ export const routes: Routes = [
   { path: 'welcome', component: LandingComponent, canActivate: [guestGuard] },
   { path: 'login', component: LoginComponent, canActivate: [guestGuard] },
   { path: 'signup', component: SignupComponent, canActivate: [guestGuard] },
+  { path: 'quote/:token', component: PublicQuoteComponent },
+  { path: 'quote/:token/brand', component: PublicQuoteComponent, data: { singleBrand: true } },
   {
     path: '',
     component: AppShellComponent,

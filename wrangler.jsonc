@@ -3,11 +3,26 @@
   "name": "sacrm",
   "compatibility_date": "2025-01-01",
   "pages_build_output_dir": "dist/redline/browser",
+  // Top-level bindings apply to local dev AND Preview deployments (any branch other than "main")
+  // by default — pointed at the preview/test database so testing can never touch real accounts.
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "redline-crm",
-      "database_id": "7ffbc12b-99be-4fb1-a72e-7db1c4b29501"
+      "database_name": "redline-crm-preview",
+      "database_id": "6c0b28ac-1ce7-4573-a1e7-83e64095074d"
     }
-  ]
+  ],
+  "env": {
+    // Only the "main" branch deploys as Production — this is the only place the real database is
+    // referenced.
+    "production": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "redline-crm",
+          "database_id": "7ffbc12b-99be-4fb1-a72e-7db1c4b29501"
+        }
+      ]
+    }
+  }
 }

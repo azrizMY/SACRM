@@ -9,11 +9,14 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
+  // Points at the preview/test database, not production — this config is only ever used for local
+  // `wrangler dev` testing from this folder, so an accidental `--remote` flag here can't touch
+  // real accounts. The Pages deploy pipeline itself uses the root wrangler.jsonc, not this one.
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "redline-crm",
-      "database_id": "7ffbc12b-99be-4fb1-a72e-7db1c4b29501"
+      "database_name": "redline-crm-preview",
+      "database_id": "6c0b28ac-1ce7-4573-a1e7-83e64095074d"
     }
   ]
 }

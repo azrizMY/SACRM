@@ -5,6 +5,14 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { IconComponent } from '../shared/icon.component';
 import { AuthService } from '../shared/auth.service';
 
+/** Only ever used for local testing (`npm run preview` against the isolated preview database) —
+ *  gated on hostname below so it can never activate on the real deployed site. */
+const DEV_TEST_ACCOUNT = { email: 'dev@test.local', password: 'devtest123' };
+
+function isLocalDevHost(): boolean {
+  return typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+}
+
 @Component({
   selector: 'app-login',
   standalone: true,
@@ -88,8 +96,8 @@ import { AuthService } from '../shared/auth.service';
   `,
 })
 export class LoginComponent {
-  email = '';
-  password = '';
+  email = isLocalDevHost() ? DEV_TEST_ACCOUNT.email : '';
+  password = isLocalDevHost() ? DEV_TEST_ACCOUNT.password : '';
   showPassword = signal(false);
   error = signal<string | null>(null);
   submitting = signal(false);

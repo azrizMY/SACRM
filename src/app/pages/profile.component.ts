@@ -3,7 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
+import { AuthService } from '../shared/auth.service';
 import { CustomerService } from '../shared/customer.service';
+import { SettingsService } from '../shared/settings.service';
 import { compressImageFile } from '../shared/image-compress';
 import { CUSTOMER_STATUS_META } from '../data/customer-data';
 import type { AdvisorProfile } from '../data/advisor-data';
@@ -147,6 +149,45 @@ import type { AdvisorProfile } from '../data/advisor-data';
         </div>
       </div>
 
+      <!-- Customer link -->
+      <div class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex flex-col gap-1">
+            <span class="text-sm font-semibold">Your Customer Link</span>
+            <span class="text-xs text-muted-foreground">Share this with a customer — they can build their own quote, no login needed, with your promo card shown on it.</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <code class="max-w-[220px] truncate rounded-md bg-muted/40 px-2.5 py-1.5 text-xs text-foreground sm:max-w-xs">{{ customerLinkUrl() }}</code>
+            <button
+              type="button"
+              (click)="copyCustomerLink()"
+              class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
+            >
+              <app-icon [name]="linkCopied() ? 'check' : 'share'" [size]="13" />
+              {{ linkCopied() ? 'Copied!' : 'Copy' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex flex-col gap-1">
+            <span class="text-sm font-semibold">{{ defaultBrand() }}-Only Link</span>
+            <span class="text-xs text-muted-foreground">Same quote page, but locked to {{ defaultBrand() }} — no brand switcher for the customer.</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <code class="max-w-[220px] truncate rounded-md bg-muted/40 px-2.5 py-1.5 text-xs text-foreground sm:max-w-xs">{{ brandOnlyLinkUrl() }}</code>
+            <button
+              type="button"
+              (click)="copyBrandOnlyLink()"
+              class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
+            >
+              <app-icon [name]="brandLinkCopied() ? 'check' : 'share'" [size]="13" />
+              {{ brandLinkCopied() ? 'Copied!' : 'Copy' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Stats -->
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
@@ -219,12 +260,40 @@ export class ProfileComponent {
   editing = signal(false);
   photoError = signal<string | null>(null);
   form: AdvisorProfile;
+  linkCopied = signal(false);
+  brandLinkCopied = signal(false);
 
   constructor(
     public advisor: AdvisorService,
     public customers: CustomerService,
+    private auth: AuthService,
+    private settingsService: SettingsService,
   ) {
     this.form = { ...this.advisor.profile() };
+  }
+
+  defaultBrand = computed(() => this.settingsService.settings().dashboardTarget.brand);
+  customerLinkUrl = computed(() => `${location.origin}/quote/${this.auth.currentUser()?.publicToken ?? ''}`);
+  brandOnlyLinkUrl = computed(() => `${location.origin}/quote/${this.auth.currentUser()?.publicToken ?? ''}/brand`);
+
+  async copyCustomerLink() {
+    try {
+      await navigator.clipboard.writeText(this.customerLinkUrl());
+      this.linkCopied.set(true);
+      setTimeout(() => this.linkCopied.set(false), 2000);
+    } catch {
+      /* clipboard permission denied — the link is still visible to copy manually */
+    }
+  }
+
+  async copyBrandOnlyLink() {
+    try {
+      await navigator.clipboard.writeText(this.brandOnlyLinkUrl());
+      this.brandLinkCopied.set(true);
+      setTimeout(() => this.brandLinkCopied.set(false), 2000);
+    } catch {
+      /* clipboard permission denied — the link is still visible to copy manually */
+    }
   }
 
   totalCommission = computed(() => this.customers.records().reduce((sum, r) => sum + (r.commission ?? 0), 0));
