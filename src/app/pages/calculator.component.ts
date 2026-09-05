@@ -1125,10 +1125,14 @@ export class CalculatorComponent implements AfterViewInit {
   }
 
   /** Download quality is independent of preview quality — a dedicated (never-visible) canvas
-   *  rendered fresh at 3x the design grid, well above the on-screen preview's 2x, so a shared
-   *  quote image still looks sharp after WhatsApp/social recompression even though the preview
-   *  itself doesn't need to work that hard. */
-  private static readonly EXPORT_SCALE = 3;
+   *  rendered fresh at 4x the design grid (900px design → 3600px output), well above the
+   *  on-screen preview's 2x. Text, price figures, and every other vector/canvas-drawn element
+   *  redraw natively at this resolution, so raising this constant genuinely sharpens the whole
+   *  poster — it isn't just "the same blurry image, bigger". The one exception is the car photo
+   *  itself: several source images in public/cars (notably the Proton lineup, ~640px wide) don't
+   *  have enough real detail to stay crisp once stretched to fill their spot on the poster, and no
+   *  export scale can fix that — only higher-resolution source photos can. */
+  private static readonly EXPORT_SCALE = 4;
 
   private async renderPosterForExport(data: PosterData): Promise<HTMLCanvasElement> {
     const canvas = document.createElement('canvas');
