@@ -19,6 +19,7 @@ const BRAND_STYLES: Record<string, { bg: string; fg: string }> = {
   Perodua: { bg: 'oklch(0.55 0.13 150)', fg: 'oklch(0.98 0 0)' },
   Honda: { bg: 'oklch(0.5 0.02 285)', fg: 'oklch(0.98 0 0)' },
   Toyota: { bg: 'oklch(0.58 0.15 30)', fg: 'oklch(0.98 0 0)' },
+  Jaecoo: { bg: 'oklch(0.15 0 0)', fg: 'oklch(0.98 0 0)' },
 };
 
 export function brandStyle(brand: string): { bg: string; fg: string } {
@@ -36,6 +37,7 @@ export function brandInitials(brand: string): string {
 const BRAND_LOGOS: Record<string, string> = {
   Chery: '/brands/chery.png',
   Proton: '/brands/proton.png',
+  Jaecoo: '/brands/jaecoo.png',
 };
 
 export function brandLogo(brand: string): string | null {

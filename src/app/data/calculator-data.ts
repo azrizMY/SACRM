@@ -64,8 +64,8 @@ export function additionalRebateForYear(vehicle: Vehicle, year: number): number 
 
 /** Brand → model → variant catalog for the quotation calculator. Brands, models, and variants are
  *  hardcoded here by the developer, not editable at runtime — only pricing (incl. adding older
- *  model years still in dealer stock) is editable from Price Settings. Currently limited to Proton
- *  and Chery; other brands will be added back gradually. */
+ *  model years still in dealer stock) is editable from Price Settings. Currently limited to Proton,
+ *  Chery, and Jaecoo; other brands will be added back gradually. */
 export const VEHICLES: Vehicle[] = [
   { id: 'proton-saga-standard', brand: 'Proton', model: 'Saga', variant: 'Standard', price: 38990, photoUrl: '/cars/proton-saga.png', brochureUrl: '/brochures/proton-saga.pdf', years: [{ year: 2026 }] },
   { id: 'proton-saga-executive', brand: 'Proton', model: 'Saga', variant: 'Executive', price: 44990, photoUrl: '/cars/proton-saga.png', brochureUrl: '/brochures/proton-saga.pdf', years: [{ year: 2026 }] },
@@ -100,6 +100,18 @@ export const VEHICLES: Vehicle[] = [
   { id: 'chery-tiggo8-pro', brand: 'Chery', model: 'Tiggo 8', variant: 'Pro', price: 159800, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-pro.png', brochureUrl: '/brochures/chery-tiggo8.pdf', years: [{ year: 2026 }] },
   { id: 'chery-tiggo8-phev', brand: 'Chery', model: 'Tiggo 8', variant: 'PHEV', price: 159800, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-phev.png', brochureUrl: '/brochures/chery-tiggo8-phev.pdf', years: [{ year: 2026 }] },
   { id: 'chery-tiggo9', brand: 'Chery', model: 'Tiggo 9', variant: '', price: 179800, interestRate: 2.3, basicPremium: 4126.35, addBenefits: 1192.5, photoUrl: '/cars/chery-tiggo9.png', brochureUrl: '/brochures/chery-tiggo9.pdf', years: [{ year: 2026 }] },
+
+  // Jaecoo Malaysia lineup.
+  { id: 'jaecoo-j5', brand: 'Jaecoo', model: 'J5', variant: '', price: 108000, years: [{ year: 2026 }] },
+  { id: 'jaecoo-j5-ev', brand: 'Jaecoo', model: 'J5', variant: 'EV', price: 118800, years: [{ year: 2026 }] },
+  { id: 'jaecoo-j7-2wd', brand: 'Jaecoo', model: 'J7', variant: '2WD', price: 138800, years: [{ year: 2026 }] },
+  { id: 'jaecoo-j7-awd', brand: 'Jaecoo', model: 'J7', variant: 'AWD', price: 148800, years: [{ year: 2026 }] },
+  { id: 'jaecoo-j7-phev', brand: 'Jaecoo', model: 'J7', variant: 'PHEV', price: 158800, years: [{ year: 2026 }] },
+  { id: 'jaecoo-j8-2wd', brand: 'Jaecoo', model: 'J8', variant: '2WD', price: 178800, years: [{ year: 2026 }] },
+  { id: 'jaecoo-j8-awd', brand: 'Jaecoo', model: 'J8', variant: 'AWD', price: 198800, years: [{ year: 2026 }] },
+  { id: 'jaecoo-omoda-c9-2wd', brand: 'Jaecoo', model: 'Omoda C9', variant: '2WD', price: 168800, years: [{ year: 2026 }] },
+  { id: 'jaecoo-omoda-c9-awd', brand: 'Jaecoo', model: 'Omoda C9', variant: 'AWD', price: 188800, years: [{ year: 2026 }] },
+  { id: 'jaecoo-omoda-c9-phev', brand: 'Jaecoo', model: 'Omoda C9', variant: 'PHEV', price: 208800, years: [{ year: 2026 }] },
 ];
 
 /** Factory-default catalog, snapshotted before any account's saved overrides are applied on top —

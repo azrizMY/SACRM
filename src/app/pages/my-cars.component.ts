@@ -7,6 +7,7 @@ import { BrandMarkComponent } from '../shared/brand-mark.component';
 import { brandLogo, brandStyle } from '../data/dashboard-data';
 import { AdvisorService } from '../shared/advisor.service';
 import { SettingsService } from '../shared/settings.service';
+import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
 import {
   VEHICLES,
   additionalRebateForYear,
@@ -22,8 +23,8 @@ import {
 } from '../data/calculator-data';
 import { assembleImagePdfBytes, downloadBlob as downloadPdfBytes, type PdfImagePage } from '../shared/pdf-writer';
 import { posterFontsReady } from '../shared/poster-theme';
-import { detailedBrochureTemplate } from '../shared/poster-brochure-template-detailed';
 import { simpleBrochureTemplate } from '../shared/poster-brochure-template-simple';
+import { pricelistBrochureTemplate } from '../shared/poster-brochure-template-pricelist';
 import type { BrochureTemplate, BrochureTemplateId } from '../shared/poster-brochure-templates';
 import type { BrochureData, BrochureRow } from '../shared/poster-brochure-data';
 
@@ -337,47 +338,43 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
                 <span class="text-[11px] text-muted-foreground">Every model, variant, and year of this brand gets its own row on the offer sheet.</span>
               </div>
 
-              <div class="flex flex-col gap-2">
-                <span class="text-xs font-medium text-muted-foreground">Compare 3 Tenures</span>
-                <div role="group" aria-label="Offer sheet tenures" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
-                  @for (y of tenureYearOptions; track y) {
-                    <button
-                      type="button"
-                      [attr.aria-pressed]="offerTenureYears().includes(y)"
-                      (click)="toggleOfferTenureYear(y)"
-                      class="flex aspect-square items-center justify-center rounded-full text-xs font-semibold transition-colors"
-                      [ngClass]="offerTenureYears().includes(y) ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                    >
-                      {{ y }}
-                    </button>
-                  }
-                </div>
-                <span class="text-[11px] text-muted-foreground">
-                  @if (selectedOfferTemplateId() === 'detailed') {
-                    Each row shows a monthly instalment column for each of these {{ offerTenureYears().length }} tenure years.
-                  } @else {
+              @if (selectedOfferTemplateId() === 'pricelist') {
+                <p class="text-[11px] text-muted-foreground">OTR price only — no insurance, rebate or monthly instalment shown, just every model and variant's sticker price.</p>
+              } @else {
+                <div class="flex flex-col gap-2">
+                  <span class="text-xs font-medium text-muted-foreground">Compare 3 Tenures</span>
+                  <div role="group" aria-label="Offer sheet tenures" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
+                    @for (y of tenureYearOptions; track y) {
+                      <button
+                        type="button"
+                        [attr.aria-pressed]="offerTenureYears().includes(y)"
+                        (click)="toggleOfferTenureYear(y)"
+                        class="flex aspect-square items-center justify-center rounded-full text-xs font-semibold transition-colors"
+                        [ngClass]="offerTenureYears().includes(y) ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                      >
+                        {{ y }}
+                      </button>
+                    }
+                  </div>
+                  <span class="text-[11px] text-muted-foreground">
                     Each row's "from" monthly figure uses the lowest instalment among these {{ offerTenureYears().length }} tenure years.
-                  }
-                </span>
-              </div>
+                  </span>
+                </div>
 
-              <label class="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  [ngModel]="offerIncludeAdditionalRebate()"
-                  (ngModelChange)="offerIncludeAdditionalRebate.set($event)"
-                  class="size-4 shrink-0 rounded border-input accent-primary"
-                />
-                <span class="text-xs font-medium text-muted-foreground">Include Additional Rebate</span>
-              </label>
+                <label class="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    [ngModel]="offerIncludeAdditionalRebate()"
+                    (ngModelChange)="offerIncludeAdditionalRebate.set($event)"
+                    class="size-4 shrink-0 rounded border-input accent-primary"
+                  />
+                  <span class="text-xs font-medium text-muted-foreground">Include Additional Rebate</span>
+                </label>
 
-              <p class="text-[11px] text-muted-foreground">
-                @if (selectedOfferTemplateId() === 'detailed') {
-                  Insurance is always shown at 0% NCD — a general offer sheet, not a specific customer's quote. Selling price and monthly use the account's default downpayment and rate settings.
-                } @else {
+                <p class="text-[11px] text-muted-foreground">
                   OTR price and rebate only — no insurance is included in the Nett price shown. Monthly uses the account's default downpayment and rate settings.
-                }
-              </p>
+                </p>
+              }
             </div>
           </div>
         </div>
@@ -445,11 +442,16 @@ export class MyCarsComponent {
   modelVariantLabel = modelVariantLabel;
   variantLabel = variantLabel;
 
+  private catalog = inject(VehicleCatalogService);
+
   /** One row per brand+model+variant already — every model year of a variant lives on the same
-   *  row (see Vehicle.years), so VEHICLES itself is already one row per variant. */
-  allVehicles: Vehicle[] = VEHICLES;
-  brandFilters = ['All', ...Array.from(new Set(this.allVehicles.map((v) => v.brand)))];
-  brands: string[] = Array.from(new Set(this.allVehicles.map((v) => v.brand)));
+   *  row (see Vehicle.years), so VEHICLES itself is already one row per variant. Reads through
+   *  VehicleCatalogService (not the raw VEHICLES import) so a price/rebate saved in Price Settings
+   *  shows up here without needing a full page reload — brand/model/variant identity itself never
+   *  changes at runtime, so the brand lists below can stay static off VEHICLES directly. */
+  allVehicles = computed(() => this.catalog.vehicles());
+  brandFilters = ['All', ...Array.from(new Set(VEHICLES.map((v) => v.brand)))];
+  brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
   columns = COLUMNS;
 
   private settingsService = inject(SettingsService);
@@ -496,7 +498,7 @@ export class MyCarsComponent {
   visibleColumns = computed(() => (this.brandFilter() === 'All' ? this.columns : this.columns.filter((c) => c.key !== 'brand')));
 
   filteredSorted = computed(() => {
-    let list = this.brandFilter() === 'All' ? this.allVehicles : this.allVehicles.filter((v) => v.brand === this.brandFilter());
+    let list = this.brandFilter() === 'All' ? this.allVehicles() : this.allVehicles().filter((v) => v.brand === this.brandFilter());
     const key = this.sortKey();
     const dir = this.sortDir();
     return [...list].sort((a, b) => compareVehicles(a, b, key, dir));
@@ -507,7 +509,7 @@ export class MyCarsComponent {
     return list.length > 0 && list.every((v) => this.selected().has(v.id));
   });
 
-  openVehicle = computed(() => this.allVehicles.find((v) => v.id === this.openKey()) ?? null);
+  openVehicle = computed(() => this.allVehicles().find((v) => v.id === this.openKey()) ?? null);
 
   /** Static file path the developer set on this variant (see Vehicle.brochureUrl), or null. */
   brochureFor(v: Vehicle): string | null {
@@ -634,7 +636,7 @@ export class MyCarsComponent {
 
   async downloadSelected() {
     const ids = this.selected();
-    for (const v of this.allVehicles) {
+    for (const v of this.allVehicles()) {
       if (!ids.has(v.id)) continue;
       this.downloadOne(v);
       // Small stagger so the browser doesn't treat rapid-fire downloads as a popup flood.
@@ -684,36 +686,38 @@ export class MyCarsComponent {
     const defaults = this.settingsService.settings().salesDefaults;
     const includeAdditional = this.offerIncludeAdditionalRebate();
     const tenureYears = this.offerTenureYears();
-    return VEHICLES.filter((v) => v.brand === brand).map((v) => {
-      const basicPremiumFallback = basicPremiumDefault(v.price, defaults.basicPremiumRatePct);
-      const insuranceDetails = this.settingsService.getVehicleInsurance(v, basicPremiumFallback);
-      // Forced to 0% regardless of any saved customer quote's NCD — a general offer sheet quotes
-      // the sticker insurance figure, not whichever NCD the last customer happened to have.
-      const insurance = computeInsuranceBreakdown(insuranceDetails, 0).totalDue;
-      const year = this.offerYearFor(v);
-      const rebate = rebateForYear(v, year) + (includeAdditional ? additionalRebateForYear(v, year) : 0);
-      const totals = computeQuotationTotals({
-        basePrice: v.price,
-        effectiveRebate: rebate,
-        insuranceAmount: insurance,
-        downpaymentType: 'percent',
-        downpaymentValue: defaults.downpaymentPct,
+    return this.allVehicles()
+      .filter((v) => v.brand === brand)
+      .map((v) => {
+        const basicPremiumFallback = basicPremiumDefault(v.price, defaults.basicPremiumRatePct);
+        const insuranceDetails = this.settingsService.getVehicleInsurance(v, basicPremiumFallback);
+        // Forced to 0% regardless of any saved customer quote's NCD — a general offer sheet quotes
+        // the sticker insurance figure, not whichever NCD the last customer happened to have.
+        const insurance = computeInsuranceBreakdown(insuranceDetails, 0).totalDue;
+        const year = this.offerYearFor(v);
+        const rebate = rebateForYear(v, year) + (includeAdditional ? additionalRebateForYear(v, year) : 0);
+        const totals = computeQuotationTotals({
+          basePrice: v.price,
+          effectiveRebate: rebate,
+          insuranceAmount: insurance,
+          downpaymentType: 'percent',
+          downpaymentValue: defaults.downpaymentPct,
+        });
+        const interestRate = defaults.defaultRateType === 'effective' ? (v.effectiveRate ?? defaults.interestRate) : (v.interestRate ?? defaults.interestRate);
+        const monthlyByTenure = tenureYears.map((y) => monthlyPayment(totals.loanAmount, interestRate, y * 12, defaults.defaultRateType));
+        return {
+          modelTitle: modelVariantLabel(v.model, v.variant),
+          year,
+          carImageUrl: v.photoUrl ?? null,
+          otrPrice: v.price,
+          insurance,
+          sellingPrice: totals.totalAmountDue,
+          rebate,
+          downpayment: totals.downpaymentCash,
+          loanAmount: totals.loanAmount,
+          monthlyByTenure,
+        };
       });
-      const interestRate = defaults.defaultRateType === 'effective' ? (v.effectiveRate ?? defaults.interestRate) : (v.interestRate ?? defaults.interestRate);
-      const monthlyByTenure = tenureYears.map((y) => monthlyPayment(totals.loanAmount, interestRate, y * 12, defaults.defaultRateType));
-      return {
-        modelTitle: modelVariantLabel(v.model, v.variant),
-        year,
-        carImageUrl: v.photoUrl ?? null,
-        otrPrice: v.price,
-        insurance,
-        sellingPrice: totals.totalAmountDue,
-        rebate,
-        downpayment: totals.downpaymentCash,
-        loanAmount: totals.loanAmount,
-        monthlyByTenure,
-      };
-    });
   });
 
   private buildOfferSheetData(): BrochureData {
@@ -764,8 +768,8 @@ export class MyCarsComponent {
 
   /** Every offer-sheet layout this tab can render — all consuming the same BrochureData, so adding
    *  one is purely a new layout/renderer pair (see poster-brochure-templates.ts). */
-  readonly offerSheetTemplates: BrochureTemplate[] = [detailedBrochureTemplate, simpleBrochureTemplate];
-  selectedOfferTemplateId = signal<BrochureTemplateId>('detailed');
+  readonly offerSheetTemplates: BrochureTemplate[] = [simpleBrochureTemplate, pricelistBrochureTemplate];
+  selectedOfferTemplateId = signal<BrochureTemplateId>('simple');
   currentOfferTemplate = computed(() => this.offerSheetTemplates.find((t) => t.id === this.selectedOfferTemplateId()) ?? this.offerSheetTemplates[0]);
 
   private offerRenderGeneration = 0;

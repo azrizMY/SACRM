@@ -75,7 +75,9 @@ export function paginateBrochureRows(rows: BrochureRow[]): BrochureRow[][] {
   return pages.length > 0 ? pages : [[]];
 }
 
-async function drawHeader(ctx: CanvasRenderingContext2D, data: BrochureData, pageIndex: number, pageCount: number): Promise<void> {
+/** Exported so other brochure renderers (e.g. the compact price-list template) can share the exact
+ *  same logo/title header instead of redrawing it — `eyebrow` is the only thing that varies. */
+export async function drawHeader(ctx: CanvasRenderingContext2D, data: BrochureData, pageIndex: number, pageCount: number, eyebrow = 'CURRENT OFFERS'): Promise<void> {
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.fillRect(0, 0, PAGE_WIDTH, PAGE_HEIGHT);
 
@@ -122,7 +124,7 @@ async function drawHeader(ctx: CanvasRenderingContext2D, data: BrochureData, pag
   ctx.fillStyle = POSTER_COLORS.gray;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  fillTrackedText(ctx, 'CURRENT OFFERS', M + 20, 53, 4.5);
+  fillTrackedText(ctx, eyebrow, M + 20, 53, 4.5);
 
   ctx.font = displayFont(titleFontSize, 700);
   ctx.fillStyle = POSTER_COLORS.acc;
@@ -248,7 +250,8 @@ async function drawRow(ctx: CanvasRenderingContext2D, row: BrochureRow, top: num
   }
 }
 
-function initialsOf(name: string): string {
+/** Exported for reuse by the price-list template's own compact footer. */
+export function initialsOf(name: string): string {
   return name
     .split(' ')
     .filter(Boolean)
@@ -259,7 +262,8 @@ function initialsOf(name: string): string {
 
 /** Circular advisor avatar — photo when uploaded (object-fit: cover, clipped to a circle, same
  *  treatment the quote poster's own consultant block uses), initials-on-a-tile otherwise. */
-async function drawAdvisorAvatar(ctx: CanvasRenderingContext2D, data: BrochureData, x: number, y: number, size: number): Promise<void> {
+/** Exported for reuse by the price-list template's own compact footer. */
+export async function drawAdvisorAvatar(ctx: CanvasRenderingContext2D, data: BrochureData, x: number, y: number, size: number): Promise<void> {
   const cx = x + size / 2;
   const cy = y + size / 2;
 
@@ -299,7 +303,8 @@ async function drawAdvisorAvatar(ctx: CanvasRenderingContext2D, data: BrochureDa
  *  error correction (~30% of modules can be missing/obscured and still decode) — a centered logo
  *  covering roughly a fifth of the code is well inside that budget, and every WhatsApp QR reader
  *  is used to seeing a logo mark there anyway. */
-function drawQrCode(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number): void {
+/** Exported for reuse by the price-list template's own compact footer. */
+export function drawQrCode(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number): void {
   const matrix = buildQrMatrix(text);
   const moduleSize = size / matrix.length;
   ctx.fillStyle = POSTER_COLORS.paper;
