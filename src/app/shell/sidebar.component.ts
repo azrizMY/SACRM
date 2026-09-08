@@ -10,7 +10,7 @@ type NavItem = { id: string; label: string; icon: IconName };
 const NAV: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
   { id: 'calculator', label: 'Calculator', icon: 'calculator' },
-  { id: 'cars', label: 'Brochures', icon: 'car' },
+  { id: 'cars', label: 'Catalog', icon: 'car' },
   { id: 'price-settings', label: 'Price Settings', icon: 'tag' },
   { id: 'leads', label: 'Customer Manager', icon: 'users' },
   { id: 'notes', label: 'Cost Breakdown', icon: 'wallet' },
@@ -100,7 +100,9 @@ const NAV: NavItem[] = [
 
       <!-- User -->
       <div class="border-t border-sidebar-border p-3">
-        <app-user-menu [align]="collapsed ? 'center' : 'start'" side="top">
+        <!-- Always 'start' — the rail sits flush against the viewport's left edge, so centering
+             the menu on a collapsed (narrow, near x=0) trigger pushed half of it off-screen. -->
+        <app-user-menu align="start" side="top">
           <span
             class="flex w-full items-center gap-3 rounded-md text-left transition-colors hover:bg-sidebar-accent"
             [ngClass]="collapsed ? 'justify-center p-1' : 'p-1.5'"

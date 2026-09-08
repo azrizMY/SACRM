@@ -10,10 +10,9 @@ import { CustomerService } from '../shared/customer.service';
 import { SettingsService } from '../shared/settings.service';
 import { FINANCING_TYPE_OPTIONS, SOURCE_TYPES, TO_BE_CONFIRMED_COLOUR, type FinancingType } from '../data/customer-data';
 import { todayStr } from '../shared/date-utils';
-import { brandLogo } from '../data/dashboard-data';
+import { brandLogo, toMalaysianWhatsAppNumber } from '../data/dashboard-data';
 import {
   NCD_OPTIONS,
-  DEFAULT_REBATE,
   VEHICLES,
   basicPremiumDefault,
   computeInsuranceBreakdown,
@@ -74,9 +73,11 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
       </div>
 
       <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
-        <!-- Quote preview -->
+        <!-- Quote preview — no internal scroll cap, same as the Brochures offer sheet preview: the
+             poster is a fixed shape, so it just renders at its natural height and the page scrolls
+             as a whole instead of a scrollbar sitting on the preview column itself. -->
         <div
-          class="flex-col gap-2 xl:sticky xl:top-4 xl:col-span-2 xl:flex xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain"
+          class="flex-col gap-2 xl:sticky xl:top-4 xl:col-span-2 xl:flex"
           [ngClass]="mobileTab() === 'preview' ? 'flex' : 'hidden'"
         >
           @if (templates.length > 1) {
@@ -1116,7 +1117,7 @@ export class CalculatorComponent implements AfterViewInit {
       `Hi ${this.leadName}, thank you for your interest in the ${vehicle.brand} ${modelVariantLabel(vehicle.model, vehicle.variant)}. ` +
       `Selling price ${this.fmt(this.allInPrice())}, downpayment ${this.fmt(this.downpaymentCash())}. ` +
       `Let me know if you have any questions!`;
-    const phone = this.leadPhone.replace(/[^0-9]/g, '');
+    const phone = toMalaysianWhatsAppNumber(this.leadPhone);
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   }
 

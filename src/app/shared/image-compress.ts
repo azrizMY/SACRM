@@ -1,5 +1,5 @@
 /** Decodes an image file into an HTMLImageElement via a blob URL, revoking it once decoded. */
-function loadImage(file: File): Promise<HTMLImageElement> {
+export function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -19,6 +19,17 @@ function loadImage(file: File): Promise<HTMLImageElement> {
 function dataUrlBytes(dataUrl: string): number {
   const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
   return Math.ceil((base64.length * 3) / 4);
+}
+
+/** Encodes a canvas as JPEG, stepping quality down until it fits maxBytes (or quality bottoms out). */
+export function encodeJpegWithBudget(canvas: HTMLCanvasElement, maxBytes: number): string {
+  let quality = 0.9;
+  let dataUrl = canvas.toDataURL('image/jpeg', quality);
+  while (dataUrlBytes(dataUrl) > maxBytes && quality > 0.3) {
+    quality -= 0.1;
+    dataUrl = canvas.toDataURL('image/jpeg', quality);
+  }
+  return dataUrl;
 }
 
 /** Crops a canvas down to the bounding box of its non-transparent pixels — a low alpha threshold
@@ -130,12 +141,5 @@ export async function compressImageFile(file: File, options: CompressOptions): P
     return dataUrl;
   }
 
-  const canvas = drawAt(width, height);
-  let quality = 0.9;
-  let dataUrl = canvas.toDataURL('image/jpeg', quality);
-  while (dataUrlBytes(dataUrl) > options.maxBytes && quality > 0.3) {
-    quality -= 0.1;
-    dataUrl = canvas.toDataURL('image/jpeg', quality);
-  }
-  return dataUrl;
+  return encodeJpegWithBudget(drawAt(width, height), options.maxBytes);
 }

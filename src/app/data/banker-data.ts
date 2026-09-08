@@ -1,3 +1,5 @@
+import { toMalaysianWhatsAppNumber } from './dashboard-data';
+
 export const MALAYSIAN_STATES = [
   'Johor',
   'Kedah',
@@ -60,7 +62,7 @@ export function canSubmitBanker(input: { name: string; phone?: string; username?
 function phoneChatHref(phone?: string): string | null {
   const trimmed = phone?.trim();
   if (!trimmed) return null;
-  const digits = trimmed.replace(/[^0-9]/g, '');
+  const digits = toMalaysianWhatsAppNumber(trimmed);
   return digits.length >= 8 ? `https://wa.me/${digits}` : null;
 }
 

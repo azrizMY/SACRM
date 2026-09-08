@@ -2,7 +2,8 @@ import { formatRM } from './dashboard-data';
 
 export type VehicleYear = {
   year: number;
-  /** This model year's dealer rebate — overrides DEFAULT_REBATE when set. */
+  /** This model year's dealer rebate — not every car has one, so a year with none set is treated
+   *  as RM 0 rebate, never a fallback nonzero amount (see rebateForYear()). */
   rebate?: number;
   /** This model year's additional rebate (e.g. a promo top-up) — pre-fills and enables Additional
    *  Rebate when set. Rebate and Additional Rebate can each differ independently year to year
@@ -52,9 +53,10 @@ export function findVehicle(brand: string, model: string, variant: string): Vehi
   return VEHICLES.find((v) => v.brand === brand && v.model === model && v.variant === variant) ?? null;
 }
 
-/** This model year's rebate, or the account default when this year has no override of its own. */
+/** This model year's rebate, or 0 when this car has none set — not every car has a rebate, so an
+ *  unset amount must never silently fall back to some other nonzero figure. */
 export function rebateForYear(vehicle: Vehicle, year: number): number {
-  return vehicle.years.find((y) => y.year === year)?.rebate ?? DEFAULT_REBATE;
+  return vehicle.years.find((y) => y.year === year)?.rebate ?? 0;
 }
 
 /** This model year's additional rebate, or 0 when this year has none. */
@@ -101,17 +103,18 @@ export const VEHICLES: Vehicle[] = [
   { id: 'chery-tiggo8-phev', brand: 'Chery', model: 'Tiggo 8', variant: 'PHEV', price: 159800, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-phev.png', brochureUrl: '/brochures/chery-tiggo8-phev.pdf', years: [{ year: 2026 }] },
   { id: 'chery-tiggo9', brand: 'Chery', model: 'Tiggo 9', variant: '', price: 179800, interestRate: 2.3, basicPremium: 4126.35, addBenefits: 1192.5, photoUrl: '/cars/chery-tiggo9.png', brochureUrl: '/brochures/chery-tiggo9.pdf', years: [{ year: 2026 }] },
 
-  // Jaecoo Malaysia lineup.
-  { id: 'jaecoo-j5', brand: 'Jaecoo', model: 'J5', variant: '', price: 108000, years: [{ year: 2026 }] },
-  { id: 'jaecoo-j5-ev', brand: 'Jaecoo', model: 'J5', variant: 'EV', price: 118800, years: [{ year: 2026 }] },
-  { id: 'jaecoo-j7-2wd', brand: 'Jaecoo', model: 'J7', variant: '2WD', price: 138800, years: [{ year: 2026 }] },
-  { id: 'jaecoo-j7-awd', brand: 'Jaecoo', model: 'J7', variant: 'AWD', price: 148800, years: [{ year: 2026 }] },
-  { id: 'jaecoo-j7-phev', brand: 'Jaecoo', model: 'J7', variant: 'PHEV', price: 158800, years: [{ year: 2026 }] },
-  { id: 'jaecoo-j8-2wd', brand: 'Jaecoo', model: 'J8', variant: '2WD', price: 178800, years: [{ year: 2026 }] },
-  { id: 'jaecoo-j8-awd', brand: 'Jaecoo', model: 'J8', variant: 'AWD', price: 198800, years: [{ year: 2026 }] },
-  { id: 'jaecoo-omoda-c9-2wd', brand: 'Jaecoo', model: 'Omoda C9', variant: '2WD', price: 168800, years: [{ year: 2026 }] },
-  { id: 'jaecoo-omoda-c9-awd', brand: 'Jaecoo', model: 'Omoda C9', variant: 'AWD', price: 188800, years: [{ year: 2026 }] },
-  { id: 'jaecoo-omoda-c9-phev', brand: 'Jaecoo', model: 'Omoda C9', variant: 'PHEV', price: 208800, years: [{ year: 2026 }] },
+  // Jaecoo Malaysia lineup — 2WD/AWD (or the unbadged J5) variants of a model share that model's
+  // general e-brochure, while an EV/PHEV variant gets its own dedicated one.
+  { id: 'jaecoo-j5', brand: 'Jaecoo', model: 'J5', variant: '', price: 108000, brochureUrl: '/brochures/jaecoo-j5.pdf', years: [{ year: 2026 }] },
+  { id: 'jaecoo-j5-ev', brand: 'Jaecoo', model: 'J5', variant: 'EV', price: 118800, brochureUrl: '/brochures/jaecoo-j5-ev.pdf', years: [{ year: 2026 }] },
+  { id: 'jaecoo-j7-2wd', brand: 'Jaecoo', model: 'J7', variant: '2WD', price: 138800, brochureUrl: '/brochures/jaecoo-j7.pdf', years: [{ year: 2026 }] },
+  { id: 'jaecoo-j7-awd', brand: 'Jaecoo', model: 'J7', variant: 'AWD', price: 148800, brochureUrl: '/brochures/jaecoo-j7.pdf', years: [{ year: 2026 }] },
+  { id: 'jaecoo-j7-phev', brand: 'Jaecoo', model: 'J7', variant: 'PHEV', price: 158800, brochureUrl: '/brochures/jaecoo-j7-phev.pdf', years: [{ year: 2026 }] },
+  { id: 'jaecoo-j8-2wd', brand: 'Jaecoo', model: 'J8', variant: '2WD', price: 178800, brochureUrl: '/brochures/jaecoo-j8.pdf', years: [{ year: 2026 }] },
+  { id: 'jaecoo-j8-awd', brand: 'Jaecoo', model: 'J8', variant: 'AWD', price: 198800, brochureUrl: '/brochures/jaecoo-j8.pdf', years: [{ year: 2026 }] },
+  { id: 'jaecoo-omoda-c9-2wd', brand: 'Jaecoo', model: 'Omoda C9', variant: '2WD', price: 168800, brochureUrl: '/brochures/jaecoo-omoda-c9.pdf', years: [{ year: 2026 }] },
+  { id: 'jaecoo-omoda-c9-awd', brand: 'Jaecoo', model: 'Omoda C9', variant: 'AWD', price: 188800, brochureUrl: '/brochures/jaecoo-omoda-c9.pdf', years: [{ year: 2026 }] },
+  { id: 'jaecoo-omoda-c9-phev', brand: 'Jaecoo', model: 'Omoda C9', variant: 'PHEV', price: 208800, brochureUrl: '/brochures/jaecoo-omoda-c9-phev.pdf', years: [{ year: 2026 }] },
 ];
 
 /** Factory-default catalog, snapshotted before any account's saved overrides are applied on top —
@@ -188,8 +191,6 @@ export const TENURE_OPTIONS: TenureOption[] = [
  *  field) — computed off today's date rather than hardcoded, so it never needs a manual bump.
  *  Unrelated to the Car Database's own per-car year rows; see yearsForVariant() for those. */
 export const MODEL_YEARS = [new Date().getFullYear(), new Date().getFullYear() - 1];
-/** Standard dealer rebate a quote starts from, regardless of model — editable per quote from there. */
-export const DEFAULT_REBATE = 3000;
 
 export type DownpaymentType = 'percent' | 'amount';
 

@@ -13,6 +13,16 @@ export function formatRM(value: number, opts?: { compact?: boolean }): string {
   return `RM ${value.toLocaleString('en-MY')}`;
 }
 
+/** Malaysia-only app — normalizes a phone number typed in local format ("012-345 6789") to the
+ *  digits-only, country-code-prefixed form a wa.me link needs ("60123456789"). Already-prefixed
+ *  numbers ("+60 12-345 6789") pass through unchanged. */
+export function toMalaysianWhatsAppNumber(phone: string): string {
+  const digits = phone.replace(/[^0-9]/g, '');
+  if (digits.startsWith('60')) return digits;
+  if (digits.startsWith('0')) return `60${digits.slice(1)}`;
+  return digits;
+}
+
 const BRAND_STYLES: Record<string, { bg: string; fg: string }> = {
   Chery: { bg: 'oklch(0.55 0.14 25)', fg: 'oklch(0.98 0 0)' },
   Proton: { bg: 'oklch(0.52 0.11 250)', fg: 'oklch(0.98 0 0)' },

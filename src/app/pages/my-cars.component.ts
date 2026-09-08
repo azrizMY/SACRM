@@ -1,4 +1,4 @@
-import { Component, computed, effect, ElementRef, inject, signal, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, computed, effect, ElementRef, inject, OnDestroy, signal, TemplateRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
@@ -8,6 +8,7 @@ import { brandLogo, brandStyle } from '../data/dashboard-data';
 import { AdvisorService } from '../shared/advisor.service';
 import { SettingsService } from '../shared/settings.service';
 import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
+import { TopbarExtraService } from '../shared/topbar-extra.service';
 import {
   VEHICLES,
   additionalRebateForYear,
@@ -52,38 +53,6 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
   imports: [CommonModule, FormsModule, IconComponent, BrandMarkComponent],
   template: `
     <div class="mx-auto flex max-w-7xl flex-col gap-5 pb-16">
-      <div class="flex flex-wrap items-start justify-between gap-3">
-        <div class="flex flex-col gap-1">
-          <h2 class="text-balance text-xl font-semibold tracking-tight">Brochures</h2>
-          <p class="text-pretty text-sm text-muted-foreground">
-            Browse each car's spec sheet, or generate a combined offer sheet for a whole brand.
-          </p>
-        </div>
-      </div>
-
-      <!-- Spec Sheets / Offer Sheet switcher -->
-      <div role="tablist" aria-label="Brochures mode" class="flex w-fit rounded-lg border border-border bg-muted/30 p-1">
-        <button
-          type="button"
-          role="tab"
-          [attr.aria-selected]="pageMode() === 'specs'"
-          (click)="pageMode.set('specs')"
-          class="rounded-md px-4 py-1.5 text-xs font-semibold transition-colors"
-          [ngClass]="pageMode() === 'specs' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
-        >
-          Spec Sheets
-        </button>
-        <button
-          type="button"
-          role="tab"
-          [attr.aria-selected]="pageMode() === 'offers'"
-          (click)="pageMode.set('offers')"
-          class="rounded-md px-4 py-1.5 text-xs font-semibold transition-colors"
-          [ngClass]="pageMode() === 'offers' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
-        >
-          Offer Sheet
-        </button>
-      </div>
 
       @if (pageMode() === 'specs') {
         @if (shareFallbackNotice()) {
@@ -113,46 +82,12 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
           }
         </div>
 
-        <!-- Bulk action bar -->
-        @if (selected().size > 0) {
-          <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/8 px-4 py-2.5">
-            <span class="text-sm font-medium">{{ selected().size }} car{{ selected().size === 1 ? '' : 's' }} selected</span>
-            <div class="flex items-center gap-2">
-              <button
-                type="button"
-                (click)="downloadSelected()"
-                class="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                <app-icon name="download" [size]="13" />
-                Download Selected
-              </button>
-              <button
-                type="button"
-                (click)="clearSelection()"
-                class="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                <app-icon name="x" [size]="12" />
-                Clear
-              </button>
-            </div>
-          </div>
-        }
-
         <!-- Table -->
         <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="hidden overflow-x-auto sm:block">
             <table class="w-full caption-bottom text-sm">
               <thead>
                 <tr class="border-b border-border text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  <th class="h-10 w-10 px-4 align-middle">
-                    <input
-                      type="checkbox"
-                      [checked]="allSelected()"
-                      (change)="toggleSelectAll()"
-                      aria-label="Select all"
-                      class="size-3.5 accent-[var(--primary)]"
-                    />
-                  </th>
                   @for (col of visibleColumns(); track col.key) {
                     <th class="h-10 whitespace-nowrap px-4 align-middle" [ngClass]="col.align === 'right' ? 'text-right' : 'text-left'">
                       <button
@@ -172,15 +107,6 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
               <tbody>
                 @for (v of filteredSorted(); track v.id) {
                   <tr class="border-b border-border transition-colors last:border-0 hover:bg-muted/40">
-                    <td class="p-4 align-middle">
-                      <input
-                        type="checkbox"
-                        [checked]="selected().has(v.id)"
-                        (change)="toggleSelect(v.id)"
-                        [attr.aria-label]="'Select ' + v.brand + ' ' + v.model + ' ' + v.variant"
-                        class="size-3.5 accent-[var(--primary)]"
-                      />
-                    </td>
                     @if (brandFilter() === 'All') {
                       <td class="p-4 align-middle">
                         <span class="flex items-center gap-2">
@@ -203,11 +129,11 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
                           </button>
                           <button
                             type="button"
-                            (click)="downloadOne(v)"
+                            (click)="sendBrochureFile(v)"
                             class="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
                           >
-                            <app-icon name="download" [size]="13" />
-                            Download
+                            <app-icon name="message-circle" [size]="13" />
+                            Send
                           </button>
                         </div>
                       } @else {
@@ -217,7 +143,7 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
                   </tr>
                 } @empty {
                   <tr>
-                    <td [attr.colspan]="visibleColumns().length + 2" class="p-8 text-center text-sm text-muted-foreground">No cars match.</td>
+                    <td [attr.colspan]="visibleColumns().length + 1" class="p-8 text-center text-sm text-muted-foreground">No cars match.</td>
                   </tr>
                 }
               </tbody>
@@ -229,13 +155,6 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
             @for (v of filteredSorted(); track v.id) {
               <div class="flex flex-col gap-2 rounded-lg border border-border p-3">
                 <div class="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    [checked]="selected().has(v.id)"
-                    (change)="toggleSelect(v.id)"
-                    [attr.aria-label]="'Select ' + v.brand + ' ' + v.model + ' ' + v.variant"
-                    class="mt-1 size-4 shrink-0 accent-[var(--primary)]"
-                  />
                   <div class="flex min-w-0 flex-1 items-center gap-2">
                     <app-brand-mark [brand]="v.brand" />
                     <div class="flex min-w-0 flex-col">
@@ -250,9 +169,9 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
                       <app-icon name="file-text" [size]="13" />
                       View
                     </button>
-                    <button type="button" (click)="downloadOne(v)" class="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-                      <app-icon name="download" [size]="13" />
-                      Download
+                    <button type="button" (click)="sendBrochureFile(v)" class="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
+                      <app-icon name="message-circle" [size]="13" />
+                      Send
                     </button>
                   </div>
                 } @else {
@@ -381,6 +300,33 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
       }
     </div>
 
+    <!-- Brochures / Offer Sheet switcher — projected into the topbar (see TopbarExtraService)
+         instead of rendered here, so it sits beside the page title up top. -->
+    <ng-template #modeSwitcherTpl>
+      <div role="tablist" aria-label="Brochures mode" class="flex w-fit shrink-0 rounded-lg border border-border bg-muted/40 p-1">
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="pageMode() === 'specs'"
+          (click)="pageMode.set('specs')"
+          class="rounded-md px-3 py-1 text-xs font-semibold transition-colors"
+          [ngClass]="pageMode() === 'specs' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
+        >
+          Brochures
+        </button>
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="pageMode() === 'offers'"
+          (click)="pageMode.set('offers')"
+          class="rounded-md px-3 py-1 text-xs font-semibold transition-colors"
+          [ngClass]="pageMode() === 'offers' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
+        >
+          Offers
+        </button>
+      </div>
+    </ng-template>
+
     <!-- Brochure modal -->
     @if (openVehicle(); as v) {
     @if (brochureFor(v); as brochure) {
@@ -401,30 +347,20 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
             </div>
             <button
               type="button"
-              (click)="closeBrochure()"
-              aria-label="Close"
+              (click)="downloadOne(v)"
+              aria-label="Download brochure"
+              title="Download"
               class="ml-auto flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             >
+              <app-icon name="download" [size]="16" />
+            </button>
+            <button
+              type="button"
+              (click)="closeBrochure()"
+              aria-label="Close"
+              class="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
               <app-icon name="x" [size]="16" />
-            </button>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-2 border-b border-border p-3">
-            <button
-              type="button"
-              (click)="downloadOne(v)"
-              class="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
-            >
-              <app-icon name="download" [size]="13" />
-              Download
-            </button>
-            <button
-              type="button"
-              (click)="sendBrochureFile(v)"
-              class="ml-auto flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              <app-icon name="message-circle" [size]="13" />
-              Send via WhatsApp
             </button>
           </div>
 
@@ -437,7 +373,7 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
     }
   `,
 })
-export class MyCarsComponent {
+export class MyCarsComponent implements AfterViewInit, OnDestroy {
   fmt = (v: number) => formatRM(v);
   modelVariantLabel = modelVariantLabel;
   variantLabel = variantLabel;
@@ -456,7 +392,7 @@ export class MyCarsComponent {
 
   private settingsService = inject(SettingsService);
 
-  /** "Spec Sheets" is the existing per-car brochure table below; "Offer Sheet" is a combined,
+  /** "Brochures" is the existing per-car brochure table below; "Offer Sheet" is a combined,
    *  generated multi-model page for a whole brand — different enough (many vehicles, print-
    *  resolution A5 pages, no single-car context) that it gets its own top-level mode. */
   pageMode = signal<'specs' | 'offers'>('specs');
@@ -469,10 +405,11 @@ export class MyCarsComponent {
   sortKey = signal<SortKey>(this.initialBrandFilter === 'All' ? 'brand' : 'model');
   sortDir = signal<SortDir>('asc');
   openKey = signal<string | null>(null);
-  selected = signal<Set<string>>(new Set());
   shareFallbackNotice = signal(false);
 
   @ViewChild('offerContainer') offerContainerRef?: ElementRef<HTMLDivElement>;
+  @ViewChild('modeSwitcherTpl') private modeSwitcherTpl?: TemplateRef<unknown>;
+  private topbarExtra = inject(TopbarExtraService);
 
   /** Set once fonts.google.com's Barlow Semi Condensed + Inter are ready to paint — the draw
    *  effect waits on this so the very first frame never falls back to a system font. */
@@ -486,13 +423,21 @@ export class MyCarsComponent {
 
     // Redraws every offer-sheet page whenever its own settings (brand/tenure/rebate toggle) or the
     // underlying vehicle data changes — only while the Offer Sheet tab is actually open, since
-    // rendering N print-resolution A5 canvases isn't free and the Spec Sheets tab doesn't need it.
+    // rendering N print-resolution A5 canvases isn't free and the Brochures tab doesn't need it.
     effect(() => {
       if (!this.fontsReady() || this.pageMode() !== 'offers') return;
       this.selectedOfferTemplateId(); // tracked so switching templates alone triggers a redraw
       const data = this.buildOfferSheetData();
       this.renderOfferSheet(data);
     });
+  }
+
+  ngAfterViewInit() {
+    this.topbarExtra.content.set(this.modeSwitcherTpl ?? null);
+  }
+
+  ngOnDestroy() {
+    this.topbarExtra.content.set(null);
   }
 
   visibleColumns = computed(() => (this.brandFilter() === 'All' ? this.columns : this.columns.filter((c) => c.key !== 'brand')));
@@ -502,11 +447,6 @@ export class MyCarsComponent {
     const key = this.sortKey();
     const dir = this.sortDir();
     return [...list].sort((a, b) => compareVehicles(a, b, key, dir));
-  });
-
-  allSelected = computed(() => {
-    const list = this.filteredSorted();
-    return list.length > 0 && list.every((v) => this.selected().has(v.id));
   });
 
   openVehicle = computed(() => this.allVehicles().find((v) => v.id === this.openKey()) ?? null);
@@ -541,32 +481,6 @@ export class MyCarsComponent {
   sortIcon(key: SortKey): IconName {
     if (this.sortKey() !== key) return 'chevrons-up-down';
     return this.sortDir() === 'asc' ? 'arrow-up' : 'arrow-down';
-  }
-
-  toggleSelect(id: string) {
-    this.selected.update((set) => {
-      const next = new Set(set);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  toggleSelectAll() {
-    const list = this.filteredSorted();
-    const allOn = this.allSelected();
-    this.selected.update((set) => {
-      const next = new Set(set);
-      for (const v of list) {
-        if (allOn) next.delete(v.id);
-        else next.add(v.id);
-      }
-      return next;
-    });
-  }
-
-  clearSelection() {
-    this.selected.set(new Set());
   }
 
   tileGradient(brand: string): string {
@@ -632,16 +546,6 @@ export class MyCarsComponent {
   downloadOne(v: Vehicle) {
     const url = this.brochureFor(v);
     if (url) this.downloadUrlBlob(url, this.brochureFileName(v));
-  }
-
-  async downloadSelected() {
-    const ids = this.selected();
-    for (const v of this.allVehicles()) {
-      if (!ids.has(v.id)) continue;
-      this.downloadOne(v);
-      // Small stagger so the browser doesn't treat rapid-fire downloads as a popup flood.
-      await new Promise((resolve) => setTimeout(resolve, 300));
-    }
   }
 
   // ---------- Offer Sheet ----------

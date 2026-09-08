@@ -237,7 +237,7 @@ type BrandGroup = { brand: string; models: ModelGroup[] };
                           step="500"
                           [ngModel]="y.rebate ?? null"
                           (ngModelChange)="setYearField($index, 'rebate', $event)"
-                          placeholder="Use account default"
+                          placeholder="No rebate (RM 0)"
                           class="h-10 rounded-lg border border-input bg-input px-3 text-sm tabular text-foreground outline-none focus:border-ring"
                         />
                       </label>

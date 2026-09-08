@@ -14,7 +14,6 @@ import { SettingsService } from '../shared/settings.service';
 import { buildQuotationPdfBytes, downloadBlob, openBlobInNewTab } from '../shared/pdf-writer';
 import {
   DEFAULT_INSURANCE_RATE_PCT,
-  DEFAULT_REBATE,
   MODEL_YEARS,
   NCD_OPTIONS,
   TENURE_OPTIONS,
@@ -33,6 +32,7 @@ import {
 } from '../data/calculator-data';
 import { BrandMarkComponent } from '../shared/brand-mark.component';
 import { todayStr } from '../shared/date-utils';
+import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
 import {
   BANK_OPTIONS,
   CANCEL_REASON_OPTIONS,
@@ -1658,7 +1658,7 @@ export class CustomerManagerComponent {
   stageDateText = (r: CustomerRecord) => formatStageDate(currentStageEnteredAt(r));
 
   waLink(phone: string): string {
-    return `https://wa.me/${phone.replace(/[^0-9]/g, '')}`;
+    return `https://wa.me/${toMalaysianWhatsAppNumber(phone)}`;
   }
 
   /** Mobile card fields: the active tab's columns minus name/brand, which the card already shows
@@ -1978,7 +1978,7 @@ export class CustomerManagerComponent {
    *  defaults, same as switching cars in the Calculator. */
   private syncLeadRebateDefaults() {
     const vehicle = VEHICLES.find((v) => v.brand === this.leadForm.brand && v.model === this.leadForm.model && v.variant === this.leadForm.variant);
-    this.leadQuotationForm.rebate = vehicle ? rebateForYear(vehicle, this.leadForm.yearMade) : DEFAULT_REBATE;
+    this.leadQuotationForm.rebate = vehicle ? rebateForYear(vehicle, this.leadForm.yearMade) : 0;
     const additionalRebate = vehicle ? additionalRebateForYear(vehicle, this.leadForm.yearMade) : 0;
     this.leadQuotationForm.additionalRebateValue = additionalRebate;
     this.leadQuotationForm.additionalRebateEnabled = additionalRebate > 0;
@@ -2185,7 +2185,7 @@ export class CustomerManagerComponent {
     const hasYear = vehicle && yearMade != null;
     const additionalRebate = hasYear ? additionalRebateForYear(vehicle, yearMade) : 0;
     return {
-      rebate: hasYear ? rebateForYear(vehicle, yearMade) : DEFAULT_REBATE,
+      rebate: hasYear ? rebateForYear(vehicle, yearMade) : 0,
       ncd: 0,
       interestRate: 3.5,
       rateType: 'flat',

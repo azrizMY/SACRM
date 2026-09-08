@@ -9,7 +9,7 @@ import { SettingsService } from '../shared/settings.service';
 const TITLES: Record<string, string> = {
   dashboard: 'Dashboard',
   calculator: 'Calculator',
-  cars: 'Brochures',
+  cars: 'Catalog',
   'price-settings': 'Price Settings',
   leads: 'Customer Manager',
   bankers: 'Bankers',

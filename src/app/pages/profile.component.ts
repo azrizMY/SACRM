@@ -6,14 +6,14 @@ import { AdvisorService } from '../shared/advisor.service';
 import { AuthService } from '../shared/auth.service';
 import { CustomerService } from '../shared/customer.service';
 import { SettingsService } from '../shared/settings.service';
-import { compressImageFile } from '../shared/image-compress';
+import { ImageCropModalComponent } from '../shared/image-crop-modal.component';
 import { CUSTOMER_STATUS_META } from '../data/customer-data';
 import { phoneDisplayFromWa, type AdvisorProfile } from '../data/advisor-data';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, ImageCropModalComponent],
   template: `
     <div class="mx-auto flex max-w-5xl flex-col gap-5">
       <!-- Profile card -->
@@ -249,6 +249,10 @@ import { phoneDisplayFromWa, type AdvisorProfile } from '../data/advisor-data';
         </ul>
       </div>
     </div>
+
+    @if (cropFile(); as file) {
+      <app-image-crop-modal [file]="file" (crop)="onCropped($event)" (cancel)="cropFile.set(null)" />
+    }
   `,
 })
 export class ProfileComponent {
@@ -259,6 +263,7 @@ export class ProfileComponent {
 
   editing = signal(false);
   photoError = signal<string | null>(null);
+  cropFile = signal<File | null>(null);
   form: AdvisorProfile;
   linkCopied = signal(false);
   brandLinkCopied = signal(false);
@@ -319,7 +324,7 @@ export class ProfileComponent {
     this.editing.set(false);
   }
 
-  async onPhotoFileChange(event: Event) {
+  onPhotoFileChange(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
@@ -328,13 +333,13 @@ export class ProfileComponent {
       this.photoError.set(`"${file.name}" isn't an image file.`);
       return;
     }
-    try {
-      const compressed = await compressImageFile(file, { maxDimension: 480, maxBytes: 150 * 1024, format: 'image/jpeg' });
-      this.photoError.set(null);
-      this.form.photoUrl = compressed;
-    } catch {
-      this.photoError.set(`Couldn't process "${file.name}".`);
-    }
+    this.photoError.set(null);
+    this.cropFile.set(file);
+  }
+
+  onCropped(dataUrl: string) {
+    this.form.photoUrl = dataUrl;
+    this.cropFile.set(null);
   }
 
   removePhoto() {

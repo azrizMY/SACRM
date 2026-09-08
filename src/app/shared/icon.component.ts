@@ -62,7 +62,9 @@ type IconName =
   | 'map-pin'
   | 'landmark'
   | 'table'
-  | 'share';
+  | 'share'
+  | 'zoom-in'
+  | 'zoom-out';
 
 const PATHS: Record<IconName, string> = {
   'layout-dashboard':
@@ -146,6 +148,10 @@ const PATHS: Record<IconName, string> = {
   table: '<path d="M12 3v18"/><path d="M3 9h18"/><path d="M3 15h18"/><rect x="3" y="3" width="18" height="18" rx="2"/>',
   share:
     '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>',
+  'zoom-in':
+    '<circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/>',
+  'zoom-out':
+    '<circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="8" x2="14" y1="11" y2="11"/>',
 };
 
 @Component({
