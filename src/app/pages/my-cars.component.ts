@@ -272,14 +272,14 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
                sheet page is a fixed A5 shape, so it should just render at its natural height. -->
           <div class="flex flex-col gap-3 xl:sticky xl:top-4 xl:col-span-2">
             @if (offerSheetTemplates.length > 1) {
-              <div role="radiogroup" aria-label="Offer sheet template" class="flex shrink-0 gap-1.5 self-start rounded-xl border border-border bg-muted/40 p-1.5">
+              <div role="radiogroup" aria-label="Offer sheet template" class="flex w-full shrink-0 gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
                 @for (t of offerSheetTemplates; track t.id) {
                   <button
                     type="button"
                     role="radio"
                     [attr.aria-checked]="selectedOfferTemplateId() === t.id"
                     (click)="selectedOfferTemplateId.set(t.id)"
-                    class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
+                    class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-center transition-colors"
                     [ngClass]="selectedOfferTemplateId() === t.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                   >
                     {{ t.label }}
@@ -287,6 +287,14 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
                 }
               </div>
             }
+            @if (offerRows().length === 0) {
+              <p class="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                {{ offerBrand() }} has no cars in the Car Database yet — add some in Price Settings first.
+              </p>
+            }
+
+            <div #offerContainer class="flex flex-col gap-4"></div>
+
             <button
               type="button"
               (click)="downloadOfferSheetPdf()"
@@ -296,14 +304,6 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
               <app-icon name="download" [size]="15" />
               {{ downloadingOfferSheet() ? 'Preparing…' : 'Download PDF' }}
             </button>
-
-            @if (offerRows().length === 0) {
-              <p class="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                {{ offerBrand() }} has no cars in the Car Database yet — add some in Price Settings first.
-              </p>
-            }
-
-            <div #offerContainer class="flex flex-col gap-4"></div>
           </div>
 
           <!-- Offer sheet settings -->

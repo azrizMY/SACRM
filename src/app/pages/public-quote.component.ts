@@ -50,7 +50,7 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
         <!-- Mobile Preview/Customize switcher -->
         <div class="sticky -top-4 z-10 -mx-4 flex flex-col gap-2 bg-background px-4 pb-2 pt-0 md:-mx-6 md:px-6 xl:hidden">
           <div class="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
-            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Total Due</span>
+            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">OTR Price</span>
             <span class="text-sm font-bold tabular">{{ fmt2(allInPrice()) }}</span>
           </div>
           <div role="tablist" aria-label="Quote view" class="flex rounded-lg border border-border bg-muted/30 p-1">

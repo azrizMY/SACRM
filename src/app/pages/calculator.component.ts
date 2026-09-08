@@ -1,3 +1,5 @@
+
+
 import { AfterViewInit, Component, computed, effect, ElementRef, HostListener, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -44,7 +46,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
       <!-- Mobile Preview/Customize switcher -->
       <div class="sticky -top-4 z-10 -mx-4 -mt-4 flex flex-col gap-2 bg-background px-4 pb-2 pt-4 md:-top-6 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 xl:hidden">
         <div class="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
-          <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Total Due</span>
+          <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">OTR Price</span>
           <span class="text-sm font-bold tabular">{{ fmt2(allInPrice()) }}</span>
         </div>
         <div role="tablist" aria-label="Quote view" class="flex rounded-lg border border-border bg-muted/30 p-1">
@@ -78,14 +80,14 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
           [ngClass]="mobileTab() === 'preview' ? 'flex' : 'hidden'"
         >
           @if (templates.length > 1) {
-            <div role="radiogroup" aria-label="Poster template" class="flex shrink-0 gap-1.5 self-start rounded-xl border border-border bg-muted/40 p-1.5">
+            <div role="radiogroup" aria-label="Poster template" class="flex w-full shrink-0 gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
               @for (t of templates; track t.id) {
                 <button
                   type="button"
                   role="radio"
                   [attr.aria-checked]="selectedTemplateId() === t.id"
                   (click)="selectedTemplateId.set(t.id)"
-                  class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
+                  class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-center transition-colors"
                   [ngClass]="selectedTemplateId() === t.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                 >
                   {{ t.label }}

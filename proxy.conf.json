@@ -1,0 +1,7 @@
+{
+  "/api": {
+    "target": "https://dev-preview-test.sacrm.pages.dev",
+    "changeOrigin": true,
+    "secure": true
+  }
+}

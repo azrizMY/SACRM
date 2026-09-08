@@ -10,6 +10,14 @@ export type AdvisorProfile = {
   photoUrl?: string;
 };
 
+/** Malaysian mobile display format ("011-53206966") derived from the WhatsApp digits
+ *  ("601153206966") — WhatsApp number is the single source of truth for both fields. */
+export function phoneDisplayFromWa(phoneWa: string): string {
+  const digits = phoneWa.replace(/\D/g, '');
+  const local = digits.startsWith('60') ? '0' + digits.slice(2) : digits;
+  return local.length > 3 ? `${local.slice(0, 3)}-${local.slice(3)}` : local;
+}
+
 export const DEFAULT_ADVISOR: AdvisorProfile = {
   name: 'Ahmad Azri',
   role: 'Sales Consultant',

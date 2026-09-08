@@ -8,7 +8,7 @@ import { CustomerService } from '../shared/customer.service';
 import { SettingsService } from '../shared/settings.service';
 import { compressImageFile } from '../shared/image-compress';
 import { CUSTOMER_STATUS_META } from '../data/customer-data';
-import type { AdvisorProfile } from '../data/advisor-data';
+import { phoneDisplayFromWa, type AdvisorProfile } from '../data/advisor-data';
 
 @Component({
   selector: 'app-profile',
@@ -130,14 +130,14 @@ import type { AdvisorProfile } from '../data/advisor-data';
                   <app-icon name="message-circle" [size]="13" />
                 </a>
               } @else {
-                <input type="text" [(ngModel)]="form.phoneDisplay" placeholder="Display phone" class="h-8 w-full bg-transparent text-sm text-foreground outline-none" />
+                <span class="truncate text-sm text-muted-foreground">{{ phoneDisplayFromWa(form.phoneWa) }}</span>
               }
             </div>
           </div>
 
           @if (editing()) {
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              WhatsApp Number (digits only, country code first)
+              WhatsApp / Phone Number (digits only, country code first)
               <input
                 type="text"
                 [(ngModel)]="form.phoneWa"
@@ -262,6 +262,7 @@ export class ProfileComponent {
   form: AdvisorProfile;
   linkCopied = signal(false);
   brandLinkCopied = signal(false);
+  phoneDisplayFromWa = phoneDisplayFromWa;
 
   constructor(
     public advisor: AdvisorService,
@@ -312,6 +313,7 @@ export class ProfileComponent {
   }
 
   saveEdit() {
+    this.form.phoneDisplay = phoneDisplayFromWa(this.form.phoneWa);
     this.advisor.update(this.form);
     this.photoError.set(null);
     this.editing.set(false);
