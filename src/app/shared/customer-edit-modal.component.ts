@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from './icon.component';
-import { MODEL_YEARS, NCD_OPTIONS, TENURE_OPTIONS, VEHICLES, modelsForBrand, variantsForModel } from '../data/calculator-data';
+import { MODEL_YEARS, NCD_OPTIONS, TENURE_OPTIONS, VEHICLES, coloursForVehicle, modelsForBrand, variantsForModel } from '../data/calculator-data';
 import {
   BANK_OPTIONS,
   CANCEL_REASON_OPTIONS,
@@ -359,7 +359,11 @@ export class CustomerEditModalComponent implements OnInit {
   }
 
   get colourOptionsForForm(): string[] {
-    return this.showColourRequired ? COLOUR_OPTIONS.filter((c) => c !== TO_BE_CONFIRMED_COLOUR) : COLOUR_OPTIONS;
+    // Prefer this exact car's own factory colours when the catalog has them; not every model has
+    // one hardcoded yet, so those fall back to the generic list.
+    const vehicleColours = coloursForVehicle(this.form.brand ?? '', this.form.model ?? '', this.form.variant ?? '');
+    if (this.showColourRequired) return vehicleColours ?? COLOUR_OPTIONS.filter((c) => c !== TO_BE_CONFIRMED_COLOUR);
+    return vehicleColours ? [TO_BE_CONFIRMED_COLOUR, ...vehicleColours] : COLOUR_OPTIONS;
   }
 
   get canSave(): boolean {

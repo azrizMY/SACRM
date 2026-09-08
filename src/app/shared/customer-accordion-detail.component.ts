@@ -12,7 +12,6 @@ import {
   isCashDeal,
   stageEnteredAt,
   type CustomerRecord,
-  type DocumentStatus,
 } from '../data/customer-data';
 
 type Field = { label: string; value: string; badge?: { tone: string; dot: string }; link?: boolean };

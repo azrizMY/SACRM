@@ -37,7 +37,7 @@ export type AppSettings = {
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  salesDefaults: { interestRate: 3.5, downpaymentPct: 10, ncd: 0, basicPremiumRatePct: 3.6, defaultRateType: 'flat', defaultTenureYears: [9, 7, 5] },
+  salesDefaults: { interestRate: 3.5, downpaymentPct: 10, ncd: 0, basicPremiumRatePct: 3.27, defaultRateType: 'flat', defaultTenureYears: [9, 7, 5] },
   notifications: { newLeadAlerts: true, bookingReminders: true, weeklySummary: false },
   dashboardTarget: { brand: 'Chery', target: 20 },
   vehicleInsurance: {},

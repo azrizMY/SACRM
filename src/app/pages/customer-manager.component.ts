@@ -22,6 +22,7 @@ import {
   computeInsuranceBreakdown,
   computeQuotationTotals,
   additionalRebateForYear,
+  coloursForVehicle,
   modelVariantLabel,
   modelsForBrand,
   monthlyPayment,
@@ -933,7 +934,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Colour
                     <select [(ngModel)]="leadForm.colour" class="h-10 w-full rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @for (c of colourOptions; track c) { <option [value]="c">{{ c }}</option> }
+                      @for (c of leadColourOptions; track c) { <option [value]="c">{{ c }}</option> }
                     </select>
                   </label>
                 </div>
@@ -1624,8 +1625,14 @@ export class CustomerManagerComponent {
 
   sourceTypes = SOURCE_TYPES;
   documentStatusOptions = DOCUMENT_STATUS_OPTIONS;
-  colourOptions = COLOUR_OPTIONS;
   TO_BE_CONFIRMED_COLOUR = TO_BE_CONFIRMED_COLOUR;
+
+  /** Prefers the selected car's own factory colours when the catalog has them; not every model
+   *  has one hardcoded yet, so those fall back to the generic list. */
+  get leadColourOptions(): string[] {
+    const vehicleColours = coloursForVehicle(this.leadForm.brand, this.leadForm.model, this.leadForm.variant);
+    return vehicleColours ? [TO_BE_CONFIRMED_COLOUR, ...vehicleColours] : COLOUR_OPTIONS;
+  }
   bankOptions = BANK_OPTIONS;
   insuranceOptions = INSURANCE_OPTIONS;
   cancelReasons = CANCEL_REASON_OPTIONS;

@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, computed, si
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from './icon.component';
-import { encodeJpegWithBudget, loadImage } from './image-compress';
+import { encodeJpegWithBudget } from './image-compress';
 
 /** Square stage the photo is displayed and dragged within, in CSS px. */
 const STAGE_SIZE = 280;

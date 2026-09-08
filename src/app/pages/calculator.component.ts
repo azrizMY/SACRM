@@ -15,6 +15,7 @@ import {
   NCD_OPTIONS,
   VEHICLES,
   basicPremiumDefault,
+  colourSurchargeFor,
   computeInsuranceBreakdown,
   computeQuotationTotals,
   formatRM,
@@ -221,6 +222,20 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                 <app-icon name="calendar" [size]="12" />
                 Only listed for {{ modelYear() }} in the Car Database.
               </span>
+            }
+
+            @if (colourPickable(); as colours) {
+              <div class="flex flex-col gap-2">
+                <label for="colourSelect" class="text-xs font-medium text-muted-foreground">Colour</label>
+                <select
+                  id="colourSelect"
+                  [ngModel]="selectedColour()"
+                  (ngModelChange)="selectedColour.set($event)"
+                  class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
+                >
+                  @for (c of colours; track c) { <option [value]="c">{{ colourOptionLabel(c) }}</option> }
+                </select>
+              </div>
             }
           </div>
 
@@ -631,6 +646,11 @@ export class CalculatorComponent implements AfterViewInit {
   selectedBrand = signal(this.preferredVehicle().brand);
   selectedModelName = signal(this.preferredVehicle().model);
   selectedVariant = signal(this.preferredVehicle().variant);
+  /** Not every car has factory colours hardcoded (see Vehicle.colours) — starts on the first one
+   *  when it does, null otherwise, and resets the same way whenever the car changes (see
+   *  onVariantChange). Purely a price input here — the poster still lists every option
+   *  regardless of which one is picked (see PosterData.colours). */
+  selectedColour = signal<string | null>(this.preferredVehicle().colours?.[0] ?? null);
   mobileTab = signal<'preview' | 'customize'>('preview');
   /** Read from the preferred car's own database row, never assumed — a car listed only under
    *  2025 starts on 2025, not "the current year." */
@@ -728,7 +748,17 @@ export class CalculatorComponent implements AfterViewInit {
       VEHICLES.find((v) => v.brand === this.selectedBrand() && v.model === this.selectedModelName() && v.variant === this.selectedVariant()) ??
       VEHICLES[0],
   );
-  basePrice = computed(() => this.selectedVehicle().price);
+  basePrice = computed(() => this.selectedVehicle().price + colourSurchargeFor(this.selectedVehicle(), this.selectedColour()));
+
+  /** The Colour field only appears when picking one can actually change the price (currently just
+   *  the Omoda C9 lineup's Matte Grey surcharge) — every other car's colours are informational only
+   *  (see the poster's "Available in:" list), so a picker there would be a dropdown that does
+   *  nothing. Data-driven off Vehicle.colourSurcharges rather than a hardcoded model check, so a
+   *  future colour surcharge on another car enables this automatically. */
+  colourPickable = computed(() => {
+    const vehicle = this.selectedVehicle();
+    return Object.keys(vehicle.colourSurcharges ?? {}).length > 0 ? (vehicle.colours ?? []) : null;
+  });
 
   /** The account's Default Brand (Account Settings → Dashboard) starts every fresh quote — falls
    *  back to the catalog's first car if that brand has no vehicles. */
@@ -762,6 +792,16 @@ export class CalculatorComponent implements AfterViewInit {
     this.insuranceOverride.set(null);
     this.interestRateManual.set(null);
     this.loanAmountDraft.set(null);
+    // A different car has its own colour lineup — carrying over the previous car's pick could
+    // silently select a colour (and its surcharge) this car doesn't even offer.
+    this.selectedColour.set(this.selectedVehicle().colours?.[0] ?? null);
+  }
+
+  /** e.g. "Matte Grey (+RM 3,000)" — surfaces a colour's surcharge right in the dropdown so the SA
+   *  sees the cost before picking it, not just after. */
+  colourOptionLabel(colour: string): string {
+    const surcharge = colourSurchargeFor(this.selectedVehicle(), colour);
+    return surcharge > 0 ? `${colour} (+RM ${surcharge.toLocaleString('en-MY')})` : colour;
   }
 
   /** The model's own dealer rebate for the selected model year, when known, beats the standard
@@ -979,6 +1019,8 @@ export class CalculatorComponent implements AfterViewInit {
       dateStr: this.quoteDate(),
       logoUrl: this.brandLogoUrl(),
       carImageUrl: vehicle.photoUrl ?? null,
+      colours: vehicle.colours ?? [],
+      colourSurcharges: vehicle.colourSurcharges ?? {},
 
       sellingPrice: this.allInPrice(),
       downpayment: this.downpaymentCash(),

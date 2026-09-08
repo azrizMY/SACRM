@@ -312,11 +312,11 @@ async function drawAdvisorRow(ctx: CanvasRenderingContext2D, data: PosterData, t
       ctx.restore();
       drawRing();
     } catch {
-      drawAdvisorInitials(ctx, data, M, top, avatarSize, centerY);
+      drawAdvisorInitials(ctx, data, M, avatarSize, centerY);
       drawRing();
     }
   } else {
-    drawAdvisorInitials(ctx, data, M, top, avatarSize, centerY);
+    drawAdvisorInitials(ctx, data, M, avatarSize, centerY);
     drawRing();
   }
 
@@ -336,7 +336,7 @@ async function drawAdvisorRow(ctx: CanvasRenderingContext2D, data: PosterData, t
   return top + avatarSize;
 }
 
-function drawAdvisorInitials(ctx: CanvasRenderingContext2D, data: PosterData, x: number, y: number, size: number, centerY: number): void {
+function drawAdvisorInitials(ctx: CanvasRenderingContext2D, data: PosterData, x: number, size: number, centerY: number): void {
   ctx.beginPath();
   ctx.arc(x + size / 2, centerY, size / 2, 0, Math.PI * 2);
   ctx.fillStyle = POSTER_COLORS.panelCard;

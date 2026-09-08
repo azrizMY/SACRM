@@ -8,7 +8,8 @@ import { CustomerService } from '../shared/customer.service';
 import { SettingsService } from '../shared/settings.service';
 import { ImageCropModalComponent } from '../shared/image-crop-modal.component';
 import { CUSTOMER_STATUS_META } from '../data/customer-data';
-import { phoneDisplayFromWa, type AdvisorProfile } from '../data/advisor-data';
+import type { AdvisorProfile } from '../data/advisor-data';
+import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
 
 @Component({
   selector: 'app-profile',
@@ -130,22 +131,10 @@ import { phoneDisplayFromWa, type AdvisorProfile } from '../data/advisor-data';
                   <app-icon name="message-circle" [size]="13" />
                 </a>
               } @else {
-                <span class="truncate text-sm text-muted-foreground">{{ phoneDisplayFromWa(form.phoneWa) }}</span>
+                <input type="text" [(ngModel)]="form.phoneDisplay" placeholder="e.g. 012-345 6789" class="h-8 w-full bg-transparent text-sm text-foreground outline-none" />
               }
             </div>
           </div>
-
-          @if (editing()) {
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              WhatsApp / Phone Number (digits only, country code first)
-              <input
-                type="text"
-                [(ngModel)]="form.phoneWa"
-                placeholder="60123456789"
-                class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
-              />
-            </label>
-          }
         </div>
       </div>
 
@@ -267,7 +256,6 @@ export class ProfileComponent {
   form: AdvisorProfile;
   linkCopied = signal(false);
   brandLinkCopied = signal(false);
-  phoneDisplayFromWa = phoneDisplayFromWa;
 
   constructor(
     public advisor: AdvisorService,
@@ -318,7 +306,9 @@ export class ProfileComponent {
   }
 
   saveEdit() {
-    this.form.phoneDisplay = phoneDisplayFromWa(this.form.phoneWa);
+    // No separate WhatsApp-number field — derived from the display phone itself, in Malaysian
+    // local format ("012-345 6789") or already with the country code either way.
+    this.form.phoneWa = toMalaysianWhatsAppNumber(this.form.phoneDisplay);
     this.advisor.update(this.form);
     this.photoError.set(null);
     this.editing.set(false);

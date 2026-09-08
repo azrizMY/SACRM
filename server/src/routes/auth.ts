@@ -25,6 +25,16 @@ const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MS = 30 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 
+/** Mirrors the client's toMalaysianWhatsAppNumber (dashboard-data.ts) so a freshly-seeded advisor
+ *  profile's WhatsApp link is correct from the very first login, not just after the SA edits their
+ *  profile once client-side. */
+function toMalaysianWhatsAppNumber(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('60')) return digits;
+  if (digits.startsWith('0')) return `60${digits.slice(1)}`;
+  return digits;
+}
+
 export async function handleAuthRoute(request: Request, env: Env, url: URL): Promise<Response> {
   const secure = url.protocol === 'https:';
 
@@ -50,7 +60,7 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
     // exactly what's expected here, not the whole shape.
     await env.DB.batch([
       env.DB.prepare('INSERT INTO users (id, email, password_hash, name, created_at, public_token, phone) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, email, passwordHash, name, Date.now(), publicToken, phone),
-      env.DB.prepare('INSERT INTO advisor_profiles (user_id, data) VALUES (?, ?)').bind(id, JSON.stringify({ name, email, phoneDisplay: phone, phoneWa: phone.replace(/\D/g, '') })),
+      env.DB.prepare('INSERT INTO advisor_profiles (user_id, data) VALUES (?, ?)').bind(id, JSON.stringify({ name, email, phoneDisplay: phone, phoneWa: toMalaysianWhatsAppNumber(phone) })),
     ]);
 
     const { token, expiresAt } = await createSession(env.DB, id);

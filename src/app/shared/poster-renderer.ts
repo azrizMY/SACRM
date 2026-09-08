@@ -1,8 +1,9 @@
 import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
 import { MARGIN, POSTER_WIDTH, type PosterLayout } from './poster-layout';
-import { fillPolygon, fillTrackedText, fillNotchedRect, formatPosterCurrency, measureTrackedText } from './poster-draw-utils';
+import { fillPolygon, fillTrackedText, fillNotchedRect, notchedRectPath, formatPosterCurrency, measureTrackedText } from './poster-draw-utils';
 import { loadPosterImage } from './poster-images';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
+import { swatchHexFor } from './poster-colour-swatches';
 import type { PosterData } from './poster-data';
 
 /** Paints every band's background exactly as the spec's vertical map describes, before any text
@@ -152,6 +153,81 @@ export async function drawCarHero(ctx: CanvasRenderingContext2D, layout: PosterL
   } catch {
     // Broken/unreadable upload — leave the hero band blank rather than show a broken-image icon.
   }
+}
+
+/** Optional card in the car-hero band's top-right, listing this variant's factory colour options
+ *  (a dot + name per row) — draws nothing when the Car Database has none hardcoded for this exact
+ *  vehicle yet (Vehicle.colours), same "absent means don't draw" rule as the hero photo itself.
+ *  Sized to its content rather than a fixed box, and right-aligned to the same edge the header's
+ *  brand logo uses, so it reads as part of the same layout rhythm rather than a bolted-on overlay. */
+export function drawColourSwatches(ctx: CanvasRenderingContext2D, layout: PosterLayout, data: PosterData): void {
+  if (data.colours.length === 0) return;
+
+  const rightEdge = POSTER_WIDTH - MARGIN;
+  const padding = 12;
+  const dotRadius = 5;
+  const dotToText = 8;
+  const rowHeight = 20;
+  const headerGap = 8;
+  const headerLabel = 'AVAILABLE IN:';
+  const headerSpacing = 1.6;
+
+  ctx.font = labelFont(9.5, 700);
+  const headerWidth = measureTrackedText(ctx, headerLabel, headerSpacing);
+
+  const noteFor = (colour: string) => {
+    const surcharge = data.colourSurcharges[colour];
+    return surcharge ? ` (+RM ${surcharge.toLocaleString('en-MY')})` : '';
+  };
+
+  ctx.font = labelFont(11, 400);
+  const nameWidths = data.colours.map((c) => ctx.measureText(c).width);
+  ctx.font = labelFont(9.5, 400);
+  const noteWidths = data.colours.map((c) => ctx.measureText(noteFor(c)).width);
+  const maxRowTextWidth = Math.max(...data.colours.map((_, i) => nameWidths[i] + noteWidths[i]));
+  const rowWidth = dotRadius * 2 + dotToText + maxRowTextWidth;
+
+  const cardWidth = padding * 2 + Math.max(headerWidth, rowWidth);
+  const cardHeight = padding * 2 + 12 + headerGap + data.colours.length * rowHeight;
+  const cardX = rightEdge - cardWidth;
+  const cardY = layout.carHeroTop + 14;
+
+  notchedRectPath(ctx, cardX, cardY, cardWidth, cardHeight, 12);
+  ctx.fillStyle = POSTER_COLORS.paper;
+  ctx.fill();
+  ctx.strokeStyle = POSTER_COLORS.grayD;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.font = labelFont(9.5, 700);
+  ctx.fillStyle = POSTER_COLORS.gray;
+  ctx.textBaseline = 'middle';
+  fillTrackedText(ctx, headerLabel, cardX + padding, cardY + padding + 6, headerSpacing);
+
+  ctx.textAlign = 'left';
+  data.colours.forEach((colour, i) => {
+    const rowY = cardY + padding + 12 + headerGap + i * rowHeight + rowHeight / 2;
+    const dotX = cardX + padding + dotRadius;
+    ctx.beginPath();
+    ctx.arc(dotX, rowY, dotRadius, 0, Math.PI * 2);
+    ctx.fillStyle = swatchHexFor(colour);
+    ctx.fill();
+    ctx.strokeStyle = POSTER_COLORS.grayD;
+    ctx.lineWidth = 0.75;
+    ctx.stroke();
+
+    const textX = dotX + dotRadius + dotToText;
+    ctx.font = labelFont(11, 400);
+    ctx.fillStyle = POSTER_COLORS.ink;
+    ctx.fillText(colour, textX, rowY);
+
+    const note = noteFor(colour);
+    if (note) {
+      ctx.font = labelFont(9.5, 400);
+      ctx.fillStyle = POSTER_COLORS.gray;
+      ctx.fillText(note, textX + nameWidths[i], rowY);
+    }
+  });
 }
 
 /** Draws an image cropped/scaled to cover an arbitrary box (like CSS object-fit: cover), clipped

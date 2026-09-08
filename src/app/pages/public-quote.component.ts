@@ -13,6 +13,7 @@ import {
   DEFAULT_VEHICLES,
   NCD_OPTIONS,
   basicPremiumDefault,
+  colourSurchargeFor,
   computeInsuranceBreakdown,
   computeQuotationTotals,
   formatRM,
@@ -194,6 +195,20 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                       </button>
                     }
                   </div>
+                </div>
+              }
+
+              @if (selectedVehicle().colours; as colours) {
+                <div class="flex flex-col gap-2">
+                  <label for="colourSelect" class="text-xs font-medium text-muted-foreground">Colour</label>
+                  <select
+                    id="colourSelect"
+                    [ngModel]="selectedColour()"
+                    (ngModelChange)="selectedColour.set($event)"
+                    class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
+                  >
+                    @for (c of colours; track c) { <option [value]="c">{{ colourOptionLabel(c) }}</option> }
+                  </select>
                 </div>
               }
             </div>
@@ -458,6 +473,11 @@ export class PublicQuoteComponent implements OnInit {
   selectedBrand = signal('');
   selectedModelName = signal('');
   selectedVariant = signal('');
+  /** Not every car has factory colours hardcoded (see Vehicle.colours) — starts on the first one
+   *  when it does, null otherwise, and resets the same way whenever the car changes (see
+   *  onVariantChange). Purely a price input here — the poster still lists every option
+   *  regardless of which one is picked (see PosterData.colours). */
+  selectedColour = signal<string | null>(null);
   modelYear = signal(0);
   ncd = signal(0);
   downpaymentType = signal<DownpaymentType>('percent');
@@ -515,7 +535,14 @@ export class PublicQuoteComponent implements OnInit {
       this.vehicles()[0] ??
       DEFAULT_VEHICLES[0],
   );
-  basePrice = computed(() => this.selectedVehicle().price);
+  basePrice = computed(() => this.selectedVehicle().price + colourSurchargeFor(this.selectedVehicle(), this.selectedColour()));
+
+  /** e.g. "Matte Grey (+RM 3,000)" — surfaces a colour's surcharge right in the dropdown so the
+   *  customer sees the cost before picking it, not just after. */
+  colourOptionLabel(colour: string): string {
+    const surcharge = colourSurchargeFor(this.selectedVehicle(), colour);
+    return surcharge > 0 ? `${colour} (+RM ${surcharge.toLocaleString('en-MY')})` : colour;
+  }
 
   onBrandChange(brand: string) {
     this.selectedBrand.set(brand);
@@ -534,6 +561,9 @@ export class PublicQuoteComponent implements OnInit {
     const years = yearsForVariant2(this.vehicles(), this.selectedBrand(), this.selectedModelName(), variant);
     if (!years.includes(this.modelYear())) this.modelYear.set(years[0]);
     this.loanAmountDraft.set(null);
+    // A different car has its own colour lineup — carrying over the previous car's pick could
+    // silently select a colour (and its surcharge) this car doesn't even offer.
+    this.selectedColour.set(this.selectedVehicle().colours?.[0] ?? null);
   }
 
   // Read-only on the public link — the SA controls this figure from the Car Database, a customer
@@ -555,7 +585,7 @@ export class PublicQuoteComponent implements OnInit {
     return this.rateType() === 'effective' ? (vehicle.effectiveRate ?? fallback) : (vehicle.interestRate ?? fallback);
   });
 
-  insuranceRatePct = computed(() => this.bundle()?.salesDefaults.basicPremiumRatePct ?? 3.6);
+  insuranceRatePct = computed(() => this.bundle()?.salesDefaults.basicPremiumRatePct ?? 3.27);
   autoBasicPremium = computed(() => this.selectedVehicle().basicPremium ?? basicPremiumDefault(this.basePrice(), this.insuranceRatePct()));
   /** The car's saved itemized insurance quotation from the SA's own Car Database — read-only here,
    *  unlike the Calculator's own Insurance Breakdown, so there's no per-quote override layer on
@@ -657,6 +687,7 @@ export class PublicQuoteComponent implements OnInit {
       this.selectedBrand.set(preferred.brand);
       this.selectedModelName.set(preferred.model);
       this.selectedVariant.set(preferred.variant);
+      this.selectedColour.set(preferred.colours?.[0] ?? null);
       this.modelYear.set(Math.max(...preferred.years.map((y) => y.year)));
       this.ncd.set(bundle.salesDefaults.ncd);
       this.downpaymentValue.set(bundle.salesDefaults.downpaymentPct);
@@ -678,6 +709,8 @@ export class PublicQuoteComponent implements OnInit {
       dateStr: this.quoteDate(),
       logoUrl: this.brandLogoUrl(),
       carImageUrl: vehicle.photoUrl ?? null,
+      colours: vehicle.colours ?? [],
+      colourSurcharges: vehicle.colourSurcharges ?? {},
       sellingPrice: this.allInPrice(),
       downpayment: this.downpaymentCash(),
       loanAmount: this.loanAmount(),

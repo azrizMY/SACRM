@@ -27,6 +27,13 @@ export type PosterData = {
   dateStr: string;
   logoUrl: string | null;
   carImageUrl: string | null;
+  /** Factory colour options for this exact variant, in catalog order — empty when the Car Database
+   *  has none hardcoded yet (see Vehicle.colours), in which case nothing is drawn for it. */
+  colours: string[];
+  /** Per-colour price surcharge (RM) for whichever of `colours` above has one — shown as a small
+   *  note next to that colour's row so the printed list stays honest about which options cost
+   *  more, independent of whichever colour is actually selected/quoted. */
+  colourSurcharges: Record<string, number>;
 
   sellingPrice: number;
   downpayment: number;
