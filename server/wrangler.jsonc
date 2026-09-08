@@ -18,5 +18,11 @@
       "database_name": "redline-crm-preview",
       "database_id": "6c0b28ac-1ce7-4573-a1e7-83e64095074d"
     }
-  ]
+  ],
+  // For local `wrangler dev` only. RESEND_API_KEY is a real secret — put it in a gitignored
+  // `server/.dev.vars` file instead (RESEND_API_KEY=...), never here.
+  "vars": {
+    "GOOGLE_CLIENT_ID": "650860080480-k2n7vfn9kesbbrfrinknffbu3rusatlj.apps.googleusercontent.com",
+    "RESEND_FROM": "Redline CRM <onboarding@resend.dev>"
+  }
 }

@@ -59,6 +59,16 @@ export function generatePublicToken(): string {
   return toHex(crypto.getRandomValues(new Uint8Array(16)));
 }
 
+/** Same strength as a session token — a password-reset token is just as sensitive (whoever holds
+ *  it can take over the account), so it gets the same 32 bytes of entropy. */
+export function generateResetToken(): string {
+  return toHex(crypto.getRandomValues(new Uint8Array(32)));
+}
+
+export async function deleteAllSessionsForUser(db: D1Database, userId: string): Promise<void> {
+  await db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(userId).run();
+}
+
 export async function createSession(db: D1Database, userId: string): Promise<{ token: string; expiresAt: number }> {
   const token = generateToken();
   const expiresAt = Date.now() + SESSION_TTL_MS;

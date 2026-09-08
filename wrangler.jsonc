@@ -12,6 +12,13 @@
       "database_id": "6c0b28ac-1ce7-4573-a1e7-83e64095074d"
     }
   ],
+  // GOOGLE_CLIENT_ID is public (not a secret) so it lives here. RESEND_API_KEY is a real secret —
+  // set it with `wrangler pages secret put RESEND_API_KEY --project-name sacrm` (and separately
+  // for the preview environment), never in this file.
+  "vars": {
+    "GOOGLE_CLIENT_ID": "650860080480-k2n7vfn9kesbbrfrinknffbu3rusatlj.apps.googleusercontent.com",
+    "RESEND_FROM": "Redline CRM <onboarding@resend.dev>"
+  },
   "env": {
     // Only the "main" branch deploys as Production — this is the only place the real database is
     // referenced.
@@ -22,7 +29,11 @@
           "database_name": "redline-crm",
           "database_id": "7ffbc12b-99be-4fb1-a72e-7db1c4b29501"
         }
-      ]
+      ],
+      "vars": {
+        "GOOGLE_CLIENT_ID": "650860080480-k2n7vfn9kesbbrfrinknffbu3rusatlj.apps.googleusercontent.com",
+        "RESEND_FROM": "Redline CRM <onboarding@resend.dev>"
+      }
     }
   }
 }

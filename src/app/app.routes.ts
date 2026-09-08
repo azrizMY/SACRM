@@ -5,12 +5,14 @@ import { CalculatorComponent } from './pages/calculator.component';
 import { CostBreakdownComponent } from './pages/cost-breakdown.component';
 import { CustomerManagerComponent } from './pages/customer-manager.component';
 import { DashboardPageComponent } from './pages/dashboard-page.component';
+import { ForgotPasswordComponent } from './pages/forgot-password.component';
 import { LandingComponent } from './pages/landing.component';
 import { LoginComponent } from './pages/login.component';
 import { MyCarsComponent } from './pages/my-cars.component';
 import { PriceSettingsComponent } from './pages/price-settings.component';
 import { ProfileComponent } from './pages/profile.component';
 import { PublicQuoteComponent } from './pages/public-quote.component';
+import { ResetPasswordComponent } from './pages/reset-password.component';
 import { SignupComponent } from './pages/signup.component';
 import { TradeInsComponent } from './pages/trade-ins.component';
 import { authGuard, guestGuard } from './shared/auth.guard';
@@ -20,6 +22,8 @@ export const routes: Routes = [
   { path: 'welcome', component: LandingComponent, canActivate: [guestGuard] },
   { path: 'login', component: LoginComponent, canActivate: [guestGuard] },
   { path: 'signup', component: SignupComponent, canActivate: [guestGuard] },
+  { path: 'forgot-password', component: ForgotPasswordComponent, canActivate: [guestGuard] },
+  { path: 'reset-password', component: ResetPasswordComponent, canActivate: [guestGuard] },
   { path: 'quote/:token', component: PublicQuoteComponent },
   { path: 'quote/:token/brand', component: PublicQuoteComponent, data: { singleBrand: true } },
   {

@@ -53,9 +53,9 @@ export class AuthService {
     }
   }
 
-  async signUp(name: string, email: string, password: string): Promise<AuthResult> {
+  async signUp(name: string, email: string, password: string, phone: string): Promise<AuthResult> {
     try {
-      const user = await firstValueFrom(this.http.post<AuthUser>('/api/auth/signup', { name, email, password }));
+      const user = await firstValueFrom(this.http.post<AuthUser>('/api/auth/signup', { name, email, password, phone }));
       this.currentUser.set(user);
       await this.loadUserData();
       return { ok: true };
@@ -72,6 +72,39 @@ export class AuthService {
       return { ok: true };
     } catch (err) {
       return { ok: false, error: extractError(err, "Couldn't log in. Please try again.") };
+    }
+  }
+
+  /** `idToken` is the signed JWT handed back by Google Identity Services — the Worker verifies it
+   *  and creates/links the account server-side, then this behaves just like `login()`. */
+  async loginWithGoogle(idToken: string): Promise<AuthResult> {
+    try {
+      const user = await firstValueFrom(this.http.post<AuthUser>('/api/auth/google', { idToken }));
+      this.currentUser.set(user);
+      await this.loadUserData();
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: extractError(err, "Couldn't sign in with Google. Please try again.") };
+    }
+  }
+
+  /** Always resolves ok — the server intentionally responds the same way whether or not the email
+   *  belongs to an account, so this can't be used to enumerate registered emails. */
+  async forgotPassword(email: string): Promise<AuthResult> {
+    try {
+      await firstValueFrom(this.http.post('/api/auth/forgot-password', { email }));
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: extractError(err, "Couldn't send the reset email. Please try again.") };
+    }
+  }
+
+  async resetPassword(token: string, password: string): Promise<AuthResult> {
+    try {
+      await firstValueFrom(this.http.post('/api/auth/reset-password', { token, password }));
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: extractError(err, "Couldn't reset your password. Please try again.") };
     }
   }
 

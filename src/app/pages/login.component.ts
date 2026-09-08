@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { IconComponent } from '../shared/icon.component';
 import { AuthService } from '../shared/auth.service';
+import { GoogleSignInButtonComponent } from '../shared/google-signin-button.component';
 
 /** Only ever used for local testing (`npm run preview` against the isolated preview database) —
  *  gated on hostname below so it can never activate on the real deployed site. */
@@ -16,7 +17,7 @@ function isLocalDevHost(): boolean {
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, GoogleSignInButtonComponent],
   template: `
     <div class="flex min-h-dvh items-center justify-center bg-black px-4 py-10 text-foreground">
       <div class="flex w-full max-w-sm flex-col gap-6">
@@ -60,7 +61,10 @@ function isLocalDevHost(): boolean {
             </label>
 
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Password
+              <div class="flex items-center justify-between">
+                <span>Password</span>
+                <a routerLink="/forgot-password" class="font-medium text-primary hover:underline">Forgot password?</a>
+              </div>
               <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 focus-within:border-ring">
                 <app-icon name="lock" [size]="15" class="shrink-0 text-muted-foreground" />
                 <input
@@ -85,6 +89,14 @@ function isLocalDevHost(): boolean {
               Log In
             </button>
           </form>
+
+          <div class="flex items-center gap-3 text-xs text-muted-foreground">
+            <div class="h-px flex-1 bg-border"></div>
+            or
+            <div class="h-px flex-1 bg-border"></div>
+          </div>
+
+          <app-google-signin-button (credential)="submitGoogle($event)" />
         </div>
 
         <p class="text-center text-sm text-muted-foreground">
@@ -116,6 +128,19 @@ export class LoginComponent {
     }
     this.submitting.set(true);
     const result = await this.auth.login(this.email, this.password);
+    this.submitting.set(false);
+    if (!result.ok) {
+      this.error.set(result.error);
+      return;
+    }
+    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/dashboard';
+    this.router.navigateByUrl(returnUrl);
+  }
+
+  async submitGoogle(idToken: string) {
+    this.error.set(null);
+    this.submitting.set(true);
+    const result = await this.auth.loginWithGoogle(idToken);
     this.submitting.set(false);
     if (!result.ok) {
       this.error.set(result.error);

@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { IconComponent } from '../shared/icon.component';
 import { AuthService } from '../shared/auth.service';
+import { GoogleSignInButtonComponent } from '../shared/google-signin-button.component';
 
 @Component({
   selector: 'app-signup',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, GoogleSignInButtonComponent],
   template: `
     <div class="flex min-h-dvh items-center justify-center bg-black px-4 py-10 text-foreground">
       <div class="flex w-full max-w-sm flex-col gap-6">
@@ -53,6 +54,14 @@ import { AuthService } from '../shared/auth.service';
             </label>
 
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Phone Number
+              <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 focus-within:border-ring">
+                <app-icon name="phone" [size]="15" class="shrink-0 text-muted-foreground" />
+                <input type="tel" name="phone" autocomplete="tel" [(ngModel)]="phone" placeholder="011-53206966" class="h-10 w-full bg-transparent text-sm text-foreground outline-none" />
+              </div>
+            </label>
+
+            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Password
               <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 focus-within:border-ring">
                 <app-icon name="lock" [size]="15" class="shrink-0 text-muted-foreground" />
@@ -93,6 +102,14 @@ import { AuthService } from '../shared/auth.service';
               Create Account
             </button>
           </form>
+
+          <div class="flex items-center gap-3 text-xs text-muted-foreground">
+            <div class="h-px flex-1 bg-border"></div>
+            or
+            <div class="h-px flex-1 bg-border"></div>
+          </div>
+
+          <app-google-signin-button (credential)="submitGoogle($event)" />
         </div>
 
         <p class="text-center text-sm text-muted-foreground">
@@ -106,6 +123,7 @@ import { AuthService } from '../shared/auth.service';
 export class SignupComponent {
   name = '';
   email = '';
+  phone = '';
   password = '';
   confirmPassword = '';
   showPassword = signal(false);
@@ -120,12 +138,16 @@ export class SignupComponent {
   async submit() {
     this.error.set(null);
 
-    if (!this.name.trim() || !this.email.trim() || !this.password) {
-      this.error.set('Fill in your name, email and password.');
+    if (!this.name.trim() || !this.email.trim() || !this.phone.trim() || !this.password) {
+      this.error.set('Fill in your name, email, phone number and password.');
       return;
     }
     if (!this.email.includes('@') || !this.email.includes('.')) {
       this.error.set('Enter a valid email address.');
+      return;
+    }
+    if (this.phone.replace(/\D/g, '').length < 7) {
+      this.error.set('Enter a valid phone number.');
       return;
     }
     if (this.password.length < 8) {
@@ -138,7 +160,19 @@ export class SignupComponent {
     }
 
     this.submitting.set(true);
-    const result = await this.auth.signUp(this.name, this.email, this.password);
+    const result = await this.auth.signUp(this.name, this.email, this.password, this.phone);
+    this.submitting.set(false);
+    if (!result.ok) {
+      this.error.set(result.error);
+      return;
+    }
+    this.router.navigateByUrl('/dashboard');
+  }
+
+  async submitGoogle(idToken: string) {
+    this.error.set(null);
+    this.submitting.set(true);
+    const result = await this.auth.loginWithGoogle(idToken);
     this.submitting.set(false);
     if (!result.ok) {
       this.error.set(result.error);
