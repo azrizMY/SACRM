@@ -132,10 +132,6 @@ import {
           @if (showBooking) {
             <fieldset class="flex flex-col gap-3">
               <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Payment</legend>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Booking Fee (RM)
-                <input type="number" min="0" step="100" [(ngModel)]="form.bookingFee" class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 @if (isCashInForm) {
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
@@ -157,14 +153,6 @@ import {
                   </select>
                 </label>
               </div>
-              @if (form.financingType === 'Loan') {
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Down Payment Status
-                  <select [(ngModel)]="form.downPaymentStatus" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                    @for (p of paymentStatusOptions; track p) { <option [value]="p">{{ p }}</option> }
-                  </select>
-                </label>
-              }
               @if (showDocumentsInBooking) {
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Document Status
@@ -216,6 +204,7 @@ import {
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Bank Panel
                     <select [(ngModel)]="form.bankPanel" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
+                      @if (!form.bankPanel) { <option value="">Select bank…</option> }
                       @for (b of bankOptions; track b) { <option [value]="b">{{ b }}</option> }
                     </select>
                   </label>
@@ -258,7 +247,7 @@ import {
               <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Delivery</legend>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Insurance
+                  Insurance <span class="text-muted-foreground/70">(optional)</span>
                   <select [(ngModel)]="form.insuranceName" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
                     @for (i of insuranceOptions; track i) { <option [value]="i">{{ i }}</option> }
                   </select>
@@ -352,10 +341,12 @@ export class CustomerEditModalComponent implements OnInit {
     return this.record.status === 'Cancelled' ? (this.record.previousStatus ?? 'Lead') : this.record.status;
   }
 
-  /** The physical car has a real colour by the time it's handed over — "To be Confirmed" is not
-   *  a legal final answer once Delivered, even though nothing forces it to be resolved earlier. */
+  /** The colour must be resolved by the time financing is confirmed — "To be Confirmed" is not a
+   *  legal answer once In Progress or later, even though nothing forces it to be resolved earlier.
+   *  Uses effectiveStage() so a Cancelled record inherits whichever stage it was cancelled from. */
   get showColourRequired(): boolean {
-    return this.record.status === 'Delivered';
+    const s = this.effectiveStage();
+    return s === 'In Progress' || s === 'Delivered';
   }
 
   get colourOptionsForForm(): string[] {
@@ -431,7 +422,6 @@ export class CustomerEditModalComponent implements OnInit {
       variant: r.variant,
       yearMade: r.yearMade,
       colour: this.showColourRequired && r.colour === TO_BE_CONFIRMED_COLOUR ? '' : r.colour,
-      bookingFee: r.bookingFee,
       downpayment: r.downpayment,
       ncd: r.ncd,
       tradeInStatus: r.tradeInStatus ?? 'No Trade-in',
@@ -444,7 +434,6 @@ export class CustomerEditModalComponent implements OnInit {
       loanTenureMonths: r.loanTenureMonths,
       loanInterestRate: r.loanInterestRate,
       paymentStatus: r.paymentStatus,
-      downPaymentStatus: r.downPaymentStatus,
       insuranceName: r.insuranceName,
       plateNo: r.plateNo,
       deliveryDate: r.deliveryDate,

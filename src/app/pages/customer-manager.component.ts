@@ -47,7 +47,6 @@ import {
   SOURCE_TYPES,
   STAGE_DATE_HEADER,
   TO_BE_CONFIRMED_COLOUR,
-  bookingFeeDisplay,
   canSubmitBooked,
   canSubmitCancel,
   canSubmitDelivered,
@@ -98,7 +97,6 @@ const BOOKED_COLUMNS: Column[] = [
   { key: 'icNo', label: 'IC No' },
   { key: 'sourceType', label: 'Lead Source' },
   { key: 'documentStatus', label: 'Documents' },
-  { key: 'bookingFee', label: 'Booking Fee', align: 'right' },
   { key: 'stageDate', label: STAGE_DATE_HEADER['Booked'], align: 'right' },
 ];
 const INPROGRESS_COLUMNS: Column[] = [
@@ -456,7 +454,6 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                         </span>
                       }
                     </td>
-                    <td [class]="TD_R + ' tabular'">{{ bookingFeeText(r.bookingFee) }}</td>
                     <td [class]="TD_R + ' text-xs text-muted-foreground tabular'">{{ stageDateText(r) }}</td>
                     <td [class]="TD_R">
                       <div class="flex items-center justify-end gap-1.5" (click)="$event.stopPropagation()">
@@ -902,7 +899,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                 </div>
               </fieldset>
 
-              <fieldset class="flex flex-col gap-3">
+              <fieldset class="flex flex-col gap-3 border-t border-border pt-4">
                 <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Vehicle</legend>
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
@@ -1114,16 +1111,10 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
               Address
               <input type="text" [(ngModel)]="bookedForm.address" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
             </label>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Email
-                <input type="email" [(ngModel)]="bookedForm.email" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Booking Fee (RM) <span class="text-muted-foreground/70">— 0 = N/A</span>
-                <input type="number" min="0" step="100" [(ngModel)]="bookedForm.bookingFee" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
-            </div>
+            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Email
+              <input type="email" [(ngModel)]="bookedForm.email" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+            </label>
 
             @if (rec.quotation && !isCash(rec)) {
               <p class="rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">Down payment &amp; NCD below are prefilled from the quotation — adjust if needed.</p>
@@ -1169,6 +1160,16 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
           </div>
           <div class="flex flex-col gap-3 overflow-y-auto p-4">
             <p class="text-[11px] text-muted-foreground">{{ rec.brand }} {{ rec.model }} &middot; {{ rec.variant }}</p>
+            @if (rec.colour === TO_BE_CONFIRMED_COLOUR) {
+              <div class="flex items-start gap-2 rounded-lg border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2.5 text-[11px] text-foreground">
+                <app-icon name="alert-triangle" [size]="14" class="mt-0.5 shrink-0 text-[var(--warning)]" />
+                <span>
+                  Colour is still "To be Confirmed" —
+                  <button type="button" (click)="onAccordionEdit(rec)" class="font-medium text-primary hover:underline">update it to the actual colour</button>
+                  before this car can start progress.
+                </span>
+              </div>
+            }
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Financing Type
               <select [(ngModel)]="inProgressForm.financingType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -1185,32 +1186,35 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
               </label>
             } @else {
               <p class="rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
-                The bank panel below is the customer's <strong class="text-foreground">final confirmed</strong> financing bank. Down payment, amount and tenure are prefilled from the quotation — confirm or adjust them. Interest rate is manual — the bank sets it.
+                The bank panel below is the customer's <strong class="text-foreground">final confirmed</strong> financing bank. Loan amount and tenure are prefilled from the quotation — confirm or adjust them; down payment is derived automatically from the loan amount. Interest rate is manual — the bank sets it.
               </p>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Bank Panel
                   <select [(ngModel)]="inProgressForm.bankPanel" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
+                    @if (!inProgressForm.bankPanel) { <option value="">Select bank…</option> }
                     @for (b of bankOptions; track b) { <option [value]="b">{{ b }}</option> }
                   </select>
                 </label>
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Loan Amount (RM)
-                  <input type="number" min="0" step="500" [(ngModel)]="inProgressForm.loanAmount" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+                  <input
+                    type="number"
+                    min="0"
+                    step="500"
+                    [ngModel]="inProgressForm.loanAmount"
+                    (ngModelChange)="onInProgressLoanAmountChange($event)"
+                    class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
+                  />
                 </label>
               </div>
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Down Payment (RM)
-                  <input type="number" min="0" step="500" [(ngModel)]="inProgressForm.downpayment" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                </label>
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Down Payment Status
-                  <select [(ngModel)]="inProgressForm.downPaymentStatus" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                    @for (p of paymentStatusOptions; track p) { <option [value]="p">{{ p }}</option> }
-                  </select>
-                </label>
-              </div>
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Rate Type
+                <select [(ngModel)]="inProgressForm.rateType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
+                  <option value="flat">Flat</option>
+                  <option value="effective">EIR</option>
+                </select>
+              </label>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Tenure
@@ -1219,7 +1223,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   </select>
                 </label>
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Interest Rate (%)
+                  {{ inProgressForm.rateType === 'effective' ? 'Effective Rate (%)' : 'Flat Rate (%)' }}
                   <input type="number" min="0" step="0.1" placeholder="e.g. 3.5" [(ngModel)]="inProgressForm.loanInterestRate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                 </label>
               </div>
@@ -1227,7 +1231,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
             <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
-            <button type="button" (click)="submitInProgress(rec.id)" [disabled]="!canSubmitInProgress(inProgressForm)" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">Save</button>
+            <button type="button" (click)="submitInProgress(rec.id)" [disabled]="!canSubmitInProgress(inProgressForm, rec.colour !== TO_BE_CONFIRMED_COLOUR)" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">Save</button>
           </div>
         </div>
       </div>
@@ -1278,7 +1282,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
               </label>
             </div>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Insurance Name
+              Insurance Name <span class="text-muted-foreground/70">(optional)</span>
               <select [(ngModel)]="deliveredForm.insuranceName" class="h-10 w-full rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
                 @for (i of insuranceOptions; track i) { <option [value]="i">{{ i }}</option> }
               </select>
@@ -1325,14 +1329,12 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                 [ngClass]="canSubmitCancel(cancelForm) ? 'border-input' : 'border-[var(--destructive)]'"
               ></textarea>
             </label>
-            @if ((rec.bookingFee ?? 0) > 0) {
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Refund Status
-                <select [(ngModel)]="cancelForm.refundStatus" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                  @for (s of refundStatusOptions; track s) { <option [value]="s">{{ s }}</option> }
-                </select>
-              </label>
-            }
+            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Refund Status
+              <select [(ngModel)]="cancelForm.refundStatus" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
+                @for (s of refundStatusOptions; track s) { <option [value]="s">{{ s }}</option> }
+              </select>
+            </label>
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
             <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Back</button>
@@ -1652,11 +1654,15 @@ export class CustomerManagerComponent {
   deliveredColspan = DELIVERED_COLSPAN;
   cancelledColspan = CANCELLED_COLSPAN;
 
-  fmt = (v: number) => `RM ${v.toLocaleString('en-MY')}`;
+  // `toLocaleString` with no options defaults to *up to 3* fraction digits, not 2 — invisible for
+  // whole numbers but shows a stray 3rd decimal (e.g. "3,889.176") on anything that doesn't divide
+  // evenly, like insurance or a monthly instalment. maximumFractionDigits caps it at 2 like every
+  // other money figure in the app, while minimumFractionDigits stays default (0) so whole amounts
+  // still show without a trailing ".00".
+  fmt = (v: number) => `RM ${v.toLocaleString('en-MY', { maximumFractionDigits: 2 })}`;
   round = Math.round;
   docMeta = (s?: DocumentStatus) => DOCUMENT_STATUS_META[s ?? 'NO'] ?? DOCUMENT_STATUS_META.NO;
   statusMeta = (s: CustomerStatus) => CUSTOMER_STATUS_META[s];
-  bookingFeeText = (fee?: number) => bookingFeeDisplay(fee, this.fmt);
   isCash = isCashDeal;
   canSubmitBooked = canSubmitBooked;
   canSubmitInProgress = canSubmitInProgress;
@@ -1692,8 +1698,6 @@ export class CustomerManagerComponent {
     switch (key) {
       case 'stageDate':
         return this.stageDateText(r);
-      case 'bookingFee':
-        return this.bookingFeeText(r.bookingFee);
       case 'tradeInStatus':
         return r.tradeInStatus || 'No Trade-in';
       case 'cancelReason':
@@ -1936,7 +1940,6 @@ export class CustomerManagerComponent {
   modelVariantLabel = modelVariantLabel;
 
   leadForm: NewLeadInput = this.blankLeadForm();
-
   private blankLeadForm(): NewLeadInput {
     const preferredBrand = this.settings.settings().dashboardTarget.brand;
     const first = VEHICLES.find((v) => v.brand === preferredBrand) ?? VEHICLES[0];
@@ -1997,8 +2000,7 @@ export class CustomerManagerComponent {
   }
 
   canSubmitTestDrive(): boolean {
-    const f = this.testDriveForm;
-    return !!f.icNo.trim() && !!f.drivingLicenceNo.trim() && !!f.address.trim() && !!f.email.trim() && !!f.testDriveDate;
+    return !!this.testDriveForm.icNo.trim();
   }
 
   openTestDrive(record: CustomerRecord) {
@@ -2021,12 +2023,15 @@ export class CustomerManagerComponent {
 
   bookedForm: BookedInput = this.blankBookedForm();
   private blankBookedForm(): BookedInput {
-    return { icNo: '', address: '', email: '', bookingFee: 0 };
+    return { icNo: '', address: '', email: '' };
   }
 
   inProgressForm: InProgressInput = this.blankInProgressForm();
   private blankInProgressForm(): InProgressInput {
-    return { financingType: 'Loan', bankPanel: BANK_OPTIONS[0], downPaymentStatus: 'Not Paid', loanTenureMonths: TENURE_OPTIONS[0].months };
+    // Bank Panel deliberately has no default — it's a real, consequential choice (which bank the
+    // customer is actually financing through), not a generic starting point, so it must be
+    // actively picked rather than silently landing on whichever bank sorts first.
+    return { financingType: 'Loan', loanTenureMonths: TENURE_OPTIONS[0].months, rateType: 'flat' };
   }
 
   deliveredForm: DeliveredInput = this.blankDeliveredForm();
@@ -2072,7 +2077,6 @@ export class CustomerManagerComponent {
       icNo: record.icNo ?? '',
       address: record.address ?? '',
       email: record.email ?? '',
-      bookingFee: 0,
       downpayment: record.downpayment ?? (quoted ? quoted.downpaymentCash : undefined),
       ncd: record.ncd ?? record.quotation?.ncd,
     };
@@ -2086,14 +2090,25 @@ export class CustomerManagerComponent {
     this.inProgressForm = {
       financingType,
       paymentStatus: 'Not Paid',
-      bankPanel: record.bankPanel ?? BANK_OPTIONS[0],
+      bankPanel: record.bankPanel,
       downpayment: record.downpayment ?? (quoted ? quoted.downpaymentCash : undefined),
-      downPaymentStatus: 'Not Paid',
       loanAmount: record.loanAmount ?? (quoted ? quoted.loanAmount : undefined),
       loanTenureMonths: record.quotation?.tenureMonths ?? TENURE_OPTIONS[0].months,
+      rateType: record.quotation?.rateType ?? 'flat',
       loanInterestRate: undefined,
     };
     this.modal.set('inprogress');
+  }
+
+  // Mirrors the Add Lead form (see onLeadLoanAmountChange): down payment isn't directly editable
+  // here anymore, so editing Loan Amount back-solves the down payment needed to reach it, keeping
+  // the two numbers — and whatever gets synced into the quotation snapshot on save — consistent.
+  onInProgressLoanAmountChange(value: number) {
+    const loanAmount = Math.max(0, +value || 0);
+    this.inProgressForm.loanAmount = loanAmount;
+    const rec = this.activeRecord();
+    const allInPrice = rec?.quotation ? this.computeQuotationNumbers(rec, rec.quotation).allInPrice : 0;
+    this.inProgressForm.downpayment = Math.round(Math.max(0, allInPrice - loanAmount));
   }
 
   openDelivered(record: CustomerRecord) {
@@ -2111,7 +2126,7 @@ export class CustomerManagerComponent {
 
   openCancel(record: CustomerRecord) {
     this.activeRecordId.set(record.id);
-    this.cancelForm = { cancelReason: CANCEL_REASON_OPTIONS[0], cancelNotes: '', refundStatus: (record.bookingFee ?? 0) > 0 ? 'Pending' : undefined };
+    this.cancelForm = { cancelReason: CANCEL_REASON_OPTIONS[0], cancelNotes: '', refundStatus: 'Pending' };
     this.modal.set('cancel');
   }
 
@@ -2143,6 +2158,7 @@ export class CustomerManagerComponent {
   }
 
   async submitLead() {
+    if (!this.leadForm.name || !this.leadForm.phone) return;
     await this.customers.addLead({ ...this.leadForm, quotation: { ...this.leadQuotationForm } });
     this.closeModal();
     this.activeTab.set('Lead');
@@ -2156,7 +2172,8 @@ export class CustomerManagerComponent {
   }
 
   async submitInProgress(id: string) {
-    if (!canSubmitInProgress(this.inProgressForm)) return;
+    const rec = this.activeRecord();
+    if (!rec || !canSubmitInProgress(this.inProgressForm, rec.colour !== TO_BE_CONFIRMED_COLOUR)) return;
     await this.customers.markInProgress(id, this.inProgressForm);
     this.closeModal();
     this.activeTab.set('In Progress');

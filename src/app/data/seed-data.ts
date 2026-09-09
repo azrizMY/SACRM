@@ -21,9 +21,6 @@ function priceFor(brand: string, model: string, variant: string): number {
   return VEHICLES.find((v) => v.brand === brand && v.model === model && v.variant === variant)?.price ?? 0;
 }
 
-/** RM0 is a deliberate demo case of "booking fee = Not Applicable" (see BOOKING_FEE_CYCLE). */
-const BOOKING_FEE_CYCLE = [0, 300, 500, 800, 1000];
-
 const DELIVERY_NOTE_CYCLE = [
   'Handed over with full tank and 2nd key.',
   'Customer briefed on first-service schedule.',
@@ -59,7 +56,6 @@ type Spec = {
   tradeInVehicle?: string;
   tradeInValue?: number;
   bookedDaysAgo?: number;
-  bookingFee?: number;
 
   // In Progress
   inProgressDaysAgo?: number;
@@ -68,7 +64,6 @@ type Spec = {
   loanTenureMonths?: number;
   loanInterestRate?: number;
   paymentStatus?: PaymentStatus;
-  downPaymentStatus?: PaymentStatus;
 
   insuranceName?: string;
   plateNo?: string;
@@ -214,19 +209,19 @@ const SPECS: Spec[] = [
   {
     name: 'Farhana Yusoff', phone: '016-330 4471', brand: 'Proton', model: 'X50', variant: 'Flagship', yearMade: 2025,
     sourceType: 'Referral', status: 'In Progress', createdDaysAgo: 40, downpayment: 12380, ncd: 25,
-    icNo: '930318-08-4462', colour: 'White', documentStatus: 'APPROVE', tradeInStatus: 'No Trade-in', bookedDaysAgo: 28, bookingFee: 500,
+    icNo: '930318-08-4462', colour: 'White', documentStatus: 'APPROVE', tradeInStatus: 'No Trade-in', bookedDaysAgo: 28,
     inProgressDaysAgo: 10, financingType: 'Loan', bankPanel: 'Maybank', loanTenureMonths: 84, loanInterestRate: 3.2,
   },
   {
     name: 'Imran Zulkifli', phone: '012-778 9034', brand: 'Chery', model: 'Tiggo 7 Pro', variant: 'Comfort', yearMade: 2025,
     sourceType: 'Walk-in', status: 'In Progress', createdDaysAgo: 25, downpayment: 12980, ncd: 0,
-    icNo: '890814-10-2298', colour: 'Grey', documentStatus: 'APPROVE', tradeInStatus: 'Pending Evaluation', bookedDaysAgo: 15, bookingFee: 300,
+    icNo: '890814-10-2298', colour: 'Grey', documentStatus: 'APPROVE', tradeInStatus: 'Pending Evaluation', bookedDaysAgo: 15,
     inProgressDaysAgo: 5, financingType: 'Loan', bankPanel: 'CIMB Bank', loanTenureMonths: 60, loanInterestRate: 3.5,
   },
   {
     name: 'Sarah Lim', phone: '019-225 6690', brand: 'Toyota', model: 'Vios', variant: 'E', yearMade: 2025,
     sourceType: 'Website Inquiry', status: 'In Progress', createdDaysAgo: 10, downpayment: 17900, ncd: 0,
-    icNo: '970622-14-1123', colour: 'Silver', documentStatus: 'SUBMITTED', tradeInStatus: 'No Trade-in', bookedDaysAgo: 5, bookingFee: 0,
+    icNo: '970622-14-1123', colour: 'Silver', documentStatus: 'SUBMITTED', tradeInStatus: 'No Trade-in', bookedDaysAgo: 5,
     inProgressDaysAgo: 2, financingType: 'Cash',
   },
 
@@ -234,29 +229,29 @@ const SPECS: Spec[] = [
   {
     name: 'Azman Yusof', phone: '013-990 5512', brand: 'Proton', model: 'X70', variant: 'Premium', yearMade: 2025,
     sourceType: 'Phone Call', status: 'Booked', createdDaysAgo: 45, downpayment: 12880, ncd: 0,
-    icNo: '910520-08-4471', colour: 'White', documentStatus: 'SUBMITTED', tradeInStatus: 'No Trade-in', bookedDaysAgo: 30, bookingFee: 800,
+    icNo: '910520-08-4471', colour: 'White', documentStatus: 'SUBMITTED', tradeInStatus: 'No Trade-in', bookedDaysAgo: 30,
   },
   {
     name: 'Suzana Kamal', phone: '019-228 6650', brand: 'Chery', model: 'Omoda 5', variant: 'Flagship', yearMade: 2025,
     sourceType: 'Referral', status: 'Booked', createdDaysAgo: 35, downpayment: 14200, ncd: 38.33,
-    icNo: '930412-10-2298', colour: 'Red', documentStatus: 'APPROVE', tradeInStatus: 'Confirmed', tradeInVehicle: 'Honda City 2019', tradeInValue: 9000, bookedDaysAgo: 22, bookingFee: 1000,
+    icNo: '930412-10-2298', colour: 'Red', documentStatus: 'APPROVE', tradeInStatus: 'Confirmed', tradeInVehicle: 'Honda City 2019', tradeInValue: 9000, bookedDaysAgo: 22,
   },
   {
     name: 'Jerald Anthony', phone: '012-556 8890', brand: 'Proton', model: 'Saga', variant: 'Premium', yearMade: 2025,
     sourceType: 'Walk-in', status: 'Booked', createdDaysAgo: 25, downpayment: 5580, ncd: 0,
-    icNo: '880730-14-5523', colour: 'Silver', documentStatus: 'SUBMITTED', tradeInStatus: 'No Trade-in', bookedDaysAgo: 15, bookingFee: 0,
+    icNo: '880730-14-5523', colour: 'Silver', documentStatus: 'SUBMITTED', tradeInStatus: 'No Trade-in', bookedDaysAgo: 15,
   },
   {
     name: 'Aina Sofea', phone: '017-449 3321', brand: 'Proton', model: 'X50', variant: 'Flagship', yearMade: 2025,
     sourceType: 'Facebook Ads', status: 'Booked', createdDaysAgo: 18, downpayment: 12380, ncd: 25,
-    icNo: '970903-07-2245', colour: 'Blue', documentStatus: 'NO', tradeInStatus: 'Pending Evaluation', bookedDaysAgo: 10, bookingFee: 300,
+    icNo: '970903-07-2245', colour: 'Blue', documentStatus: 'NO', tradeInStatus: 'Pending Evaluation', bookedDaysAgo: 10,
   },
 
   // ---------- Cancelled (4) ----------
   {
     name: 'Halimah Zainal', phone: '016-882 9934', brand: 'Proton', model: 'S70', variant: 'Executive', yearMade: 2025,
     sourceType: 'Website Inquiry', status: 'Cancelled', createdDaysAgo: 50, downpayment: 8200, ncd: 25,
-    icNo: '950208-08-1156', colour: 'Grey', documentStatus: 'SUBMITTED', tradeInStatus: 'No Trade-in', bookedDaysAgo: 38, bookingFee: 500,
+    icNo: '950208-08-1156', colour: 'Grey', documentStatus: 'SUBMITTED', tradeInStatus: 'No Trade-in', bookedDaysAgo: 38,
     cancelDaysAgo: 20, cancelReason: 'Loan Rejected',
     cancelNotes: 'Bank declined the application due to insufficient income documentation.',
     refundStatus: 'Refunded',
@@ -264,7 +259,7 @@ const SPECS: Spec[] = [
   {
     name: 'Vincent Lau', phone: '011-6672 4489', brand: 'Chery', model: 'Tiggo 7 Pro', variant: 'Comfort', yearMade: 2025,
     sourceType: 'TikTok', status: 'Cancelled', createdDaysAgo: 40, downpayment: 12980, ncd: 0,
-    icNo: '900615-14-3390', colour: 'Black', documentStatus: 'SUBMITTED', tradeInStatus: 'Confirmed', tradeInVehicle: 'Chery Tiggo 5X 2017', tradeInValue: 35000, bookedDaysAgo: 28, bookingFee: 800,
+    icNo: '900615-14-3390', colour: 'Black', documentStatus: 'SUBMITTED', tradeInStatus: 'Confirmed', tradeInVehicle: 'Chery Tiggo 5X 2017', tradeInValue: 35000, bookedDaysAgo: 28,
     cancelDaysAgo: 14, cancelReason: 'Customer Changed Mind',
     refundStatus: 'Pending',
   },
@@ -276,7 +271,7 @@ const SPECS: Spec[] = [
   {
     name: 'Ah Kow Tan', phone: '017-225 6614', brand: 'Toyota', model: 'Corolla Altis', variant: '1.8G', yearMade: 2025,
     sourceType: 'Walk-in', status: 'Cancelled', createdDaysAgo: 30, downpayment: 12850, ncd: 0,
-    icNo: '900112-14-5523', colour: 'Silver', documentStatus: 'NO', tradeInStatus: 'No Trade-in', bookedDaysAgo: 18, bookingFee: 500,
+    icNo: '900112-14-5523', colour: 'Silver', documentStatus: 'NO', tradeInStatus: 'No Trade-in', bookedDaysAgo: 18,
     cancelDaysAgo: 4, cancelReason: 'Other',
     cancelNotes: 'Customer relocated overseas before the purchase could be completed.',
     refundStatus: 'Pending',
@@ -317,8 +312,6 @@ export function buildSeedRecords(): CustomerRecord[] {
     const price = priceFor(s.brand, s.model, s.variant);
     const loanAmount = isDeliveredLoan ? Math.max(0, price - (s.downpayment ?? 0)) : undefined;
 
-    const bookingFee = s.bookingFee ?? (s.status === 'Lead' ? undefined : pick(BOOKING_FEE_CYCLE, i));
-
     const previousStatus: CustomerStatus | undefined =
       s.status === 'Cancelled' ? (bookedAt ? 'Booked' : 'Lead') : undefined;
 
@@ -347,7 +340,6 @@ export function buildSeedRecords(): CustomerRecord[] {
       testDriveDate: s.testDriveDaysAgo !== undefined ? daysAgo(s.testDriveDaysAgo) : undefined,
 
       documentStatus: s.documentStatus,
-      bookingFee,
 
       financingType: isDeliveredLoan ? 'Loan' : s.financingType,
       bankPanel: s.bankPanel,
@@ -355,7 +347,6 @@ export function buildSeedRecords(): CustomerRecord[] {
       loanTenureMonths: s.bankPanel ? (s.loanTenureMonths ?? pick(TENURE_OPTIONS, i).months) : s.loanTenureMonths,
       loanInterestRate: s.bankPanel ? (s.loanInterestRate ?? pick(INTEREST_RATE_CYCLE, i)) : s.loanInterestRate,
       paymentStatus: s.financingType === 'Cash' ? (s.paymentStatus ?? 'Partially Paid') : undefined,
-      downPaymentStatus: s.bankPanel ? (s.downPaymentStatus ?? (s.status === 'Delivered' ? 'Fully Paid' : 'Partially Paid')) : undefined,
 
       tradeInStatus: s.tradeInStatus,
       tradeInVehicle: s.tradeInVehicle,

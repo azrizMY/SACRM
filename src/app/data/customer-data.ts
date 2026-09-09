@@ -57,7 +57,7 @@ export const TO_BE_CONFIRMED_COLOUR = 'To be Confirmed';
 export const COLOUR_OPTIONS = [TO_BE_CONFIRMED_COLOUR, 'White', 'Black', 'Silver', 'Grey', 'Red', 'Blue'];
 
 export const BANK_OPTIONS = ['Maybank', 'CIMB Bank', 'Public Bank', 'RHB Bank', 'Hong Leong Bank', 'AmBank', 'Affin Bank', 'Bank Islam', 'Bank Rakyat', 'BSN'];
-export const INSURANCE_OPTIONS = ['Etiqa', 'Allianz', 'Tokio Marine', 'Zurich Malaysia', 'Great Eastern General', 'MSIG', 'Berjaya Sompo'];
+export const INSURANCE_OPTIONS = ['Unspecified', 'Etiqa', 'Allianz', 'Tokio Marine', 'Zurich Malaysia', 'Great Eastern General', 'MSIG', 'Berjaya Sompo'];
 
 // ---------- Financing ----------
 
@@ -118,7 +118,6 @@ export type CustomerRecord = {
   // Captured when moved to Booked
   documentStatus?: DocumentStatus;
   remark?: string; // free-text customer notes — only ever set via Add Note, surfaced through Activity History
-  bookingFee?: number;
 
   // Captured when moved to In Progress (financing confirmation)
   bankPanel?: string; // final agreed bank (post-LOU) — the customer's confirmed financing bank
@@ -126,7 +125,6 @@ export type CustomerRecord = {
   loanTenureMonths?: number;
   loanInterestRate?: number;
   paymentStatus?: PaymentStatus; // cash buyers
-  downPaymentStatus?: PaymentStatus; // loan buyers
 
   // Trade-in — agreed during In Progress onward. Recorded only; never affects any calculation.
   tradeInStatus?: string;
@@ -207,15 +205,6 @@ export function dealOutcome(r: CustomerRecord): DealOutcome {
   return dealProfit(r) >= 0 ? 'Won' : 'Lost';
 }
 
-/** RM0 booking fee is a valid, deliberate "Not Applicable" — distinct from an unset field.
- *  Checks `== null` (not `=== undefined`) because a cleared number `<input>` bound via ngModel
- *  writes `null`, not `undefined` — a value this field's declared type doesn't rule out at runtime. */
-export function bookingFeeDisplay(fee: number | undefined | null, fmt: (v: number) => string): string {
-  if (fee == null) return '—';
-  if (fee === 0) return 'Not Applicable';
-  return fmt(fee);
-}
-
 // ---------- Free gifts ----------
 
 export function freeGiftsSummary(r: CustomerRecord): { total: number; done: number } | null {
@@ -271,36 +260,26 @@ export function formatStageDate(ts: number): string {
 
 // ---------- Gate validation ----------
 
+/** This isn't an official CRM — only a deliberately small set of fields is ever required per
+ *  stage (see each function below). Everything else (address, email, delivery paperwork, cancel
+ *  reason, ...) is optional so the advisor can advance a record with whatever info they actually
+ *  have on hand. */
 export function canSubmitBooked(input: BookedInput): boolean {
-  return !!input.icNo.trim() && !!input.address.trim() && !!input.email.trim();
+  return !!input.icNo.trim() && input.downpayment != null && input.ncd != null;
 }
 
-export function canSubmitInProgress(input: InProgressInput): boolean {
+export function canSubmitInProgress(input: InProgressInput, colourResolved: boolean): boolean {
+  if (!colourResolved) return false;
   if (input.financingType === 'Cash') return !!input.paymentStatus;
-  return (
-    !!input.bankPanel &&
-    !!input.downpayment &&
-    !!input.downPaymentStatus &&
-    !!input.loanAmount &&
-    !!input.loanTenureMonths &&
-    input.loanInterestRate != null
-  );
+  return !!input.bankPanel && input.loanAmount != null && input.loanTenureMonths != null && input.loanInterestRate != null;
 }
 
-export function canSubmitDelivered(input: DeliveredInput, giftsComplete: boolean, colourResolved: boolean): boolean {
-  return (
-    !!input.engineNo.trim() &&
-    !!input.chassisNo.trim() &&
-    !!input.insuranceName.trim() &&
-    !!input.plateNo.trim() &&
-    !!input.deliveryDate.trim() &&
-    giftsComplete &&
-    colourResolved
-  );
+export function canSubmitDelivered(input: DeliveredInput, _giftsComplete: boolean, _colourResolved: boolean): boolean {
+  return !!input.plateNo.trim();
 }
 
-export function canSubmitCancel(input: CancelledInput): boolean {
-  return !!input.cancelReason && (input.cancelReason !== 'Other' || !!input.cancelNotes?.trim());
+export function canSubmitCancel(_input: CancelledInput): boolean {
+  return true;
 }
 
 export type NewLeadInput = {
@@ -329,7 +308,6 @@ export type BookedInput = {
   icNo: string;
   address: string;
   email: string;
-  bookingFee: number;
   downpayment?: number;
   ncd?: number;
 };
@@ -338,10 +316,12 @@ export type InProgressInput = {
   financingType: FinancingType;
   paymentStatus?: PaymentStatus;
   bankPanel?: string;
+  // Not user-edited directly — derived from loanAmount (see onInProgressLoanAmountChange), same
+  // relationship as the Calculator/Add Lead form.
   downpayment?: number;
-  downPaymentStatus?: PaymentStatus;
   loanAmount?: number;
   loanTenureMonths?: number;
+  rateType?: RateType;
   loanInterestRate?: number;
 };
 

@@ -22,10 +22,10 @@ import { clearAllCustomers, deleteCustomer, getAllCustomers, putCustomer } from 
 const EDIT_SECTIONS: Record<string, (keyof EditCustomerInput)[]> = {
   Customer: ['name', 'phone', 'icNo', 'address', 'email', 'drivingLicenceNo', 'sourceType'],
   Vehicle: ['brand', 'model', 'variant', 'yearMade', 'colour'],
-  Payment: ['bookingFee', 'downpayment', 'ncd'],
+  Payment: ['downpayment', 'ncd'],
   'Trade-in': ['tradeInStatus', 'tradeInVehicle', 'tradeInValue'],
   Documents: ['documentStatus'],
-  Financing: ['financingType', 'bankPanel', 'loanAmount', 'loanTenureMonths', 'loanInterestRate', 'paymentStatus', 'downPaymentStatus'],
+  Financing: ['financingType', 'bankPanel', 'loanAmount', 'loanTenureMonths', 'loanInterestRate', 'paymentStatus'],
   Delivery: ['insuranceName', 'plateNo', 'deliveryDate', 'chassisNo', 'engineNo', 'deliveryNotes'],
   Cancellation: ['cancelReason', 'cancelNotes', 'refundStatus'],
 };
@@ -86,7 +86,6 @@ export class CustomerService {
   async markBooked(id: string, input: BookedInput): Promise<void> {
     await this.mutate(id, (existing) => {
       const messages: string[] = [`Status changed: ${existing.status} → Booked`];
-      if (input.bookingFee) messages.push(`Booking fee set to ${formatRM(input.bookingFee)}`);
       return {
         // Documents defaults to "Not Submitted" on entering Booked rather than staying unset —
         // preserve it if already present (e.g. a reopened record already has a real status).
@@ -99,35 +98,45 @@ export class CustomerService {
   async markInProgress(id: string, input: InProgressInput): Promise<void> {
     await this.mutate(id, (existing) => {
       const messages = [`Status changed: ${existing.status} → In Progress`];
+      let quotation = existing.quotation;
       if (input.financingType === 'Loan') {
         messages.push(
-          `Financing confirmed: Loan · ${input.bankPanel} · ${formatRM(input.loanAmount ?? 0)} · ${input.loanTenureMonths}mo · ${input.loanInterestRate}% · Down payment ${input.downPaymentStatus}`,
+          `Financing confirmed: Loan · ${input.bankPanel} · ${formatRM(input.loanAmount ?? 0)} · ${input.loanTenureMonths}mo · ${input.loanInterestRate}%`,
         );
         messages.push('Documents: Approved (loan reaching In Progress means the bank has signed off)');
+        // Keep the quotation snapshot (what "View Quotation" recomputes from) in sync with the
+        // financing actually confirmed here — otherwise it keeps showing the pre-confirmation
+        // down payment/tenure/rate forever, even after the advisor updates them on this screen.
+        if (quotation && input.downpayment != null) {
+          quotation = {
+            ...quotation,
+            downpaymentType: 'amount',
+            downpaymentValue: input.downpayment,
+            tenureMonths: input.loanTenureMonths ?? quotation.tenureMonths,
+            rateType: input.rateType ?? quotation.rateType,
+            interestRate: input.loanInterestRate ?? quotation.interestRate,
+          };
+        }
       } else {
         messages.push(`Financing confirmed: Cash · Payment ${input.paymentStatus}`);
       }
       // Reaching In Progress on a loan deal means the bank has approved — the documents that got it
       // there are done, so Document Status advances with it instead of sitting at its Booked-stage value.
-      return { changes: { ...input, status: 'In Progress', documentStatus: input.financingType === 'Loan' ? 'APPROVE' : existing.documentStatus }, messages };
+      return { changes: { ...input, status: 'In Progress', documentStatus: input.financingType === 'Loan' ? 'APPROVE' : existing.documentStatus, quotation }, messages };
     });
   }
 
   async markDelivered(id: string, input: DeliveredInput): Promise<void> {
     await this.mutate(id, (existing) => {
       const messages = [`Status changed: ${existing.status} → Delivered`, `Delivery completed · ${input.plateNo}`];
-      // The car doesn't go out the door on an unsettled balance — whichever payment status
-      // applies (loan deposit or cash payment) advances to Fully Paid with it, rather than
-      // staying stale just because the SA forgot to tick it before this transition.
-      const downPaymentStatus = existing.financingType === 'Loan' ? 'Fully Paid' : existing.downPaymentStatus;
+      // The car doesn't go out the door on an unsettled balance — a cash deal's payment status
+      // advances to Fully Paid with it, rather than staying stale just because the SA forgot to
+      // tick it before this transition.
       const paymentStatus = existing.financingType === 'Cash' ? 'Fully Paid' : existing.paymentStatus;
-      if (existing.financingType === 'Loan' && existing.downPaymentStatus !== 'Fully Paid') {
-        messages.push('Down payment status: Fully Paid (car handed over)');
-      }
       if (existing.financingType === 'Cash' && existing.paymentStatus !== 'Fully Paid') {
         messages.push('Payment status: Fully Paid (car handed over)');
       }
-      return { changes: { ...input, status: 'Delivered', downPaymentStatus, paymentStatus }, messages };
+      return { changes: { ...input, status: 'Delivered', paymentStatus }, messages };
     });
   }
 
@@ -156,7 +165,21 @@ export class CustomerService {
       const changedSections = EDIT_SECTIONS_ORDER.filter((section) =>
         EDIT_SECTIONS[section].some((k) => input[k] !== undefined && input[k] !== existing[k]),
       );
-      return { changes: input, messages: changedSections.length ? [`Details updated: ${changedSections.join(', ')}`] : [] };
+      // Same reasoning as markInProgress: editing the confirmed down payment/tenure/rate here is
+      // meant to be the up-to-date financing figures, so keep the quotation snapshot ("View
+      // Quotation" recomputes from this) in step instead of leaving it frozen at old values.
+      let quotation = existing.quotation;
+      const financingType = input.financingType ?? existing.financingType;
+      if (quotation && financingType === 'Loan' && (input.downpayment !== undefined || input.loanTenureMonths !== undefined || input.loanInterestRate !== undefined)) {
+        quotation = {
+          ...quotation,
+          downpaymentType: input.downpayment !== undefined ? 'amount' : quotation.downpaymentType,
+          downpaymentValue: input.downpayment ?? quotation.downpaymentValue,
+          tenureMonths: input.loanTenureMonths ?? quotation.tenureMonths,
+          interestRate: input.loanInterestRate ?? quotation.interestRate,
+        };
+      }
+      return { changes: { ...input, quotation }, messages: changedSections.length ? [`Details updated: ${changedSections.join(', ')}`] : [] };
     });
   }
 

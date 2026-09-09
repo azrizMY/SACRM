@@ -221,8 +221,6 @@ export type QuotationPdfData = {
   repaymentRows: { label: string; monthly: number }[];
   /** Itemized insurance breakdown — expands the Insurance line into its own rows when provided. */
   insuranceBreakdown?: InsuranceQuotationBreakdown;
-  /** Only meaningful once a deal is Booked — 0 at quotation stage. */
-  bookingFee?: number;
 };
 
 /** Every amount in the quotation renders through this — 2 decimals plus thousands separators,
@@ -374,7 +372,6 @@ export function buildQuotationPdfBytes(d: QuotationPdfData): Uint8Array {
 
   rows.push({ cells: [label('Total Sales Price', { bold: true }), money(fmt2(totalSalesPrice), { bold: true })] });
   rows.push({ cells: [label('Rebate'), money(`- ${fmt2(d.effectiveRebate)}`)] });
-  rows.push({ cells: [label('Booking Fee'), money(`- ${fmt2(d.bookingFee ?? 0)}`)] });
   rows.push({ cells: [label('Total Amount Due', { bold: true, color: red }), money(fmt2(d.allInPrice), { bold: true, color: red })] });
   if (!d.isCash) {
     rows.push(

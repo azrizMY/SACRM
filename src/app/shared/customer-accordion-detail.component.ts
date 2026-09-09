@@ -6,7 +6,6 @@ import { VEHICLES } from '../data/calculator-data';
 import {
   CUSTOMER_STATUS_META,
   DOCUMENT_STATUS_META,
-  bookingFeeDisplay,
   formatStageDate,
   freeGiftsLabel,
   isCashDeal,
@@ -229,14 +228,12 @@ export class CustomerAccordionDetailComponent {
     };
   }
 
+  // Payment Status only applies to cash deals — loan deals track payment via Documents/Financing
+  // instead, so this section simply doesn't exist for them (see sections' empty-fields filter).
   private bookingSection(r: CustomerRecord): Section {
-    const fields: Field[] = [{ label: 'Booking Fee', value: bookingFeeDisplay(r.bookingFee, fmtMoney as (v: number) => string) }];
-    // Whichever payment-progress status applies — Payment Status (cash) or Down Payment Status
-    // (loan) — lives here in Payment, not Financing; the deal terms live there, payment tracking here.
+    const fields: Field[] = [];
     if (isCashDeal(r)) {
       fields.push({ label: 'Payment Status', value: fmtOrDash(r.paymentStatus) });
-    } else if (r.financingType === 'Loan') {
-      fields.push({ label: 'Down Payment Status', value: fmtOrDash(r.downPaymentStatus) });
     }
     return { title: 'Payment', fields };
   }
