@@ -31,63 +31,94 @@ import {
   imports: [CommonModule, FormsModule, IconComponent],
   template: `
     <div class="flex flex-col gap-4">
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-          Basic Premium (RM)
-          <input type="number" min="0" step="1" [(ngModel)]="form.basicPremium" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-        </label>
-        <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-          Premium All Rider (RM)
-          <input type="number" min="0" step="1" [(ngModel)]="form.premiumAllRider" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-        </label>
+      <div role="radiogroup" aria-label="Insurance pricing mode" class="flex gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
+        <button
+          type="button"
+          role="radio"
+          [attr.aria-checked]="form.mode === 'flat'"
+          (click)="form.mode = 'flat'"
+          class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
+          [ngClass]="form.mode === 'flat' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+        >
+          Flat
+        </button>
+        <button
+          type="button"
+          role="radio"
+          [attr.aria-checked]="form.mode !== 'flat'"
+          (click)="form.mode = 'itemized'"
+          class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
+          [ngClass]="form.mode !== 'flat' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+        >
+          Itemized
+        </button>
       </div>
 
-      <div class="flex flex-col gap-2">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-medium text-muted-foreground">Additional Coverages</span>
-          <button type="button" (click)="addCoverage()" class="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-accent">
-            <app-icon name="plus" [size]="12" />
-            Add Coverage
-          </button>
+      @if (form.mode === 'flat') {
+        <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+          Insurance Price (RM)
+          <input type="number" min="0" step="1" [(ngModel)]="form.flatPrice" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+        </label>
+        <p class="text-[11px] text-muted-foreground">The whole insurer-quoted price — NCD is deducted straight from it, nothing else added.</p>
+      } @else {
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+            Basic Premium (RM)
+            <input type="number" min="0" step="1" [(ngModel)]="form.basicPremium" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+          </label>
+          <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+            Premium All Rider (RM)
+            <input type="number" min="0" step="1" [(ngModel)]="form.premiumAllRider" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+          </label>
         </div>
-        @for (item of form.additionalCoverages; track $index) {
-          <div class="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="Coverage name"
-              [(ngModel)]="item.label"
-              class="h-9 min-w-0 flex-1 rounded-lg border border-input bg-input px-3 text-xs text-foreground outline-none focus:border-ring"
-            />
-            <input
-              type="number"
-              step="1"
-              placeholder="RM"
-              [(ngModel)]="item.amount"
-              class="h-9 w-28 shrink-0 rounded-lg border border-input bg-input px-3 text-xs tabular text-foreground outline-none focus:border-ring"
-            />
-            <button type="button" (click)="removeCoverage($index)" aria-label="Remove coverage" class="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-[var(--destructive)]">
-              <app-icon name="trash" [size]="13" />
+
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-muted-foreground">Additional Coverages</span>
+            <button type="button" (click)="addCoverage()" class="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-accent">
+              <app-icon name="plus" [size]="12" />
+              Add Coverage
             </button>
           </div>
-        } @empty {
-          <p class="text-[11px] text-muted-foreground">No additional coverages yet.</p>
-        }
-      </div>
+          @for (item of form.additionalCoverages; track $index) {
+            <div class="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Coverage name"
+                [(ngModel)]="item.label"
+                class="h-9 min-w-0 flex-1 rounded-lg border border-input bg-input px-3 text-xs text-foreground outline-none focus:border-ring"
+              />
+              <input
+                type="number"
+                step="1"
+                placeholder="RM"
+                [(ngModel)]="item.amount"
+                class="h-9 w-28 shrink-0 rounded-lg border border-input bg-input px-3 text-xs tabular text-foreground outline-none focus:border-ring"
+              />
+              <button type="button" (click)="removeCoverage($index)" aria-label="Remove coverage" class="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-[var(--destructive)]">
+                <app-icon name="trash" [size]="13" />
+              </button>
+            </div>
+          } @empty {
+            <p class="text-[11px] text-muted-foreground">No additional coverages yet.</p>
+          }
+        </div>
 
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-          Stamp Duty (RM)
-          <input type="number" min="0" step="1" [(ngModel)]="form.stampDuty" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-        </label>
-        <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-          Service Tax (%)
-          <input type="number" min="0" step="0.01" [(ngModel)]="form.serviceTaxPct" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-        </label>
-        <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-          EPR (RM)
-          <input type="number" min="0" step="0.01" [(ngModel)]="form.epr" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-        </label>
-      </div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+            Stamp Duty (RM)
+            <input type="number" min="0" step="1" [(ngModel)]="form.stampDuty" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+          </label>
+          <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+            Service Tax (%)
+            <input type="number" min="0" step="0.01" [(ngModel)]="form.serviceTaxPct" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+          </label>
+          <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+            EPR (RM)
+            <input type="number" min="0" step="0.01" [(ngModel)]="form.epr" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+          </label>
+        </div>
+      }
 
       <!-- Live preview, matching the official quotation layout -->
       <div class="overflow-hidden rounded-lg border border-border text-xs">
@@ -95,49 +126,62 @@ import {
           <span>Premium Pricing</span>
           <span>RM</span>
         </div>
-        <div class="flex flex-col divide-y divide-border/60">
-          <div class="flex items-center justify-between px-3 py-1.5">
-            <span class="text-muted-foreground">Basic Premium</span>
-            <span class="tabular">{{ fmtPlain(breakdown().basicPremium) }}</span>
-          </div>
-          <div class="flex items-center justify-between px-3 py-1.5">
-            <span class="text-muted-foreground">Premium All Rider</span>
-            <span class="tabular">{{ fmtPlain(breakdown().premiumAllRider) }}</span>
-          </div>
-          <div class="flex items-center justify-between px-3 py-1.5">
-            <span class="text-muted-foreground">&minus;NCD ({{ breakdown().ncdPct }}%)</span>
-            <span class="tabular">{{ fmtPlain(breakdown().ncdAmount) }}</span>
-          </div>
-        </div>
-        @if (form.additionalCoverages.length > 0) {
-          <div class="bg-muted/40 px-3 py-1.5 font-semibold">+Additional Coverages</div>
+        @if (form.mode === 'flat') {
           <div class="flex flex-col divide-y divide-border/60">
-            @for (item of form.additionalCoverages; track $index) {
-              <div class="flex items-center justify-between px-3 py-1.5">
-                <span class="text-muted-foreground">{{ item.label || 'Untitled coverage' }}</span>
-                <span class="tabular">{{ fmtPlain(item.amount) }}</span>
-              </div>
-            }
+            <div class="flex items-center justify-between px-3 py-1.5">
+              <span class="text-muted-foreground">Insurance Price</span>
+              <span class="tabular">{{ fmtPlain(breakdown().flatPrice ?? 0) }}</span>
+            </div>
+            <div class="flex items-center justify-between px-3 py-1.5">
+              <span class="text-muted-foreground">&minus;NCD ({{ breakdown().ncdPct }}%)</span>
+              <span class="tabular">{{ fmtPlain(breakdown().ncdAmount) }}</span>
+            </div>
+          </div>
+        } @else {
+          <div class="flex flex-col divide-y divide-border/60">
+            <div class="flex items-center justify-between px-3 py-1.5">
+              <span class="text-muted-foreground">Basic Premium</span>
+              <span class="tabular">{{ fmtPlain(breakdown().basicPremium) }}</span>
+            </div>
+            <div class="flex items-center justify-between px-3 py-1.5">
+              <span class="text-muted-foreground">Premium All Rider</span>
+              <span class="tabular">{{ fmtPlain(breakdown().premiumAllRider) }}</span>
+            </div>
+            <div class="flex items-center justify-between px-3 py-1.5">
+              <span class="text-muted-foreground">&minus;NCD ({{ breakdown().ncdPct }}%)</span>
+              <span class="tabular">{{ fmtPlain(breakdown().ncdAmount) }}</span>
+            </div>
+          </div>
+          @if (form.additionalCoverages.length > 0) {
+            <div class="bg-muted/40 px-3 py-1.5 font-semibold">+Additional Coverages</div>
+            <div class="flex flex-col divide-y divide-border/60">
+              @for (item of form.additionalCoverages; track $index) {
+                <div class="flex items-center justify-between px-3 py-1.5">
+                  <span class="text-muted-foreground">{{ item.label || 'Untitled coverage' }}</span>
+                  <span class="tabular">{{ fmtPlain(item.amount) }}</span>
+                </div>
+              }
+            </div>
+          }
+          <div class="flex items-center justify-between bg-muted/40 px-3 py-1.5 font-semibold">
+            <span>Gross Premium</span>
+            <span class="tabular">{{ fmtPlain(breakdown().grossPremium) }}</span>
+          </div>
+          <div class="flex flex-col divide-y divide-border/60">
+            <div class="flex items-center justify-between px-3 py-1.5">
+              <span class="text-muted-foreground">+Stamp Duty</span>
+              <span class="tabular">{{ fmtPlain(breakdown().stampDuty) }}</span>
+            </div>
+            <div class="flex items-center justify-between px-3 py-1.5">
+              <span class="text-muted-foreground">+Service Tax ({{ breakdown().serviceTaxPct }}%)</span>
+              <span class="tabular">{{ fmtPlain(breakdown().serviceTaxAmount) }}</span>
+            </div>
+            <div class="flex items-center justify-between px-3 py-1.5">
+              <span class="text-muted-foreground">+EPR</span>
+              <span class="tabular">{{ fmtPlain(breakdown().epr) }}</span>
+            </div>
           </div>
         }
-        <div class="flex items-center justify-between bg-muted/40 px-3 py-1.5 font-semibold">
-          <span>Gross Premium</span>
-          <span class="tabular">{{ fmtPlain(breakdown().grossPremium) }}</span>
-        </div>
-        <div class="flex flex-col divide-y divide-border/60">
-          <div class="flex items-center justify-between px-3 py-1.5">
-            <span class="text-muted-foreground">+Stamp Duty</span>
-            <span class="tabular">{{ fmtPlain(breakdown().stampDuty) }}</span>
-          </div>
-          <div class="flex items-center justify-between px-3 py-1.5">
-            <span class="text-muted-foreground">+Service Tax ({{ breakdown().serviceTaxPct }}%)</span>
-            <span class="tabular">{{ fmtPlain(breakdown().serviceTaxAmount) }}</span>
-          </div>
-          <div class="flex items-center justify-between px-3 py-1.5">
-            <span class="text-muted-foreground">+EPR</span>
-            <span class="tabular">{{ fmtPlain(breakdown().epr) }}</span>
-          </div>
-        </div>
         <div class="flex items-center justify-between bg-primary/10 px-3 py-2">
           <span class="font-semibold text-primary">Total Due <span class="font-normal text-muted-foreground">(Rounded: {{ fmt(breakdown().totalRounded) }})</span></span>
           <span class="font-bold tabular text-primary">{{ fmtPlain(breakdown().totalDue) }}</span>

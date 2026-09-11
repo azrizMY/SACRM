@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from './icon.component';
-import { VEHICLES } from '../data/calculator-data';
+import { VEHICLES, vehicleTitle } from '../data/calculator-data';
 import {
   CUSTOMER_STATUS_META,
   DOCUMENT_STATUS_META,
@@ -41,7 +41,7 @@ function fmtOrDash(v: string | number | undefined | null): string {
         <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ section.title }}</span>
         @if (section.title === 'Vehicle') {
           <div class="flex items-center justify-between gap-3">
-            <span class="text-base font-semibold text-foreground">{{ record.brand }} {{ record.model }} {{ record.variant }}</span>
+            <span class="text-base font-semibold text-foreground">{{ vehicleTitle(record.brand, record.model) }} {{ record.variant }}</span>
             <span class="shrink-0 text-sm font-medium text-muted-foreground">{{ record.colour }}</span>
           </div>
         }
@@ -107,16 +107,6 @@ function fmtOrDash(v: string | number | undefined | null): string {
 
       <!-- Actions -->
       <div class="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
-        @if (record.status === 'Lead' || record.status === 'Booked' || record.status === 'In Progress' || record.status === 'Cancelled') {
-          <button
-            type="button"
-            (click)="recordTestDrive.emit(record)"
-            class="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            <app-icon name="car" [size]="13" />
-            Record Test Drive
-          </button>
-        }
         <button
           type="button"
           (click)="addNote.emit(record)"
@@ -165,11 +155,12 @@ export class CustomerAccordionDetailComponent {
   @Output() addNote = new EventEmitter<CustomerRecord>();
   @Output() cancel = new EventEmitter<CustomerRecord>();
   @Output() reopen = new EventEmitter<CustomerRecord>();
-  @Output() recordTestDrive = new EventEmitter<CustomerRecord>();
+
+  vehicleTitle = vehicleTitle;
 
   /** Same card set for every status — nothing is hidden pending a later stage, fields that
-   *  aren't populated yet just render as "—" via the fmt* helpers below. Only Test Drive
-   *  (an optional event, not a stage) and Cancellation (only meaningful once cancelled) vary. */
+   *  aren't populated yet just render as "—" via the fmt* helpers below. Only Cancellation
+   *  (only meaningful once cancelled) varies. */
   get sections(): Section[] {
     const r = this.record;
     try {
@@ -276,7 +267,6 @@ export class CustomerAccordionDetailComponent {
     const fields: Field[] = [
       { label: 'Delivery Date', value: fmtDate(r.deliveryDate) },
       { label: 'Delivery Notes', value: fmtOrDash(r.deliveryNotes) },
-      { label: 'Test Drive Date', value: fmtDate(r.testDriveDate) },
     ];
     if (r.freeGifts?.length) {
       fields.push({ label: 'Free Gifts', value: freeGiftsLabel(r), link: true });
@@ -290,9 +280,6 @@ export class CustomerAccordionDetailComponent {
       { label: 'Cancellation Date', value: formatStageDate(stageEnteredAt(r, 'Cancelled')) },
       { label: 'Cancellation Reason', value: fmtOrDash(r.cancelReason) },
     ];
-    if (r.refundStatus) {
-      fields.push({ label: 'Refund Status', value: r.refundStatus });
-    }
     fields.push({ label: 'Cancellation Notes', value: fmtOrDash(r.cancelNotes) });
     return { title: 'Cancellation', fields };
   }

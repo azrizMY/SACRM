@@ -20,6 +20,7 @@ import {
   monthlyPayment,
   rebateForYear,
   variantLabel,
+  vehicleTitle,
   type Vehicle,
 } from '../data/calculator-data';
 import { assembleImagePdfBytes, downloadBlob as downloadPdfBytes, type PdfImagePage } from '../shared/pdf-writer';
@@ -342,7 +343,7 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
               <app-icon name="car" [size]="20" class="text-white/90" />
             </div>
             <div class="flex min-w-0 flex-col">
-              <span class="truncate text-sm font-semibold">{{ v.brand }} {{ v.model }}</span>
+              <span class="truncate text-sm font-semibold">{{ vehicleTitle(v.brand, v.model) }}</span>
               <span class="truncate text-[11px] text-muted-foreground">{{ variantLabel(v.variant) ? variantLabel(v.variant) + ' · ' : '' }}{{ fmt(v.price) }}</span>
             </div>
             <button
@@ -377,6 +378,7 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
   fmt = (v: number) => formatRM(v);
   modelVariantLabel = modelVariantLabel;
   variantLabel = variantLabel;
+  vehicleTitle = vehicleTitle;
 
   private catalog = inject(VehicleCatalogService);
 

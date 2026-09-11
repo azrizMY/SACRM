@@ -3,12 +3,13 @@
 import { AfterViewInit, Component, computed, effect, ElementRef, HostListener, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { IconComponent } from '../shared/icon.component';
 import { InsuranceQuotationEditorComponent } from '../shared/insurance-quotation-editor.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { CustomerService } from '../shared/customer.service';
 import { SettingsService } from '../shared/settings.service';
-import { FINANCING_TYPE_OPTIONS, SOURCE_TYPES, TO_BE_CONFIRMED_COLOUR, type FinancingType } from '../data/customer-data';
+import { CUSTOMER_STATUS_META, FINANCING_TYPE_OPTIONS, SOURCE_TYPES, TO_BE_CONFIRMED_COLOUR, type CustomerRecord, type FinancingType } from '../data/customer-data';
 import { todayStr } from '../shared/date-utils';
 import { brandLogo, toMalaysianWhatsAppNumber } from '../data/dashboard-data';
 import {
@@ -24,13 +25,14 @@ import {
   additionalRebateForYear,
   rebateForYear,
   roundCents,
+  vehicleTitle,
   yearsForVariant,
   type DownpaymentType,
   type InsuranceQuotationDetails,
   type RateType,
   type Vehicle,
 } from '../data/calculator-data';
-import { buildQuotationPdfBytes, downloadBlob } from '../shared/pdf-writer';
+import { downloadBlob } from '../shared/pdf-writer';
 import { posterFontsReady } from '../shared/poster-theme';
 import { classicTemplate } from '../shared/poster-template-classic';
 import { compactMyTemplate } from '../shared/poster-template-my';
@@ -40,7 +42,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
 @Component({
   selector: 'app-calculator',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, InsuranceQuotationEditorComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, InsuranceQuotationEditorComponent],
   template: `
     <div class="mx-auto flex max-w-7xl flex-col gap-6">
       <!-- Mobile Preview/Customize switcher -->
@@ -514,7 +516,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
           </div>
           <div class="flex flex-col gap-3 p-4">
             <p class="text-[11px] text-muted-foreground">
-              {{ selectedVehicle().brand }} {{ selectedVehicle().model }} &middot; {{ fmt(downpaymentCash()) }} downpayment &middot; {{ ncd() }}% NCD
+              {{ vehicleTitle(selectedVehicle().brand, selectedVehicle().model) }} &middot; {{ fmt(downpaymentCash()) }} downpayment &middot; {{ ncd() }}% NCD
             </p>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Name
@@ -524,6 +526,16 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               Phone No
               <input type="tel" [(ngModel)]="leadPhone" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
             </label>
+            @if (existingLeadForPhone(); as dup) {
+              <div class="flex items-start gap-2 rounded-lg border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2.5 text-[11px] text-foreground">
+                <app-icon name="alert-triangle" [size]="14" class="mt-0.5 shrink-0 text-[var(--warning)]" />
+                <span>
+                  This number is already saved as <strong class="text-foreground">{{ dup.name }}</strong> ({{ statusMeta[dup.status].label }}) —
+                  <a [routerLink]="['/leads']" [queryParams]="{ customer: dup.id }" (click)="closeLeadModal()" class="font-medium text-primary hover:underline">open them in Customer Manager</a>
+                  instead of saving a new lead here.
+                </span>
+              </div>
+            }
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Source Type
               <select [(ngModel)]="leadSource" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -549,12 +561,18 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               </label>
             }
             <p class="text-[11px] text-muted-foreground">
-              Save the lead, download a quotation PDF, or message this customer on WhatsApp — do any or all of them, in any order.
+              Save the lead, or message this customer on WhatsApp — do either or both, in any order.
             </p>
             @if (leadSaved()) {
               <span class="flex items-center gap-1.5 text-[11px] font-medium text-[var(--success)]">
                 <app-icon name="check" [size]="12" />
                 Lead saved
+              </span>
+            }
+            @if (whatsAppImageCopied()) {
+              <span class="flex items-center gap-1.5 text-[11px] font-medium text-[var(--success)]">
+                <app-icon name="check" [size]="12" />
+                Quote image copied — paste it (Ctrl/Cmd+V) into the WhatsApp chat
               </span>
             }
           </div>
@@ -563,7 +581,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
             <button
               type="button"
               (click)="submitLead()"
-              [disabled]="!leadName || !leadPhone"
+              [disabled]="!leadName || !leadPhone || !!existingLeadForPhone()"
               class="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
             >
               <app-icon name="plus" [size]="13" />
@@ -571,21 +589,12 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
             </button>
             <button
               type="button"
-              (click)="generateQuotation()"
-              [disabled]="!leadName || !leadPhone"
-              class="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
-            >
-              <app-icon name="download" [size]="13" />
-              Generate Quotation
-            </button>
-            <button
-              type="button"
               (click)="openWhatsAppForLead()"
-              [disabled]="!leadName || !leadPhone"
+              [disabled]="!leadName || !leadPhone || sendingWhatsApp() || !!existingLeadForPhone()"
               class="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               <app-icon name="message-circle" [size]="13" />
-              WhatsApp
+              {{ sendingWhatsApp() ? 'Copying image…' : 'WhatsApp' }}
             </button>
           </div>
         </div>
@@ -600,7 +609,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
           <div class="flex items-center gap-3 border-b border-border p-4">
             <div class="flex flex-col">
               <span class="text-sm font-semibold">Insurance Breakdown</span>
-              <span class="text-[11px] text-muted-foreground">{{ selectedVehicle().brand }} {{ modelVariantLabel(selectedVehicle().model, selectedVehicle().variant) }}</span>
+              <span class="text-[11px] text-muted-foreground">{{ vehicleTitle(selectedVehicle().brand, modelVariantLabel(selectedVehicle().model, selectedVehicle().variant)) }}</span>
             </div>
             <button type="button" (click)="closeInsuranceBreakdown()" aria-label="Close" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
               <app-icon name="x" [size]="16" />
@@ -627,6 +636,9 @@ export class CalculatorComponent implements AfterViewInit {
   copyingPoster = signal(false);
   /** Brief "Copied!" confirmation on the button after a successful clipboard write. */
   posterCopied = signal(false);
+  sendingWhatsApp = signal(false);
+  /** Brief confirmation next to the WhatsApp button once the poster image lands on the clipboard. */
+  whatsAppImageCopied = signal(false);
   /** Set once fonts.google.com's Barlow Semi Condensed + Inter are ready to paint — the draw
    *  effect waits on this so the very first frame never falls back to a system font. */
   private fontsReady = signal(false);
@@ -638,6 +650,8 @@ export class CalculatorComponent implements AfterViewInit {
    *  numbers and show up to 3 fraction digits on others. Used throughout the Quote Preview. */
   fmt2 = (v: number) => `RM ${v.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   modelVariantLabel = modelVariantLabel;
+  vehicleTitle = vehicleTitle;
+  statusMeta = CUSTOMER_STATUS_META;
 
   brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
 
@@ -1086,11 +1100,19 @@ export class CalculatorComponent implements AfterViewInit {
     this.leadModalOpen.set(false);
   }
 
-  // Save Lead and Generate Quotation both need the lead persisted, but must not create a
-  // duplicate record if the advisor clicks both — this guard makes the save idempotent
-  // per modal session instead of tracking a returned record id.
+  /** Any existing customer (any stage) whose phone matches what's typed here — the Add Lead
+   *  modal is for brand-new contacts only, so a match blocks Save Lead / WhatsApp entirely rather
+   *  than risking a second record for someone already in the pipeline. */
+  existingLeadForPhone(): CustomerRecord | undefined {
+    if (!this.leadPhone) return undefined;
+    const digits = toMalaysianWhatsAppNumber(this.leadPhone);
+    return this.customers.records().find((r) => toMalaysianWhatsAppNumber(r.phone) === digits);
+  }
+
+  // Guards against creating a duplicate record if Save Lead is clicked more than once in the
+  // same modal session, instead of tracking a returned record id.
   private async saveLeadRecord() {
-    if (this.leadSaved()) return;
+    if (this.leadSaved() || this.existingLeadForPhone()) return;
     const vehicle = this.selectedVehicle();
     await this.customers.addLead({
       name: this.leadName,
@@ -1124,49 +1146,36 @@ export class CalculatorComponent implements AfterViewInit {
     await this.saveLeadRecord();
   }
 
-  async generateQuotation() {
-    await this.saveLeadRecord();
-    const advisor = this.advisor.profile();
-    const vehicle = this.selectedVehicle();
-    const bytes = buildQuotationPdfBytes({
-      brand: vehicle.brand,
-      model: vehicle.model,
-      variant: vehicle.variant,
-      customerName: this.leadName,
-      customerPhone: this.leadPhone,
-      advisorName: advisor.name,
-      advisorRole: advisor.role,
-      dateStr: todayStr(),
-      basePrice: this.basePrice(),
-      effectiveRebate: this.effectiveRebate(),
-      ncd: this.ncd(),
-      insuranceAmount: this.insurance(),
-      allInPrice: this.allInPrice(),
-      isCash: this.leadFinancingType === 'Cash',
-      downpaymentCash: this.downpaymentCash(),
-      loanAmount: this.loanAmount(),
-      interestRate: this.interestRate(),
-      rateType: this.rateType(),
-      repaymentRows: [{ label: this.selectedTenureLabel(), monthly: this.selectedTenureMonthly() }],
-      insuranceBreakdown: this.insuranceBreakdown(),
-    });
-    downloadBlob(bytes, this.quotationFileName(), 'application/pdf');
-  }
+  async openWhatsAppForLead() {
+    if (this.sendingWhatsApp() || this.existingLeadForPhone()) return;
+    this.sendingWhatsApp.set(true);
+    try {
+      const vehicle = this.selectedVehicle();
+      const vehicleLabel = vehicleTitle(vehicle.brand, modelVariantLabel(vehicle.model, vehicle.variant));
+      const msg =
+        `Hi ${this.leadName}, thank you for your interest in the ${vehicleLabel}. ` +
+        `Selling price ${this.fmt(this.allInPrice())}, downpayment ${this.fmt(this.downpaymentCash())}. ` +
+        `Let me know if you have any questions!`;
+      const phone = toMalaysianWhatsAppNumber(this.leadPhone);
 
-  openWhatsAppForLead() {
-    const vehicle = this.selectedVehicle();
-    const msg =
-      `Hi ${this.leadName}, thank you for your interest in the ${vehicle.brand} ${modelVariantLabel(vehicle.model, vehicle.variant)}. ` +
-      `Selling price ${this.fmt(this.allInPrice())}, downpayment ${this.fmt(this.downpaymentCash())}. ` +
-      `Let me know if you have any questions!`;
-    const phone = toMalaysianWhatsAppNumber(this.leadPhone);
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-  }
+      // Copy the poster image to the clipboard first so it's just a paste away once WhatsApp
+      // opens — same "pass the still-pending blob promise" trick as copyPosterImage() so the
+      // write is issued while the click's user-activation window is still open. Best-effort:
+      // WhatsApp still opens with the text below even if the image copy fails or isn't supported.
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': this.renderPosterPngBlob() })]);
+          this.whatsAppImageCopied.set(true);
+          setTimeout(() => this.whatsAppImageCopied.set(false), 2500);
+        } catch {
+          /* clipboard write not available/denied — WhatsApp still opens below */
+        }
+      }
 
-  private quotationFileName(): string {
-    const v = this.selectedVehicle();
-    const who = this.leadName || 'Customer';
-    return `Quotation-${v.brand}-${v.model}-${who}.pdf`.replace(/\s+/g, '-');
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    } finally {
+      this.sendingWhatsApp.set(false);
+    }
   }
 
   /** Download quality is independent of preview quality — a dedicated (never-visible) canvas
@@ -1199,7 +1208,7 @@ export class CalculatorComponent implements AfterViewInit {
 
   private async downloadPosterBlob(blob: Blob): Promise<void> {
     const v = this.selectedVehicle();
-    downloadBlob(new Uint8Array(await blob.arrayBuffer()), `Quote-${v.brand}-${v.model}.png`.replace(/\s+/g, '-'), 'image/png');
+    downloadBlob(new Uint8Array(await blob.arrayBuffer()), `Quote-${vehicleTitle(v.brand, v.model)}.png`.replace(/\s+/g, '-'), 'image/png');
   }
 
   /** Copies the poster straight onto the system clipboard so it can be pasted directly into

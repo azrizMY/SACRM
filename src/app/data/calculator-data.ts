@@ -239,6 +239,17 @@ export function basicPremiumDefault(rrp: number, ratePct: number): number {
 export type InsuranceCoverageItem = { label: string; amount: number };
 
 export type InsuranceQuotationDetails = {
+  /** 'flat' (the default for a car with no saved quotation yet) or 'itemized' — which entry mode
+   *  produced this quotation. Absent means 'itemized', since every quotation saved before this
+   *  field existed was itemized — never silently reinterpret old data as flat. Deliberately not a
+   *  discriminated union with the fields below: every consumer of this type already assumes every
+   *  field below is always present, and keeping that true means adding Flat mode never requires
+   *  touching those call sites. */
+  mode?: 'flat' | 'itemized';
+  /** Only meaningful when mode === 'flat' — the whole insurer-quoted total. NCD deducts straight
+   *  from this; Premium All Rider/Additional Coverages/Stamp Duty/Service Tax/EPR below play no
+   *  part in Flat mode (see computeInsuranceBreakdown). */
+  flatPrice?: number;
   basicPremium: number;
   premiumAllRider: number;
   additionalCoverages: InsuranceCoverageItem[];
@@ -264,10 +275,14 @@ export const DEFAULT_STAMP_DUTY = 10;
 export const DEFAULT_SERVICE_TAX_PCT = 8;
 export const DEFAULT_EPR = 94.24;
 
-/** Starting itemized quotation for a car with no saved override yet — carries over the model's known
- *  Additional Benefits (e.g. Chery's live feed) as a single coverage line so totals stay consistent. */
+/** Starting quotation for a car with no saved override yet — defaults to Flat mode (see
+ *  InsuranceQuotationDetails.mode), pre-filled with what the itemized calc would have totalled at
+ *  0% NCD, so the flat number is a sensible starting figure rather than RM0. The itemized fields
+ *  are still populated underneath (carrying over the model's known Additional Benefits, e.g.
+ *  Chery's live feed) so switching to Itemized mode later shows real numbers, not blanks. */
 export function defaultInsuranceQuotation(vehicle: Vehicle, fallbackBasicPremium: number): InsuranceQuotationDetails {
-  return {
+  const itemized: InsuranceQuotationDetails = {
+    mode: 'itemized',
     basicPremium: vehicle.basicPremium ?? Math.round(fallbackBasicPremium * 100) / 100,
     premiumAllRider: 0,
     additionalCoverages: vehicle.addBenefits ? [{ label: 'Additional Benefits', amount: vehicle.addBenefits }] : [],
@@ -275,10 +290,28 @@ export function defaultInsuranceQuotation(vehicle: Vehicle, fallbackBasicPremium
     serviceTaxPct: DEFAULT_SERVICE_TAX_PCT,
     epr: DEFAULT_EPR,
   };
+  return { ...itemized, mode: 'flat', flatPrice: Math.round(computeInsuranceBreakdown(itemized, 0).totalDue * 100) / 100 };
 }
 
-/** Expands a saved itemized quotation into the full labeled breakdown, at whatever NCD the quote is using. */
+/** Expands a saved quotation into the full labeled breakdown, at whatever NCD the quote is using.
+ *  Flat mode (see InsuranceQuotationDetails.mode) skips every itemized field below Basic Premium —
+ *  the flat price already stands in for the whole total, with only NCD deducted from it. */
 export function computeInsuranceBreakdown(details: InsuranceQuotationDetails, ncdPct: number): InsuranceQuotationBreakdown {
+  if (details.mode === 'flat') {
+    const flatPrice = details.flatPrice ?? 0;
+    const ncdAmount = flatPrice * (Math.max(0, ncdPct) / 100);
+    const totalDue = flatPrice - ncdAmount;
+    return {
+      ...details,
+      ncdPct,
+      ncdAmount,
+      coveragesTotal: 0,
+      grossPremium: flatPrice,
+      serviceTaxAmount: 0,
+      totalDue,
+      totalRounded: Math.round(totalDue * 2) / 2,
+    };
+  }
   const ncdAmount = details.basicPremium * (Math.max(0, ncdPct) / 100);
   const coveragesTotal = details.additionalCoverages.reduce((sum, c) => sum + c.amount, 0);
   const grossPremium = details.basicPremium - ncdAmount + details.premiumAllRider + coveragesTotal;
@@ -394,6 +427,13 @@ export function variantLabel(variant: string): string {
 export function modelVariantLabel(model: string, variant: string): string {
   const v = variantLabel(variant);
   return v ? `${model} ${v}` : model;
+}
+
+/** Brand + model/variant label combined for display — most models don't repeat the brand name,
+ *  but some (e.g. Chery's "Chery O5") already spell it out, which would otherwise render as
+ *  "Chery Chery O5". Drops the brand prefix whenever the label already starts with it. */
+export function vehicleTitle(brand: string, modelLabel: string): string {
+  return modelLabel.toLowerCase().startsWith(brand.toLowerCase()) ? modelLabel : `${brand} ${modelLabel}`;
 }
 
 export { formatRM };

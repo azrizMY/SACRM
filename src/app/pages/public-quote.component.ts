@@ -380,49 +380,62 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                   <span>Premium Pricing</span>
                   <span>RM</span>
                 </div>
-                <div class="flex flex-col divide-y divide-border/60">
-                  <div class="flex items-center justify-between px-3 py-1.5">
-                    <span class="text-muted-foreground">Basic Premium</span>
-                    <span class="tabular">{{ insuranceBreakdown().basicPremium.toFixed(2) }}</span>
-                  </div>
-                  <div class="flex items-center justify-between px-3 py-1.5">
-                    <span class="text-muted-foreground">Premium All Rider</span>
-                    <span class="tabular">{{ insuranceBreakdown().premiumAllRider.toFixed(2) }}</span>
-                  </div>
-                  <div class="flex items-center justify-between px-3 py-1.5">
-                    <span class="text-muted-foreground">&minus;NCD ({{ insuranceBreakdown().ncdPct }}%)</span>
-                    <span class="tabular">{{ insuranceBreakdown().ncdAmount.toFixed(2) }}</span>
-                  </div>
-                </div>
-                @if (insuranceDetails().additionalCoverages.length > 0) {
-                  <div class="bg-muted/40 px-3 py-1.5 font-semibold">+Additional Coverages</div>
+                @if (insuranceBreakdown().mode === 'flat') {
                   <div class="flex flex-col divide-y divide-border/60">
-                    @for (item of insuranceDetails().additionalCoverages; track $index) {
-                      <div class="flex items-center justify-between px-3 py-1.5">
-                        <span class="text-muted-foreground">{{ item.label || 'Untitled coverage' }}</span>
-                        <span class="tabular">{{ item.amount.toFixed(2) }}</span>
-                      </div>
-                    }
+                    <div class="flex items-center justify-between px-3 py-1.5">
+                      <span class="text-muted-foreground">Insurance Price</span>
+                      <span class="tabular">{{ (insuranceBreakdown().flatPrice ?? 0).toFixed(2) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between px-3 py-1.5">
+                      <span class="text-muted-foreground">&minus;NCD ({{ insuranceBreakdown().ncdPct }}%)</span>
+                      <span class="tabular">{{ insuranceBreakdown().ncdAmount.toFixed(2) }}</span>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="flex flex-col divide-y divide-border/60">
+                    <div class="flex items-center justify-between px-3 py-1.5">
+                      <span class="text-muted-foreground">Basic Premium</span>
+                      <span class="tabular">{{ insuranceBreakdown().basicPremium.toFixed(2) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between px-3 py-1.5">
+                      <span class="text-muted-foreground">Premium All Rider</span>
+                      <span class="tabular">{{ insuranceBreakdown().premiumAllRider.toFixed(2) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between px-3 py-1.5">
+                      <span class="text-muted-foreground">&minus;NCD ({{ insuranceBreakdown().ncdPct }}%)</span>
+                      <span class="tabular">{{ insuranceBreakdown().ncdAmount.toFixed(2) }}</span>
+                    </div>
+                  </div>
+                  @if (insuranceDetails().additionalCoverages.length > 0) {
+                    <div class="bg-muted/40 px-3 py-1.5 font-semibold">+Additional Coverages</div>
+                    <div class="flex flex-col divide-y divide-border/60">
+                      @for (item of insuranceDetails().additionalCoverages; track $index) {
+                        <div class="flex items-center justify-between px-3 py-1.5">
+                          <span class="text-muted-foreground">{{ item.label || 'Untitled coverage' }}</span>
+                          <span class="tabular">{{ item.amount.toFixed(2) }}</span>
+                        </div>
+                      }
+                    </div>
+                  }
+                  <div class="flex items-center justify-between bg-muted/40 px-3 py-1.5 font-semibold">
+                    <span>Gross Premium</span>
+                    <span class="tabular">{{ insuranceBreakdown().grossPremium.toFixed(2) }}</span>
+                  </div>
+                  <div class="flex flex-col divide-y divide-border/60">
+                    <div class="flex items-center justify-between px-3 py-1.5">
+                      <span class="text-muted-foreground">+Stamp Duty</span>
+                      <span class="tabular">{{ insuranceBreakdown().stampDuty.toFixed(2) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between px-3 py-1.5">
+                      <span class="text-muted-foreground">+Service Tax ({{ insuranceBreakdown().serviceTaxPct }}%)</span>
+                      <span class="tabular">{{ insuranceBreakdown().serviceTaxAmount.toFixed(2) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between px-3 py-1.5">
+                      <span class="text-muted-foreground">+EPR</span>
+                      <span class="tabular">{{ insuranceBreakdown().epr.toFixed(2) }}</span>
+                    </div>
                   </div>
                 }
-                <div class="flex items-center justify-between bg-muted/40 px-3 py-1.5 font-semibold">
-                  <span>Gross Premium</span>
-                  <span class="tabular">{{ insuranceBreakdown().grossPremium.toFixed(2) }}</span>
-                </div>
-                <div class="flex flex-col divide-y divide-border/60">
-                  <div class="flex items-center justify-between px-3 py-1.5">
-                    <span class="text-muted-foreground">+Stamp Duty</span>
-                    <span class="tabular">{{ insuranceBreakdown().stampDuty.toFixed(2) }}</span>
-                  </div>
-                  <div class="flex items-center justify-between px-3 py-1.5">
-                    <span class="text-muted-foreground">+Service Tax ({{ insuranceBreakdown().serviceTaxPct }}%)</span>
-                    <span class="tabular">{{ insuranceBreakdown().serviceTaxAmount.toFixed(2) }}</span>
-                  </div>
-                  <div class="flex items-center justify-between px-3 py-1.5">
-                    <span class="text-muted-foreground">+EPR</span>
-                    <span class="tabular">{{ insuranceBreakdown().epr.toFixed(2) }}</span>
-                  </div>
-                </div>
                 <div class="flex items-center justify-between bg-primary/10 px-3 py-2">
                   <span class="font-semibold text-primary">Total Due <span class="font-normal text-muted-foreground">(Rounded: {{ fmt(insuranceBreakdown().totalRounded) }})</span></span>
                   <span class="font-bold tabular text-primary">{{ insuranceBreakdown().totalDue.toFixed(2) }}</span>

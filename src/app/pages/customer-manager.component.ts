@@ -9,12 +9,9 @@ import { CustomerAccordionDetailComponent } from '../shared/customer-accordion-d
 import { CustomerEditModalComponent } from '../shared/customer-edit-modal.component';
 import { CustomerNoteModalComponent } from '../shared/customer-note-modal.component';
 import { CustomerService } from '../shared/customer.service';
-import { AdvisorService } from '../shared/advisor.service';
 import { SettingsService } from '../shared/settings.service';
-import { buildQuotationPdfBytes, downloadBlob, openBlobInNewTab } from '../shared/pdf-writer';
 import {
   DEFAULT_INSURANCE_RATE_PCT,
-  MODEL_YEARS,
   NCD_OPTIONS,
   TENURE_OPTIONS,
   VEHICLES,
@@ -22,12 +19,10 @@ import {
   computeInsuranceBreakdown,
   computeQuotationTotals,
   additionalRebateForYear,
-  coloursForVehicle,
   modelVariantLabel,
-  modelsForBrand,
   monthlyPayment,
   rebateForYear,
-  variantsForModel,
+  vehicleTitle,
   type RateType,
   type Vehicle,
 } from '../data/calculator-data';
@@ -37,7 +32,6 @@ import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
 import {
   BANK_OPTIONS,
   CANCEL_REASON_OPTIONS,
-  COLOUR_OPTIONS,
   CUSTOMER_STATUS_META,
   DOCUMENT_STATUS_META,
   DOCUMENT_STATUS_OPTIONS,
@@ -65,13 +59,11 @@ import {
   type EditCustomerInput,
   type FinancingType,
   type InProgressInput,
-  type NewLeadInput,
   type QuotationDetails,
-  type TestDriveInput,
 } from '../data/customer-data';
 
 type Tab = 'All' | 'Lead' | 'Booked' | 'In Progress' | 'Delivered' | 'Cancelled';
-type ModalKind = 'add' | 'booked' | 'inprogress' | 'delivered' | 'cancel' | 'edit' | 'note' | 'testdrive' | null;
+type ModalKind = 'booked' | 'inprogress' | 'delivered' | 'cancel' | 'edit' | 'note' | null;
 /** 'stageDate' is a synthetic column — every tab's "date" column is the derived stage-entry
  *  date (see stageEnteredAt), never a raw stored field, so it isn't a real CustomerRecord key. */
 type SortKey = keyof CustomerRecord | 'stageDate';
@@ -169,14 +161,6 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
           <h2 class="text-balance text-xl font-semibold tracking-tight">Customer Manager</h2>
           <p class="text-pretty text-sm text-muted-foreground">Track every customer from lead to booking to delivery.</p>
         </div>
-        <button
-          type="button"
-          (click)="openAddLead()"
-          class="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          <app-icon name="plus" [size]="14" />
-          Add Lead
-        </button>
       </div>
 
       <!-- Tabs + search -->
@@ -223,18 +207,6 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
             >
               <option value="All">All Cars</option>
               @for (b of brands; track b) { <option [value]="b">{{ b }}</option> }
-            </select>
-          </div>
-          <div class="flex flex-col gap-1">
-            <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Test Drive</span>
-            <select
-              [ngModel]="testDriveFilter()"
-              (ngModelChange)="testDriveFilter.set($event)"
-              class="h-9 rounded-md border border-input bg-input px-2.5 text-sm text-foreground outline-none focus:border-ring"
-            >
-              <option value="All">All</option>
-              <option value="Yes">Test driven</option>
-              <option value="No">Not test driven</option>
             </select>
           </div>
           <div class="flex flex-col gap-1">
@@ -335,7 +307,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   @if (expandedId() === r.id) {
                     <tr class="border-b border-border bg-muted/20 last:border-0">
                       <td [attr.colspan]="allColspan" class="p-0">
-                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" (recordTestDrive)="openTestDrive($event)" />
+                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" />
                       </td>
                     </tr>
                   }
@@ -368,7 +340,6 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                       <div class="flex flex-col">
                         <span class="flex items-center gap-1.5 font-medium">
                           {{ r.name }}
-                          @if (r.testDriveDate) { <app-icon name="car" [size]="12" class="text-muted-foreground" title="Test driven" /> }
                         </span>
                         <a [href]="waLink(r.phone)" target="_blank" rel="noopener" (click)="$event.stopPropagation()" class="text-xs text-primary hover:underline">{{ r.phone }}</a>
                       </div>
@@ -398,7 +369,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   @if (expandedId() === r.id) {
                     <tr class="border-b border-border bg-muted/20 last:border-0">
                       <td [attr.colspan]="leadColspan" class="p-0">
-                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" (recordTestDrive)="openTestDrive($event)" />
+                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" />
                       </td>
                     </tr>
                   }
@@ -469,7 +440,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   @if (expandedId() === r.id) {
                     <tr class="border-b border-border bg-muted/20 last:border-0">
                       <td [attr.colspan]="bookedColspan" class="p-0">
-                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" (recordTestDrive)="openTestDrive($event)" />
+                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" />
                       </td>
                     </tr>
                   }
@@ -545,7 +516,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   @if (expandedId() === r.id) {
                     <tr class="border-b border-border bg-muted/20 last:border-0">
                       <td [attr.colspan]="inprogressColspan" class="p-0">
-                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" (recordTestDrive)="openTestDrive($event)" />
+                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" />
                       </td>
                     </tr>
                   }
@@ -604,7 +575,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   @if (expandedId() === r.id) {
                     <tr class="border-b border-border bg-muted/20 last:border-0">
                       <td [attr.colspan]="deliveredColspan" class="p-0">
-                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" (recordTestDrive)="openTestDrive($event)" />
+                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" />
                       </td>
                     </tr>
                   }
@@ -662,7 +633,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   @if (expandedId() === r.id) {
                     <tr class="border-b border-border bg-muted/20 last:border-0">
                       <td [attr.colspan]="cancelledColspan" class="p-0">
-                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" (recordTestDrive)="openTestDrive($event)" />
+                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" />
                       </td>
                     </tr>
                   }
@@ -683,7 +654,6 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   <div class="flex min-w-0 flex-col">
                     <span class="flex items-center gap-1.5 font-medium">
                       <span class="truncate">{{ r.name }}</span>
-                      @if (activeTab() === 'Lead' && r.testDriveDate) { <app-icon name="car" [size]="12" class="shrink-0 text-muted-foreground" title="Test driven" /> }
                       @if (activeTab() === 'In Progress' && readyExceptGifts(r)) {
                         <app-icon name="alert-triangle" [size]="12" class="shrink-0 text-[var(--warning)]" title="Ready for delivery except free gifts — outstanding items on Cost Breakdown" />
                       }
@@ -753,7 +723,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
               </div>
               @if (expandedId() === r.id) {
                 <div class="border-t border-border bg-muted/20">
-                  <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" (recordTestDrive)="openTestDrive($event)" />
+                  <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" />
                 </div>
               }
             </div>
@@ -800,297 +770,6 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
       </div>
     </div>
 
-    <!-- Add Lead modal -->
-    @if (modal() === 'add') {
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
-        <div class="relative flex max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-          <!-- Preview sidebar — spans the full modal height -->
-          <div class="hidden w-64 shrink-0 flex-col justify-center gap-5 overflow-y-auto border-r border-border bg-muted/30 p-5 sm:flex">
-            <div class="flex flex-col items-center gap-1 text-center">
-              <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Preview</span>
-              <span class="text-sm font-semibold">{{ leadForm.brand }} {{ leadForm.model }}</span>
-              <span class="text-xs text-muted-foreground">{{ leadForm.variant }} &middot; {{ leadForm.yearMade }}</span>
-            </div>
-            @if (leadQuotationPreview(); as lp) {
-              <div class="flex flex-col items-center gap-1 rounded-xl border border-border bg-card px-4 py-4 text-center shadow-sm">
-                <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Selling Price</span>
-                <span class="text-2xl font-bold tabular tracking-tight">{{ fmt(lp.allInPrice) }}</span>
-              </div>
-
-              @if (leadForm.financingType !== 'Cash') {
-                <div class="grid grid-cols-2 gap-2">
-                  <div class="flex flex-col gap-0.5 rounded-lg bg-card px-2.5 py-2">
-                    <span class="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Downpayment</span>
-                    <span class="text-sm font-semibold tabular">{{ fmt(lp.downpaymentCash) }}</span>
-                  </div>
-                  <div class="flex flex-col gap-0.5 rounded-lg bg-card px-2.5 py-2">
-                    <span class="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Loan Amount</span>
-                    <span class="text-sm font-semibold tabular">{{ fmt(lp.loanAmount) }}</span>
-                  </div>
-                </div>
-              }
-
-              <div class="flex flex-col gap-1.5 border-t border-border pt-3 text-xs">
-                <div class="flex items-center justify-between">
-                  <span class="text-muted-foreground">OTR Price</span>
-                  <span class="font-medium tabular">{{ fmt(lp.basePrice) }}</span>
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-muted-foreground">Rebate</span>
-                  <span class="font-medium tabular text-[var(--success)]">&minus; {{ fmt(lp.effectiveRebate) }}</span>
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-muted-foreground">Insurance ({{ leadQuotationForm.ncd }}% NCD)</span>
-                  <span class="font-medium tabular">+ {{ fmt(lp.insuranceAmount) }}</span>
-                </div>
-              </div>
-
-              @if (leadForm.financingType !== 'Cash') {
-                <div class="flex flex-col gap-1 border-t border-border pt-3">
-                  <span class="text-[10px] text-muted-foreground">
-                    {{ leadQuotationForm.interestRate }}% <span class="text-muted-foreground/70">&middot; {{ leadQuotationForm.rateType === 'effective' ? 'EIR' : 'Flat' }}</span>
-                  </span>
-                  @for (row of lp.repaymentRows; track row.months) {
-                    @if (row.months === leadQuotationForm.tenureMonths) {
-                      <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium">{{ row.label }}</span>
-                        <span class="text-sm font-semibold tabular">{{ fmt(row.monthly) }}/mo</span>
-                      </div>
-                    }
-                  }
-                </div>
-              }
-            }
-          </div>
-
-          <!-- Header + form -->
-          <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
-            <div class="flex items-center gap-3 border-b border-border p-4">
-              <span class="text-sm font-semibold">Add Lead</span>
-              <button type="button" (click)="closeModal()" aria-label="Close" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                <app-icon name="x" [size]="16" />
-              </button>
-            </div>
-            <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-              <fieldset class="flex flex-col gap-3">
-                <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Customer</legend>
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Name
-                    <input type="text" [(ngModel)]="leadForm.name" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                  </label>
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Phone No
-                    <input type="tel" [(ngModel)]="leadForm.phone" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                  </label>
-                </div>
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Source Type
-                    <select [(ngModel)]="leadForm.sourceType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @for (s of sourceTypes; track s) { <option [value]="s">{{ s }}</option> }
-                    </select>
-                  </label>
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Date
-                    <input type="date" [(ngModel)]="leadForm.date" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring" />
-                  </label>
-                </div>
-              </fieldset>
-
-              <fieldset class="flex flex-col gap-3 border-t border-border pt-4">
-                <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Vehicle</legend>
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Brand
-                    <select [(ngModel)]="leadForm.brand" (ngModelChange)="onLeadBrandChange($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @for (b of brands; track b) { <option [value]="b">{{ b }}</option> }
-                    </select>
-                  </label>
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Model
-                    <select [(ngModel)]="leadForm.model" (ngModelChange)="onLeadModelChange($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @for (m of leadModelsForBrand(); track m) { <option [value]="m">{{ m }}</option> }
-                    </select>
-                  </label>
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Variant
-                    <select [ngModel]="leadForm.variant" (ngModelChange)="onLeadVariantChange($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @for (v of leadVariantsForModel(); track v) { <option [value]="v">{{ v }}</option> }
-                    </select>
-                  </label>
-                </div>
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Year Made
-                    <select [(ngModel)]="leadForm.yearMade" class="h-10 w-full rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @for (y of modelYears; track y) { <option [ngValue]="y">{{ y }}</option> }
-                    </select>
-                  </label>
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Colour
-                    <select [(ngModel)]="leadForm.colour" class="h-10 w-full rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @for (c of leadColourOptions; track c) { <option [value]="c">{{ c }}</option> }
-                    </select>
-                  </label>
-                </div>
-              </fieldset>
-
-              <fieldset class="flex flex-col gap-3">
-                <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Financing</legend>
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Financing Type
-                  <select [(ngModel)]="leadForm.financingType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                    @for (f of financingTypeOptions; track f.value) { <option [value]="f.value">{{ f.label }}</option> }
-                  </select>
-                </label>
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Rebate (RM)
-                    <input type="number" min="0" step="500" [(ngModel)]="leadQuotationForm.rebate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                  </label>
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    NCD
-                    <select [(ngModel)]="leadQuotationForm.ncd" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @for (opt of ncdOptions; track opt.value) { <option [ngValue]="opt.value">{{ opt.label }}</option> }
-                    </select>
-                  </label>
-                </div>
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  <span class="flex items-center gap-2">
-                    <input type="checkbox" [(ngModel)]="leadQuotationForm.additionalRebateEnabled" aria-label="Include additional rebate" class="size-4 shrink-0 rounded border-input accent-primary" />
-                    Additional Rebate (RM)
-                  </span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="500"
-                    [disabled]="!leadQuotationForm.additionalRebateEnabled"
-                    [(ngModel)]="leadQuotationForm.additionalRebateValue"
-                    class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                </label>
-                @if (leadForm.financingType !== 'Cash') {
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Rate Type
-                    <select [(ngModel)]="leadQuotationForm.rateType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      <option value="flat">Flat</option>
-                      <option value="effective">EIR</option>
-                    </select>
-                  </label>
-                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                      {{ leadQuotationForm.rateType === 'effective' ? 'Effective Rate (%)' : 'Flat Rate (%)' }}
-                      <input type="number" min="0" step="0.1" [(ngModel)]="leadQuotationForm.interestRate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                    </label>
-                    <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                      Tenure
-                      <select [(ngModel)]="leadQuotationForm.tenureMonths" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                        @for (t of tenureOptions; track t.months) { <option [ngValue]="t.months">{{ t.label }}</option> }
-                      </select>
-                    </label>
-                  </div>
-                  <div class="flex flex-col gap-2">
-                    <span class="text-xs font-medium text-muted-foreground">Downpayment</span>
-                    <div class="flex gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        [attr.max]="leadQuotationForm.downpaymentType === 'percent' ? 100 : null"
-                        [step]="leadQuotationForm.downpaymentType === 'percent' ? 1 : 500"
-                        [(ngModel)]="leadQuotationForm.downpaymentValue"
-                        class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm font-medium tabular outline-none focus:border-ring"
-                      />
-                      <div class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
-                        <button
-                          type="button"
-                          (click)="leadQuotationForm.downpaymentType = 'percent'"
-                          class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
-                          [ngClass]="leadQuotationForm.downpaymentType === 'percent' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
-                        >
-                          %
-                        </button>
-                        <button
-                          type="button"
-                          (click)="leadQuotationForm.downpaymentType = 'amount'"
-                          class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
-                          [ngClass]="leadQuotationForm.downpaymentType === 'amount' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
-                        >
-                          Amt
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Loan Amount (RM)
-                    <input
-                      type="number"
-                      min="0"
-                      step="500"
-                      [ngModel]="round(leadQuotationPreview().loanAmount)"
-                      (ngModelChange)="onLeadLoanAmountChange($event)"
-                      class="h-10 rounded-lg border border-input bg-input px-3 text-sm font-medium tabular text-foreground outline-none focus:border-ring"
-                    />
-                  </label>
-                }
-              </fieldset>
-            </div>
-            <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-              <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
-              <button type="button" (click)="submitLead()" [disabled]="!leadForm.name || !leadForm.phone" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">Add Lead</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    }
-
-    <!-- Record Test Drive modal -->
-    @if (modal() === 'testdrive' && activeRecord(); as rec) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
-        <div class="relative flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-          <div class="flex items-center gap-3 border-b border-border p-4">
-            <span class="text-sm font-semibold">Record Test Drive &middot; {{ rec.name }}</span>
-            <button type="button" (click)="closeModal()" aria-label="Close" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-              <app-icon name="x" [size]="16" />
-            </button>
-          </div>
-          <div class="flex flex-col gap-3 overflow-y-auto p-4">
-            <p class="text-[11px] text-muted-foreground">Needed for the test drive paperwork.</p>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                IC No
-                <input type="text" [(ngModel)]="testDriveForm.icNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Driving Licence No
-                <input type="text" [(ngModel)]="testDriveForm.drivingLicenceNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
-            </div>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Address
-              <input type="text" [(ngModel)]="testDriveForm.address" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-            </label>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Email
-                <input type="email" [(ngModel)]="testDriveForm.email" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Test Drive Date
-                <input type="date" [(ngModel)]="testDriveForm.testDriveDate" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
-            </div>
-          </div>
-          <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
-            <button type="button" (click)="submitTestDrive(rec.id)" [disabled]="!canSubmitTestDrive()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">Save</button>
-          </div>
-        </div>
-      </div>
-    }
-
     <!-- Mark as Booked modal -->
     @if (modal() === 'booked' && activeRecord(); as rec) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1106,14 +785,6 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               IC No
               <input type="text" [(ngModel)]="bookedForm.icNo" class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-            </label>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Address
-              <input type="text" [(ngModel)]="bookedForm.address" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-            </label>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Email
-              <input type="email" [(ngModel)]="bookedForm.email" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
             </label>
 
             @if (rec.quotation && !isCash(rec)) {
@@ -1138,6 +809,20 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                 </select>
               </label>
             </div>
+
+            <div class="flex items-center gap-2 pt-1">
+              <div class="h-px flex-1 bg-border"></div>
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Optional</span>
+              <div class="h-px flex-1 bg-border"></div>
+            </div>
+            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Address
+              <input type="text" [(ngModel)]="bookedForm.address" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+            </label>
+            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Email
+              <input type="email" [(ngModel)]="bookedForm.email" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+            </label>
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
             <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
@@ -1159,7 +844,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
             </button>
           </div>
           <div class="flex flex-col gap-3 overflow-y-auto p-4">
-            <p class="text-[11px] text-muted-foreground">{{ rec.brand }} {{ rec.model }} &middot; {{ rec.variant }}</p>
+            <p class="text-[11px] text-muted-foreground">{{ vehicleTitle(rec.brand, rec.model) }} &middot; {{ rec.variant }}</p>
             @if (rec.colour === TO_BE_CONFIRMED_COLOUR) {
               <div class="flex items-start gap-2 rounded-lg border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2.5 text-[11px] text-foreground">
                 <app-icon name="alert-triangle" [size]="14" class="mt-0.5 shrink-0 text-[var(--warning)]" />
@@ -1192,7 +877,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Bank Panel
                   <select [(ngModel)]="inProgressForm.bankPanel" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                    @if (!inProgressForm.bankPanel) { <option value="">Select bank…</option> }
+                    <option value="" disabled>Select bank…</option>
                     @for (b of bankOptions; track b) { <option [value]="b">{{ b }}</option> }
                   </select>
                 </label>
@@ -1261,32 +946,38 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                 <span>Colour is still "To be Confirmed" — update it to the actual colour via Edit before this car can be marked Delivered.</span>
               </div>
             }
+            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Registration Number
+              <input type="text" [(ngModel)]="deliveredForm.plateNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+            </label>
+
+            <div class="flex items-center gap-2 pt-1">
+              <div class="h-px flex-1 bg-border"></div>
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Optional</span>
+              <div class="h-px flex-1 bg-border"></div>
+            </div>
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Registration Number
-                <input type="text" [(ngModel)]="deliveredForm.plateNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Delivery Date
                 <input type="date" [(ngModel)]="deliveredForm.deliveryDate" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring" />
               </label>
-            </div>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Chassis / VIN
                 <input type="text" [(ngModel)]="deliveredForm.chassisNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
               </label>
+            </div>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Engine No.
                 <input type="text" [(ngModel)]="deliveredForm.engineNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
               </label>
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Insurance Name
+                <select [(ngModel)]="deliveredForm.insuranceName" class="h-10 w-full rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
+                  @for (i of insuranceOptions; track i) { <option [value]="i">{{ i }}</option> }
+                </select>
+              </label>
             </div>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Insurance Name <span class="text-muted-foreground/70">(optional)</span>
-              <select [(ngModel)]="deliveredForm.insuranceName" class="h-10 w-full rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                @for (i of insuranceOptions; track i) { <option [value]="i">{{ i }}</option> }
-              </select>
-            </label>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Delivery Notes
               <textarea rows="2" [(ngModel)]="deliveredForm.deliveryNotes" class="rounded-lg border border-input bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-ring"></textarea>
@@ -1312,7 +1003,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
             </button>
           </div>
           <div class="flex flex-col gap-3 overflow-y-auto p-4">
-            <p class="text-[11px] text-muted-foreground">This cancels <strong class="text-foreground">{{ rec.name }}</strong>'s {{ rec.brand }} {{ rec.model }} deal.</p>
+            <p class="text-[11px] text-muted-foreground">This cancels <strong class="text-foreground">{{ rec.name }}</strong>'s {{ vehicleTitle(rec.brand, rec.model) }} deal.</p>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Reason
               <select [(ngModel)]="cancelForm.cancelReason" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -1328,12 +1019,6 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                 class="rounded-lg border bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-ring"
                 [ngClass]="canSubmitCancel(cancelForm) ? 'border-input' : 'border-[var(--destructive)]'"
               ></textarea>
-            </label>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Refund Status
-              <select [(ngModel)]="cancelForm.refundStatus" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                @for (s of refundStatusOptions; track s) { <option [value]="s">{{ s }}</option> }
-              </select>
             </label>
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
@@ -1366,7 +1051,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
           @if (!quotationEditing() && qrec.quotation) {
             <!-- View mode -->
             <div class="flex flex-col gap-3 overflow-y-auto p-4">
-              <p class="text-sm font-medium">{{ qrec.brand }} {{ qrec.model }} &middot; {{ qrec.variant }}</p>
+              <p class="text-sm font-medium">{{ vehicleTitle(qrec.brand, qrec.model) }} &middot; {{ qrec.variant }}</p>
               @if (quotationViewNumbers(qrec); as qv) {
                 <div class="flex items-center gap-4 rounded-xl border border-border bg-muted/30 px-4 py-3">
                   <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
@@ -1427,14 +1112,6 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   Edit
                 </button>
               }
-              <button type="button" (click)="printQuotation(qrec)" class="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent">
-                <app-icon name="file-text" [size]="13" />
-                Print
-              </button>
-              <button type="button" (click)="downloadQuotation(qrec)" class="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
-                <app-icon name="download" [size]="13" />
-                Download PDF
-              </button>
             </div>
           } @else {
             <!-- Edit / create mode -->
@@ -1442,7 +1119,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
               @if (!qrec.quotation) {
                 <p class="rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">No quotation yet for this customer — fill in the details below to create one.</p>
               }
-              <p class="text-sm font-medium">{{ qrec.brand }} {{ qrec.model }} &middot; {{ qrec.variant }}</p>
+              <p class="text-sm font-medium">{{ vehicleTitle(qrec.brand, qrec.model) }} &middot; {{ qrec.variant }}</p>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Rebate (RM)
@@ -1557,7 +1234,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
             </span>
             <p class="text-sm text-muted-foreground">
               This permanently removes <strong class="text-foreground">{{ target.name }}</strong>
-              ({{ target.brand }} {{ target.model }}) and everything recorded for them. This can't be undone.
+              ({{ vehicleTitle(target.brand, target.model) }}) and everything recorded for them. This can't be undone.
             </p>
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
@@ -1585,12 +1262,9 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
               Reopen customer?
             </span>
             <p class="text-sm text-muted-foreground">
-              This restores <strong class="text-foreground">{{ target.name }}</strong> ({{ target.brand }} {{ target.model }}) to
+              This restores <strong class="text-foreground">{{ target.name }}</strong> ({{ vehicleTitle(target.brand, target.model) }}) to
               <strong class="text-foreground">{{ target.previousStatus }}</strong>. All data captured before cancellation is kept.
             </p>
-            @if (target.refundStatus === 'Refunded') {
-              <p class="rounded-lg bg-[var(--warning)]/10 px-3 py-2 text-xs text-foreground">Note: the booking fee was already refunded and won't be restored.</p>
-            }
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
             <button type="button" (click)="cancelReopen()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
@@ -1629,23 +1303,15 @@ export class CustomerManagerComponent {
   documentStatusOptions = DOCUMENT_STATUS_OPTIONS;
   TO_BE_CONFIRMED_COLOUR = TO_BE_CONFIRMED_COLOUR;
 
-  /** Prefers the selected car's own factory colours when the catalog has them; not every model
-   *  has one hardcoded yet, so those fall back to the generic list. */
-  get leadColourOptions(): string[] {
-    const vehicleColours = coloursForVehicle(this.leadForm.brand, this.leadForm.model, this.leadForm.variant);
-    return vehicleColours ? [TO_BE_CONFIRMED_COLOUR, ...vehicleColours] : COLOUR_OPTIONS;
-  }
   bankOptions = BANK_OPTIONS;
   insuranceOptions = INSURANCE_OPTIONS;
   cancelReasons = CANCEL_REASON_OPTIONS;
   ncdOptions = NCD_OPTIONS;
   tenureOptions = TENURE_OPTIONS;
-  modelYears = MODEL_YEARS;
   brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
   pageSizeOptions = PAGE_SIZE_OPTIONS;
   financingTypeOptions = FINANCING_TYPE_OPTIONS;
   paymentStatusOptions = PAYMENT_STATUS_OPTIONS;
-  refundStatusOptions: ('Pending' | 'Refunded')[] = ['Pending', 'Refunded'];
 
   allColspan = ALL_COLSPAN;
   leadColspan = LEAD_COLSPAN;
@@ -1758,7 +1424,6 @@ export class CustomerManagerComponent {
   // customers by default risks the SA forgetting about them.
   carFilter = signal('All');
   sourceFilter = signal('All');
-  testDriveFilter = signal<'All' | 'Yes' | 'No'>('All');
   dateFromFilter = signal('');
   dateToFilter = signal('');
   sortKey = signal<SortKey>('stageDate');
@@ -1769,7 +1434,6 @@ export class CustomerManagerComponent {
 
   constructor(
     public customers: CustomerService,
-    private advisor: AdvisorService,
     private route: ActivatedRoute,
   ) {
     // Deep link from elsewhere in the app (e.g. Recent Deals' phone number) — ?customer=<id>
@@ -1788,7 +1452,6 @@ export class CustomerManagerComponent {
     this.nameFilter.set('');
     this.carFilter.set('All');
     this.sourceFilter.set('All');
-    this.testDriveFilter.set('All');
     this.dateFromFilter.set('');
     this.dateToFilter.set('');
     this.activeTab.set(record.status);
@@ -1863,10 +1526,6 @@ export class CustomerManagerComponent {
     }
     if (this.carFilter() !== 'All') list = list.filter((r) => r.brand === this.carFilter());
     if (this.sourceFilter() !== 'All') list = list.filter((r) => r.sourceType === this.sourceFilter());
-    if (this.testDriveFilter() !== 'All') {
-      const wantsDriven = this.testDriveFilter() === 'Yes';
-      list = list.filter((r) => !!r.testDriveDate === wantsDriven);
-    }
     if (this.dateFromFilter()) list = list.filter((r) => r.date >= this.dateFromFilter());
     if (this.dateToFilter()) list = list.filter((r) => r.date <= this.dateToFilter());
 
@@ -1920,7 +1579,6 @@ export class CustomerManagerComponent {
       !!this.nameFilter() ||
       this.carFilter() !== 'All' ||
       this.sourceFilter() !== 'All' ||
-      this.testDriveFilter() !== 'All' ||
       !!this.dateFromFilter() ||
       !!this.dateToFilter()
     );
@@ -1930,7 +1588,6 @@ export class CustomerManagerComponent {
     this.nameFilter.set('');
     this.carFilter.set('All');
     this.sourceFilter.set('All');
-    this.testDriveFilter.set('All');
     this.dateFromFilter.set('');
     this.dateToFilter.set('');
     this.page.set(0);
@@ -1938,88 +1595,7 @@ export class CustomerManagerComponent {
 
   private settings = inject(SettingsService);
   modelVariantLabel = modelVariantLabel;
-
-  leadForm: NewLeadInput = this.blankLeadForm();
-  private blankLeadForm(): NewLeadInput {
-    const preferredBrand = this.settings.settings().dashboardTarget.brand;
-    const first = VEHICLES.find((v) => v.brand === preferredBrand) ?? VEHICLES[0];
-    return {
-      name: '',
-      phone: '',
-      brand: first.brand,
-      model: first.model,
-      variant: first.variant,
-      yearMade: MODEL_YEARS[0],
-      colour: TO_BE_CONFIRMED_COLOUR,
-      sourceType: SOURCE_TYPES[0],
-      date: todayStr(),
-      financingType: 'Loan',
-    };
-  }
-
-  // Plain methods, not computed(): leadForm is a mutable object, not a signal, so
-  // computed() would never see a dependency change and would freeze after first read.
-  leadModelsForBrand(): string[] {
-    return modelsForBrand(this.leadForm.brand);
-  }
-  leadVariantsForModel(): string[] {
-    return variantsForModel(this.leadForm.brand, this.leadForm.model);
-  }
-
-  onLeadBrandChange(brand: string) {
-    this.leadForm.brand = brand;
-    const firstModel = VEHICLES.find((v) => v.brand === brand)!.model;
-    this.onLeadModelChange(firstModel);
-  }
-
-  onLeadModelChange(model: string) {
-    this.leadForm.model = model;
-    const firstVariant = VEHICLES.find((v) => v.brand === this.leadForm.brand && v.model === model)!;
-    this.leadForm.variant = firstVariant.variant;
-    this.syncLeadRebateDefaults();
-  }
-
-  onLeadVariantChange(variant: string) {
-    this.leadForm.variant = variant;
-    this.syncLeadRebateDefaults();
-  }
-
-  /** Pre-fills Rebate and Additional Rebate from the newly selected car's Finance Database
-   *  defaults, same as switching cars in the Calculator. */
-  private syncLeadRebateDefaults() {
-    const vehicle = VEHICLES.find((v) => v.brand === this.leadForm.brand && v.model === this.leadForm.model && v.variant === this.leadForm.variant);
-    this.leadQuotationForm.rebate = vehicle ? rebateForYear(vehicle, this.leadForm.yearMade) : 0;
-    const additionalRebate = vehicle ? additionalRebateForYear(vehicle, this.leadForm.yearMade) : 0;
-    this.leadQuotationForm.additionalRebateValue = additionalRebate;
-    this.leadQuotationForm.additionalRebateEnabled = additionalRebate > 0;
-  }
-
-  testDriveForm: TestDriveInput = this.blankTestDriveForm();
-  private blankTestDriveForm(): TestDriveInput {
-    return { icNo: '', drivingLicenceNo: '', address: '', email: '', testDriveDate: todayStr() };
-  }
-
-  canSubmitTestDrive(): boolean {
-    return !!this.testDriveForm.icNo.trim();
-  }
-
-  openTestDrive(record: CustomerRecord) {
-    this.activeRecordId.set(record.id);
-    this.testDriveForm = {
-      icNo: record.icNo ?? '',
-      drivingLicenceNo: record.drivingLicenceNo ?? '',
-      address: record.address ?? '',
-      email: record.email ?? '',
-      testDriveDate: record.testDriveDate ?? todayStr(),
-    };
-    this.modal.set('testdrive');
-  }
-
-  async submitTestDrive(id: string) {
-    if (!this.canSubmitTestDrive()) return;
-    await this.customers.recordTestDrive(id, this.testDriveForm);
-    this.closeModal();
-  }
+  vehicleTitle = vehicleTitle;
 
   bookedForm: BookedInput = this.blankBookedForm();
   private blankBookedForm(): BookedInput {
@@ -2042,32 +1618,7 @@ export class CustomerManagerComponent {
 
   cancelForm: CancelledInput = this.blankCancelForm();
   private blankCancelForm(): CancelledInput {
-    return { cancelReason: CANCEL_REASON_OPTIONS[0], cancelNotes: '', refundStatus: undefined };
-  }
-
-  leadQuotationForm: QuotationDetails = this.blankQuotationForm();
-
-  openAddLead() {
-    this.leadForm = this.blankLeadForm();
-    this.leadQuotationForm = this.blankQuotationForm();
-    this.syncLeadRebateDefaults();
-    this.modal.set('add');
-  }
-
-  // Plain method, not computed(): leadForm/leadQuotationForm are mutable objects, not signals.
-  leadQuotationPreview() {
-    return this.computeQuotationNumbers(
-      { brand: this.leadForm.brand, model: this.leadForm.model, variant: this.leadForm.variant, yearMade: this.leadForm.yearMade },
-      this.leadQuotationForm,
-    );
-  }
-
-  // Mirrors the Calculator's own Loan Amount field: editing it back-solves the downpayment
-  // needed to reach that loan amount, same as editing downpayment back-solves the loan amount.
-  onLeadLoanAmountChange(value: number) {
-    const desiredLoan = Math.max(0, +value || 0);
-    this.leadQuotationForm.downpaymentType = 'amount';
-    this.leadQuotationForm.downpaymentValue = Math.round(Math.max(0, this.leadQuotationPreview().allInPrice - desiredLoan));
+    return { cancelReason: CANCEL_REASON_OPTIONS[0], cancelNotes: '' };
   }
 
   openBooked(record: CustomerRecord) {
@@ -2126,7 +1677,7 @@ export class CustomerManagerComponent {
 
   openCancel(record: CustomerRecord) {
     this.activeRecordId.set(record.id);
-    this.cancelForm = { cancelReason: CANCEL_REASON_OPTIONS[0], cancelNotes: '', refundStatus: 'Pending' };
+    this.cancelForm = { cancelReason: CANCEL_REASON_OPTIONS[0], cancelNotes: '' };
     this.modal.set('cancel');
   }
 
@@ -2155,13 +1706,6 @@ export class CustomerManagerComponent {
   closeModal() {
     this.modal.set(null);
     this.activeRecordId.set(null);
-  }
-
-  async submitLead() {
-    if (!this.leadForm.name || !this.leadForm.phone) return;
-    await this.customers.addLead({ ...this.leadForm, quotation: { ...this.leadQuotationForm } });
-    this.closeModal();
-    this.activeTab.set('Lead');
   }
 
   async submitBooked(id: string) {
@@ -2311,48 +1855,4 @@ export class CustomerManagerComponent {
     return this.computeQuotationNumbers(record, record.quotation);
   }
 
-  private quotationPdfData(record: CustomerRecord) {
-    if (!record.quotation) return null;
-    const quotation = record.quotation;
-    const nums = this.computeQuotationNumbers(record, quotation);
-    const advisor = this.advisor.profile();
-    return {
-      brand: record.brand,
-      model: record.model,
-      variant: record.variant,
-      customerName: record.name,
-      customerPhone: record.phone,
-      advisorName: advisor.name,
-      advisorRole: advisor.role,
-      dateStr: record.date,
-      basePrice: nums.basePrice,
-      effectiveRebate: nums.effectiveRebate,
-      ncd: record.quotation.ncd,
-      insuranceAmount: nums.insuranceAmount,
-      allInPrice: nums.allInPrice,
-      isCash: isCashDeal(record),
-      downpaymentCash: nums.downpaymentCash,
-      loanAmount: nums.loanAmount,
-      interestRate: quotation.interestRate,
-      rateType: nums.rateType,
-      repaymentRows: nums.repaymentRows.filter((r) => r.months === quotation.tenureMonths),
-      insuranceBreakdown: nums.insuranceBreakdown,
-    };
-  }
-
-  private quotationFileName(record: CustomerRecord): string {
-    return `Quotation-${record.brand}-${record.model}-${record.name}.pdf`.replace(/\s+/g, '-');
-  }
-
-  downloadQuotation(record: CustomerRecord) {
-    const data = this.quotationPdfData(record);
-    if (!data) return;
-    downloadBlob(buildQuotationPdfBytes(data), this.quotationFileName(record), 'application/pdf');
-  }
-
-  printQuotation(record: CustomerRecord) {
-    const data = this.quotationPdfData(record);
-    if (!data) return;
-    openBlobInNewTab(buildQuotationPdfBytes(data), 'application/pdf');
-  }
 }

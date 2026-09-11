@@ -1,4 +1,4 @@
-import type { ActivityEntry, CustomerRecord, CustomerStatus, DocumentStatus, PaymentStatus, RefundStatus } from './customer-data';
+import type { ActivityEntry, CustomerRecord, CustomerStatus, DocumentStatus, PaymentStatus } from './customer-data';
 import { TO_BE_CONFIRMED_COLOUR } from './customer-data';
 import { TENURE_OPTIONS, VEHICLES } from './calculator-data';
 import { toLocalDateStr } from '../shared/date-utils';
@@ -46,8 +46,7 @@ type Spec = {
   // Lead
   colour?: string;
 
-  // Test drive (Lead-only event)
-  testDriveDaysAgo?: number;
+  // Early-captured contact details (Lead-only)
   drivingLicenceNo?: string;
 
   icNo?: string;
@@ -73,7 +72,6 @@ type Spec = {
   cancelReason?: string;
   cancelDaysAgo?: number;
   cancelNotes?: string;
-  refundStatus?: RefundStatus;
 };
 
 // 34 records spanning a full year, distributed across every month rather than clustered.
@@ -254,14 +252,12 @@ const SPECS: Spec[] = [
     icNo: '950208-08-1156', colour: 'Grey', documentStatus: 'SUBMITTED', tradeInStatus: 'No Trade-in', bookedDaysAgo: 38,
     cancelDaysAgo: 20, cancelReason: 'Loan Rejected',
     cancelNotes: 'Bank declined the application due to insufficient income documentation.',
-    refundStatus: 'Refunded',
   },
   {
     name: 'Vincent Lau', phone: '011-6672 4489', brand: 'Chery', model: 'Tiggo 7 Pro', variant: 'Comfort', yearMade: 2025,
     sourceType: 'TikTok', status: 'Cancelled', createdDaysAgo: 40, downpayment: 12980, ncd: 0,
     icNo: '900615-14-3390', colour: 'Black', documentStatus: 'SUBMITTED', tradeInStatus: 'Confirmed', tradeInVehicle: 'Chery Tiggo 5X 2017', tradeInValue: 35000, bookedDaysAgo: 28,
     cancelDaysAgo: 14, cancelReason: 'Customer Changed Mind',
-    refundStatus: 'Pending',
   },
   {
     name: 'Naveen Kumar', phone: '019-660 1128', brand: 'Proton', model: 'X50', variant: 'Standard', yearMade: 2025,
@@ -274,7 +270,6 @@ const SPECS: Spec[] = [
     icNo: '900112-14-5523', colour: 'Silver', documentStatus: 'NO', tradeInStatus: 'No Trade-in', bookedDaysAgo: 18,
     cancelDaysAgo: 4, cancelReason: 'Other',
     cancelNotes: 'Customer relocated overseas before the purchase could be completed.',
-    refundStatus: 'Pending',
   },
 
   // ---------- Leads (3) ----------
@@ -282,8 +277,8 @@ const SPECS: Spec[] = [
     name: 'Rizal Fitri', phone: '014-772 5590', brand: 'Proton', model: 'Saga', variant: 'Standard', yearMade: 2025,
     sourceType: 'Walk-in', status: 'Lead', createdDaysAgo: 12, downpayment: 4650, ncd: 0,
     financingType: 'Loan', colour: TO_BE_CONFIRMED_COLOUR,
-    // Demo of the test-drive event: recorded a few days after the lead came in.
-    testDriveDaysAgo: 8, drivingLicenceNo: 'D12345670', icNo: '881122-08-5567',
+    // Demo of an early-captured Lead with contact details already on file.
+    drivingLicenceNo: 'D12345670', icNo: '881122-08-5567',
   },
   {
     name: 'Christine Yap', phone: '012-334 7723', brand: 'Chery', model: 'Omoda 5', variant: 'Standard', yearMade: 2025,
@@ -315,7 +310,7 @@ export function buildSeedRecords(): CustomerRecord[] {
     const previousStatus: CustomerStatus | undefined =
       s.status === 'Cancelled' ? (bookedAt ? 'Booked' : 'Lead') : undefined;
 
-    const hasContactDetails = s.status !== 'Lead' || s.testDriveDaysAgo !== undefined;
+    const hasContactDetails = s.status !== 'Lead' || s.icNo !== undefined;
     const slug = s.name.toLowerCase().replace(/[^a-z\s]/g, '').trim().replace(/\s+/g, '.');
 
     const record: CustomerRecord = {
@@ -337,7 +332,6 @@ export function buildSeedRecords(): CustomerRecord[] {
       address: hasContactDetails ? `${12 + i}, Jalan Contoh ${1 + (i % 9)}, 5${i % 9}000 Kuala Lumpur` : undefined,
       email: hasContactDetails ? `${slug}@example.com` : undefined,
       drivingLicenceNo: s.drivingLicenceNo,
-      testDriveDate: s.testDriveDaysAgo !== undefined ? daysAgo(s.testDriveDaysAgo) : undefined,
 
       documentStatus: s.documentStatus,
 
@@ -372,7 +366,6 @@ export function buildSeedRecords(): CustomerRecord[] {
       cancelReason: s.cancelReason,
       cancelNotes: s.cancelNotes,
       previousStatus,
-      refundStatus: s.refundStatus,
 
       activity: buildActivityTrail(s, { createdAt, bookedAt, inProgressAt, deliveredAt, cancelledAt }),
 

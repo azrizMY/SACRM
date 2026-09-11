@@ -72,11 +72,6 @@ export const FINANCING_TYPE_OPTIONS: { value: FinancingType; label: string }[] =
 export type PaymentStatus = 'Not Paid' | 'Partially Paid' | 'Fully Paid';
 export const PAYMENT_STATUS_OPTIONS: PaymentStatus[] = ['Not Paid', 'Partially Paid', 'Fully Paid'];
 
-// ---------- Cancelled ----------
-
-export type RefundStatus = 'Pending' | 'Refunded';
-export const REFUND_STATUS_OPTIONS: RefundStatus[] = ['Pending', 'Refunded'];
-
 // ---------- Free gifts (owned by Cost Breakdown; Customer Manager only reads a summary) ----------
 
 export type FreeGiftItem = { id: string; name: string; done: boolean };
@@ -107,13 +102,11 @@ export type CustomerRecord = {
   // that back it up but doesn't ask for this choice again.
   financingType?: FinancingType;
 
-  // Test drive — an event on a Lead, not a stage. Also doubles as an early capture of the
-  // fields the Booked gate will need, so a test-driven customer breezes through booking.
+  // Early capture of contact/ID details, ahead of the Booked gate that requires icNo.
   icNo?: string;
   address?: string;
   email?: string;
   drivingLicenceNo?: string;
-  testDriveDate?: string;
 
   // Captured when moved to Booked
   documentStatus?: DocumentStatus;
@@ -152,7 +145,6 @@ export type CustomerRecord = {
   cancelReason?: string;
   cancelNotes?: string; // required only when cancelReason === 'Other'
   previousStatus?: CustomerStatus; // captured automatically — never user-input; also the Reopen target
-  refundStatus?: RefundStatus; // only meaningful when a booking fee was taken; absent otherwise
 
   // Activity History — auto-recorded, newest-last (render reversed). The sole source of truth
   // for "when did this record enter stage X" — see stageEnteredAt().
@@ -296,14 +288,6 @@ export type NewLeadInput = {
   financingType: FinancingType;
 };
 
-export type TestDriveInput = {
-  icNo: string;
-  drivingLicenceNo: string;
-  address: string;
-  email: string;
-  testDriveDate: string;
-};
-
 export type BookedInput = {
   icNo: string;
   address: string;
@@ -341,7 +325,6 @@ export type CostingInput = {
 export type CancelledInput = {
   cancelReason: string;
   cancelNotes?: string;
-  refundStatus?: RefundStatus;
 };
 
 /** Generic edit-any-field patch. Structurally excludes `status` so this path can never smuggle a status transition. */

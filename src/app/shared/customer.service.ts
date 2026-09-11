@@ -13,7 +13,6 @@ import type {
   InProgressInput,
   NewLeadInput,
   QuotationDetails,
-  TestDriveInput,
 } from '../data/customer-data';
 import { buildSeedRecords } from '../data/seed-data';
 import { clearAllCustomers, deleteCustomer, getAllCustomers, putCustomer } from './customer-store';
@@ -27,7 +26,7 @@ const EDIT_SECTIONS: Record<string, (keyof EditCustomerInput)[]> = {
   Documents: ['documentStatus'],
   Financing: ['financingType', 'bankPanel', 'loanAmount', 'loanTenureMonths', 'loanInterestRate', 'paymentStatus'],
   Delivery: ['insuranceName', 'plateNo', 'deliveryDate', 'chassisNo', 'engineNo', 'deliveryNotes'],
-  Cancellation: ['cancelReason', 'cancelNotes', 'refundStatus'],
+  Cancellation: ['cancelReason', 'cancelNotes'],
 };
 const EDIT_SECTIONS_ORDER = Object.keys(EDIT_SECTIONS);
 
@@ -74,13 +73,6 @@ export class CustomerService {
     };
     await putCustomer(record);
     this.records.update((list) => [record, ...list]);
-  }
-
-  async recordTestDrive(id: string, input: TestDriveInput): Promise<void> {
-    await this.mutate(id, () => ({
-      changes: { icNo: input.icNo, drivingLicenceNo: input.drivingLicenceNo, address: input.address, email: input.email, testDriveDate: input.testDriveDate },
-      messages: [`Test drive recorded · ${input.testDriveDate}`],
-    }));
   }
 
   async markBooked(id: string, input: BookedInput): Promise<void> {
@@ -153,9 +145,6 @@ export class CustomerService {
     await this.mutate(id, (existing) => {
       const target: CustomerStatus = existing.previousStatus ?? 'Lead';
       const messages = [`Reopened: Cancelled → ${target}`];
-      if (existing.refundStatus === 'Refunded') {
-        messages.push('Note: booking fee was already refunded and is not restored.');
-      }
       return { changes: { status: target, previousStatus: undefined }, messages };
     });
   }

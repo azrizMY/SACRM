@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { CustomerService } from '../shared/customer.service';
 import { CUSTOMER_STATUS_META } from '../data/customer-data';
+import { vehicleTitle } from '../data/calculator-data';
 
 function initials(name: string): string {
   return name
@@ -41,7 +42,7 @@ function relativeTime(ts: number): string {
             </span>
             <div class="min-w-0 flex-1">
               <p class="truncate text-sm font-medium">{{ r.name }}</p>
-              <p class="truncate text-xs text-muted-foreground">{{ r.brand }} {{ r.model }}</p>
+              <p class="truncate text-xs text-muted-foreground">{{ vehicleTitle(r.brand, r.model) }}</p>
             </div>
             <div class="flex flex-col items-end gap-1">
               <span class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="statusMeta[r.status].tone">
@@ -68,6 +69,7 @@ export class RecentLeadsComponent {
   statusMeta = CUSTOMER_STATUS_META;
   initials = initials;
   relativeTime = relativeTime;
+  vehicleTitle = vehicleTitle;
 
   constructor(private customers: CustomerService) {}
 

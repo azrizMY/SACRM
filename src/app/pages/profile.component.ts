@@ -8,6 +8,7 @@ import { CustomerService } from '../shared/customer.service';
 import { SettingsService } from '../shared/settings.service';
 import { ImageCropModalComponent } from '../shared/image-crop-modal.component';
 import { CUSTOMER_STATUS_META } from '../data/customer-data';
+import { vehicleTitle } from '../data/calculator-data';
 import type { AdvisorProfile } from '../data/advisor-data';
 import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
 
@@ -229,7 +230,7 @@ import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
                 <span class="size-1.5 rounded-full" [ngClass]="statusMeta[r.status].dot"></span>
                 {{ statusMeta[r.status].label }}
               </span>
-              <span class="min-w-0 flex-1 truncate">{{ r.name }} &middot; {{ r.brand }} {{ r.model }}</span>
+              <span class="min-w-0 flex-1 truncate">{{ r.name }} &middot; {{ vehicleTitle(r.brand, r.model) }}</span>
               <span class="text-xs text-muted-foreground tabular">{{ r.date }}</span>
             </li>
           } @empty {
@@ -246,6 +247,7 @@ import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
 })
 export class ProfileComponent {
   statusMeta = CUSTOMER_STATUS_META;
+  vehicleTitle = vehicleTitle;
   fmt = (v: number) => `RM ${v.toLocaleString('en-MY')}`;
   avatarGradient =
     'radial-gradient(circle at 30% 20%, var(--primary), transparent 70%), linear-gradient(145deg, var(--primary), color-mix(in oklch, var(--primary), black 55%))';

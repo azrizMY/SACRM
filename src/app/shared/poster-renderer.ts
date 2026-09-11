@@ -159,18 +159,24 @@ export async function drawCarHero(ctx: CanvasRenderingContext2D, layout: PosterL
  *  (a dot + name per row) — draws nothing when the Car Database has none hardcoded for this exact
  *  vehicle yet (Vehicle.colours), same "absent means don't draw" rule as the hero photo itself.
  *  Sized to its content rather than a fixed box, and right-aligned to the same edge the header's
- *  brand logo uses, so it reads as part of the same layout rhythm rather than a bolted-on overlay. */
+ *  brand logo uses, so it reads as part of the same layout rhythm rather than a bolted-on overlay.
+ *
+ *  Styled as a dark panel-gradient chip with a 3px red top accent — the same recipe as the price
+ *  panel and footer — rather than a plain white box, so it reads as a designed part of this poster
+ *  instead of a flat rectangle sitting on the white hero band. */
 export function drawColourSwatches(ctx: CanvasRenderingContext2D, layout: PosterLayout, data: PosterData): void {
   if (data.colours.length === 0) return;
 
   const rightEdge = POSTER_WIDTH - MARGIN;
-  const padding = 12;
+  const notch = 12;
+  const accentBar = 3;
+  const padding = 13;
   const dotRadius = 5;
-  const dotToText = 8;
-  const rowHeight = 20;
-  const headerGap = 8;
-  const headerLabel = 'AVAILABLE IN:';
-  const headerSpacing = 1.6;
+  const dotToText = 9;
+  const rowHeight = 21;
+  const headerGap = 10;
+  const headerLabel = 'AVAILABLE IN';
+  const headerSpacing = 1.8;
 
   ctx.font = labelFont(9.5, 700);
   const headerWidth = measureTrackedText(ctx, headerLabel, headerSpacing);
@@ -180,7 +186,7 @@ export function drawColourSwatches(ctx: CanvasRenderingContext2D, layout: Poster
     return surcharge ? ` (+RM ${surcharge.toLocaleString('en-MY')})` : '';
   };
 
-  ctx.font = labelFont(11, 400);
+  ctx.font = labelFont(11, 700);
   const nameWidths = data.colours.map((c) => ctx.measureText(c).width);
   ctx.font = labelFont(9.5, 400);
   const noteWidths = data.colours.map((c) => ctx.measureText(noteFor(c)).width);
@@ -188,43 +194,66 @@ export function drawColourSwatches(ctx: CanvasRenderingContext2D, layout: Poster
   const rowWidth = dotRadius * 2 + dotToText + maxRowTextWidth;
 
   const cardWidth = padding * 2 + Math.max(headerWidth, rowWidth);
-  const cardHeight = padding * 2 + 12 + headerGap + data.colours.length * rowHeight;
+  const cardHeight = accentBar + padding * 2 + 10 + headerGap + data.colours.length * rowHeight;
   const cardX = rightEdge - cardWidth;
   const cardY = layout.carHeroTop + 14;
 
-  notchedRectPath(ctx, cardX, cardY, cardWidth, cardHeight, 12);
-  ctx.fillStyle = POSTER_COLORS.paper;
+  // Soft drop shadow, cast by the card's own notched silhouette — drawn as its own pass so the
+  // shadow follows the cut corner instead of a plain rectangle's.
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.32)';
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 6;
+  notchedRectPath(ctx, cardX, cardY, cardWidth, cardHeight, notch);
+  ctx.fillStyle = POSTER_COLORS.panelB;
   ctx.fill();
-  ctx.strokeStyle = POSTER_COLORS.grayD;
+  ctx.restore();
+
+  // Gradient body + accent bar, clipped to the notched silhouette so the bar's square corner
+  // never pokes past the cut top-right corner.
+  ctx.save();
+  notchedRectPath(ctx, cardX, cardY, cardWidth, cardHeight, notch);
+  ctx.clip();
+  const bodyGradient = ctx.createLinearGradient(cardX, 0, cardX + cardWidth, 0);
+  bodyGradient.addColorStop(0, POSTER_COLORS.panelA);
+  bodyGradient.addColorStop(1, POSTER_COLORS.panelB);
+  ctx.fillStyle = bodyGradient;
+  ctx.fillRect(cardX, cardY, cardWidth, cardHeight);
+  ctx.fillStyle = POSTER_COLORS.acc;
+  ctx.fillRect(cardX, cardY, cardWidth, accentBar);
+  ctx.restore();
+
+  notchedRectPath(ctx, cardX, cardY, cardWidth, cardHeight, notch);
+  ctx.strokeStyle = POSTER_COLORS.partition;
   ctx.lineWidth = 1;
   ctx.stroke();
 
   ctx.font = labelFont(9.5, 700);
-  ctx.fillStyle = POSTER_COLORS.gray;
+  ctx.fillStyle = POSTER_COLORS.acc;
   ctx.textBaseline = 'middle';
-  fillTrackedText(ctx, headerLabel, cardX + padding, cardY + padding + 6, headerSpacing);
+  fillTrackedText(ctx, headerLabel, cardX + padding, cardY + accentBar + padding + 4, headerSpacing);
 
   ctx.textAlign = 'left';
   data.colours.forEach((colour, i) => {
-    const rowY = cardY + padding + 12 + headerGap + i * rowHeight + rowHeight / 2;
+    const rowY = cardY + accentBar + padding + 10 + headerGap + i * rowHeight + rowHeight / 2;
     const dotX = cardX + padding + dotRadius;
     ctx.beginPath();
     ctx.arc(dotX, rowY, dotRadius, 0, Math.PI * 2);
     ctx.fillStyle = swatchHexFor(colour);
     ctx.fill();
-    ctx.strokeStyle = POSTER_COLORS.grayD;
-    ctx.lineWidth = 0.75;
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1;
     ctx.stroke();
 
     const textX = dotX + dotRadius + dotToText;
-    ctx.font = labelFont(11, 400);
-    ctx.fillStyle = POSTER_COLORS.ink;
+    ctx.font = labelFont(11, 700);
+    ctx.fillStyle = POSTER_COLORS.paper;
     ctx.fillText(colour, textX, rowY);
 
     const note = noteFor(colour);
     if (note) {
       ctx.font = labelFont(9.5, 400);
-      ctx.fillStyle = POSTER_COLORS.gray;
+      ctx.fillStyle = POSTER_COLORS.panelGray;
       ctx.fillText(note, textX + nameWidths[i], rowY);
     }
   });

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnInit, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from './icon.component';
@@ -12,7 +12,6 @@ import {
   FINANCING_TYPE_OPTIONS,
   INSURANCE_OPTIONS,
   PAYMENT_STATUS_OPTIONS,
-  REFUND_STATUS_OPTIONS,
   SOURCE_TYPES,
   TO_BE_CONFIRMED_COLOUR,
   TRADE_IN_OPTIONS,
@@ -116,14 +115,17 @@ import {
                 @for (y of modelYears; track y) { <option [ngValue]="y">{{ y }}</option> }
               </select>
             </label>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+            <label
+              #colourField
+              [class]="'flex flex-col gap-1 text-xs font-medium text-muted-foreground rounded-lg transition-shadow duration-700 ' + (highlightColour ? 'ring-2 ring-[var(--warning)] ring-offset-2 ring-offset-card' : '')"
+            >
               Colour @if (showColourRequired) { <span class="text-[var(--destructive)]">*</span> }
               <select [(ngModel)]="form.colour" class="h-10 w-full rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
                 @if (showColourRequired && !form.colour) { <option value="">Select colour…</option> }
                 @for (c of colourOptionsForForm; track c) { <option [value]="c">{{ c }}</option> }
               </select>
               @if (showColourRequired) {
-                <span class="text-[10px] text-muted-foreground">Car's been delivered — pick the actual colour.</span>
+                <span class="text-[10px] text-muted-foreground">Colour must be confirmed before this deal can continue.</span>
               }
             </label>
           </fieldset>
@@ -292,14 +294,6 @@ import {
                 Cancellation Notes
                 <textarea rows="2" [(ngModel)]="form.cancelNotes" class="rounded-lg border border-input bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-ring"></textarea>
               </label>
-              @if (record.refundStatus) {
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Refund Status
-                  <select [(ngModel)]="form.refundStatus" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                    @for (s of refundStatusOptions; track s) { <option [value]="s">{{ s }}</option> }
-                  </select>
-                </label>
-              }
             </fieldset>
           }
         </div>
@@ -312,10 +306,13 @@ import {
     </div>
   `,
 })
-export class CustomerEditModalComponent implements OnInit {
+export class CustomerEditModalComponent implements OnInit, AfterViewInit {
   @Input({ required: true }) record!: CustomerRecord;
   @Output() save = new EventEmitter<EditCustomerInput>();
   @Output() close = new EventEmitter<void>();
+
+  @ViewChild('colourField') private colourFieldRef?: ElementRef<HTMLElement>;
+  highlightColour = false;
 
   sourceTypes = SOURCE_TYPES;
   colourOptions = COLOUR_OPTIONS;
@@ -329,7 +326,6 @@ export class CustomerEditModalComponent implements OnInit {
   brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
   financingTypeOptions = FINANCING_TYPE_OPTIONS;
   paymentStatusOptions = PAYMENT_STATUS_OPTIONS;
-  refundStatusOptions = REFUND_STATUS_OPTIONS;
   cancelReasons = CANCEL_REASON_OPTIONS;
 
   form: EditCustomerInput = {};
@@ -442,8 +438,20 @@ export class CustomerEditModalComponent implements OnInit {
       deliveryNotes: r.deliveryNotes,
       cancelReason: r.cancelReason,
       cancelNotes: r.cancelNotes,
-      refundStatus: r.refundStatus,
     };
+  }
+
+  /** Colour is the field most likely to be the reason this modal was opened (the In Progress /
+   *  Delivered gates block on it) — if it's still unresolved, draw the advisor's eye straight to
+   *  it instead of leaving them to hunt through the form. */
+  ngAfterViewInit() {
+    if (this.showColourRequired && !this.form.colour) {
+      setTimeout(() => {
+        this.colourFieldRef?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        this.highlightColour = true;
+        setTimeout(() => (this.highlightColour = false), 1800);
+      }, 100);
+    }
   }
 
   onBrandChange(brand: string) {
