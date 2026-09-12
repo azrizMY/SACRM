@@ -1,7 +1,8 @@
 /** A5 "special rebates" flyer template: a light, marketing-style table (not the dark data-section
  *  look the other templates use) — car thumbnail + model, OTR price, insurance, a highlighted
- *  Rebate column, Selling Price, and an estimated "from" monthly figure, plus a promotion-notes/
- *  WhatsApp-QR footer.
+ *  Rebate column, minimum downpayment, and an estimated "from" monthly figure, plus a Documents
+ *  Required/consultant-QR footer (same Documents Required card the Financing Price List template
+ *  uses).
  *  Modelled on a dealer rebate-flyer reference the user supplied, redrawn with this app's own
  *  color tokens (POSTER_COLORS) rather than copied wholesale. Sized to fit an entire brand's
  *  catalog (12 rows) on one A5 page whenever possible, only spilling to a second page if a brand
@@ -11,6 +12,7 @@ import { loadPosterImage } from './poster-images';
 import { fillPolygon, fillTrackedText, measureTrackedText, formatPosterCurrency } from './poster-draw-utils';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
 import { buildQrMatrix } from './qr-code';
+import { drawDocumentsRequired } from './poster-brochure-documents-required';
 import type { BrochureData, BrochureRow } from './poster-brochure-data';
 
 export const PAGE_WIDTH = 1748;
@@ -37,8 +39,8 @@ type Columns = {
   insuranceWidth: number;
   rebate: number;
   rebateWidth: number;
-  selling: number;
-  sellingWidth: number;
+  downpayment: number;
+  downpaymentWidth: number;
   monthly: number;
   monthlyWidth: number;
 };
@@ -49,15 +51,15 @@ function computeColumns(): Columns {
   const otrWidth = 190;
   const insuranceWidth = 190;
   const rebateWidth = 190;
-  const sellingWidth = 190;
-  const monthlyWidth = PAGE_WIDTH - MARGIN - (left + modelWidth + otrWidth + insuranceWidth + rebateWidth + sellingWidth);
+  const downpaymentWidth = 190;
+  const monthlyWidth = PAGE_WIDTH - MARGIN - (left + modelWidth + otrWidth + insuranceWidth + rebateWidth + downpaymentWidth);
   const model = left;
   const otr = model + modelWidth;
   const insurance = otr + otrWidth;
   const rebate = insurance + insuranceWidth;
-  const selling = rebate + rebateWidth;
-  const monthly = selling + sellingWidth;
-  return { model, modelWidth, otr, otrWidth, insurance, insuranceWidth, rebate, rebateWidth, selling, sellingWidth, monthly, monthlyWidth };
+  const downpayment = rebate + rebateWidth;
+  const monthly = downpayment + downpaymentWidth;
+  return { model, modelWidth, otr, otrWidth, insurance, insuranceWidth, rebate, rebateWidth, downpayment, downpaymentWidth, monthly, monthlyWidth };
 }
 
 /** How many rows fit in the space left after the header/table-header/footer — the Calculator
@@ -77,7 +79,14 @@ export function paginateBrochureRows(rows: BrochureRow[]): BrochureRow[][] {
 
 /** Exported so other brochure renderers (e.g. the compact price-list template) can share the exact
  *  same logo/title header instead of redrawing it — `eyebrow` is the only thing that varies. */
-export async function drawHeader(ctx: CanvasRenderingContext2D, data: BrochureData, pageIndex: number, pageCount: number, eyebrow = 'CURRENT OFFERS'): Promise<void> {
+export async function drawHeader(
+  ctx: CanvasRenderingContext2D,
+  data: BrochureData,
+  pageIndex: number,
+  pageCount: number,
+  eyebrow = 'CURRENT OFFERS',
+  headerHeight = HEADER_HEIGHT,
+): Promise<void> {
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.fillRect(0, 0, PAGE_WIDTH, PAGE_HEIGHT);
 
@@ -90,12 +99,12 @@ export async function drawHeader(ctx: CanvasRenderingContext2D, data: BrochureDa
 
   // Logo — a large, generous object-contain box (no brand name printed anywhere else on the page
   // now, so the logo alone has to carry that identity — it needs real presence, not a size tied
-  // tightly to a single line of title text). Bottom is measured to land exactly on the bottom of
-  // the title text so the two align, even though the box starts well above the title's own top.
+  // tightly to a single line of title text). Vertically centred in the whole header band (page top
+  // to where the table starts) rather than tied to the title text's own descent, so its top/bottom
+  // margins stay visually symmetric regardless of how tall any given title happens to render.
   ctx.font = displayFont(titleFontSize, 700);
-  const titleMetrics = ctx.measureText(titleText);
   const logoBoxTop = 18;
-  const logoBoxBottom = titleBaseline + titleMetrics.actualBoundingBoxDescent;
+  const logoBoxBottom = headerHeight - logoBoxTop;
   const logoBoxHeight = logoBoxBottom - logoBoxTop;
   const logoBoxWidth = 380;
   if (data.logoUrl) {
@@ -160,10 +169,10 @@ function drawTableHeaderBar(ctx: CanvasRenderingContext2D, barTop: number): void
 
   ctx.textAlign = 'center';
   ctx.font = labelFont(10.5, 700);
-  ctx.fillText('OTR PRICE (RM)', cols.otr + cols.otrWidth / 2, headerY);
-  ctx.fillText('INSURANCE (RM)', cols.insurance + cols.insuranceWidth / 2, headerY);
-  ctx.fillText('REBATE (RM)', cols.rebate + cols.rebateWidth / 2, headerY);
-  ctx.fillText('SELLING PRICE (RM)', cols.selling + cols.sellingWidth / 2, headerY);
+  ctx.fillText('OTR PRICE', cols.otr + cols.otrWidth / 2, headerY);
+  ctx.fillText('INSURANCE', cols.insurance + cols.insuranceWidth / 2, headerY);
+  ctx.fillText('REBATE', cols.rebate + cols.rebateWidth / 2, headerY);
+  ctx.fillText('MIN. DOWNPAYMENT', cols.downpayment + cols.downpaymentWidth / 2, headerY);
   ctx.fillText('EST. MONTHLY FROM*', cols.monthly + cols.monthlyWidth / 2, headerY);
 }
 
@@ -230,7 +239,7 @@ async function drawRow(ctx: CanvasRenderingContext2D, row: BrochureRow, top: num
 
   ctx.font = displayFont(f(20), 700);
   ctx.fillStyle = POSTER_COLORS.ink;
-  ctx.fillText(formatPosterCurrency(row.sellingPrice), cols.selling + cols.sellingWidth / 2, centerY);
+  ctx.fillText(formatPosterCurrency(row.downpayment), cols.downpayment + cols.downpaymentWidth / 2, centerY);
 
   const monthlyFrom = row.monthlyByTenure.length > 0 ? Math.min(...row.monthlyByTenure) : 0;
   const monthlyX = cols.monthly + cols.monthlyWidth / 2;
@@ -335,8 +344,8 @@ async function drawFooter(ctx: CanvasRenderingContext2D, data: BrochureData): Pr
   ctx.fillStyle = POSTER_COLORS.hairline;
   ctx.fillRect(M, footerTop, PAGE_WIDTH - 2 * M, 1);
 
-  // Left — promotion notes; Right — one bordered card holding the consultant's identity and the
-  // WhatsApp QR side by side, since scanning that QR opens a chat with exactly this person.
+  // Left — Documents Required (replaces the old Promotion Notes text); Right — the existing
+  // consultant + WhatsApp QR card, unchanged from this template's own styling.
   const cardWidth = 620;
   const gap = 50;
   const notesX = M;
@@ -346,34 +355,9 @@ async function drawFooter(ctx: CanvasRenderingContext2D, data: BrochureData): Pr
   const labelY = footerTop + 34;
   ctx.textBaseline = 'middle';
 
-  // Left — promotion notes.
-  ctx.font = labelFont(13, 700);
-  ctx.fillStyle = POSTER_COLORS.acc;
-  ctx.textAlign = 'left';
-  fillTrackedText(ctx, 'PROMOTION NOTES', notesX, labelY, 1.6);
+  drawDocumentsRequired(ctx, notesX, notesWidth, labelY);
 
-  const now = new Date();
-  const validUntil = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    .toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })
-    .toUpperCase();
-  const maxTenure = data.tenureYears.length > 0 ? Math.max(...data.tenureYears) : 9;
-  const notes = [
-    'Insurance shown is the total due at 0% NCD; Selling Price is OTR plus insurance, less rebate.',
-    'Rebate is subject to applicable terms & conditions.',
-    `Monthly instalment is an estimate at up to ${maxTenure} years, and varies by bank, rate and downpayment.`,
-    'Subject to bank approval.',
-    `Promotion valid until ${validUntil}.`,
-    'Terms & conditions apply.',
-  ];
-  ctx.font = labelFont(13, 400);
-  ctx.fillStyle = POSTER_COLORS.ink;
-  notes.forEach((note, i) => {
-    const lineY = labelY + 34 + i * 29;
-    ctx.fillText('•', notesX, lineY);
-    ctx.fillText(note, notesX + 16, lineY);
-  });
-
-  // Right — the combined consultant + QR card.
+  // Right — the combined consultant + QR card (this template's own styling, unchanged).
   const cardTop = footerTop + 20;
   const cardHeight = 340;
   const padding = 24;

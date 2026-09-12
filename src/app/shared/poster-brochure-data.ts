@@ -1,7 +1,13 @@
 /** One catalog row on the brand brochure — every model/variant/year of the chosen brand gets its
  *  own row, independent of whatever car is selected in the single-quote Calculator above it. */
 export type BrochureRow = {
+  /** Raw model name (e.g. "Saga"), separate from modelTitle's model+variant combination — needed
+   *  to group variants of the same model under one header on the grouped/financing price list. */
+  model: string;
   modelTitle: string;
+  /** Just the variant text (e.g. "Executive"), already run through variantLabel() so it's '' when
+   *  the car has none — same grouping need as `model` above. */
+  variantText: string;
   year: number;
   carImageUrl: string | null;
   otrPrice: number;

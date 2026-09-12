@@ -5,7 +5,7 @@ import type { BrochureTemplate } from './poster-brochure-templates';
 
 export const simpleBrochureTemplate: BrochureTemplate = {
   id: 'simple',
-  label: 'Photo & OTR Price',
+  label: 'Current Offers',
   rowsPerPage,
   paginateRows: paginateBrochureRows,
   renderPage: renderBrochurePage,

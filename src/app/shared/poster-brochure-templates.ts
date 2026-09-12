@@ -4,7 +4,7 @@
  *  (rows/cards per page) and its own subset of fields to actually draw. */
 import type { BrochureData, BrochureRow } from './poster-brochure-data';
 
-export type BrochureTemplateId = 'simple' | 'pricelist';
+export type BrochureTemplateId = 'simple' | 'grouped';
 
 export interface BrochureTemplate {
   id: BrochureTemplateId;
