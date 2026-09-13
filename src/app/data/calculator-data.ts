@@ -299,8 +299,10 @@ export function defaultInsuranceQuotation(vehicle: Vehicle, fallbackBasicPremium
 export function computeInsuranceBreakdown(details: InsuranceQuotationDetails, ncdPct: number): InsuranceQuotationBreakdown {
   if (details.mode === 'flat') {
     const flatPrice = details.flatPrice ?? 0;
-    const ncdAmount = flatPrice * (Math.max(0, ncdPct) / 100);
-    const totalDue = flatPrice - ncdAmount;
+    // Rounded to the cent at each step, same as the itemized branch below, so the displayed
+    // total always equals the sum of the displayed lines — see the comment on roundCents.
+    const ncdAmount = roundCents(flatPrice * (Math.max(0, ncdPct) / 100));
+    const totalDue = roundCents(flatPrice - ncdAmount);
     return {
       ...details,
       ncdPct,
@@ -312,11 +314,14 @@ export function computeInsuranceBreakdown(details: InsuranceQuotationDetails, nc
       totalRounded: Math.round(totalDue * 2) / 2,
     };
   }
-  const ncdAmount = details.basicPremium * (Math.max(0, ncdPct) / 100);
-  const coveragesTotal = details.additionalCoverages.reduce((sum, c) => sum + c.amount, 0);
-  const grossPremium = details.basicPremium - ncdAmount + details.premiumAllRider + coveragesTotal;
-  const serviceTaxAmount = grossPremium * (details.serviceTaxPct / 100);
-  const totalDue = grossPremium + details.stampDuty + serviceTaxAmount + details.epr;
+  // Each line is rounded to the cent before it feeds the next one (not just the final total) —
+  // otherwise the total carries fractions of a cent no single displayed line accounts for, and
+  // manually adding up the displayed lines lands a cent off from the displayed total.
+  const ncdAmount = roundCents(details.basicPremium * (Math.max(0, ncdPct) / 100));
+  const coveragesTotal = roundCents(details.additionalCoverages.reduce((sum, c) => sum + c.amount, 0));
+  const grossPremium = roundCents(details.basicPremium - ncdAmount + details.premiumAllRider + coveragesTotal);
+  const serviceTaxAmount = roundCents(grossPremium * (details.serviceTaxPct / 100));
+  const totalDue = roundCents(grossPremium + details.stampDuty + serviceTaxAmount + details.epr);
   return {
     ...details,
     ncdPct,
@@ -329,25 +334,20 @@ export function computeInsuranceBreakdown(details: InsuranceQuotationDetails, nc
   };
 }
 
-export function downpaymentCashFor(
-  basePrice: number,
-  rebate: number,
-  type: DownpaymentType,
-  value: number,
-  maxAmount: number,
-): number {
-  if (type === 'amount') return Math.max(0, Math.min(value, maxAmount));
-  const pctAmount = (Math.max(0, value) / 100) * basePrice;
-  return Math.max(0, pctAmount - rebate);
-}
-
 // ---------- Full quotation totals — shared by Calculator and Customer Manager so figures never drift ----------
 
 export type QuotationTotalsInput = {
   basePrice: number;
   effectiveRebate: number;
-  /** The full itemized insurance charge for this quote — see computeInsuranceBreakdown().totalDue. */
+  /** The full itemized insurance charge for this quote, at whatever NCD is actually quoted —
+   *  this is what the customer owes (see computeInsuranceBreakdown().totalDue). */
   insuranceAmount: number;
+  /** The insurance figure the LOAN is sized against — normally the same quote at 0% NCD (the
+   *  worst case), so dialling in a better NCD shrinks the customer's cash downpayment instead of
+   *  the amount financed (see computeQuotationTotals). Defaults to `insuranceAmount` for callers
+   *  that don't distinguish the two, which reproduces the old behaviour of the loan tracking
+   *  whatever NCD is quoted. */
+  loanBasisInsuranceAmount?: number;
   downpaymentType: DownpaymentType;
   downpaymentValue: number;
 };
@@ -370,17 +370,32 @@ export function computeQuotationTotals(input: QuotationTotalsInput): QuotationTo
   const priceAfterRebate = Math.max(0, input.basePrice - input.effectiveRebate);
   const insuranceAmount = Math.max(0, input.insuranceAmount);
   const totalAmountDue = roundCents(priceAfterRebate + insuranceAmount);
-  const rawDownpaymentCash = downpaymentCashFor(
-    input.basePrice,
-    input.effectiveRebate,
-    input.downpaymentType,
-    input.downpaymentValue,
-    totalAmountDue,
-  );
-  const rawLoanAmount = Math.max(0, totalAmountDue - rawDownpaymentCash);
-  // Banks disburse hire-purchase loans in RM100 increments, never more than what's owed — floor
-  // to the nearest 100 and push whatever's left over into the downpayment, rounded to the cent.
-  const loanAmount = Math.floor(rawLoanAmount / 100) * 100;
+
+  let loanAmount: number;
+  if (input.downpaymentType === 'amount') {
+    // An explicit cash downpayment (or a manually-typed Loan Amount, which sets one) — the SA's
+    // own number governs directly against the real amount owed; no discount-anchoring applies.
+    const downpaymentCash = Math.max(0, Math.min(input.downpaymentValue, totalAmountDue));
+    loanAmount = Math.floor(Math.max(0, totalAmountDue - downpaymentCash) / 100) * 100;
+  } else {
+    // Downpayment is sized off the full sticker total — car price plus the loan-basis insurance
+    // (normally the 0% NCD premium, the worst case) — BEFORE rebate is netted out, so rebate
+    // (like a better NCD) comes straight off the cash downpayment instead of being subtracted
+    // twice: once via the already-discounted total, and again here. The loan that leaves is
+    // pinned to that same worst-case total, so neither a rebate nor a better NCD shrinks it —
+    // only once their combined savings exceed the whole downpayment (it would go negative) does
+    // the excess spill into a smaller loan.
+    const loanBasisInsurance = Math.max(0, input.loanBasisInsuranceAmount ?? insuranceAmount);
+    const referenceTotal = roundCents(input.basePrice + loanBasisInsurance);
+    const pctAmount = (Math.max(0, input.downpaymentValue) / 100) * referenceTotal;
+    const downpaymentCashAtBasis = Math.max(0, pctAmount - input.effectiveRebate);
+    const loanBasisTotal = roundCents(referenceTotal - input.effectiveRebate);
+    // Banks disburse hire-purchase loans in RM100 increments, never more than what's owed — floor
+    // to the nearest 100 and push whatever's left over into the downpayment, rounded to the cent.
+    const fixedLoanAmount = Math.floor(Math.max(0, loanBasisTotal - downpaymentCashAtBasis) / 100) * 100;
+    loanAmount = Math.min(fixedLoanAmount, Math.floor(totalAmountDue / 100) * 100);
+  }
+
   const downpaymentCash = roundCents(Math.max(0, totalAmountDue - loanAmount));
   return { insuranceAmount, totalAmountDue, downpaymentCash, loanAmount };
 }

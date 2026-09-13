@@ -1818,11 +1818,15 @@ export class CustomerManagerComponent {
         ? { ...this.settings.getVehicleInsurance(vehicle, fallbackBasicPremium), basicPremium: q.basicPremium ?? vehicle.basicPremium ?? fallbackBasicPremium }
         : { basicPremium: q.basicPremium ?? fallbackBasicPremium, premiumAllRider: 0, additionalCoverages: [], stampDuty: 0, serviceTaxPct: 0, epr: 0 });
     const insuranceBreakdown = computeInsuranceBreakdown(insuranceDetails, q.ncd);
+    // What the loan is sized against — the same quotation at 0% NCD, so a better NCD only
+    // shrinks the downpayment (see computeQuotationTotals's loanBasisInsuranceAmount).
+    const loanBasisInsurance = computeInsuranceBreakdown(insuranceDetails, 0).totalDue;
 
     const totals = computeQuotationTotals({
       basePrice,
       effectiveRebate,
       insuranceAmount: insuranceBreakdown.totalDue,
+      loanBasisInsuranceAmount: loanBasisInsurance,
       downpaymentType: q.downpaymentType,
       downpaymentValue: q.downpaymentValue,
     });

@@ -865,6 +865,9 @@ export class CalculatorComponent implements AfterViewInit {
   insuranceBreakdown = computed(() => computeInsuranceBreakdown(this.insuranceDetails(), this.ncd()));
   /** The full itemized charge — everything the SA sees under Insurance Breakdown, not just Basic Premium. */
   insurance = computed(() => this.insuranceBreakdown().totalDue);
+  /** Same insurance quotation at 0% NCD — what the loan is sized against, so dialling in a better
+   *  NCD only shrinks the downpayment (see computeQuotationTotals's loanBasisInsuranceAmount). */
+  loanBasisInsurance = computed(() => computeInsuranceBreakdown(this.insuranceDetails(), 0).totalDue);
 
   onInsuranceSaved(details: InsuranceQuotationDetails) {
     this.insuranceOverride.set(details);
@@ -898,6 +901,7 @@ export class CalculatorComponent implements AfterViewInit {
       basePrice: this.basePrice(),
       effectiveRebate: this.effectiveRebate(),
       insuranceAmount: this.insurance(),
+      loanBasisInsuranceAmount: this.loanBasisInsurance(),
       downpaymentType: this.downpaymentType(),
       downpaymentValue: this.downpaymentValue(),
     }),

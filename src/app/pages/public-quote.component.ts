@@ -611,6 +611,9 @@ export class PublicQuoteComponent implements OnInit {
   });
   insuranceBreakdown = computed(() => computeInsuranceBreakdown(this.insuranceDetails(), this.ncd()));
   insurance = computed(() => this.insuranceBreakdown().totalDue);
+  /** Same insurance quotation at 0% NCD — what the loan is sized against, so dialling in a better
+   *  NCD only shrinks the downpayment (see computeQuotationTotals's loanBasisInsuranceAmount). */
+  loanBasisInsurance = computed(() => computeInsuranceBreakdown(this.insuranceDetails(), 0).totalDue);
 
   insuranceBreakdownOpen = signal(false);
   openInsuranceBreakdown() {
@@ -625,6 +628,7 @@ export class PublicQuoteComponent implements OnInit {
       basePrice: this.basePrice(),
       effectiveRebate: this.effectiveRebate(),
       insuranceAmount: this.insurance(),
+      loanBasisInsuranceAmount: this.loanBasisInsurance(),
       downpaymentType: this.downpaymentType(),
       downpaymentValue: this.downpaymentValue(),
     }),
