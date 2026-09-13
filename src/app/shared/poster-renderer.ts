@@ -4,6 +4,7 @@ import { fillPolygon, fillTrackedText, fillNotchedRect, notchedRectPath, formatP
 import { loadPosterImage } from './poster-images';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
 import { swatchHexFor } from './poster-colour-swatches';
+import { formatMalaysianPhone } from '../data/dashboard-data';
 import type { PosterData } from './poster-data';
 
 /** Paints every band's background exactly as the spec's vertical map describes, before any text
@@ -362,7 +363,7 @@ export async function drawPricePanel(ctx: CanvasRenderingContext2D, data: Poster
 
   ctx.font = displayFont(26, 700);
   ctx.fillStyle = POSTER_COLORS.acc;
-  ctx.fillText(data.advisor.phoneDisplay, avatarX, 692);
+  ctx.fillText(formatMalaysianPhone(data.advisor.phoneDisplay), avatarX, 692);
 }
 
 function drawAdvisorInitialsTile(ctx: CanvasRenderingContext2D, data: PosterData, x: number, y: number, size: number): void {
@@ -548,6 +549,6 @@ export function drawFooter(ctx: CanvasRenderingContext2D, layout: PosterLayout, 
   ctx.font = displayFont(30, 700);
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.textAlign = 'right';
-  ctx.fillText(data.advisor.phoneDisplay, 844, top + 64);
+  ctx.fillText(formatMalaysianPhone(data.advisor.phoneDisplay), 844, top + 64);
 }
 

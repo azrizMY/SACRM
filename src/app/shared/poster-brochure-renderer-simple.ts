@@ -11,6 +11,7 @@ import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
 import { loadPosterImage } from './poster-images';
 import { fillPolygon, fillTrackedText, measureTrackedText, formatPosterCurrency } from './poster-draw-utils';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
+import { formatMalaysianPhone } from '../data/dashboard-data';
 import { buildQrMatrix } from './qr-code';
 import { drawDocumentsRequired } from './poster-brochure-documents-required';
 import type { BrochureData, BrochureRow } from './poster-brochure-data';
@@ -398,7 +399,7 @@ async function drawFooter(ctx: CanvasRenderingContext2D, data: BrochureData): Pr
 
   ctx.font = displayFont(21, 700);
   ctx.fillStyle = POSTER_COLORS.acc;
-  ctx.fillText(data.advisor.phoneDisplay, leftHalfCenterX, avatarY + avatarSize + 81);
+  ctx.fillText(formatMalaysianPhone(data.advisor.phoneDisplay), leftHalfCenterX, avatarY + avatarSize + 81);
 
   // Right half of the card — the WhatsApp QR, pre-filled to open a chat with this advisor. A
   // small red pill labels it (softer than a heavy stroked border), and the QR itself sits on a

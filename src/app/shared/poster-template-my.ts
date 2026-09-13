@@ -17,6 +17,7 @@ import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
 import { loadPosterImage } from './poster-images';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
 import { fillPolygon, fillTrackedText } from './poster-draw-utils';
+import { formatMalaysianPhone } from '../data/dashboard-data';
 import type { PosterData } from './poster-data';
 import type { PosterTemplate } from './poster-templates';
 
@@ -381,7 +382,7 @@ function drawCtaBar(ctx: CanvasRenderingContext2D, data: PosterData, top: number
   ctx.font = displayFont(20, 700);
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.textAlign = 'right';
-  ctx.fillText(data.advisor.phoneDisplay, M + barWidth - 26, centerY);
+  ctx.fillText(formatMalaysianPhone(data.advisor.phoneDisplay), M + barWidth - 26, centerY);
 
   return top + barHeight;
 }

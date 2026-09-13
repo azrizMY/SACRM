@@ -10,6 +10,7 @@
  *  instead. */
 import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
 import { fillTrackedText, measureTrackedText } from './poster-draw-utils';
+import { formatMalaysianPhone } from '../data/dashboard-data';
 import { drawHeader, drawAdvisorAvatar, drawQrCode } from './poster-brochure-renderer-simple';
 import { drawDocumentsRequired } from './poster-brochure-documents-required';
 import type { BrochureData, BrochureRow } from './poster-brochure-data';
@@ -245,7 +246,7 @@ async function drawAdvisorBlock(ctx: CanvasRenderingContext2D, data: BrochureDat
   ctx.fillText(data.advisor.role, textX, textCenterY + 9);
   ctx.font = displayFont(19, 700);
   ctx.fillStyle = POSTER_COLORS.acc;
-  ctx.fillText(data.advisor.phoneDisplay, textX, textCenterY + 35);
+  ctx.fillText(formatMalaysianPhone(data.advisor.phoneDisplay), textX, textCenterY + 35);
 
   // Right side — the WhatsApp QR, styled exactly like the Current Offers card: a red pill label
   // above it, and the QR itself on a plain white rounded tile with a hairline edge and a faint
