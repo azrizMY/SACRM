@@ -636,6 +636,7 @@ export class PublicQuoteComponent implements OnInit {
   allInPrice = computed(() => this.totals().totalAmountDue);
   downpaymentCash = computed(() => this.totals().downpaymentCash);
   loanAmount = computed(() => this.totals().loanAmount);
+  isCashPurchase = computed(() => this.loanAmount() === 0);
   monthlyInstalment = computed(() => monthlyPayment(this.loanAmount(), this.interestRate(), this.tenureMonths(), this.rateType()));
 
   // Same draft/commit pattern as the Calculator's own Loan Amount field: loanAmount() is always
@@ -731,6 +732,7 @@ export class PublicQuoteComponent implements OnInit {
       sellingPrice: this.allInPrice(),
       downpayment: this.downpaymentCash(),
       loanAmount: this.loanAmount(),
+      isCashPurchase: this.isCashPurchase(),
       advisor: {
         name: advisor.name,
         role: advisor.role,

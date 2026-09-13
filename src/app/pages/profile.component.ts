@@ -122,15 +122,6 @@ import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
               <app-icon name="phone" [size]="16" class="shrink-0 text-primary" />
               @if (!editing()) {
                 <span class="truncate text-sm">{{ advisor.profile().phoneDisplay }}</span>
-                <a
-                  [href]="'https://wa.me/' + advisor.profile().phoneWa"
-                  target="_blank"
-                  rel="noopener"
-                  aria-label="Chat on WhatsApp"
-                  class="ml-auto flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105"
-                >
-                  <app-icon name="message-circle" [size]="13" />
-                </a>
               } @else {
                 <input type="text" [(ngModel)]="form.phoneDisplay" placeholder="e.g. 012-345 6789" class="h-8 w-full bg-transparent text-sm text-foreground outline-none" />
               }

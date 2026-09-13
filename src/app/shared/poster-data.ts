@@ -38,6 +38,10 @@ export type PosterData = {
   sellingPrice: number;
   downpayment: number;
   loanAmount: number;
+  /** True when the loan amount is 0 — a straight cash deal, no financing at all. Templates that
+   *  show a Downpayment/Loan Amount split or a monthly payment must branch on this: neither means
+   *  anything once there's no loan to speak of. */
+  isCashPurchase: boolean;
   advisor: PosterAdvisor;
 
   otrPrice: number;

@@ -83,9 +83,9 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
           class="flex-col gap-2 xl:sticky xl:top-4 xl:col-span-2 xl:flex"
           [ngClass]="mobileTab() === 'preview' ? 'flex' : 'hidden'"
         >
-          @if (templates.length > 1) {
+          @if (availableTemplates().length > 1) {
             <div role="radiogroup" aria-label="Poster template" class="flex w-full shrink-0 gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
-              @for (t of templates; track t.id) {
+              @for (t of availableTemplates(); track t.id) {
                 <button
                   type="button"
                   role="radio"
@@ -910,6 +910,9 @@ export class CalculatorComponent implements AfterViewInit {
   allInPrice = computed(() => this.totals().totalAmountDue);
   downpaymentCash = computed(() => this.totals().downpaymentCash);
   loanAmount = computed(() => this.totals().loanAmount);
+  /** A straight cash deal, no financing at all — e.g. downpayment dialled up to 100%. Poster
+   *  templates that show a loan/monthly breakdown need to know this so they can drop it. */
+  isCashPurchase = computed(() => this.loanAmount() === 0);
 
   // The Loan Amount field mustn't fight the SA mid-keystroke: since loanAmount() is always
   // floored to the nearest RM100, binding the input straight to it would snap "82400" back to
@@ -1022,8 +1025,12 @@ export class CalculatorComponent implements AfterViewInit {
    *  adding one is purely a new layout/renderer pair (see poster-templates.ts), never a change to
    *  how data is gathered above. */
   readonly templates: PosterTemplate[] = [classicTemplate, compactMyTemplate];
+  /** The compact MY template's entire design is a monthly-payment figure — there's no sensible
+   *  cash-buyer version of a poster whose headline is a monthly instalment, so it drops out of the
+   *  picker entirely for a cash deal rather than needing its own cash layout. */
+  availableTemplates = computed(() => (this.isCashPurchase() ? this.templates.filter((t) => t.id === 'classic') : this.templates));
   selectedTemplateId = signal<PosterTemplateId>('classic');
-  currentTemplate = computed(() => this.templates.find((t) => t.id === this.selectedTemplateId()) ?? this.templates[0]);
+  currentTemplate = computed(() => this.availableTemplates().find((t) => t.id === this.selectedTemplateId()) ?? this.availableTemplates()[0]);
 
   /** Assembles the plain data object the renderer draws from — nothing in poster-renderer.ts
    *  reads a component signal directly, so every figure on the poster traces back to here. */
@@ -1043,6 +1050,7 @@ export class CalculatorComponent implements AfterViewInit {
       sellingPrice: this.allInPrice(),
       downpayment: this.downpaymentCash(),
       loanAmount: this.loanAmount(),
+      isCashPurchase: this.isCashPurchase(),
       advisor: {
         name: advisorProfile.name,
         role: advisorProfile.role,

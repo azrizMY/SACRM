@@ -294,16 +294,21 @@ export async function drawPricePanel(ctx: CanvasRenderingContext2D, data: Poster
   ctx.textBaseline = 'alphabetic';
   ctx.fillText(formatPosterCurrency(data.sellingPrice), M, 610);
 
-  // Downpayment / Loan Amount stat tiles.
+  // Downpayment / Loan Amount stat tiles — a cash deal has neither, so it gets one full-width
+  // "CASH PRICE" tile instead of the usual two-way split (same tile recipe, just one wide instead
+  // of two narrow, so no new drawing logic is needed for it).
   const boxY = 634;
   const boxHeight = 74;
   const boxWidth = 196;
-  const boxes: { x: number; label: string; value: number }[] = [
-    { x: M, label: 'DOWNPAYMENT', value: data.downpayment },
-    { x: M + 210, label: 'LOAN AMOUNT', value: data.loanAmount },
-  ];
+  const twoBoxWidth = boxWidth * 2 + 14; // 210 - 196 = the gap between the two normal tiles
+  const boxes: { x: number; width: number; label: string; value: number }[] = data.isCashPurchase
+    ? [{ x: M, width: twoBoxWidth, label: 'CASH PRICE', value: data.sellingPrice }]
+    : [
+        { x: M, width: boxWidth, label: 'DOWNPAYMENT', value: data.downpayment },
+        { x: M + 210, width: boxWidth, label: 'LOAN AMOUNT', value: data.loanAmount },
+      ];
   for (const box of boxes) {
-    fillNotchedRect(ctx, box.x, boxY, boxWidth, boxHeight, 14, POSTER_COLORS.panelCard);
+    fillNotchedRect(ctx, box.x, boxY, box.width, boxHeight, 14, POSTER_COLORS.panelCard);
     ctx.fillStyle = POSTER_COLORS.acc;
     ctx.fillRect(box.x, boxY, 3, boxHeight);
 
@@ -407,18 +412,21 @@ export function drawDataSection(ctx: CanvasRenderingContext2D, layout: PosterLay
   ctx.fillStyle = POSTER_COLORS.partition;
   ctx.fillRect(458, labelY - 6, 2, contentTop + Math.max(breakdownBlockHeight, monthlyBlockHeight) - (labelY - 6));
 
-  // Section labels + rate.
+  // Section labels + rate — a cash deal has no rate to show, and the right column becomes a
+  // perks pitch rather than a monthly-payment estimate.
   ctx.font = labelFont(9.5, 700);
   ctx.fillStyle = POSTER_COLORS.panelGrayD;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   fillTrackedText(ctx, 'PRICE BREAKDOWN', leftX, labelY, 2.8);
-  fillTrackedText(ctx, 'MONTHLY ESTIMATE', rightX, labelY, 2.8);
+  fillTrackedText(ctx, data.isCashPurchase ? 'CASH BUYER PERKS' : 'MONTHLY ESTIMATE', rightX, labelY, 2.8);
 
-  ctx.fillStyle = POSTER_COLORS.acc;
-  const rateText = data.rateLabel.toUpperCase();
-  const rateWidth = measureTrackedText(ctx, rateText, 2.8);
-  fillTrackedText(ctx, rateText, 844 - rateWidth, labelY, 2.8);
+  if (!data.isCashPurchase) {
+    ctx.fillStyle = POSTER_COLORS.acc;
+    const rateText = data.rateLabel.toUpperCase();
+    const rateWidth = measureTrackedText(ctx, rateText, 2.8);
+    fillTrackedText(ctx, rateText, 844 - rateWidth, labelY, 2.8);
+  }
 
   // ---- Left: price breakdown ----
   const rows: { label: string; sub: string; subColor: string; value: string; valueColor: string }[] = [
@@ -493,8 +501,41 @@ export function drawDataSection(ctx: CanvasRenderingContext2D, layout: PosterLay
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.fillText(formatPosterCurrency(data.totalAmountDue), 74, totalStripTop + 39);
 
-  // ---- Right: monthly estimate cards ----
+  // ---- Right: monthly estimate cards, or a cash-buyer perks pitch in the same 3-card slot ----
   const cardGap = 10;
+  if (data.isCashPurchase) {
+    const perks = ['No Interest Charges', 'No Loan Approval Needed', 'Immediate Ownership'];
+    perks.forEach((perk, i) => {
+      const cardTop = contentTop + i * (cardHeight + cardGap);
+      const centerY = cardTop + cardHeight / 2;
+      fillNotchedRect(ctx, rightX, cardTop, rightWidth, cardHeight, 14, POSTER_COLORS.block);
+
+      // Small green checkmark dot, same visual language as the Rebate row's green figure.
+      const dotX = rightX + 24;
+      const dotRadius = 7;
+      ctx.beginPath();
+      ctx.arc(dotX, centerY, dotRadius, 0, Math.PI * 2);
+      ctx.fillStyle = POSTER_COLORS.green;
+      ctx.fill();
+      ctx.strokeStyle = POSTER_COLORS.paper;
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(dotX - 3, centerY);
+      ctx.lineTo(dotX - 0.5, centerY + 3);
+      ctx.lineTo(dotX + 3.5, centerY - 3.5);
+      ctx.stroke();
+
+      ctx.font = labelFont(14.5, 700);
+      ctx.fillStyle = POSTER_COLORS.paper;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(perk, dotX + dotRadius + 14, centerY);
+    });
+    return;
+  }
+
   data.tenureRows.forEach((row, i) => {
     const cardTop = contentTop + i * (cardHeight + cardGap);
     const centerY = cardTop + cardHeight / 2;
