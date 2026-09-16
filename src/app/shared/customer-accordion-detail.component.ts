@@ -69,7 +69,7 @@ function fmtOrDash(v: string | number | undefined | null): string {
       <div class="grid gap-3 sm:grid-cols-3">
         <div class="grid gap-3 sm:col-span-2 sm:grid-cols-2">
           @for (section of sections; track section.title) {
-            @if (section.title !== 'Vehicle' && section.title !== 'Payment') {
+            @if (section.title !== 'Vehicle') {
               <ng-container [ngTemplateOutlet]="sectionCard" [ngTemplateOutletContext]="{ section: section }" />
             }
           }
@@ -77,11 +77,6 @@ function fmtOrDash(v: string | number | undefined | null): string {
         <div class="flex flex-col gap-3">
           @for (section of sections; track section.title) {
             @if (section.title === 'Vehicle') {
-              <ng-container [ngTemplateOutlet]="sectionCard" [ngTemplateOutletContext]="{ section: section }" />
-            }
-          }
-          @for (section of sections; track section.title) {
-            @if (section.title === 'Payment') {
               <ng-container [ngTemplateOutlet]="sectionCard" [ngTemplateOutletContext]="{ section: section, grow: true }" />
             }
           }
@@ -171,7 +166,6 @@ export class CustomerAccordionDetailComponent {
         // Cancelled deals never reach delivery — Cancellation takes that card's place instead.
         r.status === 'Cancelled' ? this.cancellationSection(r) : this.deliverySection(r),
         this.vehicleSection(r),
-        this.bookingSection(r),
       ];
       return sections;
     } catch {
@@ -217,16 +211,6 @@ export class CustomerAccordionDetailComponent {
         { label: 'Insurance', value: fmtOrDash(r.insuranceName) },
       ],
     };
-  }
-
-  // Payment Status only applies to cash deals — loan deals track payment via Documents/Financing
-  // instead, so this section simply doesn't exist for them (see sections' empty-fields filter).
-  private bookingSection(r: CustomerRecord): Section {
-    const fields: Field[] = [];
-    if (isCashDeal(r)) {
-      fields.push({ label: 'Payment Status', value: fmtOrDash(r.paymentStatus) });
-    }
-    return { title: 'Payment', fields };
   }
 
   private tradeInSection(r: CustomerRecord): Section {

@@ -67,3 +67,35 @@ export function fillTrackedTextRight(ctx: CanvasRenderingContext2D, text: string
 export function formatPosterCurrency(value: number): string {
   return `RM ${value.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+
+/** Greedy word-wrap for a free-text field of unpredictable length (the advisor bio) into at most
+ *  `maxLines` lines no wider than `maxWidth`, using whatever font is already set on `ctx`. Text
+ *  that still doesn't fit after `maxLines` lines gets an ellipsis appended to the last one, so a
+ *  long bio degrades gracefully instead of overflowing its box on the poster. */
+export function wrapPosterText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxLines: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+  let i = 0;
+  while (i < words.length && lines.length < maxLines) {
+    const candidate = current ? `${current} ${words[i]}` : words[i];
+    if (current && ctx.measureText(candidate).width > maxWidth) {
+      lines.push(current);
+      current = '';
+    } else {
+      current = candidate;
+      i++;
+    }
+  }
+  if (i >= words.length) {
+    if (current) lines.push(current);
+    return lines;
+  }
+  // Ran out of lines with words still left over — truncate the last line to make room for "…".
+  let last = lines[maxLines - 1] ?? '';
+  while (last.length > 0 && ctx.measureText(`${last}…`).width > maxWidth) {
+    last = last.slice(0, -1).trimEnd();
+  }
+  lines[maxLines - 1] = `${last}…`;
+  return lines;
+}

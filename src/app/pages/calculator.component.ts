@@ -103,15 +103,33 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
             <canvas #posterCanvas class="block w-full h-auto"></canvas>
           </div>
 
-          <button
-            type="button"
-            (click)="copyPosterImage()"
-            [disabled]="copyingPoster()"
-            class="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-          >
-            <app-icon [name]="posterCopied() ? 'check' : 'clipboard-check'" [size]="15" />
-            {{ copyingPoster() ? 'Copying…' : posterCopied() ? 'Copied!' : 'Copy Image' }}
-          </button>
+          @if (posterShareFallbackNotice()) {
+            <div class="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/8 px-4 py-2.5 text-sm">
+              <app-icon name="download" [size]="14" class="shrink-0" />
+              Your browser can't hand files to WhatsApp directly — quote downloaded. Attach it in WhatsApp Desktop/Web.
+            </div>
+          }
+
+          <div class="flex shrink-0 gap-2">
+            <button
+              type="button"
+              (click)="copyPosterImage()"
+              [disabled]="copyingPoster()"
+              class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+            >
+              <app-icon [name]="posterCopied() ? 'check' : 'clipboard-check'" [size]="15" />
+              {{ copyingPoster() ? 'Copying…' : posterCopied() ? 'Copied!' : 'Copy Image' }}
+            </button>
+            <button
+              type="button"
+              (click)="sharePosterImage()"
+              [disabled]="sharingPoster()"
+              class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+            >
+              <app-icon name="share" [size]="15" />
+              {{ sharingPoster() ? 'Sharing…' : 'Share' }}
+            </button>
+          </div>
 
           <p class="flex shrink-0 items-center justify-center gap-1.5 text-center text-[10px] leading-relaxed text-muted-foreground">
             <app-icon name="info" [size]="12" class="shrink-0" />
@@ -561,7 +579,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               </label>
             }
             <p class="text-[11px] text-muted-foreground">
-              Save the lead, or message this customer on WhatsApp — do either or both, in any order.
+              Save the lead, or message this customer on WhatsApp — to do both, WhatsApp them first (Save Lead closes this form).
             </p>
             @if (leadSaved()) {
               <span class="flex items-center gap-1.5 text-[11px] font-medium text-[var(--success)]">
@@ -1057,6 +1075,7 @@ export class CalculatorComponent implements AfterViewInit {
         initials: this.advisor.initials(),
         photoUrl: advisorProfile.photoUrl ?? null,
         phoneDisplay: advisorProfile.phoneDisplay,
+        bio: advisorProfile.bio,
       },
 
       otrPrice: this.basePrice(),
@@ -1103,7 +1122,10 @@ export class CalculatorComponent implements AfterViewInit {
     this.leadName = '';
     this.leadPhone = '';
     this.leadSource = SOURCE_TYPES[0];
-    this.leadFinancingType = 'Loan';
+    // Matches whatever the quote is actually showing right now — a downpayment already dialled
+    // to 100% is a cash deal, so the lead shouldn't default back to Hire Purchase just because
+    // that's the modal's own baseline.
+    this.leadFinancingType = this.isCashPurchase() ? 'Cash' : 'Loan';
     this.leadSaved.set(false);
     this.leadModalOpen.set(true);
   }
@@ -1156,6 +1178,9 @@ export class CalculatorComponent implements AfterViewInit {
 
   async submitLead() {
     await this.saveLeadRecord();
+    // Only closes once the lead actually saved — never on the early-return path (a duplicate
+    // phone), where the modal needs to stay open so the SA can see and act on that warning.
+    if (this.leadSaved()) this.closeLeadModal();
   }
 
   async openWhatsAppForLead() {
@@ -1218,9 +1243,17 @@ export class CalculatorComponent implements AfterViewInit {
     });
   }
 
-  private async downloadPosterBlob(blob: Blob): Promise<void> {
+  private posterFileName(): string {
     const v = this.selectedVehicle();
-    downloadBlob(new Uint8Array(await blob.arrayBuffer()), `Quote-${vehicleTitle(v.brand, v.model)}.png`.replace(/\s+/g, '-'), 'image/png');
+    return `Quote-${vehicleTitle(v.brand, v.model)}.png`.replace(/\s+/g, '-');
+  }
+
+  private async downloadPosterBlob(blob: Blob): Promise<void> {
+    downloadBlob(new Uint8Array(await blob.arrayBuffer()), this.posterFileName(), 'image/png');
+  }
+
+  private canShareFile(file: File): boolean {
+    return !!(navigator as { canShare?: (data: { files: File[] }) => boolean }).canShare?.({ files: [file] });
   }
 
   /** Copies the poster straight onto the system clipboard so it can be pasted directly into
@@ -1252,6 +1285,40 @@ export class CalculatorComponent implements AfterViewInit {
       }
     } finally {
       this.copyingPoster.set(false);
+    }
+  }
+
+  sharingPoster = signal(false);
+  /** Shown only when the OS share sheet isn't available at all and the poster was downloaded as
+   *  a plain fallback instead — same pattern as the Brochures page's file-share fallback. */
+  posterShareFallbackNotice = signal(false);
+
+  /** Hands the rendered poster PNG straight to the OS share sheet — same file-share pattern the
+   *  Brochures page uses for its brochure PDFs, just a PNG instead of a PDF since the poster is a
+   *  single rendered image, not a multi-page document. Reaches WhatsApp, Telegram, email, etc.
+   *  directly, no manual save-then-attach round trip. Falls back to a plain download only when
+   *  file sharing isn't supported at all; a cancelled or failed share attempt is left alone rather
+   *  than forced into a download, matching sendBrochureFile's own behaviour. */
+  async sharePosterImage() {
+    if (this.sharingPoster()) return;
+    this.sharingPoster.set(true);
+    try {
+      const blob = await this.renderPosterPngBlob();
+      const file = new File([blob], this.posterFileName(), { type: 'image/png' });
+      if (this.canShareFile(file)) {
+        const advisorProfile = this.advisor.profile();
+        try {
+          await navigator.share({ files: [file], title: 'Vehicle Quote', text: `${advisorProfile.name}, ${advisorProfile.role}` });
+        } catch {
+          /* cancelled or failed — nothing actionable here, same as the brochure share */
+        }
+        return;
+      }
+      await this.downloadPosterBlob(blob);
+      this.posterShareFallbackNotice.set(true);
+      setTimeout(() => this.posterShareFallbackNotice.set(false), 5000);
+    } finally {
+      this.sharingPoster.set(false);
     }
   }
 

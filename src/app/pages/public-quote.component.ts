@@ -739,6 +739,9 @@ export class PublicQuoteComponent implements OnInit {
         initials: this.advisorInitials(),
         photoUrl: advisor.photoUrl ?? null,
         phoneDisplay: advisor.phoneDisplay,
+        // The public quote bundle never carries the advisor's bio — see server/public.ts's own
+        // "never email/bio" rule for this unauthenticated, customer-facing endpoint.
+        bio: '',
       },
       otrPrice: this.basePrice(),
       ncdPct: this.ncd(),

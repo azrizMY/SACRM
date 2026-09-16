@@ -67,11 +67,6 @@ export const FINANCING_TYPE_OPTIONS: { value: FinancingType; label: string }[] =
   { value: 'Cash', label: 'Cash' },
 ];
 
-// ---------- Payment status (three-state label only — no amount tracking, by design) ----------
-
-export type PaymentStatus = 'Not Paid' | 'Partially Paid' | 'Fully Paid';
-export const PAYMENT_STATUS_OPTIONS: PaymentStatus[] = ['Not Paid', 'Partially Paid', 'Fully Paid'];
-
 // ---------- Free gifts (owned by Cost Breakdown; Customer Manager only reads a summary) ----------
 
 export type FreeGiftItem = { id: string; name: string; done: boolean };
@@ -117,7 +112,6 @@ export type CustomerRecord = {
   loanAmount?: number;
   loanTenureMonths?: number;
   loanInterestRate?: number;
-  paymentStatus?: PaymentStatus; // cash buyers
 
   // Trade-in — agreed during In Progress onward. Recorded only; never affects any calculation.
   tradeInStatus?: string;
@@ -257,13 +251,11 @@ export function formatStageDate(ts: number): string {
  *  reason, ...) is optional so the advisor can advance a record with whatever info they actually
  *  have on hand. */
 export function canSubmitBooked(input: BookedInput): boolean {
-  return !!input.icNo.trim() && input.downpayment != null && input.ncd != null;
+  return !!input.icNo.trim();
 }
 
-export function canSubmitInProgress(input: InProgressInput, colourResolved: boolean): boolean {
-  if (!colourResolved) return false;
-  if (input.financingType === 'Cash') return !!input.paymentStatus;
-  return !!input.bankPanel && input.loanAmount != null && input.loanTenureMonths != null && input.loanInterestRate != null;
+export function canSubmitInProgress(_input: InProgressInput, colourResolved: boolean): boolean {
+  return colourResolved;
 }
 
 export function canSubmitDelivered(input: DeliveredInput, _giftsComplete: boolean, _colourResolved: boolean): boolean {
@@ -298,7 +290,6 @@ export type BookedInput = {
 
 export type InProgressInput = {
   financingType: FinancingType;
-  paymentStatus?: PaymentStatus;
   bankPanel?: string;
   // Not user-edited directly — derived from loanAmount (see onInProgressLoanAmountChange), same
   // relationship as the Calculator/Add Lead form.

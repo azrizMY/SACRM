@@ -24,7 +24,7 @@ const EDIT_SECTIONS: Record<string, (keyof EditCustomerInput)[]> = {
   Payment: ['downpayment', 'ncd'],
   'Trade-in': ['tradeInStatus', 'tradeInVehicle', 'tradeInValue'],
   Documents: ['documentStatus'],
-  Financing: ['financingType', 'bankPanel', 'loanAmount', 'loanTenureMonths', 'loanInterestRate', 'paymentStatus'],
+  Financing: ['financingType', 'bankPanel', 'loanAmount', 'loanTenureMonths', 'loanInterestRate'],
   Delivery: ['insuranceName', 'plateNo', 'deliveryDate', 'chassisNo', 'engineNo', 'deliveryNotes'],
   Cancellation: ['cancelReason', 'cancelNotes'],
 };
@@ -92,9 +92,7 @@ export class CustomerService {
       const messages = [`Status changed: ${existing.status} → In Progress`];
       let quotation = existing.quotation;
       if (input.financingType === 'Loan') {
-        messages.push(
-          `Financing confirmed: Loan · ${input.bankPanel} · ${formatRM(input.loanAmount ?? 0)} · ${input.loanTenureMonths}mo · ${input.loanInterestRate}%`,
-        );
+        messages.push(`Financing confirmed: Loan · ${formatRM(input.loanAmount ?? 0)} · ${input.loanTenureMonths}mo`);
         messages.push('Documents: Approved (loan reaching In Progress means the bank has signed off)');
         // Keep the quotation snapshot (what "View Quotation" recomputes from) in sync with the
         // financing actually confirmed here — otherwise it keeps showing the pre-confirmation
@@ -110,7 +108,7 @@ export class CustomerService {
           };
         }
       } else {
-        messages.push(`Financing confirmed: Cash · Payment ${input.paymentStatus}`);
+        messages.push('Financing confirmed: Cash');
       }
       // Reaching In Progress on a loan deal means the bank has approved — the documents that got it
       // there are done, so Document Status advances with it instead of sitting at its Booked-stage value.
@@ -121,14 +119,7 @@ export class CustomerService {
   async markDelivered(id: string, input: DeliveredInput): Promise<void> {
     await this.mutate(id, (existing) => {
       const messages = [`Status changed: ${existing.status} → Delivered`, `Delivery completed · ${input.plateNo}`];
-      // The car doesn't go out the door on an unsettled balance — a cash deal's payment status
-      // advances to Fully Paid with it, rather than staying stale just because the SA forgot to
-      // tick it before this transition.
-      const paymentStatus = existing.financingType === 'Cash' ? 'Fully Paid' : existing.paymentStatus;
-      if (existing.financingType === 'Cash' && existing.paymentStatus !== 'Fully Paid') {
-        messages.push('Payment status: Fully Paid (car handed over)');
-      }
-      return { changes: { ...input, status: 'Delivered', paymentStatus }, messages };
+      return { changes: { ...input, status: 'Delivered' }, messages };
     });
   }
 

@@ -134,8 +134,8 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
                             (click)="sendBrochureFile(v)"
                             class="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
                           >
-                            <app-icon name="message-circle" [size]="13" />
-                            Send
+                            <app-icon name="share" [size]="13" />
+                            Share
                           </button>
                         </div>
                       } @else {
@@ -172,8 +172,8 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
                       View
                     </button>
                     <button type="button" (click)="sendBrochureFile(v)" class="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-                      <app-icon name="message-circle" [size]="13" />
-                      Send
+                      <app-icon name="share" [size]="13" />
+                      Share
                     </button>
                   </div>
                 } @else {

@@ -16,7 +16,7 @@
 import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
 import { loadPosterImage } from './poster-images';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
-import { fillPolygon, fillTrackedText } from './poster-draw-utils';
+import { fillPolygon, fillTrackedText, wrapPosterText } from './poster-draw-utils';
 import { formatMalaysianPhone } from '../data/dashboard-data';
 import type { PosterData } from './poster-data';
 import type { PosterTemplate } from './poster-templates';
@@ -333,6 +333,27 @@ async function drawAdvisorRow(ctx: CanvasRenderingContext2D, data: PosterData, t
   ctx.font = labelFont(16, 400);
   ctx.fillStyle = POSTER_COLORS.grayD;
   ctx.fillText(data.advisor.role, textX, centerY + 15);
+
+  // Bio — sits beside the name/role, in the wide open space this row otherwise leaves empty,
+  // rather than below them (there's no room to grow the row taller without pushing every band
+  // below it down). Starts clear of whichever of the two is wider, up to 2 lines, vertically
+  // centred on the row like name/role are.
+  if (data.advisor.bio) {
+    ctx.font = displayFont(26, 700);
+    const nameWidth = ctx.measureText(data.advisor.name).width;
+    ctx.font = labelFont(16, 400);
+    const roleWidth = ctx.measureText(data.advisor.role).width;
+    const bioX = textX + Math.max(nameWidth, roleWidth) + 32;
+    const bioMaxWidth = WIDTH - M - bioX;
+    if (bioMaxWidth > 80) {
+      ctx.font = labelFont(13, 400);
+      ctx.fillStyle = POSTER_COLORS.grayD;
+      const lines = wrapPosterText(ctx, data.advisor.bio, bioMaxWidth, 2);
+      const lineHeight = 18;
+      const startY = centerY - ((lines.length - 1) * lineHeight) / 2;
+      lines.forEach((line, i) => ctx.fillText(line, bioX, startY + i * lineHeight));
+    }
+  }
 
   return top + avatarSize;
 }

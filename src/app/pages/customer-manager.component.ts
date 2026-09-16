@@ -19,6 +19,7 @@ import {
   computeInsuranceBreakdown,
   computeQuotationTotals,
   additionalRebateForYear,
+  coloursForVehicle,
   modelVariantLabel,
   monthlyPayment,
   rebateForYear,
@@ -30,14 +31,13 @@ import { BrandMarkComponent } from '../shared/brand-mark.component';
 import { todayStr } from '../shared/date-utils';
 import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
 import {
-  BANK_OPTIONS,
   CANCEL_REASON_OPTIONS,
+  COLOUR_OPTIONS,
   CUSTOMER_STATUS_META,
   DOCUMENT_STATUS_META,
   DOCUMENT_STATUS_OPTIONS,
   FINANCING_TYPE_OPTIONS,
   INSURANCE_OPTIONS,
-  PAYMENT_STATUS_OPTIONS,
   SOURCE_TYPES,
   STAGE_DATE_HEADER,
   TO_BE_CONFIRMED_COLOUR,
@@ -361,7 +361,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                           <app-icon name="file-text" [size]="13" />
                         </button>
                         <button type="button" (click)="openBooked(r)" title="Mark as Booked" aria-label="Mark as Booked" class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                          <app-icon name="clipboard-check" [size]="13" />
+                          <app-icon name="chevron-right" [size]="13" />
                         </button>
                       </div>
                     </td>
@@ -432,7 +432,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                           <app-icon name="file-text" [size]="13" />
                         </button>
                         <button type="button" (click)="openInProgress(r)" title="Start Progress" aria-label="Start Progress" class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                          <app-icon name="refresh-cw" [size]="13" />
+                          <app-icon name="chevron-right" [size]="13" />
                         </button>
                       </div>
                     </td>
@@ -508,7 +508,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                           <app-icon name="file-text" [size]="13" />
                         </button>
                         <button type="button" (click)="openDelivered(r)" title="Deliver" aria-label="Deliver" class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                          <app-icon name="truck" [size]="13" />
+                          <app-icon name="chevron-right" [size]="13" />
                         </button>
                       </div>
                     </td>
@@ -706,17 +706,17 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   }
                   @case ('Lead') {
                     <button type="button" (click)="openBooked(r)" title="Mark as Booked" aria-label="Mark as Booked" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                      <app-icon name="clipboard-check" [size]="14" />
+                      <app-icon name="chevron-right" [size]="14" />
                     </button>
                   }
                   @case ('Booked') {
                     <button type="button" (click)="openInProgress(r)" title="Start Progress" aria-label="Start Progress" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                      <app-icon name="refresh-cw" [size]="14" />
+                      <app-icon name="chevron-right" [size]="14" />
                     </button>
                   }
                   @case ('In Progress') {
                     <button type="button" (click)="openDelivered(r)" title="Deliver" aria-label="Deliver" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                      <app-icon name="truck" [size]="14" />
+                      <app-icon name="chevron-right" [size]="14" />
                     </button>
                   }
                 }
@@ -787,29 +787,6 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
               <input type="text" [(ngModel)]="bookedForm.icNo" class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
             </label>
 
-            @if (rec.quotation && !isCash(rec)) {
-              <p class="rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">Down payment &amp; NCD below are prefilled from the quotation — adjust if needed.</p>
-            }
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              @if (isCash(rec)) {
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Selling Price
-                  <span class="flex h-10 items-center rounded-lg border border-input bg-input px-3 text-sm text-muted-foreground">{{ fmt(vehiclePrice(rec)) }}</span>
-                </label>
-              } @else {
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Down Payment (RM)
-                  <input type="number" min="0" step="500" [(ngModel)]="bookedForm.downpayment" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                </label>
-              }
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                NCD (%)
-                <select [(ngModel)]="bookedForm.ncd" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                  @for (n of ncdOptions; track n.value) { <option [ngValue]="n.value">{{ n.label }}</option> }
-                </select>
-              </label>
-            </div>
-
             <div class="flex items-center gap-2 pt-1">
               <div class="h-px flex-1 bg-border"></div>
               <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Optional</span>
@@ -845,78 +822,23 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
           </div>
           <div class="flex flex-col gap-3 overflow-y-auto p-4">
             <p class="text-[11px] text-muted-foreground">{{ vehicleTitle(rec.brand, rec.model) }} &middot; {{ rec.variant }}</p>
-            @if (rec.colour === TO_BE_CONFIRMED_COLOUR) {
-              <div class="flex items-start gap-2 rounded-lg border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2.5 text-[11px] text-foreground">
-                <app-icon name="alert-triangle" [size]="14" class="mt-0.5 shrink-0 text-[var(--warning)]" />
-                <span>
-                  Colour is still "To be Confirmed" —
-                  <button type="button" (click)="onAccordionEdit(rec)" class="font-medium text-primary hover:underline">update it to the actual colour</button>
-                  before this car can start progress.
-                </span>
-              </div>
-            }
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Financing Type
-              <select [(ngModel)]="inProgressForm.financingType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                @for (f of financingTypeOptions; track f.value) { <option [value]="f.value">{{ f.label }}</option> }
+              Colour
+              <select [(ngModel)]="inProgressColour" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
+                @if (inProgressColour === TO_BE_CONFIRMED_COLOUR) { <option [value]="TO_BE_CONFIRMED_COLOUR">Select colour…</option> }
+                @for (c of inProgressColourOptions(rec); track c) { <option [value]="c">{{ c }}</option> }
               </select>
             </label>
-
-            @if (inProgressForm.financingType === 'Cash') {
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Payment Status
-                <select [(ngModel)]="inProgressForm.paymentStatus" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                  @for (p of paymentStatusOptions; track p) { <option [value]="p">{{ p }}</option> }
-                </select>
-              </label>
-            } @else {
-              <p class="rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
-                The bank panel below is the customer's <strong class="text-foreground">final confirmed</strong> financing bank. Loan amount and tenure are prefilled from the quotation — confirm or adjust them; down payment is derived automatically from the loan amount. Interest rate is manual — the bank sets it.
-              </p>
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Bank Panel
-                  <select [(ngModel)]="inProgressForm.bankPanel" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                    <option value="" disabled>Select bank…</option>
-                    @for (b of bankOptions; track b) { <option [value]="b">{{ b }}</option> }
-                  </select>
-                </label>
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Loan Amount (RM)
-                  <input
-                    type="number"
-                    min="0"
-                    step="500"
-                    [ngModel]="inProgressForm.loanAmount"
-                    (ngModelChange)="onInProgressLoanAmountChange($event)"
-                    class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
-                  />
-                </label>
-              </div>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Rate Type
-                <select [(ngModel)]="inProgressForm.rateType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                  <option value="flat">Flat</option>
-                  <option value="effective">EIR</option>
-                </select>
-              </label>
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Tenure
-                  <select [(ngModel)]="inProgressForm.loanTenureMonths" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                    @for (t of tenureOptions; track t.months) { <option [ngValue]="t.months">{{ t.label }}</option> }
-                  </select>
-                </label>
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  {{ inProgressForm.rateType === 'effective' ? 'Effective Rate (%)' : 'Flat Rate (%)' }}
-                  <input type="number" min="0" step="0.1" placeholder="e.g. 3.5" [(ngModel)]="inProgressForm.loanInterestRate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                </label>
+            @if (inProgressColour === TO_BE_CONFIRMED_COLOUR) {
+              <div class="flex items-start gap-2 rounded-lg border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2.5 text-[11px] text-foreground">
+                <app-icon name="alert-triangle" [size]="14" class="mt-0.5 shrink-0 text-[var(--warning)]" />
+                <span>Colour must be confirmed before this car can start progress.</span>
               </div>
             }
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
             <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
-            <button type="button" (click)="submitInProgress(rec.id)" [disabled]="!canSubmitInProgress(inProgressForm, rec.colour !== TO_BE_CONFIRMED_COLOUR)" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">Save</button>
+            <button type="button" (click)="submitInProgress(rec.id)" [disabled]="!canSubmitInProgress(inProgressForm, inProgressColour !== TO_BE_CONFIRMED_COLOUR)" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">Save</button>
           </div>
         </div>
       </div>
@@ -1062,7 +984,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                     <span class="text-2xl font-bold tabular tracking-tight">{{ fmt(qv.allInPrice) }}</span>
                   </div>
                 </div>
-                @if (!isCash(qrec)) {
+                @if (qv.loanAmount > 0) {
                   <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div class="flex flex-col gap-1 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
                       <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Downpayment</span>
@@ -1088,7 +1010,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                     <span class="font-medium tabular">+ {{ fmt(qv.insuranceAmount) }}</span>
                   </div>
                 </div>
-                @if (!isCash(qrec)) {
+                @if (qv.loanAmount > 0) {
                   <div class="overflow-hidden rounded-lg border border-border">
                     <div class="border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
                       {{ qrec.quotation.interestRate }}% <span class="text-muted-foreground/70">&middot; {{ qv.rateType === 'effective' ? 'EIR' : 'Flat' }}</span>
@@ -1120,6 +1042,12 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                 <p class="rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">No quotation yet for this customer — fill in the details below to create one.</p>
               }
               <p class="text-sm font-medium">{{ vehicleTitle(qrec.brand, qrec.model) }} &middot; {{ qrec.variant }}</p>
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Financing Type
+                <select [ngModel]="quotationFinancingType" (ngModelChange)="onQuotationFinancingTypeChange($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
+                  @for (f of financingTypeOptions; track f.value) { <option [value]="f.value">{{ f.label }}</option> }
+                </select>
+              </label>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Rebate (RM)
@@ -1146,71 +1074,82 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                   class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </label>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Rate Type
-                <select [(ngModel)]="quotationForm.rateType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                  <option value="flat">Flat</option>
-                  <option value="effective">EIR</option>
-                </select>
-              </label>
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              @if (quotationFinancingType !== 'Cash') {
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  {{ quotationForm.rateType === 'effective' ? 'Effective Rate (%)' : 'Flat Rate (%)' }}
-                  <input type="number" min="0" step="0.1" [(ngModel)]="quotationForm.interestRate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                </label>
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Tenure
-                  <select [(ngModel)]="quotationForm.tenureMonths" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                    @for (t of tenureOptions; track t.months) { <option [ngValue]="t.months">{{ t.label }}</option> }
+                  Rate Type
+                  <select [(ngModel)]="quotationForm.rateType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
+                    <option value="flat">Flat</option>
+                    <option value="effective">EIR</option>
                   </select>
                 </label>
-              </div>
-              <div class="flex flex-col gap-2">
-                <span class="text-xs font-medium text-muted-foreground">Downpayment</span>
-                <div class="flex gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    [attr.max]="quotationForm.downpaymentType === 'percent' ? 100 : null"
-                    [step]="quotationForm.downpaymentType === 'percent' ? 1 : 500"
-                    [(ngModel)]="quotationForm.downpaymentValue"
-                    class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm font-medium tabular outline-none focus:border-ring"
-                  />
-                  <div class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
-                    <button
-                      type="button"
-                      (click)="quotationForm.downpaymentType = 'percent'"
-                      class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
-                      [ngClass]="quotationForm.downpaymentType === 'percent' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
-                    >
-                      %
-                    </button>
-                    <button
-                      type="button"
-                      (click)="quotationForm.downpaymentType = 'amount'"
-                      class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
-                      [ngClass]="quotationForm.downpaymentType === 'amount' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
-                    >
-                      Amt
-                    </button>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                    {{ quotationForm.rateType === 'effective' ? 'Effective Rate (%)' : 'Flat Rate (%)' }}
+                    <input type="number" min="0" step="0.1" [(ngModel)]="quotationForm.interestRate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+                  </label>
+                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                    Tenure
+                    <select [(ngModel)]="quotationForm.tenureMonths" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
+                      @for (t of tenureOptions; track t.months) { <option [ngValue]="t.months">{{ t.label }}</option> }
+                    </select>
+                  </label>
+                </div>
+                <div class="flex flex-col gap-2">
+                  <span class="text-xs font-medium text-muted-foreground">Downpayment</span>
+                  <div class="flex gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      [attr.max]="quotationForm.downpaymentType === 'percent' ? 100 : null"
+                      [step]="quotationForm.downpaymentType === 'percent' ? 1 : 500"
+                      [(ngModel)]="quotationForm.downpaymentValue"
+                      class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm font-medium tabular outline-none focus:border-ring"
+                    />
+                    <div class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
+                      <button
+                        type="button"
+                        (click)="quotationForm.downpaymentType = 'percent'"
+                        class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
+                        [ngClass]="quotationForm.downpaymentType === 'percent' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
+                      >
+                        %
+                      </button>
+                      <button
+                        type="button"
+                        (click)="quotationForm.downpaymentType = 'amount'"
+                        class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
+                        [ngClass]="quotationForm.downpaymentType === 'amount' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
+                      >
+                        Amt
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              }
               @if (quotationPreview(); as qp) {
-                <div class="grid grid-cols-3 gap-3 rounded-lg bg-muted/40 px-3 py-2.5 text-[11px] text-muted-foreground">
-                  <span class="flex flex-col">
-                    Selling Price
-                    <strong class="text-sm text-foreground tabular">{{ fmt(qp.allInPrice) }}</strong>
-                  </span>
-                  <span class="flex flex-col">
-                    Downpayment
-                    <strong class="text-sm text-foreground tabular">{{ fmt(qp.downpaymentCash) }}</strong>
-                  </span>
-                  <span class="flex flex-col">
-                    Loan Amount
-                    <strong class="text-sm text-foreground tabular">{{ fmt(qp.loanAmount) }}</strong>
-                  </span>
-                </div>
+                @if (quotationFinancingType === 'Cash') {
+                  <div class="rounded-lg bg-muted/40 px-3 py-2.5 text-[11px] text-muted-foreground">
+                    <span class="flex flex-col">
+                      Selling Price
+                      <strong class="text-sm text-foreground tabular">{{ fmt(qp.allInPrice) }}</strong>
+                    </span>
+                  </div>
+                } @else {
+                  <div class="grid grid-cols-3 gap-3 rounded-lg bg-muted/40 px-3 py-2.5 text-[11px] text-muted-foreground">
+                    <span class="flex flex-col">
+                      Selling Price
+                      <strong class="text-sm text-foreground tabular">{{ fmt(qp.allInPrice) }}</strong>
+                    </span>
+                    <span class="flex flex-col">
+                      Downpayment
+                      <strong class="text-sm text-foreground tabular">{{ fmt(qp.downpaymentCash) }}</strong>
+                    </span>
+                    <span class="flex flex-col">
+                      Loan Amount
+                      <strong class="text-sm text-foreground tabular">{{ fmt(qp.loanAmount) }}</strong>
+                    </span>
+                  </div>
+                }
               }
             </div>
             <div class="flex items-center justify-end gap-2 border-t border-border p-4">
@@ -1303,7 +1242,6 @@ export class CustomerManagerComponent {
   documentStatusOptions = DOCUMENT_STATUS_OPTIONS;
   TO_BE_CONFIRMED_COLOUR = TO_BE_CONFIRMED_COLOUR;
 
-  bankOptions = BANK_OPTIONS;
   insuranceOptions = INSURANCE_OPTIONS;
   cancelReasons = CANCEL_REASON_OPTIONS;
   ncdOptions = NCD_OPTIONS;
@@ -1311,7 +1249,6 @@ export class CustomerManagerComponent {
   brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
   pageSizeOptions = PAGE_SIZE_OPTIONS;
   financingTypeOptions = FINANCING_TYPE_OPTIONS;
-  paymentStatusOptions = PAYMENT_STATUS_OPTIONS;
 
   allColspan = ALL_COLSPAN;
   leadColspan = LEAD_COLSPAN;
@@ -1634,13 +1571,17 @@ export class CustomerManagerComponent {
     this.modal.set('booked');
   }
 
+  /** Lives on the record itself (CustomerRecord.colour), not InProgressInput — same reasoning as
+   *  quotationFinancingType: one field edited here and saved back via editCustomer, rather than a
+   *  second copy of it duplicated onto the stage form. */
+  inProgressColour = TO_BE_CONFIRMED_COLOUR;
+
   openInProgress(record: CustomerRecord) {
     this.activeRecordId.set(record.id);
     const quoted = record.quotation ? this.computeQuotationNumbers(record, record.quotation) : null;
     const financingType: FinancingType = record.financingType ?? 'Loan';
     this.inProgressForm = {
       financingType,
-      paymentStatus: 'Not Paid',
       bankPanel: record.bankPanel,
       downpayment: record.downpayment ?? (quoted ? quoted.downpaymentCash : undefined),
       loanAmount: record.loanAmount ?? (quoted ? quoted.loanAmount : undefined),
@@ -1648,18 +1589,16 @@ export class CustomerManagerComponent {
       rateType: record.quotation?.rateType ?? 'flat',
       loanInterestRate: undefined,
     };
+    this.inProgressColour = record.colour;
     this.modal.set('inprogress');
   }
 
-  // Mirrors the Add Lead form (see onLeadLoanAmountChange): down payment isn't directly editable
-  // here anymore, so editing Loan Amount back-solves the down payment needed to reach it, keeping
-  // the two numbers — and whatever gets synced into the quotation snapshot on save — consistent.
-  onInProgressLoanAmountChange(value: number) {
-    const loanAmount = Math.max(0, +value || 0);
-    this.inProgressForm.loanAmount = loanAmount;
-    const rec = this.activeRecord();
-    const allInPrice = rec?.quotation ? this.computeQuotationNumbers(rec, rec.quotation).allInPrice : 0;
-    this.inProgressForm.downpayment = Math.round(Math.max(0, allInPrice - loanAmount));
+  /** This exact variant's factory colours when the catalog has them (colour here is always
+   *  required, unlike the general Edit modal's colourOptionsForForm, so the placeholder "To be
+   *  Confirmed" option never belongs in this list); not every model has one hardcoded yet, so
+   *  those fall back to the generic list. */
+  inProgressColourOptions(rec: CustomerRecord): string[] {
+    return coloursForVehicle(rec.brand, rec.model, rec.variant) ?? COLOUR_OPTIONS.filter((c) => c !== TO_BE_CONFIRMED_COLOUR);
   }
 
   openDelivered(record: CustomerRecord) {
@@ -1716,8 +1655,8 @@ export class CustomerManagerComponent {
   }
 
   async submitInProgress(id: string) {
-    const rec = this.activeRecord();
-    if (!rec || !canSubmitInProgress(this.inProgressForm, rec.colour !== TO_BE_CONFIRMED_COLOUR)) return;
+    if (!canSubmitInProgress(this.inProgressForm, this.inProgressColour !== TO_BE_CONFIRMED_COLOUR)) return;
+    await this.customers.editCustomer(id, { colour: this.inProgressColour });
     await this.customers.markInProgress(id, this.inProgressForm);
     this.closeModal();
     this.activeTab.set('In Progress');
@@ -1743,6 +1682,11 @@ export class CustomerManagerComponent {
   quotationModalId = signal<string | null>(null);
   quotationEditing = signal(false);
   quotationForm: QuotationDetails = this.blankQuotationForm();
+  /** Lives on the record itself (CustomerRecord.financingType), not inside QuotationDetails — kept
+   *  as its own form field here rather than folded into quotationForm so there's still one single
+   *  source of truth for it, saved back via editCustomer alongside the quotation (see
+   *  saveQuotation), instead of a second copy that could drift from the record's own value. */
+  quotationFinancingType: FinancingType = 'Loan';
 
   activeQuotationRecord = computed(() => this.customers.records().find((r) => r.id === this.quotationModalId()) ?? null);
 
@@ -1772,6 +1716,7 @@ export class CustomerManagerComponent {
   openQuotation(record: CustomerRecord) {
     this.quotationModalId.set(record.id);
     this.quotationForm = record.quotation ? { ...record.quotation } : this.blankQuotationForm(this.findRecordVehicle(record), record.yearMade);
+    this.quotationFinancingType = record.financingType ?? 'Loan';
     this.quotationEditing.set(!record.quotation);
   }
 
@@ -1783,6 +1728,7 @@ export class CustomerManagerComponent {
   startEditQuotation() {
     const rec = this.activeQuotationRecord();
     if (rec?.quotation) this.quotationForm = { ...rec.quotation };
+    this.quotationFinancingType = rec?.financingType ?? 'Loan';
     this.quotationEditing.set(true);
   }
 
@@ -1792,14 +1738,27 @@ export class CustomerManagerComponent {
     else this.closeQuotation();
   }
 
+  /** Cash means the full selling price is due with no financing at all — switching to it pins
+   *  the downpayment to 100% (so the loan amount always computes to 0, same signal the rest of
+   *  the app uses to recognise a cash deal) and hides the now-meaningless rate/tenure fields.
+   *  Switching back to Loan restores the SA's default downpayment % instead of leaving it at 100,
+   *  which would otherwise still compute as a cash deal despite Loan being selected. */
+  onQuotationFinancingTypeChange(type: FinancingType) {
+    this.quotationFinancingType = type;
+    if (type === 'Cash') {
+      this.quotationForm.downpaymentType = 'percent';
+      this.quotationForm.downpaymentValue = 100;
+    } else if (this.quotationForm.downpaymentType === 'percent' && this.quotationForm.downpaymentValue === 100) {
+      this.quotationForm.downpaymentValue = this.settings.settings().salesDefaults.downpaymentPct;
+    }
+  }
+
   async saveQuotation(id: string) {
     await this.customers.updateQuotation(id, this.quotationForm);
+    await this.customers.editCustomer(id, { financingType: this.quotationFinancingType });
     this.quotationEditing.set(false);
   }
 
-  vehiclePrice(record: CustomerRecord): number {
-    return VEHICLES.find((v) => v.brand === record.brand && v.model === record.model && v.variant === record.variant)?.price ?? 0;
-  }
 
   private computeQuotationNumbers(spec: { brand: string; model: string; variant: string; yearMade: number }, q: QuotationDetails) {
     const vehicle = VEHICLES.find((v) => v.brand === spec.brand && v.model === spec.model && v.variant === spec.variant);

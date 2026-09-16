@@ -1,4 +1,4 @@
-import type { ActivityEntry, CustomerRecord, CustomerStatus, DocumentStatus, PaymentStatus } from './customer-data';
+import type { ActivityEntry, CustomerRecord, CustomerStatus, DocumentStatus } from './customer-data';
 import { TO_BE_CONFIRMED_COLOUR } from './customer-data';
 import { TENURE_OPTIONS, VEHICLES } from './calculator-data';
 import { toLocalDateStr } from '../shared/date-utils';
@@ -62,7 +62,6 @@ type Spec = {
   bankPanel?: string;
   loanTenureMonths?: number;
   loanInterestRate?: number;
-  paymentStatus?: PaymentStatus;
 
   insuranceName?: string;
   plateNo?: string;
@@ -340,7 +339,6 @@ export function buildSeedRecords(): CustomerRecord[] {
       loanAmount: s.bankPanel ? (loanAmount ?? Math.max(0, price - (s.downpayment ?? 0))) : undefined,
       loanTenureMonths: s.bankPanel ? (s.loanTenureMonths ?? pick(TENURE_OPTIONS, i).months) : s.loanTenureMonths,
       loanInterestRate: s.bankPanel ? (s.loanInterestRate ?? pick(INTEREST_RATE_CYCLE, i)) : s.loanInterestRate,
-      paymentStatus: s.financingType === 'Cash' ? (s.paymentStatus ?? 'Partially Paid') : undefined,
 
       tradeInStatus: s.tradeInStatus,
       tradeInVehicle: s.tradeInVehicle,

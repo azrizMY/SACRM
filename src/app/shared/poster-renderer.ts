@@ -1,6 +1,6 @@
 import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
 import { MARGIN, POSTER_WIDTH, type PosterLayout } from './poster-layout';
-import { fillPolygon, fillTrackedText, fillNotchedRect, notchedRectPath, formatPosterCurrency, measureTrackedText } from './poster-draw-utils';
+import { fillPolygon, fillTrackedText, fillNotchedRect, notchedRectPath, formatPosterCurrency, measureTrackedText, wrapPosterText } from './poster-draw-utils';
 import { loadPosterImage } from './poster-images';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
 import { swatchHexFor } from './poster-colour-swatches';
@@ -332,9 +332,13 @@ export async function drawPricePanel(ctx: CanvasRenderingContext2D, data: Poster
   ctx.fillStyle = POSTER_COLORS.partition;
   ctx.fillRect(495, 522, 2, 634 + 74 - 522);
 
-  // Consultant block — avatar tile, name, role, WhatsApp label, phone.
+  // Consultant block — avatar tile, name, role, WhatsApp label, phone. Avatar/name/role sit
+  // higher than the WhatsApp/phone block below them (raised from the classic 550 baseline) —
+  // both to sit closer to the partition/accent-bar line above instead of reading low against it,
+  // and to open up real breathing room for the bio between them and the WhatsApp label, without
+  // touching the panel's own total height (WhatsApp/phone stay put at their original 660/692).
   const avatarX = 528;
-  const avatarY = 550;
+  const avatarY = 526;
   const avatarSize = 64;
   if (data.advisor.photoUrl) {
     try {
@@ -356,11 +360,20 @@ export async function drawPricePanel(ctx: CanvasRenderingContext2D, data: Poster
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(data.advisor.name, 610, 576);
+  ctx.fillText(data.advisor.name, 610, 552);
 
   ctx.font = labelFont(12, 400);
   ctx.fillStyle = POSTER_COLORS.panelGray;
-  ctx.fillText(data.advisor.role, 610, 599);
+  ctx.fillText(data.advisor.role, 610, 575);
+
+  // Bio — sits in the now-roomier gap below the avatar (ends at 590) and above the WhatsApp
+  // label (starts around 651), up to 2 lines, only drawn when there's actually a bio to show.
+  if (data.advisor.bio) {
+    ctx.font = labelFont(10.5, 400);
+    ctx.fillStyle = POSTER_COLORS.panelGray;
+    const bioLines = wrapPosterText(ctx, data.advisor.bio, POSTER_WIDTH - MARGIN - avatarX, 2);
+    bioLines.forEach((line, i) => ctx.fillText(line, avatarX, 611 + i * 14));
+  }
 
   ctx.font = labelFont(9, 700);
   ctx.fillStyle = POSTER_COLORS.panelGrayD;

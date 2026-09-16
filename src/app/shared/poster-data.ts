@@ -18,6 +18,9 @@ export type PosterAdvisor = {
   initials: string;
   photoUrl: string | null;
   phoneDisplay: string;
+  /** Short "who is this person" blurb from the advisor's own Profile page — empty string draws
+   *  nothing (e.g. the public quote page never gets one, by design: see server/public.ts). */
+  bio: string;
 };
 
 export type PosterData = {

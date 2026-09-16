@@ -11,7 +11,6 @@ import {
   DOCUMENT_STATUS_OPTIONS,
   FINANCING_TYPE_OPTIONS,
   INSURANCE_OPTIONS,
-  PAYMENT_STATUS_OPTIONS,
   SOURCE_TYPES,
   TO_BE_CONFIRMED_COLOUR,
   TRADE_IN_OPTIONS,
@@ -135,14 +134,7 @@ import {
             <fieldset class="flex flex-col gap-3">
               <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Payment</legend>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                @if (isCashInForm) {
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Payment Status
-                    <select [(ngModel)]="form.paymentStatus" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @for (p of paymentStatusOptions; track p) { <option [value]="p">{{ p }}</option> }
-                    </select>
-                  </label>
-                } @else {
+                @if (!isCashInForm) {
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                     Down Payment (RM)
                     <input type="number" min="0" step="500" [(ngModel)]="form.downpayment" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
@@ -325,7 +317,6 @@ export class CustomerEditModalComponent implements OnInit, AfterViewInit {
   modelYears = MODEL_YEARS;
   brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
   financingTypeOptions = FINANCING_TYPE_OPTIONS;
-  paymentStatusOptions = PAYMENT_STATUS_OPTIONS;
   cancelReasons = CANCEL_REASON_OPTIONS;
 
   form: EditCustomerInput = {};
@@ -429,7 +420,6 @@ export class CustomerEditModalComponent implements OnInit, AfterViewInit {
       loanAmount: r.loanAmount,
       loanTenureMonths: r.loanTenureMonths,
       loanInterestRate: r.loanInterestRate,
-      paymentStatus: r.paymentStatus,
       insuranceName: r.insuranceName,
       plateNo: r.plateNo,
       deliveryDate: r.deliveryDate,

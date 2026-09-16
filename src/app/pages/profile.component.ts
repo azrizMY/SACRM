@@ -24,10 +24,10 @@ import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
           <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div class="relative flex size-20 shrink-0">
               @if ((editing() ? form.photoUrl : advisor.profile().photoUrl); as photo) {
-                <img [src]="photo" alt="" class="size-20 shrink-0 rounded-2xl border border-border object-cover" />
+                <img [src]="photo" alt="" class="size-20 shrink-0 rounded-full border border-border object-cover" />
               } @else {
                 <div
-                  class="flex size-20 shrink-0 items-center justify-center rounded-2xl border border-border text-2xl font-bold text-white/90"
+                  class="flex size-20 shrink-0 items-center justify-center rounded-full border border-border text-2xl font-bold text-white/90"
                   [style.background]="avatarGradient"
                 >
                   {{ advisor.initials() }}
