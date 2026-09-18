@@ -146,6 +146,12 @@ export class LoginComponent {
       this.error.set(result.error);
       return;
     }
+    // A brand-new account here (Google sign-in on the login page still creates one if the email
+    // has never signed up before) has no Primary Brand yet — collect it before anything else.
+    if (result.isNewUser) {
+      this.router.navigateByUrl('/choose-brand');
+      return;
+    }
     const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/dashboard';
     this.router.navigateByUrl(returnUrl);
   }

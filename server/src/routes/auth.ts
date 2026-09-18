@@ -15,11 +15,12 @@ import { verifyGoogleIdToken } from '../google';
 import { json, readJsonBody } from '../http';
 import type { Env } from '../index';
 
-type SignupBody = { name?: string; email?: string; password?: string; phone?: string };
+type SignupBody = { name?: string; email?: string; password?: string; phone?: string; primaryBrand?: string };
 type LoginBody = { email?: string; password?: string };
 type GoogleBody = { idToken?: string };
 type ForgotPasswordBody = { email?: string };
 type ResetPasswordBody = { token?: string; password?: string };
+type ChangePasswordBody = { currentPassword?: string; newPassword?: string };
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MS = 30 * 60 * 1000;
@@ -44,7 +45,8 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
     const email = body?.email?.trim().toLowerCase();
     const password = body?.password;
     const phone = body?.phone?.trim();
-    if (!name || !email || !password || !phone) return json({ error: 'Name, email, phone number, and password are required.' }, 400);
+    const primaryBrand = body?.primaryBrand?.trim();
+    if (!name || !email || !password || !phone || !primaryBrand) return json({ error: 'Name, email, phone number, primary brand, and password are required.' }, 400);
     if (password.length < 8) return json({ error: 'Password must be at least 8 characters.' }, 400);
     if (phone.replace(/\D/g, '').length < 7) return json({ error: 'Enter a valid phone number.' }, 400);
 
@@ -57,14 +59,16 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
     // Seeds the new account's advisor profile with its own name/email/phone so the sidebar/quotes
     // show this SA from the very first login, not the client's hardcoded DEFAULT_ADVISOR placeholder
     // — the client already merges onto its own defaults for role/bio, so a partial profile is
-    // exactly what's expected here, not the whole shape.
+    // exactly what's expected here, not the whole shape. The settings row seeds Primary Brand the
+    // same way — chosen at signup, not left on the client's shipped default.
     await env.DB.batch([
       env.DB.prepare('INSERT INTO users (id, email, password_hash, name, created_at, public_token, phone) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, email, passwordHash, name, Date.now(), publicToken, phone),
       env.DB.prepare('INSERT INTO advisor_profiles (user_id, data) VALUES (?, ?)').bind(id, JSON.stringify({ name, email, phoneDisplay: phone, phoneWa: toMalaysianWhatsAppNumber(phone) })),
+      env.DB.prepare('INSERT INTO settings (user_id, data) VALUES (?, ?)').bind(id, JSON.stringify({ dashboardTarget: { brand: primaryBrand } })),
     ]);
 
     const { token, expiresAt } = await createSession(env.DB, id);
-    return json({ id, email, name, publicToken }, 201, { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) });
+    return json({ id, email, name, publicToken, hasGoogleLogin: false }, 201, { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) });
   }
 
   if (url.pathname === '/api/auth/login' && request.method === 'POST') {
@@ -73,9 +77,9 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
     const password = body?.password;
     if (!email || !password) return json({ error: 'Email and password are required.' }, 400);
 
-    const user = await env.DB.prepare('SELECT id, email, name, password_hash, public_token, failed_attempts, locked_until FROM users WHERE email = ?')
+    const user = await env.DB.prepare('SELECT id, email, name, password_hash, public_token, google_id, failed_attempts, locked_until FROM users WHERE email = ?')
       .bind(email)
-      .first<{ id: string; email: string; name: string; password_hash: string; public_token: string; failed_attempts: number; locked_until: number | null }>();
+      .first<{ id: string; email: string; name: string; password_hash: string; public_token: string; google_id: string | null; failed_attempts: number; locked_until: number | null }>();
 
     if (user?.locked_until && user.locked_until > Date.now()) {
       const minutesLeft = Math.ceil((user.locked_until - Date.now()) / 60_000);
@@ -99,7 +103,11 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
     }
 
     const { token, expiresAt } = await createSession(env.DB, user.id);
-    return json({ id: user.id, email: user.email, name: user.name, publicToken: user.public_token }, 200, { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) });
+    return json(
+      { id: user.id, email: user.email, name: user.name, publicToken: user.public_token, hasGoogleLogin: user.google_id != null },
+      200,
+      { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) },
+    );
   }
 
   if (url.pathname === '/api/auth/google' && request.method === 'POST') {
@@ -117,6 +125,11 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
     let user = await env.DB.prepare('SELECT id, email, name, public_token FROM users WHERE google_id = ?')
       .bind(identity.googleId)
       .first<{ id: string; email: string; name: string; public_token: string }>();
+
+    // Google sign-in skips the signup form entirely, so there's no Primary Brand to collect up
+    // front — a brand-new account here comes back flagged `isNewUser` instead, and the client
+    // sends it through a one-time "choose your brand" step before it can reach the dashboard.
+    let isNewUser = false;
 
     if (!user) {
       const byEmail = await env.DB.prepare('SELECT id, email, name, public_token FROM users WHERE email = ?')
@@ -146,11 +159,18 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
           env.DB.prepare('INSERT INTO advisor_profiles (user_id, data) VALUES (?, ?)').bind(id, JSON.stringify({ name: identity.name, email: identity.email })),
         ]);
         user = { id, email: identity.email, name: identity.name, public_token: publicToken };
+        isNewUser = true;
       }
     }
 
     const { token, expiresAt } = await createSession(env.DB, user.id);
-    return json({ id: user.id, email: user.email, name: user.name, publicToken: user.public_token }, 200, { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) });
+    // Every path through this branch (found by google_id, linked by email, or freshly created)
+    // ends with google_id set on the row, so this is always true here.
+    return json(
+      { id: user.id, email: user.email, name: user.name, publicToken: user.public_token, isNewUser, hasGoogleLogin: true },
+      200,
+      { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) },
+    );
   }
 
   if (url.pathname === '/api/auth/forgot-password' && request.method === 'POST') {
@@ -198,6 +218,33 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
     await deleteAllSessionsForUser(env.DB, reset.user_id);
 
     return json({ ok: true });
+  }
+
+  if (url.pathname === '/api/auth/change-password' && request.method === 'POST') {
+    const user = await getUserFromSession(env.DB, request);
+    if (!user) return json({ error: 'Not signed in.' }, 401);
+
+    const body = await readJsonBody<ChangePasswordBody>(request);
+    const currentPassword = body?.currentPassword;
+    const newPassword = body?.newPassword;
+    if (!currentPassword || !newPassword) return json({ error: 'Current and new password are required.' }, 400);
+    if (newPassword.length < 8) return json({ error: 'New password must be at least 8 characters.' }, 400);
+
+    const row = await env.DB.prepare('SELECT password_hash FROM users WHERE id = ?').bind(user.id).first<{ password_hash: string }>();
+    // A Google-only account's password_hash is a random value nobody knows (see /api/auth/google
+    // above) — this correctly rejects any "current password" attempt for one, same as if it were
+    // simply wrong; the client points those users at Forgot Password instead.
+    if (!row || !(await verifyPassword(currentPassword, row.password_hash))) {
+      return json({ error: 'Current password is incorrect.' }, 401);
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(passwordHash, user.id).run();
+    // Every other signed-in device gets logged out, same as a reset-password completion — this
+    // request's own session is replaced right after so the current tab keeps working.
+    await deleteAllSessionsForUser(env.DB, user.id);
+    const { token, expiresAt } = await createSession(env.DB, user.id);
+    return json({ ok: true }, 200, { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) });
   }
 
   if (url.pathname === '/api/auth/logout' && request.method === 'POST') {

@@ -1,15 +1,22 @@
 import { apiRequest } from './api-client';
-import type { VehicleOverride } from '../data/calculator-data';
+import type { DownpaymentType, VehicleOverride } from '../data/calculator-data';
 import type { VehicleInsuranceOverrides } from '../data/settings-data';
 
 export type PublicAdvisor = { name: string; role: string; phoneDisplay: string; phoneWa: string; photoUrl?: string };
 
 export type PublicQuoteBundle = {
   advisor: PublicAdvisor;
-  salesDefaults: { defaultRateType: 'flat' | 'effective'; interestRate: number; downpaymentPct: number; ncd: number; basicPremiumRatePct: number };
+  salesDefaults: {
+    defaultRateType: 'flat' | 'effective';
+    interestRate: number;
+    downpaymentPct: number;
+    ncd: number;
+    basicPremiumRatePct: number;
+    defaultDownpaymentType: DownpaymentType;
+  };
   vehicleInsurance: VehicleInsuranceOverrides;
   vehicleOverrides: Record<string, VehicleOverride>;
-  /** The SA's own Default Brand (Account Settings → Dashboard) — the page opens on this brand's
+  /** The SA's own Primary Brand (Profile & Settings → Quote Preferences) — the page opens on this brand's
    *  first car, same as the Calculator does for the signed-in SA. */
   defaultBrand?: string;
 };

@@ -419,15 +419,25 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
             <div class="flex flex-col gap-2">
               <span class="text-xs font-medium text-muted-foreground">Downpayment</span>
               <div class="flex gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  [attr.max]="downpaymentType() === 'percent' ? 100 : null"
-                  [step]="downpaymentType() === 'percent' ? 1 : 500"
-                  [ngModel]="downpaymentValue()"
-                  (ngModelChange)="downpaymentValue.set(+$event || 0)"
-                  class="h-10 w-full rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular outline-none transition-colors focus:border-ring"
-                />
+                @if (downpaymentType() === 'sumInsured') {
+                  <div class="flex h-10 w-full items-center rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular text-foreground">
+                    @if (selectedVehicle().sumInsured != null) {
+                      {{ fmt(downpaymentCash()) }}
+                    } @else {
+                      <span class="text-muted-foreground">Not set for this car — add it in Price Settings</span>
+                    }
+                  </div>
+                } @else {
+                  <input
+                    type="number"
+                    min="0"
+                    [attr.max]="downpaymentType() === 'percent' ? 100 : null"
+                    [step]="downpaymentType() === 'percent' ? 1 : 500"
+                    [ngModel]="downpaymentValue()"
+                    (ngModelChange)="downpaymentValue.set(+$event || 0)"
+                    class="h-10 w-full rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular outline-none transition-colors focus:border-ring"
+                  />
+                }
                 <div class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
                   <button
                     type="button"
@@ -445,13 +455,24 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                   >
                     Amt
                   </button>
+                  <button
+                    type="button"
+                    title="Sum Insured"
+                    (click)="downpaymentType.set('sumInsured')"
+                    class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
+                    [ngClass]="downpaymentType() === 'sumInsured' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
+                  >
+                    SI
+                  </button>
                 </div>
               </div>
               <span class="text-[11px] text-muted-foreground">
                 @if (downpaymentType() === 'percent') {
                   Rebate is applied to reduce the cash downpayment needed.
-                } @else {
+                } @else if (downpaymentType() === 'amount') {
                   Rebate reduces the car price separately, not counted as cash deposit.
+                } @else {
+                  Loan is pinned to this car's Recommended Sum Insured; the rest of the amount due (after rebate) becomes the downpayment.
                 }
               </span>
             </div>
@@ -696,7 +717,7 @@ export class CalculatorComponent implements AfterViewInit {
    *  from the other: each uses its own instalment formula (see monthlyPayment()). Starts on the
    *  account's Default Rate Type (Account Settings → Quote Defaults). */
   rateType = signal<RateType>(this.settingsService.settings().salesDefaults.defaultRateType);
-  downpaymentType = signal<DownpaymentType>('percent');
+  downpaymentType = signal<DownpaymentType>(this.settingsService.settings().salesDefaults.defaultDownpaymentType);
   downpaymentValue = signal(this.settingsService.settings().salesDefaults.downpaymentPct);
   highlightedTenure = signal(Math.max(...this.settingsService.settings().salesDefaults.defaultTenureYears) * 12);
   /** Which 3 tenure years (of 1-9) populate the on-screen repayment table / quote poster. Picking
@@ -792,7 +813,7 @@ export class CalculatorComponent implements AfterViewInit {
     return Object.keys(vehicle.colourSurcharges ?? {}).length > 0 ? (vehicle.colours ?? []) : null;
   });
 
-  /** The account's Default Brand (Account Settings → Dashboard) starts every fresh quote — falls
+  /** The account's Primary Brand (Profile & Settings → Quote Preferences) starts every fresh quote — falls
    *  back to the catalog's first car if that brand has no vehicles. */
   private preferredVehicle(): Vehicle {
     const brand = this.settingsService.settings().dashboardTarget.brand;
@@ -922,6 +943,7 @@ export class CalculatorComponent implements AfterViewInit {
       loanBasisInsuranceAmount: this.loanBasisInsurance(),
       downpaymentType: this.downpaymentType(),
       downpaymentValue: this.downpaymentValue(),
+      sumInsured: this.selectedVehicle().sumInsured,
     }),
   );
 
@@ -1333,7 +1355,7 @@ export class CalculatorComponent implements AfterViewInit {
     this.ncd.set(defaults.ncd);
     this.interestRateManual.set(null);
     this.rateType.set(defaults.defaultRateType);
-    this.downpaymentType.set('percent');
+    this.downpaymentType.set(defaults.defaultDownpaymentType);
     this.downpaymentValue.set(defaults.downpaymentPct);
     this.highlightedTenure.set(Math.max(...defaults.defaultTenureYears) * 12);
     this.posterTenureYears.set([...defaults.defaultTenureYears]);

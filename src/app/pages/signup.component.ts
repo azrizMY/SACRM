@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { IconComponent } from '../shared/icon.component';
 import { AuthService } from '../shared/auth.service';
 import { GoogleSignInButtonComponent } from '../shared/google-signin-button.component';
+import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
 
 @Component({
   selector: 'app-signup',
@@ -58,6 +59,17 @@ import { GoogleSignInButtonComponent } from '../shared/google-signin-button.comp
               <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 focus-within:border-ring">
                 <app-icon name="phone" [size]="15" class="shrink-0 text-muted-foreground" />
                 <input type="tel" name="phone" autocomplete="tel" [(ngModel)]="phone" placeholder="011-53206966" class="h-10 w-full bg-transparent text-sm text-foreground outline-none" />
+              </div>
+            </label>
+
+            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Primary Brand
+              <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 focus-within:border-ring">
+                <app-icon name="star" [size]="15" class="shrink-0 text-muted-foreground" />
+                <select [(ngModel)]="primaryBrand" name="primaryBrand" class="h-10 w-full bg-transparent text-sm text-foreground outline-none">
+                  <option value="" disabled selected>Which brand do you primarily sell?</option>
+                  @for (b of brands; track b) { <option [value]="b">{{ b }}</option> }
+                </select>
               </div>
             </label>
 
@@ -124,22 +136,27 @@ export class SignupComponent {
   name = '';
   email = '';
   phone = '';
+  primaryBrand = '';
   password = '';
   confirmPassword = '';
   showPassword = signal(false);
   error = signal<string | null>(null);
   submitting = signal(false);
+  brands: string[];
 
   constructor(
     private auth: AuthService,
     private router: Router,
-  ) {}
+    private catalog: VehicleCatalogService,
+  ) {
+    this.brands = this.catalog.brands();
+  }
 
   async submit() {
     this.error.set(null);
 
-    if (!this.name.trim() || !this.email.trim() || !this.phone.trim() || !this.password) {
-      this.error.set('Fill in your name, email, phone number and password.');
+    if (!this.name.trim() || !this.email.trim() || !this.phone.trim() || !this.primaryBrand || !this.password) {
+      this.error.set('Fill in your name, email, phone number, primary brand, and password.');
       return;
     }
     if (!this.email.includes('@') || !this.email.includes('.')) {
@@ -160,7 +177,7 @@ export class SignupComponent {
     }
 
     this.submitting.set(true);
-    const result = await this.auth.signUp(this.name, this.email, this.password, this.phone);
+    const result = await this.auth.signUp(this.name, this.email, this.password, this.phone, this.primaryBrand);
     this.submitting.set(false);
     if (!result.ok) {
       this.error.set(result.error);
@@ -178,6 +195,8 @@ export class SignupComponent {
       this.error.set(result.error);
       return;
     }
-    this.router.navigateByUrl('/dashboard');
+    // Google sign-in skips this form's Primary Brand field entirely, so a brand-new account gets
+    // routed through the one-time picker before it can reach the dashboard.
+    this.router.navigateByUrl(result.isNewUser ? '/choose-brand' : '/dashboard');
   }
 }

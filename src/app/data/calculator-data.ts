@@ -28,6 +28,12 @@ export type Vehicle = {
   basicPremium?: number;
   /** Insurer's exact Additional Benefits (riders) total for this model. */
   addBenefits?: number;
+  /** SA-entered Recommended Sum Insured for this car — Malaysia's PIAM guidelines base Sum Insured
+   *  on current market value, which the SA sets directly per car (Price Settings) rather than a
+   *  fixed formula. Selectable as a Downpayment basis (see DownpaymentType 'sumInsured'): the loan
+   *  amount is pinned to this figure instead of a % of price, with the remainder of the amount due
+   *  going to the downpayment (see computeQuotationTotals). Absent until the SA sets one. */
+  sumInsured?: number;
   /** Static file path under `public/` (e.g. `/cars/proton-saga-standard.png`) for this variant's
    *  hero image on the Quote Preview poster — hardcoded by the developer, not uploaded at runtime. */
   photoUrl?: string;
@@ -143,13 +149,13 @@ export const VEHICLES: Vehicle[] = [
  *  since it's an array a reset must not still be sharing with the live (possibly edited) catalog. */
 export const DEFAULT_VEHICLES: Vehicle[] = VEHICLES.map((v) => ({ ...v, years: v.years.map((y) => ({ ...y })) }));
 
-/** Only the fields Price Settings can actually edit at runtime — price, rates, and model
- *  years/rebates. Brand/model/variant identity, insurance figures, and photo/brochure paths are
- *  hardcoded by the developer and never saved as an override. Persisted per-account via the Worker
+/** Only the fields Price Settings can actually edit at runtime — price, rates, Sum Insured, and
+ *  model years/rebates. Brand/model/variant identity, other insurance figures, and photo/brochure
+ *  paths are hardcoded by the developer and never saved as an override. Persisted per-account via the Worker
  *  API (`/api/vehicle-overrides`) and applied onto this hardcoded catalog by
  *  VehicleCatalogService.loadOverrides() once the signed-in account is known — never at module
  *  load, since which overrides apply depends on who's logged in. */
-export type VehicleOverride = Partial<Pick<Vehicle, 'price' | 'interestRate' | 'effectiveRate' | 'years'>>;
+export type VehicleOverride = Partial<Pick<Vehicle, 'price' | 'interestRate' | 'effectiveRate' | 'years' | 'sumInsured'>>;
 
 /** Unique models for a brand, in catalog order — used to drive cascading brand→model selects. */
 export function modelsForBrand(brand: string): string[] {
@@ -213,7 +219,9 @@ export const TENURE_OPTIONS: TenureOption[] = [
  *  Unrelated to the Car Database's own per-car year rows; see yearsForVariant() for those. */
 export const MODEL_YEARS = [new Date().getFullYear(), new Date().getFullYear() - 1];
 
-export type DownpaymentType = 'percent' | 'amount';
+/** 'sumInsured' pins the loan amount to the selected car's Vehicle.sumInsured instead of deriving
+ *  it from a percentage or a typed cash figure — see computeQuotationTotals. */
+export type DownpaymentType = 'percent' | 'amount' | 'sumInsured';
 
 // ---------- Insurance ----------
 
@@ -350,6 +358,8 @@ export type QuotationTotalsInput = {
   loanBasisInsuranceAmount?: number;
   downpaymentType: DownpaymentType;
   downpaymentValue: number;
+  /** Only read when downpaymentType is 'sumInsured' — the selected car's Vehicle.sumInsured. */
+  sumInsured?: number;
 };
 
 export type QuotationTotals = {
@@ -377,6 +387,14 @@ export function computeQuotationTotals(input: QuotationTotalsInput): QuotationTo
     // own number governs directly against the real amount owed; no discount-anchoring applies.
     const downpaymentCash = Math.max(0, Math.min(input.downpaymentValue, totalAmountDue));
     loanAmount = Math.floor(Math.max(0, totalAmountDue - downpaymentCash) / 100) * 100;
+  } else if (input.downpaymentType === 'sumInsured') {
+    // Loan is pinned straight to the car's Recommended Sum Insured; the rest of the amount due
+    // (already net of rebate, via totalAmountDue above) becomes the downpayment. If a rebate is
+    // big enough that the amount due no longer covers the full Sum Insured, the loan simply
+    // shrinks to whatever's owed instead of going negative — the customer's downpayment then
+    // collapses to just the sub-RM100 rounding remainder.
+    const sumInsured = Math.max(0, input.sumInsured ?? 0);
+    loanAmount = Math.floor(Math.min(sumInsured, totalAmountDue) / 100) * 100;
   } else {
     // Downpayment is sized off the full sticker total — car price plus the loan-basis insurance
     // (normally the 0% NCD premium, the worst case) — BEFORE rebate is netted out, so rebate

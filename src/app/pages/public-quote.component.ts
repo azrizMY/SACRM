@@ -280,15 +280,25 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
               <div class="flex flex-col gap-2">
                 <span class="text-xs font-medium text-muted-foreground">Downpayment</span>
                 <div class="flex gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    [attr.max]="downpaymentType() === 'percent' ? 100 : null"
-                    [step]="downpaymentType() === 'percent' ? 1 : 500"
-                    [ngModel]="downpaymentValue()"
-                    (ngModelChange)="downpaymentValue.set(+$event || 0)"
-                    class="h-10 w-full rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular outline-none transition-colors focus:border-ring"
-                  />
+                  @if (downpaymentType() === 'sumInsured') {
+                    <div class="flex h-10 w-full items-center rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular text-foreground">
+                      @if (selectedVehicle().sumInsured != null) {
+                        {{ fmt(downpaymentCash()) }}
+                      } @else {
+                        <span class="text-muted-foreground">Not set for this car yet</span>
+                      }
+                    </div>
+                  } @else {
+                    <input
+                      type="number"
+                      min="0"
+                      [attr.max]="downpaymentType() === 'percent' ? 100 : null"
+                      [step]="downpaymentType() === 'percent' ? 1 : 500"
+                      [ngModel]="downpaymentValue()"
+                      (ngModelChange)="downpaymentValue.set(+$event || 0)"
+                      class="h-10 w-full rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular outline-none transition-colors focus:border-ring"
+                    />
+                  }
                   <div class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
                     <button
                       type="button"
@@ -305,6 +315,15 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                       [ngClass]="downpaymentType() === 'amount' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
                     >
                       Amt
+                    </button>
+                    <button
+                      type="button"
+                      title="Sum Insured"
+                      (click)="downpaymentType.set('sumInsured')"
+                      class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
+                      [ngClass]="downpaymentType() === 'sumInsured' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
+                    >
+                      SI
                     </button>
                   </div>
                 </div>
@@ -458,7 +477,7 @@ export class PublicQuoteComponent implements OnInit {
   bundle = signal<PublicQuoteBundle | null>(null);
   private token = '';
   /** True on the `/quote/:token/brand` route — same page and same data, just with the Brand
-   *  select hidden and never switched away from the SA's Default Brand, for a link the SA wants
+   *  select hidden and never switched away from the SA's Primary Brand, for a link the SA wants
    *  to hand out for one specific brand only. */
   singleBrandMode = this.route.snapshot.data['singleBrand'] === true;
   mobileTab = signal<'preview' | 'customize'>('preview');
@@ -631,6 +650,7 @@ export class PublicQuoteComponent implements OnInit {
       loanBasisInsuranceAmount: this.loanBasisInsurance(),
       downpaymentType: this.downpaymentType(),
       downpaymentValue: this.downpaymentValue(),
+      sumInsured: this.selectedVehicle().sumInsured,
     }),
   );
   allInPrice = computed(() => this.totals().totalAmountDue);
@@ -698,8 +718,8 @@ export class PublicQuoteComponent implements OnInit {
         if (override) Object.assign(v, override);
       }
       this.vehicles.set(vehicles);
-      // Same as the Calculator's own preferredVehicle() — starts on the SA's Default Brand
-      // (Account Settings → Dashboard) when that brand actually has a car in this catalog,
+      // Same as the Calculator's own preferredVehicle() — starts on the SA's Primary Brand
+      // (Profile & Settings → Quote Preferences) when that brand actually has a car in this catalog,
       // falling back to the catalog's first car otherwise.
       const preferred = vehicles.find((v) => v.brand === bundle.defaultBrand) ?? vehicles[0];
       this.selectedBrand.set(preferred.brand);
@@ -708,6 +728,7 @@ export class PublicQuoteComponent implements OnInit {
       this.selectedColour.set(preferred.colours?.[0] ?? null);
       this.modelYear.set(Math.max(...preferred.years.map((y) => y.year)));
       this.ncd.set(bundle.salesDefaults.ncd);
+      this.downpaymentType.set(bundle.salesDefaults.defaultDownpaymentType);
       this.downpaymentValue.set(bundle.salesDefaults.downpaymentPct);
     } catch {
       this.notFound.set(true);
@@ -789,7 +810,7 @@ export class PublicQuoteComponent implements OnInit {
     const bundle = this.bundle();
     if (!bundle) return;
     this.ncd.set(bundle.salesDefaults.ncd);
-    this.downpaymentType.set('percent');
+    this.downpaymentType.set(bundle.salesDefaults.defaultDownpaymentType);
     this.downpaymentValue.set(bundle.salesDefaults.downpaymentPct);
     this.tenureYears.set(9);
     this.loanAmountDraft.set(null);

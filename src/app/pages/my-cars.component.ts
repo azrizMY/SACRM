@@ -396,7 +396,7 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
    *  resolution A5 pages, no single-car context) that it gets its own top-level mode. */
   pageMode = signal<'specs' | 'offers'>('specs');
 
-  /** Starts on the account's Default Brand (Account Settings → Dashboard), not "All". */
+  /** Starts on the account's Primary Brand (Profile & Settings → Quote Preferences), not "All". */
   private readonly initialBrandFilter = this.settingsService.settings().dashboardTarget.brand;
   brandFilter = signal(this.initialBrandFilter);
   // Brand column is hidden whenever the starting filter isn't "All" — fall back off it so a

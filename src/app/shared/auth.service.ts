@@ -9,7 +9,7 @@ import { BankerService } from './banker.service';
 import { TradeInService } from './trade-in.service';
 import { CustomerService } from './customer.service';
 
-export type AuthResult = { ok: true } | { ok: false; error: string };
+export type AuthResult = { ok: true; isNewUser?: boolean } | { ok: false; error: string };
 
 function extractError(err: unknown, fallback: string): string {
   if (err instanceof HttpErrorResponse) {
@@ -53,9 +53,9 @@ export class AuthService {
     }
   }
 
-  async signUp(name: string, email: string, password: string, phone: string): Promise<AuthResult> {
+  async signUp(name: string, email: string, password: string, phone: string, primaryBrand: string): Promise<AuthResult> {
     try {
-      const user = await firstValueFrom(this.http.post<AuthUser>('/api/auth/signup', { name, email, password, phone }));
+      const user = await firstValueFrom(this.http.post<AuthUser>('/api/auth/signup', { name, email, password, phone, primaryBrand }));
       this.currentUser.set(user);
       await this.loadUserData();
       return { ok: true };
@@ -80,9 +80,11 @@ export class AuthService {
   async loginWithGoogle(idToken: string): Promise<AuthResult> {
     try {
       const user = await firstValueFrom(this.http.post<AuthUser>('/api/auth/google', { idToken }));
+      const isNewUser = user.isNewUser;
+      delete user.isNewUser;
       this.currentUser.set(user);
       await this.loadUserData();
-      return { ok: true };
+      return { ok: true, isNewUser };
     } catch (err) {
       return { ok: false, error: extractError(err, "Couldn't sign in with Google. Please try again.") };
     }
@@ -105,6 +107,18 @@ export class AuthService {
       return { ok: true };
     } catch (err) {
       return { ok: false, error: extractError(err, "Couldn't reset your password. Please try again.") };
+    }
+  }
+
+  /** For a signed-in user changing their password from Settings — distinct from resetPassword(),
+   *  which is the logged-out "forgot password" email-link flow. Succeeds silently on the session
+   *  cookie the server's Set-Cookie header already replaced; nothing else needs updating here. */
+  async changePassword(currentPassword: string, newPassword: string): Promise<AuthResult> {
+    try {
+      await firstValueFrom(this.http.post('/api/auth/change-password', { currentPassword, newPassword }));
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: extractError(err, "Couldn't change your password. Please try again.") };
     }
   }
 

@@ -71,7 +71,7 @@ export class AppShellComponent {
   mobileOpen = signal(false);
   active = signal('dashboard');
   title = signal('Dashboard');
-  /** The Default Brand set in Account Settings, shown beside the title only on the Dashboard page. */
+  /** The Primary Brand set in Profile & Settings, shown beside the title only on the Dashboard page. */
   titleBrand = computed(() => (this.active() === 'dashboard' ? this.settings.settings().dashboardTarget.brand : null));
 
   constructor(

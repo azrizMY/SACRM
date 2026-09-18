@@ -18,7 +18,12 @@ import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
   imports: [CommonModule, FormsModule, IconComponent, ImageCropModalComponent],
   template: `
     <div class="mx-auto flex max-w-5xl flex-col gap-5">
-      <!-- Profile card -->
+      <div class="flex flex-col gap-1">
+        <h2 class="text-balance text-xl font-semibold tracking-tight">My Profile</h2>
+        <p class="text-pretty text-sm text-muted-foreground">What customers see on your quotes and shared links.</p>
+      </div>
+
+      <!-- Identity card -->
       <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
         <div class="flex flex-col gap-5 bg-gradient-to-br from-primary/12 via-card to-card p-6 sm:flex-row sm:items-start sm:justify-between">
           <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -59,7 +64,7 @@ import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
                 <span class="text-[11px] font-medium text-destructive">{{ err }}</span>
               }
               @if (!editing()) {
-                <h2 class="text-xl font-semibold tracking-tight">{{ advisor.profile().name }}</h2>
+                <h3 class="text-xl font-semibold tracking-tight">{{ advisor.profile().name }}</h3>
                 <span class="w-fit rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{{ advisor.profile().role }}</span>
               } @else {
                 <input
@@ -95,7 +100,7 @@ import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
           }
         </div>
 
-        <div class="flex flex-col gap-4 p-6">
+        <div class="flex flex-col gap-4 border-t border-border p-6">
           @if (!editing()) {
             <p class="max-w-2xl text-pretty text-sm leading-relaxed text-muted-foreground">{{ advisor.profile().bio }}</p>
           } @else {
@@ -130,41 +135,53 @@ import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
         </div>
       </div>
 
-      <!-- Customer link -->
-      <div class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div class="flex flex-col gap-1">
-            <span class="text-sm font-semibold">Your Customer Link</span>
-            <span class="text-xs text-muted-foreground">Share this with a customer — they can build their own quote, no login needed, with your promo card shown on it.</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <code class="max-w-[220px] truncate rounded-md bg-muted/40 px-2.5 py-1.5 text-xs text-foreground sm:max-w-xs">{{ customerLinkUrl() }}</code>
-            <button
-              type="button"
-              (click)="copyCustomerLink()"
-              class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
-            >
-              <app-icon [name]="linkCopied() ? 'check' : 'share'" [size]="13" />
-              {{ linkCopied() ? 'Copied!' : 'Copy' }}
-            </button>
+      <!-- Shareable links -->
+      <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+        <div class="flex items-center gap-3 px-5 py-4">
+          <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <app-icon name="share" [size]="18" />
+          </span>
+          <div class="flex flex-col gap-0.5">
+            <span class="text-sm font-semibold leading-none">Shareable Quote Links</span>
+            <span class="text-xs text-muted-foreground">Send these to a customer to build their own quote — no login needed.</span>
           </div>
         </div>
 
-        <div class="flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between">
-          <div class="flex flex-col gap-1">
-            <span class="text-sm font-semibold">{{ defaultBrand() }}-Only Link</span>
-            <span class="text-xs text-muted-foreground">Same quote page, but locked to {{ defaultBrand() }} — no brand switcher for the customer.</span>
+        <div class="flex flex-col divide-y divide-border border-t border-border px-5">
+          <div class="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex flex-col gap-0.5">
+              <span class="text-sm font-medium">Your Customer Link</span>
+              <span class="text-xs text-muted-foreground">Your promo card is shown on the quote they build.</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <code class="max-w-[220px] truncate rounded-md bg-muted/40 px-2.5 py-1.5 text-xs text-foreground sm:max-w-xs">{{ customerLinkUrl() }}</code>
+              <button
+                type="button"
+                (click)="copyCustomerLink()"
+                class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
+              >
+                <app-icon [name]="linkCopied() ? 'check' : 'share'" [size]="13" />
+                {{ linkCopied() ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <code class="max-w-[220px] truncate rounded-md bg-muted/40 px-2.5 py-1.5 text-xs text-foreground sm:max-w-xs">{{ brandOnlyLinkUrl() }}</code>
-            <button
-              type="button"
-              (click)="copyBrandOnlyLink()"
-              class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
-            >
-              <app-icon [name]="brandLinkCopied() ? 'check' : 'share'" [size]="13" />
-              {{ brandLinkCopied() ? 'Copied!' : 'Copy' }}
-            </button>
+
+          <div class="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex flex-col gap-0.5">
+              <span class="text-sm font-medium">{{ defaultBrand() }}-Only Link</span>
+              <span class="text-xs text-muted-foreground">Same quote page, locked to {{ defaultBrand() }} — no brand switcher for the customer.</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <code class="max-w-[220px] truncate rounded-md bg-muted/40 px-2.5 py-1.5 text-xs text-foreground sm:max-w-xs">{{ brandOnlyLinkUrl() }}</code>
+              <button
+                type="button"
+                (click)="copyBrandOnlyLink()"
+                class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
+              >
+                <app-icon [name]="brandLinkCopied() ? 'check' : 'share'" [size]="13" />
+                {{ brandLinkCopied() ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>

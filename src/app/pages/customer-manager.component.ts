@@ -1357,7 +1357,7 @@ export class CustomerManagerComponent {
   reopenTargetId = signal<string | null>(null);
 
   nameFilter = signal('');
-  // Deliberately starts on "All", not the account's Default Brand — hiding other brands' existing
+  // Deliberately starts on "All", not the account's Primary Brand — hiding other brands' existing
   // customers by default risks the SA forgetting about them.
   carFilter = signal('All');
   sourceFilter = signal('All');
@@ -1788,6 +1788,7 @@ export class CustomerManagerComponent {
       loanBasisInsuranceAmount: loanBasisInsurance,
       downpaymentType: q.downpaymentType,
       downpaymentValue: q.downpaymentValue,
+      sumInsured: vehicle?.sumInsured,
     });
 
     const rateType: RateType = q.rateType ?? 'flat';

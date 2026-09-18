@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent, type IconName } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
+import { AuthService } from '../shared/auth.service';
 import { CustomerService } from '../shared/customer.service';
 import { SettingsService } from '../shared/settings.service';
 import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
@@ -18,8 +19,8 @@ type NavItem = { id: string; label: string; icon: IconName };
   template: `
     <div class="mx-auto flex max-w-6xl flex-col gap-6">
       <div class="flex flex-col gap-1">
-        <h2 class="text-balance text-xl font-semibold tracking-tight">Account Settings</h2>
-        <p class="text-pretty text-sm text-muted-foreground">Defaults, notifications, and local data for your Redline account.</p>
+        <h2 class="text-balance text-xl font-semibold tracking-tight">Settings</h2>
+        <p class="text-pretty text-sm text-muted-foreground">Quote preferences, notifications, and account data.</p>
       </div>
 
       <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-10">
@@ -43,59 +44,108 @@ type NavItem = { id: string; label: string; icon: IconName };
 
         <!-- Sections -->
         <div class="flex min-w-0 flex-1 flex-col gap-10">
-          <!-- Defaults -->
+          <!-- Quote Preferences -->
           <section id="defaults" data-section class="flex scroll-mt-20 flex-col gap-4">
-            <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Defaults</h3>
+            <div class="flex flex-col gap-0.5">
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quote Preferences</h3>
+              <p class="text-xs text-muted-foreground">What every new quote starts with — change these any time.</p>
+            </div>
 
-            <!-- Quote defaults — Calculator-specific starting values -->
+            <!-- Starting values — one row per setting, matching the Notifications list below -->
             <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
               <div class="flex items-center gap-3 px-5 py-4">
                 <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <app-icon name="wallet" [size]="18" />
                 </span>
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">Quote Defaults</span>
-                  <span class="text-xs text-muted-foreground">Starting values every time you open the Calculator.</span>
+                  <span class="text-sm font-semibold leading-none">Starting Values</span>
+                  <span class="text-xs text-muted-foreground">Applied every time you open the Calculator for a new quote.</span>
                 </div>
               </div>
 
-              <div class="flex flex-col gap-3 border-t border-border px-5 py-5">
-                <span class="text-xs font-semibold text-foreground">Sales Preferences</span>
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Default Downpayment (%)
+              <div class="flex flex-col divide-y divide-border border-t border-border px-5">
+                <div class="flex items-center justify-between gap-4 py-4">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">Downpayment Basis</span>
+                    <span class="text-xs text-muted-foreground">Which downpayment option a new quote opens on.</span>
+                  </div>
+                  <div role="radiogroup" aria-label="Downpayment Basis" class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
+                    <button
+                      type="button"
+                      role="radio"
+                      [attr.aria-checked]="salesForm.defaultDownpaymentType === 'percent'"
+                      (click)="salesForm.defaultDownpaymentType = 'percent'"
+                      class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+                      [ngClass]="salesForm.defaultDownpaymentType === 'percent' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                    >
+                      %
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      [attr.aria-checked]="salesForm.defaultDownpaymentType === 'amount'"
+                      (click)="salesForm.defaultDownpaymentType = 'amount'"
+                      class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+                      [ngClass]="salesForm.defaultDownpaymentType === 'amount' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                    >
+                      Amt
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      [attr.aria-checked]="salesForm.defaultDownpaymentType === 'sumInsured'"
+                      (click)="salesForm.defaultDownpaymentType = 'sumInsured'"
+                      class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+                      [ngClass]="salesForm.defaultDownpaymentType === 'sumInsured' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                    >
+                      Sum Insured
+                    </button>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between gap-4 py-4">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">Downpayment</span>
+                    <span class="text-xs text-muted-foreground">Starting percentage on a new quote — only used when the basis above is "%".</span>
+                  </div>
+                  <div class="relative flex shrink-0 items-center">
                     <input
                       type="number"
                       min="0"
                       max="100"
                       step="1"
                       [(ngModel)]="salesForm.downpaymentPct"
-                      class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
+                      class="h-9 w-24 rounded-lg border border-input bg-input px-3 text-right text-sm text-foreground outline-none focus:border-ring"
                     />
-                  </label>
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Default NCD
-                    <select
-                      [(ngModel)]="salesForm.ncd"
-                      class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring"
-                    >
-                      @for (opt of ncdOptions; track opt.value) { <option [ngValue]="opt.value">{{ opt.label }}</option> }
-                    </select>
-                  </label>
+                    <span class="pointer-events-none absolute right-3 text-sm text-muted-foreground">%</span>
+                  </div>
                 </div>
-                <p class="text-[11px] text-muted-foreground">Interest rate and basic premium are set per car in Price Settings.</p>
-              </div>
 
-              <div class="flex flex-col gap-3 border-t border-border px-5 py-5">
-                <div class="flex flex-col gap-2">
-                  <span class="text-xs font-medium text-muted-foreground">Default Rate Type</span>
-                  <div role="radiogroup" aria-label="Default Rate Type" class="flex gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
+                <div class="flex items-center justify-between gap-4 py-4">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">NCD</span>
+                    <span class="text-xs text-muted-foreground">No-claims discount applied by default. Rate and basic premium are set per car in Price Settings.</span>
+                  </div>
+                  <select
+                    [(ngModel)]="salesForm.ncd"
+                    class="h-9 shrink-0 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring"
+                  >
+                    @for (opt of ncdOptions; track opt.value) { <option [ngValue]="opt.value">{{ opt.label }}</option> }
+                  </select>
+                </div>
+
+                <div class="flex items-center justify-between gap-4 py-4">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">Rate Type</span>
+                    <span class="text-xs text-muted-foreground">Flat or EIR — which one a new quote opens on.</span>
+                  </div>
+                  <div role="radiogroup" aria-label="Rate Type" class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
                     <button
                       type="button"
                       role="radio"
                       [attr.aria-checked]="salesForm.defaultRateType === 'flat'"
                       (click)="salesForm.defaultRateType = 'flat'"
-                      class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
+                      class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
                       [ngClass]="salesForm.defaultRateType === 'flat' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                     >
                       Flat
@@ -105,18 +155,20 @@ type NavItem = { id: string; label: string; icon: IconName };
                       role="radio"
                       [attr.aria-checked]="salesForm.defaultRateType === 'effective'"
                       (click)="salesForm.defaultRateType = 'effective'"
-                      class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
+                      class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
                       [ngClass]="salesForm.defaultRateType === 'effective' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                     >
                       EIR
                     </button>
                   </div>
-                  <p class="text-[11px] text-muted-foreground">Which rate type the Calculator starts every new quote on.</p>
                 </div>
 
-                <div class="flex flex-col gap-2">
-                  <span class="text-xs font-medium text-muted-foreground">Default Tenure Selection</span>
-                  <div role="group" aria-label="Default repayment table tenures (years)" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
+                <div class="flex flex-col gap-3 py-4">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">Repayment Table Years</span>
+                    <span class="text-xs text-muted-foreground">Pick 3 tenures — which years the Calculator's repayment table opens on.</span>
+                  </div>
+                  <div role="group" aria-label="Repayment table tenures (years)" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
                     @for (y of posterYearOptions; track y) {
                       <button
                         type="button"
@@ -129,7 +181,6 @@ type NavItem = { id: string; label: string; icon: IconName };
                       </button>
                     }
                   </div>
-                  <p class="text-[11px] text-muted-foreground">Pick 3 tenures — which years the Calculator's repayment table starts on for every new quote.</p>
                 </div>
               </div>
 
@@ -150,46 +201,47 @@ type NavItem = { id: string; label: string; icon: IconName };
               </div>
             </div>
 
-            <!-- Default Brand — not Calculator-specific: also drives Dashboard and Customer Manager -->
+            <!-- Primary Brand — not Calculator-specific: also drives Dashboard and Customer Manager -->
             <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
               <div class="flex items-center gap-3 px-5 py-4">
                 <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <app-icon name="star" [size]="18" />
                 </span>
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">Default Brand</span>
+                  <span class="text-sm font-semibold leading-none">Primary Brand</span>
                   <span class="text-xs text-muted-foreground">
-                    Dashboard's Monthly Target and Performance by Model, the Calculator's starting car, the new-lead starting car in
-                    Customer Manager, and the brand filter on Brochures.
+                    Drives the Dashboard's Monthly Target, the Calculator's starting car, the new-lead starting car in Customer
+                    Manager, and the brand filter on Brochures.
                   </span>
                 </div>
               </div>
 
-              <div class="flex flex-col gap-3 border-t border-border px-5 py-5">
-                <p class="text-[11px] text-muted-foreground">
-                  Customer Manager's own brand filter always starts on "All" so existing customers from other brands aren't hidden by
-                  default; Cost Breakdown keeps its own filter too.
-                </p>
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Brand
-                    <select
-                      [(ngModel)]="dashboardForm.brand"
-                      class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring"
-                    >
-                      @for (b of brands; track b) { <option [value]="b">{{ b }}</option> }
-                    </select>
-                  </label>
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Monthly Target (units)
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      [(ngModel)]="dashboardForm.target"
-                      class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
-                    />
-                  </label>
+              <div class="flex flex-col divide-y divide-border border-t border-border px-5">
+                <div class="flex items-center justify-between gap-4 py-4">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">Brand</span>
+                    <span class="text-xs text-muted-foreground">Customer Manager and Cost Breakdown keep their own "All" filter, so existing customers stay visible.</span>
+                  </div>
+                  <select
+                    [(ngModel)]="dashboardForm.brand"
+                    class="h-9 shrink-0 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring"
+                  >
+                    @for (b of brands; track b) { <option [value]="b">{{ b }}</option> }
+                  </select>
+                </div>
+
+                <div class="flex items-center justify-between gap-4 py-4">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">Monthly Target</span>
+                    <span class="text-xs text-muted-foreground">Units target shown on the Dashboard.</span>
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    [(ngModel)]="dashboardForm.target"
+                    class="h-9 w-24 shrink-0 rounded-lg border border-input bg-input px-3 text-right text-sm text-foreground outline-none focus:border-ring"
+                  />
                 </div>
               </div>
 
@@ -213,7 +265,10 @@ type NavItem = { id: string; label: string; icon: IconName };
 
           <!-- Notifications -->
           <section id="notifications" data-section class="flex scroll-mt-20 flex-col gap-4">
-            <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notifications</h3>
+            <div class="flex flex-col gap-0.5">
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notifications</h3>
+              <p class="text-xs text-muted-foreground">Choose what you want to be kept in the loop about.</p>
+            </div>
 
             <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
               <div class="flex items-center gap-3 px-5 py-4">
@@ -222,7 +277,7 @@ type NavItem = { id: string; label: string; icon: IconName };
                 </span>
                 <div class="flex flex-col gap-0.5">
                   <span class="text-sm font-semibold leading-none">Notification Preferences</span>
-                  <span class="text-xs text-muted-foreground">Choose what you want to be kept in the loop about.</span>
+                  <span class="text-xs text-muted-foreground">New leads, bookings, and weekly performance summaries.</span>
                 </div>
               </div>
 
@@ -292,7 +347,10 @@ type NavItem = { id: string; label: string; icon: IconName };
 
           <!-- Data & privacy -->
           <section id="data" data-section class="flex scroll-mt-20 flex-col gap-4">
-            <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Data &amp; Privacy</h3>
+            <div class="flex flex-col gap-0.5">
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Data &amp; Privacy</h3>
+              <p class="text-xs text-muted-foreground">Everything here lives only in this browser — no server involved.</p>
+            </div>
 
             <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
               <div class="flex items-center gap-3 px-5 py-4">
@@ -301,42 +359,64 @@ type NavItem = { id: string; label: string; icon: IconName };
                 </span>
                 <div class="flex flex-col gap-0.5">
                   <span class="text-sm font-semibold leading-none">Data Management</span>
-                  <span class="text-xs text-muted-foreground">Everything here lives only in this browser — no server involved.</span>
+                  <span class="text-xs text-muted-foreground">Back up, reset, or demo with sample data.</span>
                 </div>
               </div>
 
-              <div class="flex flex-wrap items-center gap-2 border-t border-border px-5 py-4">
-                <button
-                  type="button"
-                  (click)="exportData()"
-                  class="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-                >
-                  <app-icon name="download" [size]="13" />
-                  Export all data (JSON)
-                </button>
-                <button
-                  type="button"
-                  (click)="resetPreferences()"
-                  class="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-                >
-                  <app-icon name="refresh-cw" [size]="13" />
-                  Reset preferences to defaults
-                </button>
-                <button
-                  type="button"
-                  (click)="loadSampleData()"
-                  [disabled]="seeding()"
-                  class="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
-                >
-                  <app-icon name="sparkles" [size]="13" />
-                  {{ seeding() ? 'Loading…' : 'Load 30 sample deals' }}
-                </button>
-                @if (seedFlash()) {
-                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]">
-                    <app-icon name="check" [size]="13" />
-                    Added — check the Dashboard
-                  </span>
-                }
+              <div class="flex flex-col divide-y divide-border border-t border-border px-5">
+                <div class="flex items-center justify-between gap-4 py-3.5">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">Export all data</span>
+                    <span class="text-xs text-muted-foreground">Download your profile, settings, and customers as a JSON file.</span>
+                  </div>
+                  <button
+                    type="button"
+                    (click)="exportData()"
+                    class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <app-icon name="download" [size]="13" />
+                    Export
+                  </button>
+                </div>
+
+                <div class="flex items-center justify-between gap-4 py-3.5">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">Reset preferences</span>
+                    <span class="text-xs text-muted-foreground">Puts Quote Preferences and Notifications back to their factory settings.</span>
+                  </div>
+                  <button
+                    type="button"
+                    (click)="resetPreferences()"
+                    class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <app-icon name="refresh-cw" [size]="13" />
+                    Reset
+                  </button>
+                </div>
+
+                <div class="flex items-center justify-between gap-4 py-3.5">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">Load sample deals</span>
+                    <span class="text-xs text-muted-foreground">Adds 30 example leads, bookings, and deliveries — handy for a demo.</span>
+                  </div>
+                  <div class="flex shrink-0 items-center gap-2">
+                    @if (seedFlash()) {
+                      <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]">
+                        <app-icon name="check" [size]="13" />
+                        Added
+                      </span>
+                    }
+                    <button
+                      type="button"
+                      (click)="loadSampleData()"
+                      [disabled]="seeding()"
+                      class="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+                    >
+                      <app-icon name="sparkles" [size]="13" />
+                      {{ seeding() ? 'Loading…' : 'Load' }}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -361,6 +441,109 @@ type NavItem = { id: string; label: string; icon: IconName };
                   <app-icon name="trash" [size]="13" />
                   Clear all customer data
                 </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Account & Security -->
+          <section id="security" data-section class="flex scroll-mt-20 flex-col gap-4">
+            <div class="flex flex-col gap-0.5">
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Account &amp; Security</h3>
+              <p class="text-xs text-muted-foreground">How you sign in, and your password.</p>
+            </div>
+
+            <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+              <div class="flex items-center gap-3 px-5 py-4">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <app-icon name="lock" [size]="18" />
+                </span>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-sm font-semibold leading-none">Sign-in Method</span>
+                  <span class="text-xs text-muted-foreground">How this account is authenticated.</span>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between gap-4 border-t border-border px-5 py-4">
+                <span class="text-sm font-medium">{{ auth.currentUser()?.email }}</span>
+                @if (auth.currentUser()?.hasGoogleLogin) {
+                  <span class="flex shrink-0 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 py-1 text-xs font-medium text-foreground">
+                    <app-icon name="check" [size]="12" class="text-[var(--success)]" />
+                    Connected with Google
+                  </span>
+                } @else {
+                  <span class="shrink-0 rounded-full bg-muted/50 px-2.5 py-1 text-xs font-medium text-muted-foreground">Email &amp; password</span>
+                }
+              </div>
+            </div>
+
+            <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+              <div class="flex items-center gap-3 px-5 py-4">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <app-icon name="lock" [size]="18" />
+                </span>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-sm font-semibold leading-none">Change Password</span>
+                  <span class="text-xs text-muted-foreground">
+                    @if (auth.currentUser()?.hasGoogleLogin) {
+                      Signed in with Google and never set a password? Use "Forgot password" on the login page instead.
+                    } @else {
+                      Needs your current password.
+                    }
+                  </span>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-3 border-t border-border px-5 py-5">
+                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                  Current Password
+                  <input
+                    type="password"
+                    autocomplete="current-password"
+                    [(ngModel)]="passwordForm.current"
+                    class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
+                  />
+                </label>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                    New Password
+                    <input
+                      type="password"
+                      autocomplete="new-password"
+                      [(ngModel)]="passwordForm.next"
+                      placeholder="At least 8 characters"
+                      class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
+                    />
+                  </label>
+                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                    Confirm New Password
+                    <input
+                      type="password"
+                      autocomplete="new-password"
+                      [(ngModel)]="passwordForm.confirm"
+                      class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
+                    />
+                  </label>
+                </div>
+                @if (passwordError()) {
+                  <p class="text-[11px] font-medium text-destructive">{{ passwordError() }}</p>
+                }
+              </div>
+
+              <div class="flex items-center gap-2 border-t border-border px-5 py-4">
+                <button
+                  type="button"
+                  [disabled]="changingPassword()"
+                  (click)="changePassword()"
+                  class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {{ changingPassword() ? 'Saving…' : 'Change Password' }}
+                </button>
+                @if (passwordSavedFlash()) {
+                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]">
+                    <app-icon name="check" [size]="13" />
+                    Password changed
+                  </span>
+                }
               </div>
             </div>
           </section>
@@ -402,9 +585,10 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
   ncdOptions = NCD_OPTIONS;
 
   navItems: NavItem[] = [
-    { id: 'defaults', label: 'Defaults', icon: 'wallet' },
+    { id: 'defaults', label: 'Quote Preferences', icon: 'wallet' },
     { id: 'notifications', label: 'Notifications', icon: 'bell' },
     { id: 'data', label: 'Data & Privacy', icon: 'file-text' },
+    { id: 'security', label: 'Account & Security', icon: 'lock' },
   ];
   activeSection = signal(this.navItems[0].id);
   private sectionObserver?: IntersectionObserver;
@@ -448,10 +632,16 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
   seeding = signal(false);
   seedFlash = signal(false);
 
+  passwordForm = { current: '', next: '', confirm: '' };
+  passwordError = signal<string | null>(null);
+  changingPassword = signal(false);
+  passwordSavedFlash = signal(false);
+
   constructor(
     public settingsService: SettingsService,
     public customers: CustomerService,
     public catalog: VehicleCatalogService,
+    public auth: AuthService,
     private advisor: AdvisorService,
     private host: ElementRef<HTMLElement>,
   ) {
@@ -558,5 +748,33 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
   async confirmClearData() {
     await this.customers.clearAll();
     this.confirmingClear.set(false);
+  }
+
+  async changePassword() {
+    this.passwordError.set(null);
+    const { current, next, confirm } = this.passwordForm;
+    if (!current || !next) {
+      this.passwordError.set('Enter your current and new password.');
+      return;
+    }
+    if (next.length < 8) {
+      this.passwordError.set('New password must be at least 8 characters.');
+      return;
+    }
+    if (next !== confirm) {
+      this.passwordError.set('New passwords do not match.');
+      return;
+    }
+
+    this.changingPassword.set(true);
+    const result = await this.auth.changePassword(current, next);
+    this.changingPassword.set(false);
+    if (!result.ok) {
+      this.passwordError.set(result.error);
+      return;
+    }
+    this.passwordForm = { current: '', next: '', confirm: '' };
+    this.passwordSavedFlash.set(true);
+    setTimeout(() => this.passwordSavedFlash.set(false), 2500);
   }
 }
