@@ -18,5 +18,9 @@ export async function verifyGoogleIdToken(idToken: string, clientId: string): Pr
   const email = typeof payload['email'] === 'string' ? (payload['email'] as string) : '';
   const name = typeof payload['name'] === 'string' ? (payload['name'] as string) : email;
   if (!googleId || !email) throw new Error('Google token missing sub/email');
+  // An unverified Google email proves nothing about who owns that address, and this identity can
+  // get linked to an existing account by email — so it must be verified.
+  const verified = payload['email_verified'];
+  if (verified !== true && verified !== 'true') throw new Error('Google email is not verified');
   return { googleId, email: email.toLowerCase(), name };
 }

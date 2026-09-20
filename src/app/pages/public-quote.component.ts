@@ -279,30 +279,48 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
 
               <div class="flex flex-col gap-2">
                 <span class="text-xs font-medium text-muted-foreground">Downpayment</span>
+                <div role="group" aria-label="Quick downpayment presets" class="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    (click)="applyDownpaymentPreset('tenPercent')"
+                    class="rounded-lg border px-2 py-2 text-xs font-semibold transition-colors"
+                    [ngClass]="isDownpaymentPreset('tenPercent') ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                  >
+                    10%
+                  </button>
+                  <button
+                    type="button"
+                    (click)="applyDownpaymentPreset('fullLoan')"
+                    class="rounded-lg border px-2 py-2 text-xs font-semibold transition-colors"
+                    [ngClass]="isDownpaymentPreset('fullLoan') ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                  >
+                    Full Loan
+                  </button>
+                  <button
+                    type="button"
+                    [disabled]="selectedVehicle().sumInsured == null"
+                    [title]="selectedVehicle().sumInsured == null ? 'Recommended Sum Insured — not set for this car' : 'Recommended Sum Insured — loan pinned to it'"
+                    (click)="applyDownpaymentPreset('sumInsured')"
+                    class="rounded-lg border px-2 py-2 text-xs font-semibold leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    [ngClass]="isDownpaymentPreset('sumInsured') ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground enabled:hover:bg-accent enabled:hover:text-accent-foreground'"
+                  >
+                    RSI
+                  </button>
+                </div>
                 <div class="flex gap-2">
-                  @if (downpaymentType() === 'sumInsured') {
-                    <div class="flex h-10 w-full items-center rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular text-foreground">
-                      @if (selectedVehicle().sumInsured != null) {
-                        {{ fmt(downpaymentCash()) }}
-                      } @else {
-                        <span class="text-muted-foreground">Not set for this car yet</span>
-                      }
-                    </div>
-                  } @else {
-                    <input
-                      type="number"
-                      min="0"
-                      [attr.max]="downpaymentType() === 'percent' ? 100 : null"
-                      [step]="downpaymentType() === 'percent' ? 1 : 500"
-                      [ngModel]="downpaymentValue()"
-                      (ngModelChange)="downpaymentValue.set(+$event || 0)"
-                      class="h-10 w-full rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular outline-none transition-colors focus:border-ring"
-                    />
-                  }
+                  <input
+                    type="number"
+                    min="0"
+                    [attr.max]="downpaymentType() === 'percent' ? 100 : null"
+                    [step]="downpaymentType() === 'percent' ? 1 : 500"
+                    [ngModel]="downpaymentType() === 'sumInsured' ? downpaymentCash() : downpaymentValue()"
+                    (ngModelChange)="onDownpaymentInput($event)"
+                    class="h-10 w-full rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular outline-none transition-colors focus:border-ring"
+                  />
                   <div class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
                     <button
                       type="button"
-                      (click)="downpaymentType.set('percent')"
+                      (click)="setDownpaymentType('percent')"
                       class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
                       [ngClass]="downpaymentType() === 'percent' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
                     >
@@ -310,23 +328,17 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                     </button>
                     <button
                       type="button"
-                      (click)="downpaymentType.set('amount')"
+                      (click)="setDownpaymentType('amount')"
                       class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
-                      [ngClass]="downpaymentType() === 'amount' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
+                      [ngClass]="downpaymentType() === 'amount' || downpaymentType() === 'sumInsured' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
                     >
                       Amt
                     </button>
-                    <button
-                      type="button"
-                      title="Sum Insured"
-                      (click)="downpaymentType.set('sumInsured')"
-                      class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
-                      [ngClass]="downpaymentType() === 'sumInsured' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
-                    >
-                      SI
-                    </button>
                   </div>
                 </div>
+                @if (downpaymentType() === 'sumInsured' && selectedVehicle().sumInsured == null) {
+                  <span class="text-[11px] text-muted-foreground">No Sum Insured is set for this car, so this quote uses the % downpayment.</span>
+                }
               </div>
 
               <div class="flex flex-col gap-2">
@@ -663,6 +675,41 @@ export class PublicQuoteComponent implements OnInit {
   // floored to the nearest RM100, so binding the input straight to it would snap a mid-typed value
   // back before the customer finishes — a draft signal holds the raw typed number until blur/Enter.
   private loanAmountDraft = signal<number | null>(null);
+
+  /** One-tap downpayment setups: 10% of the price, Full Loan (no cash down beyond the RM100
+   *  rounding remainder), or the loan pinned to the car's Recommended Sum Insured. */
+  /** The RSI preset shows its resulting cash downpayment in the Amt field but stays pinned to the
+   *  Sum Insured (so a rebate or NCD change still re-splits loan vs downpayment) until the SA
+   *  types their own figure or picks % / Amt — then it becomes an ordinary manual amount. */
+  onDownpaymentInput(value: number | string) {
+    if (this.downpaymentType() === 'sumInsured') this.downpaymentType.set('amount');
+    this.downpaymentValue.set(+value || 0);
+  }
+
+  setDownpaymentType(type: 'percent' | 'amount') {
+    if (this.downpaymentType() === 'sumInsured') this.downpaymentValue.set(type === 'amount' ? this.downpaymentCash() : this.downpaymentValue());
+    this.downpaymentType.set(type);
+  }
+
+  applyDownpaymentPreset(preset: 'tenPercent' | 'fullLoan' | 'sumInsured') {
+    this.loanAmountDraft.set(null);
+    if (preset === 'tenPercent') {
+      this.downpaymentType.set('percent');
+      this.downpaymentValue.set(10);
+    } else if (preset === 'fullLoan') {
+      this.downpaymentType.set('amount');
+      this.downpaymentValue.set(0);
+    } else {
+      this.downpaymentType.set('sumInsured');
+    }
+  }
+
+  isDownpaymentPreset(preset: 'tenPercent' | 'fullLoan' | 'sumInsured'): boolean {
+    const type = this.downpaymentType();
+    if (preset === 'tenPercent') return type === 'percent' && this.downpaymentValue() === 10;
+    if (preset === 'fullLoan') return type === 'amount' && this.downpaymentValue() === 0;
+    return type === 'sumInsured';
+  }
   loanAmountDisplay = computed(() => this.loanAmountDraft() ?? this.loanAmount());
 
   onLoanAmountInput(value: number) {
@@ -728,7 +775,7 @@ export class PublicQuoteComponent implements OnInit {
       this.selectedColour.set(preferred.colours?.[0] ?? null);
       this.modelYear.set(Math.max(...preferred.years.map((y) => y.year)));
       this.ncd.set(bundle.salesDefaults.ncd);
-      this.downpaymentType.set(bundle.salesDefaults.defaultDownpaymentType);
+      this.downpaymentType.set(bundle.salesDefaults.defaultDownpaymentType ?? 'percent');
       this.downpaymentValue.set(bundle.salesDefaults.downpaymentPct);
     } catch {
       this.notFound.set(true);
@@ -810,7 +857,7 @@ export class PublicQuoteComponent implements OnInit {
     const bundle = this.bundle();
     if (!bundle) return;
     this.ncd.set(bundle.salesDefaults.ncd);
-    this.downpaymentType.set(bundle.salesDefaults.defaultDownpaymentType);
+    this.downpaymentType.set(bundle.salesDefaults.defaultDownpaymentType ?? 'percent');
     this.downpaymentValue.set(bundle.salesDefaults.downpaymentPct);
     this.tenureYears.set(9);
     this.loanAmountDraft.set(null);

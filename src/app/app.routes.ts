@@ -16,7 +16,7 @@ import { PublicQuoteComponent } from './pages/public-quote.component';
 import { ResetPasswordComponent } from './pages/reset-password.component';
 import { SignupComponent } from './pages/signup.component';
 import { TradeInsComponent } from './pages/trade-ins.component';
-import { authGuard, guestGuard } from './shared/auth.guard';
+import { authGuard, guestGuard, onboardingGuard } from './shared/auth.guard';
 import { AppShellComponent } from './shell/app-shell.component';
 
 export const routes: Routes = [
@@ -27,7 +27,7 @@ export const routes: Routes = [
   { path: 'reset-password', component: ResetPasswordComponent, canActivate: [guestGuard] },
   { path: 'quote/:token', component: PublicQuoteComponent },
   { path: 'quote/:token/brand', component: PublicQuoteComponent, data: { singleBrand: true } },
-  { path: 'choose-brand', component: ChooseBrandComponent, canActivate: [authGuard] },
+  { path: 'choose-brand', component: ChooseBrandComponent, canActivate: [onboardingGuard] },
   {
     path: '',
     component: AppShellComponent,

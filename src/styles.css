@@ -161,3 +161,13 @@
 .animate-rl-ping {
   animation: rl-ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
+
+/* iOS Safari zooms the page in when a focused field's font is under 16px and never zooms back
+   out. Kept unlayered so it beats Tailwind's text-sm/text-xs utilities; desktop is unaffected. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

@@ -381,13 +381,18 @@ export function computeQuotationTotals(input: QuotationTotalsInput): QuotationTo
   const insuranceAmount = Math.max(0, input.insuranceAmount);
   const totalAmountDue = roundCents(priceAfterRebate + insuranceAmount);
 
+  // 'sumInsured' with no Sum Insured on this car would pin the loan to RM0 and silently turn the
+  // quote into a cash purchase — until the SA sets one, quote it on the % downpayment instead.
+  const hasSumInsured = (input.sumInsured ?? 0) > 0;
+  const downpaymentType = input.downpaymentType === 'sumInsured' && !hasSumInsured ? 'percent' : input.downpaymentType;
+
   let loanAmount: number;
-  if (input.downpaymentType === 'amount') {
+  if (downpaymentType === 'amount') {
     // An explicit cash downpayment (or a manually-typed Loan Amount, which sets one) — the SA's
     // own number governs directly against the real amount owed; no discount-anchoring applies.
     const downpaymentCash = Math.max(0, Math.min(input.downpaymentValue, totalAmountDue));
     loanAmount = Math.floor(Math.max(0, totalAmountDue - downpaymentCash) / 100) * 100;
-  } else if (input.downpaymentType === 'sumInsured') {
+  } else if (downpaymentType === 'sumInsured') {
     // Loan is pinned straight to the car's Recommended Sum Insured; the rest of the amount due
     // (already net of rebate, via totalAmountDue above) becomes the downpayment. If a rebate is
     // big enough that the amount due no longer covers the full Sum Insured, the loan simply

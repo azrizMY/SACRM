@@ -31,6 +31,10 @@ import { AuthService } from '../shared/auth.service';
             <app-icon name="user" [size]="16" />
             Profile
           </button>
+          <button type="button" (click)="goTo('/settings')" class="flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-sm text-foreground transition-colors hover:bg-accent">
+            <app-icon name="settings" [size]="16" />
+            Settings
+          </button>
           <div class="my-1 h-px bg-border"></div>
           <button type="button" (click)="logout()" class="flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-sm text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)]/10">
             <app-icon name="log-out" [size]="16" />

@@ -195,8 +195,7 @@ export class SignupComponent {
       this.error.set(result.error);
       return;
     }
-    // Google sign-in skips this form's Primary Brand field entirely, so a brand-new account gets
-    // routed through the one-time picker before it can reach the dashboard.
-    this.router.navigateByUrl(result.isNewUser ? '/choose-brand' : '/dashboard');
+    // Google skips this form's brand/phone fields; authGuard sends such an account to /choose-brand.
+    this.router.navigateByUrl('/dashboard');
   }
 }

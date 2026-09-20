@@ -9,7 +9,7 @@ import { BankerService } from './banker.service';
 import { TradeInService } from './trade-in.service';
 import { CustomerService } from './customer.service';
 
-export type AuthResult = { ok: true; isNewUser?: boolean } | { ok: false; error: string };
+export type AuthResult = { ok: true } | { ok: false; error: string };
 
 function extractError(err: unknown, fallback: string): string {
   if (err instanceof HttpErrorResponse) {
@@ -80,11 +80,9 @@ export class AuthService {
   async loginWithGoogle(idToken: string): Promise<AuthResult> {
     try {
       const user = await firstValueFrom(this.http.post<AuthUser>('/api/auth/google', { idToken }));
-      const isNewUser = user.isNewUser;
-      delete user.isNewUser;
       this.currentUser.set(user);
       await this.loadUserData();
-      return { ok: true, isNewUser };
+      return { ok: true };
     } catch (err) {
       return { ok: false, error: extractError(err, "Couldn't sign in with Google. Please try again.") };
     }
@@ -110,6 +108,12 @@ export class AuthService {
     }
   }
 
+  /** Called by the setup page once brand and phone are saved, so authGuard lets the account through. */
+  completeOnboarding(): void {
+    const user = this.currentUser();
+    if (user) this.currentUser.set({ ...user, needsOnboarding: false });
+  }
+
   /** For a signed-in user changing their password from Settings — distinct from resetPassword(),
    *  which is the logged-out "forgot password" email-link flow. Succeeds silently on the session
    *  cookie the server's Set-Cookie header already replaced; nothing else needs updating here. */
@@ -119,6 +123,29 @@ export class AuthService {
       return { ok: true };
     } catch (err) {
       return { ok: false, error: extractError(err, "Couldn't change your password. Please try again.") };
+    }
+  }
+
+  /** Re-confirms the signed-in user's password before a sensitive action such as exporting data. */
+  async verifyPassword(password: string): Promise<AuthResult> {
+    try {
+      await firstValueFrom(this.http.post('/api/auth/verify-password', { password }));
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: extractError(err, "Couldn't verify your password. Please try again.") };
+    }
+  }
+
+  /** Permanently deletes the signed-in account and every record it owns (server-side), then clears
+   *  all local state the same way logging out does. `password` is only needed for an account
+   *  without a Google login — the server rejects it otherwise. */
+  async deleteAccount(password?: string): Promise<AuthResult> {
+    try {
+      await firstValueFrom(this.http.post('/api/auth/delete-account', { password }));
+      this.logout();
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: extractError(err, "Couldn't delete your account. Please try again.") };
     }
   }
 

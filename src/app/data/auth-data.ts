@@ -7,8 +7,9 @@ export type AuthUser = {
    *  and used there to steer a password-less Google account at "Forgot password" instead of
    *  "Change password", which needs a current password nobody set. */
   hasGoogleLogin: boolean;
-  /** Only ever present (and true) on the /api/auth/google response, for an account that route just
-   *  created — signals the client to collect Primary Brand before the dashboard, since the Google
-   *  flow skips the signup form that normally asks for it. Never persisted onto `currentUser`. */
-  isNewUser?: boolean;
+  /** True for a Google account still missing a Primary Brand or phone number (the Google flow skips
+   *  the signup form that collects them) — authGuard keeps such an account on /choose-brand until
+   *  it's done. Computed server-side from the account's real data on every login and session
+   *  restore, so it can't be skipped by leaving mid-setup. */
+  needsOnboarding: boolean;
 };

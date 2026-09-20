@@ -7,6 +7,7 @@ import { handleTradeInContactsRoute } from './routes/trade-in-contacts';
 import { handleCustomersRoute } from './routes/customers';
 import { handlePublicRoute } from './routes/public';
 import { json } from './http';
+import { withSecurityHeaders } from './security-headers';
 
 export interface Env {
   DB: D1Database;

@@ -1,6 +1,7 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { IconComponent, type IconName } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { AuthService } from '../shared/auth.service';
@@ -371,7 +372,7 @@ type NavItem = { id: string; label: string; icon: IconName };
                   </div>
                   <button
                     type="button"
-                    (click)="exportData()"
+                    (click)="requestExport()"
                     class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
                   >
                     <app-icon name="download" [size]="13" />
@@ -449,31 +450,7 @@ type NavItem = { id: string; label: string; icon: IconName };
           <section id="security" data-section class="flex scroll-mt-20 flex-col gap-4">
             <div class="flex flex-col gap-0.5">
               <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Account &amp; Security</h3>
-              <p class="text-xs text-muted-foreground">How you sign in, and your password.</p>
-            </div>
-
-            <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-              <div class="flex items-center gap-3 px-5 py-4">
-                <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <app-icon name="lock" [size]="18" />
-                </span>
-                <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">Sign-in Method</span>
-                  <span class="text-xs text-muted-foreground">How this account is authenticated.</span>
-                </div>
-              </div>
-
-              <div class="flex items-center justify-between gap-4 border-t border-border px-5 py-4">
-                <span class="text-sm font-medium">{{ auth.currentUser()?.email }}</span>
-                @if (auth.currentUser()?.hasGoogleLogin) {
-                  <span class="flex shrink-0 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 py-1 text-xs font-medium text-foreground">
-                    <app-icon name="check" [size]="12" class="text-[var(--success)]" />
-                    Connected with Google
-                  </span>
-                } @else {
-                  <span class="shrink-0 rounded-full bg-muted/50 px-2.5 py-1 text-xs font-medium text-muted-foreground">Email &amp; password</span>
-                }
-              </div>
+              <p class="text-xs text-muted-foreground">Your password and account.</p>
             </div>
 
             <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
@@ -546,10 +523,103 @@ type NavItem = { id: string; label: string; icon: IconName };
                 }
               </div>
             </div>
+
+            <!-- Delete account -->
+            <div class="overflow-hidden rounded-xl border border-[var(--destructive)]/40 bg-[var(--destructive)]/5 text-card-foreground shadow-sm">
+              <div class="flex items-center gap-3 px-5 py-4">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--destructive)]/15 text-[var(--destructive)]">
+                  <app-icon name="alert-triangle" [size]="18" />
+                </span>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-sm font-semibold leading-none text-[var(--destructive)]">Delete Account</span>
+                  <span class="text-xs text-muted-foreground">Permanently removes your account and all of its data. This can't be undone.</span>
+                </div>
+              </div>
+              <div class="flex flex-col gap-3 border-t border-[var(--destructive)]/30 px-5 py-4">
+                <p class="text-xs text-muted-foreground">
+                  Deletes your profile, settings, customers, bankers, trade-ins, and pricing changes. You'll be signed out straight away.
+                  Export your data first (Data &amp; Privacy above) if you want to keep a copy.
+                </p>
+                <button
+                  type="button"
+                  (click)="openDeleteAccount()"
+                  class="flex w-fit items-center gap-1.5 rounded-md bg-[var(--destructive)] px-3 py-2 text-xs font-semibold text-[var(--destructive-foreground)] transition-colors hover:opacity-90"
+                >
+                  <app-icon name="trash" [size]="13" />
+                  Delete my account
+                </button>
+              </div>
+            </div>
           </section>
         </div>
       </div>
     </div>
+
+    <!-- Delete account confirmation -->
+    @if (confirmingDelete()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="confirmingDelete.set(false)"></button>
+        <div class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+          <div class="flex flex-col gap-3 p-5">
+            <span class="flex items-center gap-2 text-sm font-semibold text-[var(--destructive)]">
+              <app-icon name="trash" [size]="15" />
+              Delete your account?
+            </span>
+            <p class="text-sm text-muted-foreground">
+              Everything tied to <span class="font-medium text-foreground">{{ auth.currentUser()?.email }}</span> is erased permanently, including
+              all {{ customers.records().length }} customer record{{ customers.records().length === 1 ? '' : 's' }}. This can't be undone.
+            </p>
+            <div class="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+              <span class="text-xs text-muted-foreground">
+                <span class="font-medium text-foreground">Recommended:</span> download a copy of your data first — it can't be recovered afterwards.
+              </span>
+              <button
+                type="button"
+                (click)="requestExport()"
+                class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                <app-icon name="download" [size]="13" />
+                Export
+              </button>
+            </div>
+            @if (!auth.currentUser()?.hasGoogleLogin) {
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Your password
+                <input
+                  type="password"
+                  autocomplete="current-password"
+                  [(ngModel)]="deletePassword"
+                  class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
+                />
+              </label>
+            }
+            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Type DELETE to confirm
+              <input
+                type="text"
+                autocomplete="off"
+                [(ngModel)]="deleteConfirmText"
+                class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
+              />
+            </label>
+            @if (deleteError()) {
+              <p class="text-[11px] font-medium text-destructive">{{ deleteError() }}</p>
+            }
+          </div>
+          <div class="flex items-center justify-end gap-2 border-t border-border p-4">
+            <button type="button" (click)="confirmingDelete.set(false)" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
+            <button
+              type="button"
+              [disabled]="deleteConfirmText !== 'DELETE' || deletingAccount()"
+              (click)="deleteAccount()"
+              class="rounded-md bg-[var(--destructive)] px-3 py-2 text-xs font-semibold text-[var(--destructive-foreground)] transition-colors hover:opacity-90 disabled:opacity-50"
+            >
+              {{ deletingAccount() ? 'Deleting…' : 'Delete account' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
 
     <!-- Clear data confirmation -->
     @if (confirmingClear()) {
@@ -574,6 +644,44 @@ type NavItem = { id: string; label: string; icon: IconName };
               class="rounded-md bg-[var(--destructive)] px-3 py-2 text-xs font-semibold text-[var(--destructive-foreground)] transition-colors hover:opacity-90"
             >
               Clear data
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Export password confirmation -->
+    @if (confirmingExport()) {
+      <div class="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="confirmingExport.set(false)"></button>
+        <div class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+          <div class="flex flex-col gap-3 p-5">
+            <span class="flex items-center gap-2 text-sm font-semibold">
+              <app-icon name="lock" [size]="15" />
+              Confirm your password
+            </span>
+            <p class="text-sm text-muted-foreground">Your export includes your profile, settings, and every customer record, so we need your password first.</p>
+            <input
+              type="password"
+              autocomplete="current-password"
+              placeholder="Password"
+              [(ngModel)]="exportPassword"
+              (keydown.enter)="confirmExport()"
+              class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
+            />
+            @if (exportError()) {
+              <p class="text-[11px] font-medium text-destructive">{{ exportError() }}</p>
+            }
+          </div>
+          <div class="flex items-center justify-end gap-2 border-t border-border p-4">
+            <button type="button" (click)="confirmingExport.set(false)" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
+            <button
+              type="button"
+              [disabled]="verifyingExport()"
+              (click)="confirmExport()"
+              class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+            >
+              {{ verifyingExport() ? 'Checking…' : 'Export data' }}
             </button>
           </div>
         </div>
@@ -637,12 +745,24 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
   changingPassword = signal(false);
   passwordSavedFlash = signal(false);
 
+  confirmingExport = signal(false);
+  exportPassword = '';
+  exportError = signal<string | null>(null);
+  verifyingExport = signal(false);
+
+  confirmingDelete = signal(false);
+  deletePassword = '';
+  deleteConfirmText = '';
+  deleteError = signal<string | null>(null);
+  deletingAccount = signal(false);
+
   constructor(
     public settingsService: SettingsService,
     public customers: CustomerService,
     public catalog: VehicleCatalogService,
     public auth: AuthService,
     private advisor: AdvisorService,
+    private router: Router,
     private host: ElementRef<HTMLElement>,
   ) {
     this.salesForm = { ...this.settingsService.settings().salesDefaults };
@@ -725,7 +845,37 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
     setTimeout(() => this.seedFlash.set(false), 3000);
   }
 
-  exportData() {
+  /** Export is gated behind the account password. A Google-linked account has no password we can
+   *  check (see deleteAccount), so it exports straight away. */
+  requestExport() {
+    if (this.auth.currentUser()?.hasGoogleLogin) {
+      this.exportData();
+      return;
+    }
+    this.exportPassword = '';
+    this.exportError.set(null);
+    this.confirmingExport.set(true);
+  }
+
+  async confirmExport() {
+    if (!this.exportPassword) {
+      this.exportError.set('Enter your password.');
+      return;
+    }
+    this.exportError.set(null);
+    this.verifyingExport.set(true);
+    const result = await this.auth.verifyPassword(this.exportPassword);
+    this.verifyingExport.set(false);
+    if (!result.ok) {
+      this.exportError.set(result.error);
+      return;
+    }
+    this.confirmingExport.set(false);
+    this.exportPassword = '';
+    this.exportData();
+  }
+
+  private exportData() {
     const payload = {
       exportedAt: new Date().toISOString(),
       profile: this.advisor.profile(),
@@ -748,6 +898,31 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
   async confirmClearData() {
     await this.customers.clearAll();
     this.confirmingClear.set(false);
+  }
+
+  openDeleteAccount() {
+    this.deletePassword = '';
+    this.deleteConfirmText = '';
+    this.deleteError.set(null);
+    this.confirmingDelete.set(true);
+  }
+
+  async deleteAccount() {
+    this.deleteError.set(null);
+    const needsPassword = !this.auth.currentUser()?.hasGoogleLogin;
+    if (needsPassword && !this.deletePassword) {
+      this.deleteError.set('Enter your password.');
+      return;
+    }
+    this.deletingAccount.set(true);
+    const result = await this.auth.deleteAccount(needsPassword ? this.deletePassword : undefined);
+    this.deletingAccount.set(false);
+    if (!result.ok) {
+      this.deleteError.set(result.error);
+      return;
+    }
+    this.confirmingDelete.set(false);
+    this.router.navigateByUrl('/welcome');
   }
 
   async changePassword() {

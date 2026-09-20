@@ -49,6 +49,13 @@ export async function verifyPassword(password: string, stored: string): Promise<
   return timingSafeEqual(toHex(hash), parts[3]);
 }
 
+/** Session and reset tokens are stored only as SHA-256 hashes, so a leaked database can't be used to
+ *  hijack live sessions or reset links — only the browser/email ever holds the raw token. */
+export async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return toHex(new Uint8Array(digest));
+}
+
 function generateToken(): string {
   return toHex(crypto.getRandomValues(new Uint8Array(32)));
 }
@@ -72,7 +79,7 @@ export async function deleteAllSessionsForUser(db: D1Database, userId: string): 
 export async function createSession(db: D1Database, userId: string): Promise<{ token: string; expiresAt: number }> {
   const token = generateToken();
   const expiresAt = Date.now() + SESSION_TTL_MS;
-  await db.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)').bind(token, userId, expiresAt).run();
+  await db.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)').bind(await sha256Hex(token), userId, expiresAt).run();
   return { token, expiresAt };
 }
 
@@ -103,6 +110,7 @@ function getSessionToken(request: Request): string | null {
 export async function getUserFromSession(db: D1Database, request: Request): Promise<SessionUser | null> {
   const token = getSessionToken(request);
   if (!token) return null;
+  const tokenHash = await sha256Hex(token);
   const row = await db
     .prepare(
       `SELECT users.id as id, users.email as email, users.name as name, users.public_token as publicToken,
@@ -110,11 +118,11 @@ export async function getUserFromSession(db: D1Database, request: Request): Prom
        FROM sessions JOIN users ON users.id = sessions.user_id
        WHERE sessions.id = ?`,
     )
-    .bind(token)
+    .bind(tokenHash)
     .first<{ id: string; email: string; name: string; publicToken: string; googleId: string | null; expiresAt: number }>();
   if (!row) return null;
   if (row.expiresAt < Date.now()) {
-    await db.prepare('DELETE FROM sessions WHERE id = ?').bind(token).run();
+    await db.prepare('DELETE FROM sessions WHERE id = ?').bind(tokenHash).run();
     return null;
   }
   return { id: row.id, email: row.email, name: row.name, publicToken: row.publicToken, hasGoogleLogin: row.googleId != null };
@@ -122,5 +130,5 @@ export async function getUserFromSession(db: D1Database, request: Request): Prom
 
 export async function deleteSession(db: D1Database, request: Request): Promise<void> {
   const token = getSessionToken(request);
-  if (token) await db.prepare('DELETE FROM sessions WHERE id = ?').bind(token).run();
+  if (token) await db.prepare('DELETE FROM sessions WHERE id = ?').bind(await sha256Hex(token)).run();
 }

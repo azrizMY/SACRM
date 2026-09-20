@@ -84,6 +84,7 @@ export class AppShellComponent {
         const id = this.currentId();
         this.active.set(id);
         this.title.set(TITLES[id] ?? 'Dashboard');
+        this.mobileOpen.set(false);
       });
   }
 
