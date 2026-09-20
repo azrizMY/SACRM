@@ -19,6 +19,21 @@
       "database_id": "6c0b28ac-1ce7-4573-a1e7-83e64095074d"
     }
   ],
+  // The production database, reachable ONLY by passing `--env production` explicitly (see the
+  // db:migrate:production script) — a plain command here still only ever touches preview. It exists
+  // so schema migrations can be applied to the real database; the Pages deploy pipeline itself still
+  // uses the root wrangler.jsonc.
+  "env": {
+    "production": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "redline-crm",
+          "database_id": "7ffbc12b-99be-4fb1-a72e-7db1c4b29501"
+        }
+      ]
+    }
+  },
   // For local `wrangler dev` only. RESEND_API_KEY is a real secret — put it in a gitignored
   // `server/.dev.vars` file instead (RESEND_API_KEY=...), never here.
   "vars": {
