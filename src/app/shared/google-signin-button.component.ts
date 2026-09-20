@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, Output, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, OnDestroy, Output, ViewChild } from '@angular/core';
 
 /** Public identifier for the OAuth Client ID created in Google Cloud Console (APIs & Services →
  *  Credentials). Not a secret — Google Client IDs are meant to be embedded in client-side code —
@@ -23,12 +23,38 @@ declare const google: {
   standalone: true,
   template: `<div #container class="flex w-full justify-center"></div>`,
 })
-export class GoogleSignInButtonComponent implements AfterViewInit {
+export class GoogleSignInButtonComponent implements AfterViewInit, OnDestroy {
   @ViewChild('container', { static: true }) container!: ElementRef<HTMLDivElement>;
   @Output() credential = new EventEmitter<string>();
 
+  private retry?: ReturnType<typeof setInterval>;
+
   ngAfterViewInit(): void {
-    if (typeof google === 'undefined' || GOOGLE_CLIENT_ID.startsWith('REPLACE_WITH_')) return;
+    if (GOOGLE_CLIENT_ID.startsWith('REPLACE_WITH_')) return;
+    // index.html loads Google's script with async/defer, so on a slower connection it may not have
+    // arrived by the time this component is built — wait for it instead of giving up (which left the
+    // page with no Google button at all).
+    if (typeof google !== 'undefined') {
+      this.render();
+      return;
+    }
+    let waited = 0;
+    this.retry = setInterval(() => {
+      waited += 150;
+      if (typeof google !== 'undefined') {
+        clearInterval(this.retry);
+        this.render();
+      } else if (waited >= 15000) {
+        clearInterval(this.retry);
+      }
+    }, 150);
+  }
+
+  ngOnDestroy(): void {
+    clearInterval(this.retry);
+  }
+
+  private render(): void {
     google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       callback: (response) => this.credential.emit(response.credential),
