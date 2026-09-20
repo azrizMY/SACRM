@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { IconComponent } from '../shared/icon.component';
+import { TourService, type TourStep } from '../shared/tour.service';
 import { fetchPublicQuote, type PublicQuoteBundle } from '../shared/public-quote-api';
 import { posterFontsReady } from '../shared/poster-theme';
 import { classicTemplate } from '../shared/poster-template-classic';
@@ -47,7 +48,7 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
         <p class="max-w-xs text-sm text-muted-foreground">Please check the link your sales advisor sent you, or ask them to resend it.</p>
       </div>
     } @else {
-      <div class="mx-auto flex max-w-7xl flex-col gap-6 p-4 md:p-6">
+      <div class="mx-auto flex max-w-7xl flex-col gap-6 p-4 md:p-6 2xl:max-w-[1800px]">
         <!-- Mobile Preview/Customize switcher -->
         <div class="sticky -top-4 z-10 -mx-4 flex flex-col gap-2 bg-background px-4 pb-2 pt-0 md:-mx-6 md:px-6 xl:hidden">
           <div class="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
@@ -78,15 +79,26 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
           </div>
         </div>
 
-        <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
+        <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-3 2xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] 2xl:gap-8">
           <!-- Quote preview -->
           <div
-            class="flex-col gap-2 xl:sticky xl:top-4 xl:col-span-2 xl:flex xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain"
+            class="flex-col gap-2 xl:sticky xl:top-4 xl:col-span-2 xl:flex 2xl:col-span-1"
             [ngClass]="mobileTab() === 'preview' ? 'flex' : 'hidden'"
           >
-            <div class="shrink-0 overflow-hidden rounded-xl shadow-md">
-              <canvas #posterCanvas class="block w-full h-auto"></canvas>
+            <div data-tour="quote-preview" class="shrink-0 overflow-hidden rounded-xl shadow-md xl:mx-auto">
+              <canvas #posterCanvas class="block h-auto w-full xl:mx-auto xl:w-auto xl:max-w-full xl:max-h-[calc(100vh-6.5rem)]"></canvas>
             </div>
+            @if (bundle()!.advisor.phoneWa) {
+              <button
+                type="button"
+                data-tour="quote-whatsapp"
+                (click)="openWhatsAppToAdvisor()"
+                class="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 xl:hidden"
+              >
+                <app-icon name="message-circle" [size]="16" />
+                WhatsApp Advisor
+              </button>
+            }
             <p class="flex shrink-0 items-center justify-center gap-1.5 text-center text-[10px] leading-relaxed text-muted-foreground">
               <app-icon name="info" [size]="12" class="shrink-0" />
               Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here.
@@ -95,17 +107,18 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
 
           <!-- Customize quote -->
           <div
-            class="flex-col gap-4 xl:sticky xl:top-4 xl:col-span-1 xl:flex xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1"
+            class="flex-col gap-4 xl:sticky xl:top-4 xl:col-span-1 xl:flex xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 2xl:static 2xl:block 2xl:max-h-none 2xl:columns-2 2xl:gap-4 2xl:overflow-visible 2xl:pr-0 2xl:[&>*]:mb-4 2xl:[&>*]:break-inside-avoid 2xl:[&>:first-child]:[column-span:all]"
             [ngClass]="mobileTab() === 'customize' ? 'flex' : 'hidden'"
           >
             <div class="flex items-center justify-between">
-              <h3 class="text-base font-semibold leading-none">Customize Quote</h3>
+              <h3 class="shrink-0 whitespace-nowrap text-base font-semibold leading-none">Customize Quote</h3>
               <div class="flex items-center gap-1">
                 @if (bundle()!.advisor.phoneWa) {
                   <button
                     type="button"
+                    data-tour="quote-whatsapp"
                     (click)="openWhatsAppToAdvisor()"
-                    class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-accent"
+                    class="hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-accent xl:flex"
                   >
                     <app-icon name="message-circle" [size]="13" />
                     WhatsApp Advisor
@@ -113,8 +126,17 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                 }
                 <button
                   type="button"
+                  (click)="startTour()"
+                  aria-label="How this page works"
+                  title="How this page works"
+                  class="flex shrink-0 items-center rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  <app-icon name="info" [size]="15" />
+                </button>
+                <button
+                  type="button"
                   (click)="reset()"
-                  class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                  class="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
                   <app-icon name="refresh-cw" [size]="13" />
                   Reset
@@ -123,7 +145,7 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
             </div>
 
             <!-- Select car -->
-            <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+            <div data-tour="quote-car" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
               <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Select Car</span>
 
               <div class="grid grid-cols-1 gap-3" [ngClass]="singleBrandMode ? '' : 'sm:grid-cols-2'">
@@ -279,7 +301,7 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
 
               <div class="flex flex-col gap-2">
                 <span class="text-xs font-medium text-muted-foreground">Downpayment</span>
-                <div role="group" aria-label="Quick downpayment presets" class="grid grid-cols-3 gap-1.5">
+                <div data-tour="quote-downpayment" role="group" aria-label="Quick downpayment presets" class="grid grid-cols-3 gap-1.5">
                   <button
                     type="button"
                     (click)="applyDownpaymentPreset('tenPercent')"
@@ -363,7 +385,7 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
             </div>
 
             <!-- Tenure -->
-            <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+            <div data-tour="quote-tenure" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
               <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tenure</span>
               <div class="flex flex-col gap-2">
                 <div class="flex items-center justify-between">
@@ -483,6 +505,7 @@ export class PublicQuoteComponent implements OnInit {
   @ViewChild('posterCanvas') posterCanvasRef?: ElementRef<HTMLCanvasElement>;
 
   private route = inject(ActivatedRoute);
+  private tour = inject(TourService);
 
   loading = signal(true);
   notFound = signal(false);
@@ -782,6 +805,58 @@ export class PublicQuoteComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
+    // A customer opening this link for the first time on this device gets the walkthrough.
+    setTimeout(() => {
+      if (!this.notFound() && !this.tour.hasSeen('quote')) void this.startTour();
+    }, 1000);
+  }
+
+  /** The customer-facing walkthrough — also replayable from the Guide button. The WhatsApp Advisor
+   *  step matters most: it's a small text button, and it's how a customer sends the quote on. */
+  startTour() {
+    const advisor = this.bundle()?.advisor.name || 'your advisor';
+    const showPreview = () => this.mobileTab.set('preview');
+    const showCustomize = () => this.mobileTab.set('customize');
+    const steps: TourStep[] = [
+      {
+        title: 'Build your own quote',
+        body: 'Change the car, downpayment and repayment period, and your quote updates instantly. This quick guide takes under a minute.',
+        before: showPreview,
+      },
+      {
+        target: 'quote-preview',
+        title: 'Your live quote',
+        body: 'This is your quote. It updates as you change anything in the Customize tab.',
+        before: showPreview,
+      },
+      {
+        target: 'quote-car',
+        title: 'Pick your car',
+        body: 'Choose the brand, model and colour you are interested in.',
+        before: showCustomize,
+      },
+      {
+        target: 'quote-downpayment',
+        title: 'Set your downpayment',
+        body: 'Tap 10%, Full Loan or RSI for a quick setup, or type your own amount.',
+        before: showCustomize,
+      },
+      {
+        target: 'quote-tenure',
+        title: 'Choose how long to pay',
+        body: 'Pick the number of years. Your monthly instalment updates straight away.',
+        before: showCustomize,
+      },
+      {
+        target: 'quote-whatsapp',
+        title: `Send it to ${advisor}`,
+        body: `Happy with the numbers? Tap "WhatsApp Advisor" to send this exact quote to ${advisor}, who will confirm the final figures with you.`,
+        before: showPreview,
+        skipIfMissing: true,
+        doneLabel: 'Got it',
+      },
+    ];
+    return this.tour.start('quote', steps);
   }
 
   private buildPosterData(): PosterData {
