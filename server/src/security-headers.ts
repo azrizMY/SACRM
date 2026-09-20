@@ -19,10 +19,14 @@ const CSP = [
 
 export function withSecurityHeaders(response: Response, isApi: boolean): Response {
   const res = new Response(response.body, response);
-  res.headers.set('Content-Security-Policy', CSP);
+  // The CSP and anti-framing rules only matter for documents and API responses. They're skipped for
+  // files (PDF brochures, images, scripts): framing rules on a PDF stop Chrome's built-in viewer.
+  if (isApi || (res.headers.get('Content-Type') ?? '').includes('text/html')) {
+    res.headers.set('Content-Security-Policy', CSP);
+    res.headers.set('X-Frame-Options', 'DENY');
+  }
   res.headers.set('Strict-Transport-Security', 'max-age=31536000');
   res.headers.set('X-Content-Type-Options', 'nosniff');
-  res.headers.set('X-Frame-Options', 'DENY');
   res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
   if (isApi) res.headers.set('Cache-Control', 'no-store');

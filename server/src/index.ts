@@ -22,13 +22,13 @@ export default {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/api/')) {
       try {
-        return await handleApi(request, env, url);
+        return withSecurityHeaders(await handleApi(request, env, url), true);
       } catch (err) {
         console.error(err);
-        return json({ error: 'Internal server error' }, 500);
+        return withSecurityHeaders(json({ error: 'Internal server error' }, 500), true);
       }
     }
-    return env.ASSETS.fetch(request);
+    return withSecurityHeaders(await env.ASSETS.fetch(request), false);
   },
 } satisfies ExportedHandler<Env>;
 
