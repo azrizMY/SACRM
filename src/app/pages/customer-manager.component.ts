@@ -1788,7 +1788,6 @@ export class CustomerManagerComponent {
       loanBasisInsuranceAmount: loanBasisInsurance,
       downpaymentType: q.downpaymentType,
       downpaymentValue: q.downpaymentValue,
-      sumInsured: vehicle?.sumInsured,
     });
 
     const rateType: RateType = q.rateType ?? 'flat';

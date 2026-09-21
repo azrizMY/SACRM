@@ -67,47 +67,8 @@ type NavItem = { id: string; label: string; icon: IconName };
               <div class="flex flex-col divide-y divide-border border-t border-border px-5">
                 <div class="flex items-center justify-between gap-4 py-4">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Downpayment Basis</span>
-                    <span class="text-xs text-muted-foreground">Which downpayment option a new quote opens on.</span>
-                  </div>
-                  <div role="radiogroup" aria-label="Downpayment Basis" class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
-                    <button
-                      type="button"
-                      role="radio"
-                      [attr.aria-checked]="salesForm.defaultDownpaymentType === 'percent'"
-                      (click)="salesForm.defaultDownpaymentType = 'percent'"
-                      class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
-                      [ngClass]="salesForm.defaultDownpaymentType === 'percent' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                    >
-                      %
-                    </button>
-                    <button
-                      type="button"
-                      role="radio"
-                      [attr.aria-checked]="salesForm.defaultDownpaymentType === 'amount'"
-                      (click)="salesForm.defaultDownpaymentType = 'amount'"
-                      class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
-                      [ngClass]="salesForm.defaultDownpaymentType === 'amount' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                    >
-                      Amt
-                    </button>
-                    <button
-                      type="button"
-                      role="radio"
-                      [attr.aria-checked]="salesForm.defaultDownpaymentType === 'sumInsured'"
-                      (click)="salesForm.defaultDownpaymentType = 'sumInsured'"
-                      class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
-                      [ngClass]="salesForm.defaultDownpaymentType === 'sumInsured' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                    >
-                      Sum Insured
-                    </button>
-                  </div>
-                </div>
-
-                <div class="flex items-center justify-between gap-4 py-4">
-                  <div class="flex flex-col">
                     <span class="text-sm font-medium">Downpayment</span>
-                    <span class="text-xs text-muted-foreground">Starting percentage on a new quote — only used when the basis above is "%".</span>
+                    <span class="text-xs text-muted-foreground">Starting percentage on a new quote.</span>
                   </div>
                   <div class="relative flex shrink-0 items-center">
                     <input

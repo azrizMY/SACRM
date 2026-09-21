@@ -301,7 +301,7 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
 
               <div class="flex flex-col gap-2">
                 <span class="text-xs font-medium text-muted-foreground">Downpayment</span>
-                <div data-tour="quote-downpayment" role="group" aria-label="Quick downpayment presets" class="grid grid-cols-3 gap-1.5">
+                <div data-tour="quote-downpayment" role="group" aria-label="Quick downpayment presets" class="grid grid-cols-2 gap-1.5">
                   <button
                     type="button"
                     (click)="applyDownpaymentPreset('tenPercent')"
@@ -318,16 +318,6 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                   >
                     Full Loan
                   </button>
-                  <button
-                    type="button"
-                    [disabled]="selectedVehicle().sumInsured == null"
-                    [title]="selectedVehicle().sumInsured == null ? 'Recommended Sum Insured — not set for this car' : 'Recommended Sum Insured — loan pinned to it'"
-                    (click)="applyDownpaymentPreset('sumInsured')"
-                    class="rounded-lg border px-2 py-2 text-xs font-semibold leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                    [ngClass]="isDownpaymentPreset('sumInsured') ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground enabled:hover:bg-accent enabled:hover:text-accent-foreground'"
-                  >
-                    RSI
-                  </button>
                 </div>
                 <div class="flex gap-2">
                   <input
@@ -335,14 +325,14 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                     min="0"
                     [attr.max]="downpaymentType() === 'percent' ? 100 : null"
                     [step]="downpaymentType() === 'percent' ? 1 : 500"
-                    [ngModel]="downpaymentType() === 'sumInsured' ? downpaymentCash() : downpaymentValue()"
-                    (ngModelChange)="onDownpaymentInput($event)"
+                    [ngModel]="downpaymentValue()"
+                    (ngModelChange)="downpaymentValue.set(+$event || 0)"
                     class="h-10 w-full rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular outline-none transition-colors focus:border-ring"
                   />
                   <div class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
                     <button
                       type="button"
-                      (click)="setDownpaymentType('percent')"
+                      (click)="downpaymentType.set('percent')"
                       class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
                       [ngClass]="downpaymentType() === 'percent' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
                     >
@@ -350,17 +340,14 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                     </button>
                     <button
                       type="button"
-                      (click)="setDownpaymentType('amount')"
+                      (click)="downpaymentType.set('amount')"
                       class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
-                      [ngClass]="downpaymentType() === 'amount' || downpaymentType() === 'sumInsured' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
+                      [ngClass]="downpaymentType() === 'amount' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
                     >
                       Amt
                     </button>
                   </div>
                 </div>
-                @if (downpaymentType() === 'sumInsured' && selectedVehicle().sumInsured == null) {
-                  <span class="text-[11px] text-muted-foreground">No Sum Insured is set for this car, so this quote uses the % downpayment.</span>
-                }
               </div>
 
               <div class="flex flex-col gap-2">
@@ -685,7 +672,6 @@ export class PublicQuoteComponent implements OnInit {
       loanBasisInsuranceAmount: this.loanBasisInsurance(),
       downpaymentType: this.downpaymentType(),
       downpaymentValue: this.downpaymentValue(),
-      sumInsured: this.selectedVehicle().sumInsured,
     }),
   );
   allInPrice = computed(() => this.totals().totalAmountDue);
@@ -699,39 +685,23 @@ export class PublicQuoteComponent implements OnInit {
   // back before the customer finishes — a draft signal holds the raw typed number until blur/Enter.
   private loanAmountDraft = signal<number | null>(null);
 
-  /** One-tap downpayment setups: 10% of the price, Full Loan (no cash down beyond the RM100
-   *  rounding remainder), or the loan pinned to the car's Recommended Sum Insured. */
-  /** The RSI preset shows its resulting cash downpayment in the Amt field but stays pinned to the
-   *  Sum Insured (so a rebate or NCD change still re-splits loan vs downpayment) until the SA
-   *  types their own figure or picks % / Amt — then it becomes an ordinary manual amount. */
-  onDownpaymentInput(value: number | string) {
-    if (this.downpaymentType() === 'sumInsured') this.downpaymentType.set('amount');
-    this.downpaymentValue.set(+value || 0);
-  }
-
-  setDownpaymentType(type: 'percent' | 'amount') {
-    if (this.downpaymentType() === 'sumInsured') this.downpaymentValue.set(type === 'amount' ? this.downpaymentCash() : this.downpaymentValue());
-    this.downpaymentType.set(type);
-  }
-
-  applyDownpaymentPreset(preset: 'tenPercent' | 'fullLoan' | 'sumInsured') {
+  /** One-tap downpayment setups: 10% of the price, or Full Loan (no cash down beyond the RM100
+   *  rounding remainder). */
+  applyDownpaymentPreset(preset: 'tenPercent' | 'fullLoan') {
     this.loanAmountDraft.set(null);
     if (preset === 'tenPercent') {
       this.downpaymentType.set('percent');
       this.downpaymentValue.set(10);
-    } else if (preset === 'fullLoan') {
+    } else {
       this.downpaymentType.set('amount');
       this.downpaymentValue.set(0);
-    } else {
-      this.downpaymentType.set('sumInsured');
     }
   }
 
-  isDownpaymentPreset(preset: 'tenPercent' | 'fullLoan' | 'sumInsured'): boolean {
+  isDownpaymentPreset(preset: 'tenPercent' | 'fullLoan'): boolean {
     const type = this.downpaymentType();
     if (preset === 'tenPercent') return type === 'percent' && this.downpaymentValue() === 10;
-    if (preset === 'fullLoan') return type === 'amount' && this.downpaymentValue() === 0;
-    return type === 'sumInsured';
+    return type === 'amount' && this.downpaymentValue() === 0;
   }
   loanAmountDisplay = computed(() => this.loanAmountDraft() ?? this.loanAmount());
 
@@ -798,7 +768,7 @@ export class PublicQuoteComponent implements OnInit {
       this.selectedColour.set(preferred.colours?.[0] ?? null);
       this.modelYear.set(Math.max(...preferred.years.map((y) => y.year)));
       this.ncd.set(bundle.salesDefaults.ncd);
-      this.downpaymentType.set(bundle.salesDefaults.defaultDownpaymentType ?? 'percent');
+      this.downpaymentType.set('percent');
       this.downpaymentValue.set(bundle.salesDefaults.downpaymentPct);
     } catch {
       this.notFound.set(true);
@@ -838,7 +808,7 @@ export class PublicQuoteComponent implements OnInit {
       {
         target: 'quote-downpayment',
         title: 'Set your downpayment',
-        body: 'Tap 10%, Full Loan or RSI for a quick setup, or type your own amount.',
+        body: 'Tap 10% or Full Loan for a quick setup, or type your own amount.',
         before: showCustomize,
       },
       {
@@ -932,7 +902,7 @@ export class PublicQuoteComponent implements OnInit {
     const bundle = this.bundle();
     if (!bundle) return;
     this.ncd.set(bundle.salesDefaults.ncd);
-    this.downpaymentType.set(bundle.salesDefaults.defaultDownpaymentType ?? 'percent');
+    this.downpaymentType.set('percent');
     this.downpaymentValue.set(bundle.salesDefaults.downpaymentPct);
     this.tenureYears.set(9);
     this.loanAmountDraft.set(null);

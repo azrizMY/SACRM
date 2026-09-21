@@ -48,7 +48,6 @@ async function getPublicQuoteBundle(env: Env, token: string): Promise<Response> 
     downpaymentPct: settingsData.salesDefaults?.downpaymentPct ?? 10,
     ncd: settingsData.salesDefaults?.ncd ?? 0,
     basicPremiumRatePct: settingsData.salesDefaults?.basicPremiumRatePct ?? 3.6,
-    defaultDownpaymentType: settingsData.salesDefaults?.defaultDownpaymentType ?? 'percent',
   };
   const vehicleInsurance = settingsData.vehicleInsurance ?? {};
   // Only the brand name, not the SA's sales target number — that figure is internal, the brand

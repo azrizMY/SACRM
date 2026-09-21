@@ -1,4 +1,4 @@
-import type { DownpaymentType, InsuranceQuotationDetails, RateType } from './calculator-data';
+import type { InsuranceQuotationDetails, RateType } from './calculator-data';
 
 export type SalesDefaults = {
   interestRate: number;
@@ -10,9 +10,6 @@ export type SalesDefaults = {
   defaultRateType: RateType;
   /** Which 3 tenure years (of 1-9) the Calculator's repayment table starts on for every new quote. */
   defaultTenureYears: number[];
-  /** Which Downpayment basis (%, fixed amount, or Sum Insured) the Calculator and the public
-   *  no-login quote page start every new quote on. */
-  defaultDownpaymentType: DownpaymentType;
 };
 
 /** Per-vehicle itemized insurance quotation overrides, keyed by Vehicle.id — edited from Account
@@ -40,7 +37,7 @@ export type AppSettings = {
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  salesDefaults: { interestRate: 3.5, downpaymentPct: 10, ncd: 0, basicPremiumRatePct: 3.27, defaultRateType: 'flat', defaultTenureYears: [9, 7, 5], defaultDownpaymentType: 'percent' },
+  salesDefaults: { interestRate: 3.5, downpaymentPct: 10, ncd: 0, basicPremiumRatePct: 3.27, defaultRateType: 'flat', defaultTenureYears: [9, 7, 5] },
   notifications: { newLeadAlerts: true, bookingReminders: true, weeklySummary: false },
   dashboardTarget: { brand: 'Chery', target: 4 },
   vehicleInsurance: {},

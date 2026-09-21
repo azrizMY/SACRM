@@ -1,5 +1,5 @@
 import { apiRequest } from './api-client';
-import type { DownpaymentType, VehicleOverride } from '../data/calculator-data';
+import type { VehicleOverride } from '../data/calculator-data';
 import type { VehicleInsuranceOverrides } from '../data/settings-data';
 
 export type PublicAdvisor = { name: string; role: string; phoneDisplay: string; phoneWa: string; photoUrl?: string };
@@ -12,7 +12,6 @@ export type PublicQuoteBundle = {
     downpaymentPct: number;
     ncd: number;
     basicPremiumRatePct: number;
-    defaultDownpaymentType: DownpaymentType;
   };
   vehicleInsurance: VehicleInsuranceOverrides;
   vehicleOverrides: Record<string, VehicleOverride>;

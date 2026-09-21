@@ -17,7 +17,6 @@ type PanelForm = {
   price: number;
   interestRate: number | null;
   effectiveRate: number | null;
-  sumInsured: number | null;
   /** Working copy of the variant's model years — edited in place, newest first, only written back
    *  through VehicleCatalogService on Save. */
   years: VehicleYear[];
@@ -28,7 +27,6 @@ function pickForm(v: Vehicle): PanelForm {
     price: v.price,
     interestRate: v.interestRate ?? null,
     effectiveRate: v.effectiveRate ?? null,
-    sumInsured: v.sumInsured ?? null,
     years: v.years.map((y) => ({ ...y })).sort((a, b) => b.year - a.year),
   };
 }
@@ -200,22 +198,6 @@ type BrandGroup = { brand: string; models: ModelGroup[] };
                 Effective rate is a separate, independently-quoted figure — not calculated from the flat rate above. Basic Premium and Add Benefits are set
                 in the Itemized Insurance Quotation below.
               </p>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Recommended Sum Insured (RM)
-                <input
-                  type="number"
-                  min="0"
-                  step="100"
-                  [ngModel]="form().sumInsured"
-                  (ngModelChange)="setOptionalField('sumInsured', $event)"
-                  placeholder="Not set"
-                  class="h-10 rounded-lg border border-input bg-input px-3 text-sm tabular text-foreground outline-none focus:border-ring"
-                />
-              </label>
-              <p class="text-[11px] text-muted-foreground">
-                Selectable as a Downpayment basis in the Calculator and the customer-facing quote — the loan amount is pinned to this figure instead of a
-                percentage of price.
-              </p>
             </div>
 
             <!-- Model years — Rebate and Additional Rebate can each differ year to year -->
@@ -363,7 +345,7 @@ export class PriceSettingsComponent {
 
   selectedId = signal<string | null>(null);
   selected = computed(() => this.catalog.vehicles().find((v) => v.id === this.selectedId()) ?? null);
-  form = signal<PanelForm>({ price: 0, interestRate: null, effectiveRate: null, sumInsured: null, years: [] });
+  form = signal<PanelForm>({ price: 0, interestRate: null, effectiveRate: null, years: [] });
   dirty = signal(false);
   savedFlash = signal(false);
   closeConfirm = signal(false);
@@ -435,7 +417,7 @@ export class PriceSettingsComponent {
     this.dirty.set(true);
   }
 
-  setOptionalField(field: 'interestRate' | 'effectiveRate' | 'sumInsured', value: string) {
+  setOptionalField(field: 'interestRate' | 'effectiveRate', value: string) {
     const trimmed = String(value ?? '').trim();
     if (!trimmed) {
       this.form.update((f) => ({ ...f, [field]: null }));
@@ -514,7 +496,6 @@ export class PriceSettingsComponent {
       price: f.price,
       interestRate: f.interestRate ?? undefined,
       effectiveRate: f.effectiveRate ?? undefined,
-      sumInsured: f.sumInsured ?? undefined,
       years: f.years.map((y) => ({ year: y.year, rebate: y.rebate ?? undefined, additionalRebate: y.additionalRebate ?? undefined })),
     });
     this.dirty.set(false);

@@ -28,12 +28,6 @@ export type Vehicle = {
   basicPremium?: number;
   /** Insurer's exact Additional Benefits (riders) total for this model. */
   addBenefits?: number;
-  /** SA-entered Recommended Sum Insured for this car — Malaysia's PIAM guidelines base Sum Insured
-   *  on current market value, which the SA sets directly per car (Price Settings) rather than a
-   *  fixed formula. Selectable as a Downpayment basis (see DownpaymentType 'sumInsured'): the loan
-   *  amount is pinned to this figure instead of a % of price, with the remainder of the amount due
-   *  going to the downpayment (see computeQuotationTotals). Absent until the SA sets one. */
-  sumInsured?: number;
   /** Static file path under `public/` (e.g. `/cars/proton-saga-standard.png`) for this variant's
    *  hero image on the Quote Preview poster — hardcoded by the developer, not uploaded at runtime. */
   photoUrl?: string;
@@ -96,52 +90,52 @@ export function additionalRebateForYear(vehicle: Vehicle, year: number): number 
  *  model years still in dealer stock) is editable from Price Settings. Currently limited to Proton,
  *  Chery, and Jaecoo; other brands will be added back gradually. */
 export const VEHICLES: Vehicle[] = [
-  { id: 'proton-saga-standard', brand: 'Proton', model: 'Saga', variant: 'Standard', price: 38990, sumInsured: 39000, photoUrl: '/cars/proton-saga.png', brochureUrl: '/brochures/proton-saga.pdf', colours: ['Marine Blue', 'Space Grey', 'Ruby Red', 'Armour Silver', 'Snow White'], years: [{ year: 2026 }] },
-  { id: 'proton-saga-executive', brand: 'Proton', model: 'Saga', variant: 'Executive', price: 44990, sumInsured: 45000, photoUrl: '/cars/proton-saga.png', brochureUrl: '/brochures/proton-saga.pdf', colours: ['Marine Blue', 'Space Grey', 'Ruby Red', 'Armour Silver', 'Snow White'], years: [{ year: 2026 }] },
-  { id: 'proton-saga-premium', brand: 'Proton', model: 'Saga', variant: 'Premium', price: 49990, sumInsured: 50000, photoUrl: '/cars/proton-saga.png', brochureUrl: '/brochures/proton-saga.pdf', colours: ['Marine Blue', 'Space Grey', 'Ruby Red', 'Armour Silver', 'Snow White'], years: [{ year: 2026 }] },
-  { id: 'proton-persona-standard', brand: 'Proton', model: 'Persona', variant: 'Standard', price: 47800, sumInsured: 47000, photoUrl: '/cars/proton-persona.png', brochureUrl: '/brochures/proton-persona.pdf', years: [{ year: 2026 }] },
-  { id: 'proton-persona-executive', brand: 'Proton', model: 'Persona', variant: 'Executive', price: 53300, sumInsured: 53000, photoUrl: '/cars/proton-persona.png', brochureUrl: '/brochures/proton-persona.pdf', years: [{ year: 2026 }] },
-  { id: 'proton-persona-premium', brand: 'Proton', model: 'Persona', variant: 'Premium', price: 58300, sumInsured: 58000, photoUrl: '/cars/proton-persona.png', brochureUrl: '/brochures/proton-persona.pdf', years: [{ year: 2026 }] },
-  { id: 'proton-s70-executive', brand: 'Proton', model: 'S70', variant: 'Executive', price: 73800, sumInsured: 74000, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver', 'Ruby Red'], years: [{ year: 2026 }] },
-  { id: 'proton-s70-premium', brand: 'Proton', model: 'S70', variant: 'Premium', price: 79800, sumInsured: 80000, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver', 'Ruby Red'], years: [{ year: 2026 }] },
-  { id: 'proton-s70-flagship', brand: 'Proton', model: 'S70', variant: 'Flagship', price: 89800, sumInsured: 90000, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver', 'Ruby Red'], years: [{ year: 2026 }] },
-  { id: 'proton-s70-flagship-x', brand: 'Proton', model: 'S70', variant: 'Flagship X', price: 94800, sumInsured: 95000, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver', 'Ruby Red'], years: [{ year: 2026 }] },
-  { id: 'proton-x50-executive', brand: 'Proton', model: 'X50', variant: 'Executive', price: 89800, sumInsured: 90000, photoUrl: '/cars/proton-x50.png', brochureUrl: '/brochures/proton-x50.pdf', colours: ['Snow White', 'Jet Grey', 'Armour Silver', 'Marine Blue', 'Quartz Black'], years: [{ year: 2026 }] },
-  { id: 'proton-x50-premium', brand: 'Proton', model: 'X50', variant: 'Premium', price: 101800, sumInsured: 102000, photoUrl: '/cars/proton-x50.png', brochureUrl: '/brochures/proton-x50.pdf', colours: ['Snow White', 'Jet Grey', 'Armour Silver', 'Marine Blue', 'Quartz Black'], years: [{ year: 2026 }] },
-  { id: 'proton-x50-flagship', brand: 'Proton', model: 'X50', variant: 'Flagship', price: 113300, sumInsured: 113000, photoUrl: '/cars/proton-x50.png', brochureUrl: '/brochures/proton-x50.pdf', colours: ['Snow White', 'Jet Grey', 'Armour Silver', 'Marine Blue', 'Quartz Black'], years: [{ year: 2026 }] },
-  { id: 'proton-x70-executive', brand: 'Proton', model: 'X70', variant: 'Executive', price: 106800, sumInsured: 107000, photoUrl: '/cars/proton-x70.png', brochureUrl: '/brochures/proton-x70.pdf', colours: ['Snow White', 'Armour Silver', 'Jet Grey', 'Marine Blue'], years: [{ year: 2026 }] },
-  { id: 'proton-x70-premium', brand: 'Proton', model: 'X70', variant: 'Premium', price: 119800, sumInsured: 120000, photoUrl: '/cars/proton-x70.png', brochureUrl: '/brochures/proton-x70.pdf', colours: ['Snow White', 'Armour Silver', 'Jet Grey', 'Marine Blue'], years: [{ year: 2026 }] },
-  { id: 'proton-x90-lite', brand: 'Proton', model: 'X90', variant: 'Lite', price: 106800, sumInsured: 107000, photoUrl: '/cars/proton-x90.png', brochureUrl: '/brochures/proton-x90.pdf', colours: ['Quartz Black', 'Marine Blue', 'Armour Silver', 'Snow White', 'Jet Grey'], years: [{ year: 2026 }] },
-  { id: 'proton-x90-prime', brand: 'Proton', model: 'X90', variant: 'Prime', price: 116800, sumInsured: 117000, photoUrl: '/cars/proton-x90.png', brochureUrl: '/brochures/proton-x90.pdf', colours: ['Quartz Black', 'Marine Blue', 'Armour Silver', 'Snow White', 'Jet Grey'], years: [{ year: 2026 }] },
-  { id: 'proton-x90-prime-x', brand: 'Proton', model: 'X90', variant: 'Prime X', price: 122800, sumInsured: 123000, photoUrl: '/cars/proton-x90.png', brochureUrl: '/brochures/proton-x90.pdf', colours: ['Quartz Black', 'Marine Blue', 'Armour Silver', 'Snow White', 'Jet Grey'], years: [{ year: 2026 }] },
+  { id: 'proton-saga-standard', brand: 'Proton', model: 'Saga', variant: 'Standard', price: 38990, photoUrl: '/cars/proton-saga.png', brochureUrl: '/brochures/proton-saga.pdf', colours: ['Marine Blue', 'Space Grey', 'Ruby Red', 'Armour Silver', 'Snow White'], years: [{ year: 2026 }] },
+  { id: 'proton-saga-executive', brand: 'Proton', model: 'Saga', variant: 'Executive', price: 44990, photoUrl: '/cars/proton-saga.png', brochureUrl: '/brochures/proton-saga.pdf', colours: ['Marine Blue', 'Space Grey', 'Ruby Red', 'Armour Silver', 'Snow White'], years: [{ year: 2026 }] },
+  { id: 'proton-saga-premium', brand: 'Proton', model: 'Saga', variant: 'Premium', price: 49990, photoUrl: '/cars/proton-saga.png', brochureUrl: '/brochures/proton-saga.pdf', colours: ['Marine Blue', 'Space Grey', 'Ruby Red', 'Armour Silver', 'Snow White'], years: [{ year: 2026 }] },
+  { id: 'proton-persona-standard', brand: 'Proton', model: 'Persona', variant: 'Standard', price: 47800, photoUrl: '/cars/proton-persona.png', brochureUrl: '/brochures/proton-persona.pdf', years: [{ year: 2026 }] },
+  { id: 'proton-persona-executive', brand: 'Proton', model: 'Persona', variant: 'Executive', price: 53300, photoUrl: '/cars/proton-persona.png', brochureUrl: '/brochures/proton-persona.pdf', years: [{ year: 2026 }] },
+  { id: 'proton-persona-premium', brand: 'Proton', model: 'Persona', variant: 'Premium', price: 58300, photoUrl: '/cars/proton-persona.png', brochureUrl: '/brochures/proton-persona.pdf', years: [{ year: 2026 }] },
+  { id: 'proton-s70-executive', brand: 'Proton', model: 'S70', variant: 'Executive', price: 73800, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver', 'Ruby Red'], years: [{ year: 2026 }] },
+  { id: 'proton-s70-premium', brand: 'Proton', model: 'S70', variant: 'Premium', price: 79800, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver', 'Ruby Red'], years: [{ year: 2026 }] },
+  { id: 'proton-s70-flagship', brand: 'Proton', model: 'S70', variant: 'Flagship', price: 89800, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver', 'Ruby Red'], years: [{ year: 2026 }] },
+  { id: 'proton-s70-flagship-x', brand: 'Proton', model: 'S70', variant: 'Flagship X', price: 94800, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver', 'Ruby Red'], years: [{ year: 2026 }] },
+  { id: 'proton-x50-executive', brand: 'Proton', model: 'X50', variant: 'Executive', price: 89800, photoUrl: '/cars/proton-x50.png', brochureUrl: '/brochures/proton-x50.pdf', colours: ['Snow White', 'Jet Grey', 'Armour Silver', 'Marine Blue', 'Quartz Black'], years: [{ year: 2026 }] },
+  { id: 'proton-x50-premium', brand: 'Proton', model: 'X50', variant: 'Premium', price: 101800, photoUrl: '/cars/proton-x50.png', brochureUrl: '/brochures/proton-x50.pdf', colours: ['Snow White', 'Jet Grey', 'Armour Silver', 'Marine Blue', 'Quartz Black'], years: [{ year: 2026 }] },
+  { id: 'proton-x50-flagship', brand: 'Proton', model: 'X50', variant: 'Flagship', price: 113300, photoUrl: '/cars/proton-x50.png', brochureUrl: '/brochures/proton-x50.pdf', colours: ['Snow White', 'Jet Grey', 'Armour Silver', 'Marine Blue', 'Quartz Black'], years: [{ year: 2026 }] },
+  { id: 'proton-x70-executive', brand: 'Proton', model: 'X70', variant: 'Executive', price: 106800, photoUrl: '/cars/proton-x70.png', brochureUrl: '/brochures/proton-x70.pdf', colours: ['Snow White', 'Armour Silver', 'Jet Grey', 'Marine Blue'], years: [{ year: 2026 }] },
+  { id: 'proton-x70-premium', brand: 'Proton', model: 'X70', variant: 'Premium', price: 119800, photoUrl: '/cars/proton-x70.png', brochureUrl: '/brochures/proton-x70.pdf', colours: ['Snow White', 'Armour Silver', 'Jet Grey', 'Marine Blue'], years: [{ year: 2026 }] },
+  { id: 'proton-x90-lite', brand: 'Proton', model: 'X90', variant: 'Lite', price: 106800, photoUrl: '/cars/proton-x90.png', brochureUrl: '/brochures/proton-x90.pdf', colours: ['Quartz Black', 'Marine Blue', 'Armour Silver', 'Snow White', 'Jet Grey'], years: [{ year: 2026 }] },
+  { id: 'proton-x90-prime', brand: 'Proton', model: 'X90', variant: 'Prime', price: 116800, photoUrl: '/cars/proton-x90.png', brochureUrl: '/brochures/proton-x90.pdf', colours: ['Quartz Black', 'Marine Blue', 'Armour Silver', 'Snow White', 'Jet Grey'], years: [{ year: 2026 }] },
+  { id: 'proton-x90-prime-x', brand: 'Proton', model: 'X90', variant: 'Prime X', price: 122800, photoUrl: '/cars/proton-x90.png', brochureUrl: '/brochures/proton-x90.pdf', colours: ['Quartz Black', 'Marine Blue', 'Armour Silver', 'Snow White', 'Jet Grey'], years: [{ year: 2026 }] },
 
   // Chery Malaysia lineup — synced from the dealer's own live pricing feed (chery-shared-data
   // .data-quotation.workers.dev), which also supplies the exact per-model Basic Premium,
   // Additional Benefits, and promo interest rate figures below. Tiggo 7 Pro and Tiggo 8 Pro
   // (ICE) are still sold alongside their PHEV siblings, not discontinued.
-  { id: 'chery-o5-1-5t', brand: 'Chery', model: 'Chery O5', variant: '', price: 116800, sumInsured: 116400, interestRate: 2.3, basicPremium: 2789.07, addBenefits: 715.5, photoUrl: '/cars/chery-o5.png', brochureUrl: '/brochures/chery-o5.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Blood Stone Red'], years: [{ year: 2026 }] },
-  { id: 'chery-omoda-e5', brand: 'Chery', model: 'Omoda E5', variant: '', price: 146978, sumInsured: 116400, interestRate: 2.1, basicPremium: 3731.1, addBenefits: 775.5, photoUrl: '/cars/chery-omoda-e5.png', brochureUrl: '/brochures/chery-omoda-e5.pdf', years: [{ year: 2026 }] },
-  { id: 'chery-tiggo-cross-turbo', brand: 'Chery', model: 'Tiggo Cross', variant: 'Turbo', price: 88800, sumInsured: 88500, interestRate: 2.3, basicPremium: 2206.67, addBenefits: 620.5, photoUrl: '/cars/chery-tiggo-cross-turbo.png', brochureUrl: '/brochures/chery-tiggo-cross.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Blood Stone Red'], years: [{ year: 2026 }] },
-  { id: 'chery-tiggo-cross-hev', brand: 'Chery', model: 'Tiggo Cross', variant: 'Hybrid', price: 99800, sumInsured: 99500, interestRate: 2.3, basicPremium: 2435.47, addBenefits: 642.5, photoUrl: '/cars/chery-tiggo-cross-hybrid.png', brochureUrl: '/brochures/chery-tiggo-cross.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Moonlight Silver'], years: [{ year: 2026 }] },
-  { id: 'chery-tiggo7-pro', brand: 'Chery', model: 'Tiggo 7', variant: 'Pro', price: 123800, sumInsured: 123000, interestRate: 2.3, basicPremium: 2934.67, addBenefits: 820.5, photoUrl: '/cars/chery-tiggo7-pro.png', brochureUrl: '/brochures/chery-tiggo7-pro.pdf', colours: ['Khaki White', 'Phantom Grey', 'Nasdaq Silver', 'Carbon Black'], years: [{ year: 2026 }] },
-  { id: 'chery-tiggo7-phev', brand: 'Chery', model: 'Tiggo 7', variant: 'PHEV', price: 129800, sumInsured: 129400, interestRate: 2.3, basicPremium: 3088.44, addBenefits: 832.5, photoUrl: '/cars/chery-tiggo7-phev.png', brochureUrl: '/brochures/chery-tiggo7-phev.pdf', colours: ['Phantom Grey', 'Khaki White', 'Blood Stone Red + Black Roof'], years: [{ year: 2026 }] },
-  { id: 'chery-tiggo8-1-6t', brand: 'Chery', model: 'Tiggo 8', variant: '', price: 129800, sumInsured: 129800, interestRate: 2.3, basicPremium: 3059.47, addBenefits: 832.5, photoUrl: '/cars/chery-tiggo8.png', brochureUrl: '/brochures/chery-tiggo8.pdf', colours: ['Dark Black', 'Khaki White'], years: [{ year: 2026 }] },
-  { id: 'chery-tiggo8-pro', brand: 'Chery', model: 'Tiggo 8', variant: 'Pro', price: 159800, sumInsured: 158930.8, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-pro.png', brochureUrl: '/brochures/chery-tiggo8.pdf', colours: ['Dark Black', 'Khaki White', 'Aurora Green'], years: [{ year: 2026 }] },
-  { id: 'chery-tiggo8-phev', brand: 'Chery', model: 'Tiggo 8', variant: 'PHEV', price: 159800, sumInsured: 159400, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-phev.png', brochureUrl: '/brochures/chery-tiggo8-phev.pdf', colours: ['Aurora Green', 'Khaki White', 'Carbon Black'], years: [{ year: 2026 }] },
-  { id: 'chery-tiggo9', brand: 'Chery', model: 'Tiggo 9', variant: '', price: 179800, sumInsured: 179600, interestRate: 2.3, basicPremium: 4126.35, addBenefits: 1192.5, photoUrl: '/cars/chery-tiggo9.png', brochureUrl: '/brochures/chery-tiggo9.pdf', colours: ['Matte Grey', 'Carbon Black'], years: [{ year: 2026 }] },
+  { id: 'chery-o5-1-5t', brand: 'Chery', model: 'Chery O5', variant: '', price: 116800, interestRate: 2.3, basicPremium: 2789.07, addBenefits: 715.5, photoUrl: '/cars/chery-o5.png', brochureUrl: '/brochures/chery-o5.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Blood Stone Red'], years: [{ year: 2026 }] },
+  { id: 'chery-omoda-e5', brand: 'Chery', model: 'Omoda E5', variant: '', price: 146978, interestRate: 2.1, basicPremium: 3731.1, addBenefits: 775.5, photoUrl: '/cars/chery-omoda-e5.png', brochureUrl: '/brochures/chery-omoda-e5.pdf', years: [{ year: 2026 }] },
+  { id: 'chery-tiggo-cross-turbo', brand: 'Chery', model: 'Tiggo Cross', variant: 'Turbo', price: 88800, interestRate: 2.3, basicPremium: 2206.67, addBenefits: 620.5, photoUrl: '/cars/chery-tiggo-cross-turbo.png', brochureUrl: '/brochures/chery-tiggo-cross.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Blood Stone Red'], years: [{ year: 2026 }] },
+  { id: 'chery-tiggo-cross-hev', brand: 'Chery', model: 'Tiggo Cross', variant: 'Hybrid', price: 99800, interestRate: 2.3, basicPremium: 2435.47, addBenefits: 642.5, photoUrl: '/cars/chery-tiggo-cross-hybrid.png', brochureUrl: '/brochures/chery-tiggo-cross.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Moonlight Silver'], years: [{ year: 2026 }] },
+  { id: 'chery-tiggo7-pro', brand: 'Chery', model: 'Tiggo 7', variant: 'Pro', price: 123800, interestRate: 2.3, basicPremium: 2934.67, addBenefits: 820.5, photoUrl: '/cars/chery-tiggo7-pro.png', brochureUrl: '/brochures/chery-tiggo7-pro.pdf', colours: ['Khaki White', 'Phantom Grey', 'Nasdaq Silver', 'Carbon Black'], years: [{ year: 2026 }] },
+  { id: 'chery-tiggo7-phev', brand: 'Chery', model: 'Tiggo 7', variant: 'PHEV', price: 129800, interestRate: 2.3, basicPremium: 3088.44, addBenefits: 832.5, photoUrl: '/cars/chery-tiggo7-phev.png', brochureUrl: '/brochures/chery-tiggo7-phev.pdf', colours: ['Phantom Grey', 'Khaki White', 'Blood Stone Red + Black Roof'], years: [{ year: 2026 }] },
+  { id: 'chery-tiggo8-1-6t', brand: 'Chery', model: 'Tiggo 8', variant: '', price: 129800, interestRate: 2.3, basicPremium: 3059.47, addBenefits: 832.5, photoUrl: '/cars/chery-tiggo8.png', brochureUrl: '/brochures/chery-tiggo8.pdf', colours: ['Dark Black', 'Khaki White'], years: [{ year: 2026 }] },
+  { id: 'chery-tiggo8-pro', brand: 'Chery', model: 'Tiggo 8', variant: 'Pro', price: 159800, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-pro.png', brochureUrl: '/brochures/chery-tiggo8.pdf', colours: ['Dark Black', 'Khaki White', 'Aurora Green'], years: [{ year: 2026 }] },
+  { id: 'chery-tiggo8-phev', brand: 'Chery', model: 'Tiggo 8', variant: 'PHEV', price: 159800, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-phev.png', brochureUrl: '/brochures/chery-tiggo8-phev.pdf', colours: ['Aurora Green', 'Khaki White', 'Carbon Black'], years: [{ year: 2026 }] },
+  { id: 'chery-tiggo9', brand: 'Chery', model: 'Tiggo 9', variant: '', price: 179800, interestRate: 2.3, basicPremium: 4126.35, addBenefits: 1192.5, photoUrl: '/cars/chery-tiggo9.png', brochureUrl: '/brochures/chery-tiggo9.pdf', colours: ['Matte Grey', 'Carbon Black'], years: [{ year: 2026 }] },
 
   // Jaecoo Malaysia lineup — 2WD/AWD (or the unbadged J5) variants of a model share that model's
   // general e-brochure, while an EV/PHEV variant gets its own dedicated one.
-  { id: 'jaecoo-j5', brand: 'Jaecoo', model: 'J5', variant: '', price: 108000, sumInsured: 107700, brochureUrl: '/brochures/jaecoo-j5.pdf', colours: ['Glacier Blue', 'Zircon Gray', 'Canyon Black', 'Snowy White'], years: [{ year: 2026 }] },
-  { id: 'jaecoo-j5-ev', brand: 'Jaecoo', model: 'J5', variant: 'EV', price: 118800, sumInsured: 118000, brochureUrl: '/brochures/jaecoo-j5-ev.pdf', colours: ['Alpine Green', 'Fjord Grey', 'Carbon Crystal Black'], years: [{ year: 2026 }] },
-  { id: 'jaecoo-j7-2wd', brand: 'Jaecoo', model: 'J7', variant: '2WD', price: 138800, sumInsured: 138100, brochureUrl: '/brochures/jaecoo-j7.pdf', colours: ['Model Green', 'Khaki White', 'Carbon Crystal Black', 'Moonlight Silver'], years: [{ year: 2026 }] },
-  { id: 'jaecoo-j7-awd', brand: 'Jaecoo', model: 'J7', variant: 'AWD', price: 148800, sumInsured: 148000, brochureUrl: '/brochures/jaecoo-j7.pdf', colours: ['Model Green', 'Khaki White', 'Carbon Crystal Black', 'Moonlight Silver'], years: [{ year: 2026 }] },
-  { id: 'jaecoo-j7-phev', brand: 'Jaecoo', model: 'J7', variant: 'PHEV', price: 158800, sumInsured: 158000, brochureUrl: '/brochures/jaecoo-j7-phev.pdf', colours: ['Carbon Crystal Black', 'Moonlight Silver', 'Olive Grey'], years: [{ year: 2026 }] },
-  { id: 'jaecoo-j8-2wd', brand: 'Jaecoo', model: 'J8', variant: '2WD', price: 178800, sumInsured: 177000, brochureUrl: '/brochures/jaecoo-j8.pdf', colours: ['Carbon Crystal Black', 'Khaki White', 'Olive Grey'], years: [{ year: 2026 }] },
-  { id: 'jaecoo-j8-awd', brand: 'Jaecoo', model: 'J8', variant: 'AWD', price: 198800, sumInsured: 197000, brochureUrl: '/brochures/jaecoo-j8.pdf', colours: ['Carbon Crystal Black + Black Roof', 'Khaki White + Black Roof', 'Olive Grey + Black Roof'], years: [{ year: 2026 }] },
-  { id: 'jaecoo-omoda-c9-2wd', brand: 'Jaecoo', model: 'Omoda C9', variant: '2WD', price: 168800, sumInsured: 167000, brochureUrl: '/brochures/jaecoo-omoda-c9.pdf', colours: ['Matte Grey', 'Khaki White', 'Carbon Crystal Black'], colourSurcharges: { 'Matte Grey': 3000 }, years: [{ year: 2026 }] },
-  { id: 'jaecoo-omoda-c9-awd', brand: 'Jaecoo', model: 'Omoda C9', variant: 'AWD', price: 188800, sumInsured: 187000, brochureUrl: '/brochures/jaecoo-omoda-c9.pdf', colours: ['Matte Grey', 'Khaki White', 'Carbon Crystal Black'], colourSurcharges: { 'Matte Grey': 3000 }, years: [{ year: 2026 }] },
-  { id: 'jaecoo-omoda-c9-phev', brand: 'Jaecoo', model: 'Omoda C9', variant: 'PHEV', price: 208800, sumInsured: 208500, brochureUrl: '/brochures/jaecoo-omoda-c9-phev.pdf', colours: ['Matte Grey', 'Khaki White', 'Carbon Crystal Black'], colourSurcharges: { 'Matte Grey': 3000 }, years: [{ year: 2026 }] },
+  { id: 'jaecoo-j5', brand: 'Jaecoo', model: 'J5', variant: '', price: 108000, brochureUrl: '/brochures/jaecoo-j5.pdf', colours: ['Glacier Blue', 'Zircon Gray', 'Canyon Black', 'Snowy White'], years: [{ year: 2026 }] },
+  { id: 'jaecoo-j5-ev', brand: 'Jaecoo', model: 'J5', variant: 'EV', price: 118800, brochureUrl: '/brochures/jaecoo-j5-ev.pdf', colours: ['Alpine Green', 'Fjord Grey', 'Carbon Crystal Black'], years: [{ year: 2026 }] },
+  { id: 'jaecoo-j7-2wd', brand: 'Jaecoo', model: 'J7', variant: '2WD', price: 138800, brochureUrl: '/brochures/jaecoo-j7.pdf', colours: ['Model Green', 'Khaki White', 'Carbon Crystal Black', 'Moonlight Silver'], years: [{ year: 2026 }] },
+  { id: 'jaecoo-j7-awd', brand: 'Jaecoo', model: 'J7', variant: 'AWD', price: 148800, brochureUrl: '/brochures/jaecoo-j7.pdf', colours: ['Model Green', 'Khaki White', 'Carbon Crystal Black', 'Moonlight Silver'], years: [{ year: 2026 }] },
+  { id: 'jaecoo-j7-phev', brand: 'Jaecoo', model: 'J7', variant: 'PHEV', price: 158800, brochureUrl: '/brochures/jaecoo-j7-phev.pdf', colours: ['Carbon Crystal Black', 'Moonlight Silver', 'Olive Grey'], years: [{ year: 2026 }] },
+  { id: 'jaecoo-j8-2wd', brand: 'Jaecoo', model: 'J8', variant: '2WD', price: 178800, brochureUrl: '/brochures/jaecoo-j8.pdf', colours: ['Carbon Crystal Black', 'Khaki White', 'Olive Grey'], years: [{ year: 2026 }] },
+  { id: 'jaecoo-j8-awd', brand: 'Jaecoo', model: 'J8', variant: 'AWD', price: 198800, brochureUrl: '/brochures/jaecoo-j8.pdf', colours: ['Carbon Crystal Black + Black Roof', 'Khaki White + Black Roof', 'Olive Grey + Black Roof'], years: [{ year: 2026 }] },
+  { id: 'jaecoo-omoda-c9-2wd', brand: 'Jaecoo', model: 'Omoda C9', variant: '2WD', price: 168800, brochureUrl: '/brochures/jaecoo-omoda-c9.pdf', colours: ['Matte Grey', 'Khaki White', 'Carbon Crystal Black'], colourSurcharges: { 'Matte Grey': 3000 }, years: [{ year: 2026 }] },
+  { id: 'jaecoo-omoda-c9-awd', brand: 'Jaecoo', model: 'Omoda C9', variant: 'AWD', price: 188800, brochureUrl: '/brochures/jaecoo-omoda-c9.pdf', colours: ['Matte Grey', 'Khaki White', 'Carbon Crystal Black'], colourSurcharges: { 'Matte Grey': 3000 }, years: [{ year: 2026 }] },
+  { id: 'jaecoo-omoda-c9-phev', brand: 'Jaecoo', model: 'Omoda C9', variant: 'PHEV', price: 208800, brochureUrl: '/brochures/jaecoo-omoda-c9-phev.pdf', colours: ['Matte Grey', 'Khaki White', 'Carbon Crystal Black'], colourSurcharges: { 'Matte Grey': 3000 }, years: [{ year: 2026 }] },
 ];
 
 /** Factory-default catalog, snapshotted before any account's saved overrides are applied on top —
@@ -149,13 +143,13 @@ export const VEHICLES: Vehicle[] = [
  *  since it's an array a reset must not still be sharing with the live (possibly edited) catalog. */
 export const DEFAULT_VEHICLES: Vehicle[] = VEHICLES.map((v) => ({ ...v, years: v.years.map((y) => ({ ...y })) }));
 
-/** Only the fields Price Settings can actually edit at runtime — price, rates, Sum Insured, and
+/** Only the fields Price Settings can actually edit at runtime — price, rates, and
  *  model years/rebates. Brand/model/variant identity, other insurance figures, and photo/brochure
  *  paths are hardcoded by the developer and never saved as an override. Persisted per-account via the Worker
  *  API (`/api/vehicle-overrides`) and applied onto this hardcoded catalog by
  *  VehicleCatalogService.loadOverrides() once the signed-in account is known — never at module
  *  load, since which overrides apply depends on who's logged in. */
-export type VehicleOverride = Partial<Pick<Vehicle, 'price' | 'interestRate' | 'effectiveRate' | 'years' | 'sumInsured'>>;
+export type VehicleOverride = Partial<Pick<Vehicle, 'price' | 'interestRate' | 'effectiveRate' | 'years'>>;
 
 /** Unique models for a brand, in catalog order — used to drive cascading brand→model selects. */
 export function modelsForBrand(brand: string): string[] {
@@ -219,9 +213,7 @@ export const TENURE_OPTIONS: TenureOption[] = [
  *  Unrelated to the Car Database's own per-car year rows; see yearsForVariant() for those. */
 export const MODEL_YEARS = [new Date().getFullYear(), new Date().getFullYear() - 1];
 
-/** 'sumInsured' pins the loan amount to the selected car's Vehicle.sumInsured instead of deriving
- *  it from a percentage or a typed cash figure — see computeQuotationTotals. */
-export type DownpaymentType = 'percent' | 'amount' | 'sumInsured';
+export type DownpaymentType = 'percent' | 'amount';
 
 // ---------- Insurance ----------
 
@@ -358,8 +350,6 @@ export type QuotationTotalsInput = {
   loanBasisInsuranceAmount?: number;
   downpaymentType: DownpaymentType;
   downpaymentValue: number;
-  /** Only read when downpaymentType is 'sumInsured' — the selected car's Vehicle.sumInsured. */
-  sumInsured?: number;
 };
 
 export type QuotationTotals = {
@@ -381,25 +371,12 @@ export function computeQuotationTotals(input: QuotationTotalsInput): QuotationTo
   const insuranceAmount = Math.max(0, input.insuranceAmount);
   const totalAmountDue = roundCents(priceAfterRebate + insuranceAmount);
 
-  // 'sumInsured' with no Sum Insured on this car would pin the loan to RM0 and silently turn the
-  // quote into a cash purchase — until the SA sets one, quote it on the % downpayment instead.
-  const hasSumInsured = (input.sumInsured ?? 0) > 0;
-  const downpaymentType = input.downpaymentType === 'sumInsured' && !hasSumInsured ? 'percent' : input.downpaymentType;
-
   let loanAmount: number;
-  if (downpaymentType === 'amount') {
+  if (input.downpaymentType === 'amount') {
     // An explicit cash downpayment (or a manually-typed Loan Amount, which sets one) — the SA's
     // own number governs directly against the real amount owed; no discount-anchoring applies.
     const downpaymentCash = Math.max(0, Math.min(input.downpaymentValue, totalAmountDue));
     loanAmount = Math.floor(Math.max(0, totalAmountDue - downpaymentCash) / 100) * 100;
-  } else if (downpaymentType === 'sumInsured') {
-    // Loan is pinned straight to the car's Recommended Sum Insured; the rest of the amount due
-    // (already net of rebate, via totalAmountDue above) becomes the downpayment. If a rebate is
-    // big enough that the amount due no longer covers the full Sum Insured, the loan simply
-    // shrinks to whatever's owed instead of going negative — the customer's downpayment then
-    // collapses to just the sub-RM100 rounding remainder.
-    const sumInsured = Math.max(0, input.sumInsured ?? 0);
-    loanAmount = Math.floor(Math.min(sumInsured, totalAmountDue) / 100) * 100;
   } else {
     // Downpayment is sized off the full sticker total — car price plus the loan-basis insurance
     // (normally the 0% NCD premium, the worst case) — BEFORE rebate is netted out, so rebate
