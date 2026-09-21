@@ -3,7 +3,6 @@ import { handleSettingsRoute } from './routes/settings';
 import { handleAdvisorRoute } from './routes/advisor';
 import { handleVehicleOverridesRoute } from './routes/vehicle-overrides';
 import { handleBankersRoute } from './routes/bankers';
-import { handleTradeInContactsRoute } from './routes/trade-in-contacts';
 import { handleCustomersRoute } from './routes/customers';
 import { handlePublicRoute } from './routes/public';
 import { json } from './http';
@@ -39,7 +38,6 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
   if (url.pathname === '/api/advisor') return handleAdvisorRoute(request, env);
   if (url.pathname.startsWith('/api/vehicle-overrides')) return handleVehicleOverridesRoute(request, env, url);
   if (url.pathname.startsWith('/api/bankers')) return handleBankersRoute(request, env, url);
-  if (url.pathname.startsWith('/api/trade-in-contacts')) return handleTradeInContactsRoute(request, env, url);
   if (url.pathname.startsWith('/api/customers')) return handleCustomersRoute(request, env, url);
   return json({ error: 'Not found' }, 404);
 }

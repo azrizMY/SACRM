@@ -6,7 +6,6 @@ import { AdvisorService } from './advisor.service';
 import { SettingsService } from './settings.service';
 import { VehicleCatalogService } from './vehicle-catalog.service';
 import { BankerService } from './banker.service';
-import { TradeInService } from './trade-in.service';
 import { CustomerService } from './customer.service';
 
 export type AuthResult = { ok: true } | { ok: false; error: string };
@@ -37,7 +36,6 @@ export class AuthService {
     private advisorService: AdvisorService,
     private vehicleCatalogService: VehicleCatalogService,
     private bankerService: BankerService,
-    private tradeInService: TradeInService,
     private customerService: CustomerService,
   ) {}
 
@@ -157,7 +155,6 @@ export class AuthService {
     this.advisorService.reset();
     this.vehicleCatalogService.resetOverrides();
     this.bankerService.reset();
-    this.tradeInService.reset();
     this.customerService.reset();
     firstValueFrom(this.http.post('/api/auth/logout', {})).catch(() => {
       /* session cookie is cleared client-side regardless; a failed server call just leaves an
@@ -167,7 +164,7 @@ export class AuthService {
 
   /** Every other per-account slice of data is only knowable once we know who's signed in — loaded
    *  together right after that, on every path that establishes a session (restore, login, signup).
-   *  Bankers/trade-ins/customers already self-load once on construction, but since each is a
+   *  Bankers/customers already self-load once on construction, but since each is a
    *  singleton that otherwise only fetches once for the app's lifetime, they need an explicit
    *  reload here too, or a same-tab account switch would keep showing the previous account's data. */
   private async loadUserData(): Promise<void> {
@@ -176,7 +173,6 @@ export class AuthService {
       this.advisorService.load(),
       this.vehicleCatalogService.loadOverrides(),
       this.bankerService.load(),
-      this.tradeInService.load(),
       this.customerService.load(),
     ]);
   }

@@ -15,7 +15,6 @@ import { ProfileComponent } from './pages/profile.component';
 import { PublicQuoteComponent } from './pages/public-quote.component';
 import { ResetPasswordComponent } from './pages/reset-password.component';
 import { SignupComponent } from './pages/signup.component';
-import { TradeInsComponent } from './pages/trade-ins.component';
 import { authGuard, guestGuard, onboardingGuard } from './shared/auth.guard';
 import { AppShellComponent } from './shell/app-shell.component';
 
@@ -40,7 +39,6 @@ export const routes: Routes = [
       { path: 'price-settings', component: PriceSettingsComponent, data: { id: 'price-settings' } },
       { path: 'leads', component: CustomerManagerComponent, data: { id: 'leads' } },
       { path: 'bankers', component: BankersComponent, data: { id: 'bankers' } },
-      { path: 'trade-ins', component: TradeInsComponent, data: { id: 'trade-ins' } },
       { path: 'notes', component: CostBreakdownComponent, data: { id: 'notes' } },
       { path: 'profile', component: ProfileComponent, data: { id: 'profile' } },
       { path: 'settings', component: AccountSettingsComponent, data: { id: 'settings' } },

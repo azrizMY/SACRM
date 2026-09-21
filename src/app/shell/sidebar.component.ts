@@ -15,7 +15,6 @@ const NAV: NavItem[] = [
   { id: 'leads', label: 'Customer Manager', icon: 'users' },
   { id: 'notes', label: 'Cost Breakdown', icon: 'wallet' },
   { id: 'bankers', label: 'Bankers', icon: 'landmark' },
-  { id: 'trade-ins', label: 'Trade-ins', icon: 'truck' },
 ];
 
 @Component({

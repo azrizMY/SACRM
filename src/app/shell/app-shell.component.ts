@@ -13,7 +13,6 @@ const TITLES: Record<string, string> = {
   'price-settings': 'Price Settings',
   leads: 'Customer Manager',
   bankers: 'Bankers',
-  'trade-ins': 'Trade-ins',
   notes: 'Cost Breakdown',
   profile: 'My Profile',
   settings: 'Settings',

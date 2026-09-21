@@ -498,7 +498,7 @@ type NavItem = { id: string; label: string; icon: IconName };
               </div>
               <div class="flex flex-col gap-3 border-t border-[var(--destructive)]/30 px-5 py-4">
                 <p class="text-xs text-muted-foreground">
-                  Deletes your profile, settings, customers, bankers, trade-ins, and pricing changes. You'll be signed out straight away.
+                  Deletes your profile, settings, customers, bankers, and pricing changes. You'll be signed out straight away.
                   Export your data first (Data &amp; Privacy above) if you want to keep a copy.
                 </p>
                 <button
