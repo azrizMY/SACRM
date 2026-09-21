@@ -26,6 +26,7 @@ import {
   type InsuranceQuotationDetails,
   type Vehicle,
   type VehicleOverride,
+  vehicleTitle,
 } from '../data/calculator-data';
 
 /** The full 1-9 year range the tenure picker offers — same range as the Calculator's own poster
@@ -880,7 +881,7 @@ export class PublicQuoteComponent implements OnInit {
   openWhatsAppToAdvisor() {
     const vehicle = this.selectedVehicle();
     const lines = [
-      `Hi ${this.bundle()!.advisor.name}, I'm interested in the ${vehicle.brand} ${modelVariantLabel(vehicle.model, vehicle.variant)} (${this.modelYear()}).`,
+      `Hi ${this.bundle()!.advisor.name}, I'm interested in the ${vehicleTitle(vehicle.brand, modelVariantLabel(vehicle.model, vehicle.variant))} (${this.modelYear()}).`,
       '',
       "Here's the quote I put together:",
       `- Downpayment: ${this.fmt2(this.downpaymentCash())}`,

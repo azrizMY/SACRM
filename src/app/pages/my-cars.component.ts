@@ -492,7 +492,7 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
   }
 
   private brochureFileName(v: Vehicle): string {
-    return `${v.brand}-${modelVariantLabel(v.model, v.variant)}-Brochure.pdf`.replace(/\s+/g, '-');
+    return `${v.brand}-${modelVariantLabel(v.model, v.variant)}-Brochure.pdf`.replace(/\s*\|\s*/g, '-').replace(/\s+/g, '-');
   }
 
   async sendBrochureFile(v: Vehicle) {
@@ -723,7 +723,7 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
         });
       }
       const bytes = assembleImagePdfBytes(pages);
-      downloadPdfBytes(bytes, `${this.offerBrand()}-Offer-Sheet.pdf`.replace(/\s+/g, '-'), 'application/pdf');
+      downloadPdfBytes(bytes, `${this.offerBrand()}-Offer-Sheet.pdf`.replace(/\s*\|\s*/g, '-').replace(/\s+/g, '-'), 'application/pdf');
     } finally {
       this.downloadingOfferSheet.set(false);
     }

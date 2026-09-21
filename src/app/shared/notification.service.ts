@@ -1,7 +1,7 @@
 import { Injectable, computed, inject } from '@angular/core';
 import { CustomerService } from './customer.service';
 import { SettingsService } from './settings.service';
-import { formatRM } from '../data/calculator-data';
+import { formatRM, vehicleTitle } from '../data/calculator-data';
 import { stageEnteredAt } from '../data/customer-data';
 
 export type NotificationKind = 'lead' | 'booking' | 'summary';
@@ -52,7 +52,7 @@ export class NotificationService {
         id: `lead-${r.id}`,
         kind: 'lead' as const,
         title: `New lead: ${r.name || 'Unnamed'}`,
-        detail: `${r.brand} ${r.model} · ${timeAgo(r.createdAt)}`,
+        detail: `${vehicleTitle(r.brand, r.model)} · ${timeAgo(r.createdAt)}`,
         date: r.createdAt,
       }));
   });
@@ -77,7 +77,7 @@ export class NotificationService {
           id: `booking-${r.id}`,
           kind: 'booking',
           title: `${r.name || 'Booking'} needs attention`,
-          detail: `${r.brand} ${r.model} · ${reasons.join(', ')}`,
+          detail: `${vehicleTitle(r.brand, r.model)} · ${reasons.join(', ')}`,
           date: enteredAt,
         };
       })

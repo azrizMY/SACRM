@@ -109,6 +109,19 @@ export const VEHICLES: Vehicle[] = [
   { id: 'proton-x90-prime', brand: 'Proton', model: 'X90', variant: 'Prime', price: 116800, photoUrl: '/cars/proton-x90.png', brochureUrl: '/brochures/proton-x90.pdf', colours: ['Quartz Black', 'Marine Blue', 'Armour Silver', 'Snow White', 'Jet Grey'], years: [{ year: 2026 }] },
   { id: 'proton-x90-prime-x', brand: 'Proton', model: 'X90', variant: 'Prime X', price: 122800, photoUrl: '/cars/proton-x90.png', brochureUrl: '/brochures/proton-x90.pdf', colours: ['Quartz Black', 'Marine Blue', 'Armour Silver', 'Snow White', 'Jet Grey'], years: [{ year: 2026 }] },
 
+  // Proton e.MAS — private-buyer OTR without insurance, Peninsular Malaysia, from Proton's official
+  // price lists (e.MAS 5: 17 May 2026, e.MAS 7: 11 Jun 2026, e.MAS 7 PHEV: 26 Aug 2026). These are
+  // the list prices, before the limited-time Special Launch Price; company registration adds RM200
+  // (RM350 on the PHEV). No photo files exist for these yet.
+  { id: 'proton-emas5-prime', brand: 'Proton e.MAS', model: 'e.MAS 5', variant: 'Prime', price: 59800, brochureUrl: '/brochures/proton-emas5.pdf', colours: ['Jade Green', 'Marble Cream', 'Quartz Rose', 'Graphite Silver', 'Slate Grey'], years: [{ year: 2026 }] },
+  { id: 'proton-emas5-premium', brand: 'Proton e.MAS', model: 'e.MAS 5', variant: 'Premium', price: 72800, brochureUrl: '/brochures/proton-emas5.pdf', colours: ['Jade Green', 'Marble Cream', 'Quartz Rose', 'Graphite Silver', 'Slate Grey'], years: [{ year: 2026 }] },
+  { id: 'proton-emas7-prime', brand: 'Proton e.MAS', model: 'e.MAS 7', variant: 'Prime', price: 103800, brochureUrl: '/brochures/proton-emas7.pdf', colours: ['Platinum Silver', 'Turquoise Green', 'Slate Grey', 'Quartz Rose', 'Lithium White', 'Obsidian Black'], years: [{ year: 2026 }] },
+  { id: 'proton-emas7-premium', brand: 'Proton e.MAS', model: 'e.MAS 7', variant: 'Premium', price: 119800, brochureUrl: '/brochures/proton-emas7.pdf', colours: ['Platinum Silver', 'Turquoise Green', 'Slate Grey', 'Quartz Rose', 'Lithium White', 'Obsidian Black'], years: [{ year: 2026 }] },
+  { id: 'proton-emas7-premium-plus', brand: 'Proton e.MAS', model: 'e.MAS 7', variant: 'Premium Plus', price: 125800, brochureUrl: '/brochures/proton-emas7.pdf', colours: ['Platinum Silver', 'Turquoise Green', 'Slate Grey', 'Quartz Rose', 'Lithium White', 'Obsidian Black'], years: [{ year: 2026 }] },
+  { id: 'proton-emas7-phev-prime', brand: 'Proton e.MAS', model: 'e.MAS 7 PHEV', variant: 'Prime', price: 109800, brochureUrl: '/brochures/proton-emas7-phev.pdf', colours: ['Aquamarine Blue', 'Obsidian Black', 'Galena Grey', 'Lithium White', 'Mercury Silver', 'Emerald Green'], years: [{ year: 2026 }] },
+  { id: 'proton-emas7-phev-premium', brand: 'Proton e.MAS', model: 'e.MAS 7 PHEV', variant: 'Premium', price: 123800, brochureUrl: '/brochures/proton-emas7-phev.pdf', colours: ['Aquamarine Blue', 'Obsidian Black', 'Galena Grey', 'Lithium White', 'Mercury Silver', 'Emerald Green'], years: [{ year: 2026 }] },
+  { id: 'proton-emas7-phev-premium-plus', brand: 'Proton e.MAS', model: 'e.MAS 7 PHEV', variant: 'Premium Plus', price: 129800, brochureUrl: '/brochures/proton-emas7-phev.pdf', colours: ['Aquamarine Blue', 'Obsidian Black', 'Galena Grey', 'Lithium White', 'Mercury Silver', 'Emerald Green'], years: [{ year: 2026 }] },
+
   // Chery Malaysia lineup — synced from the dealer's own live pricing feed (chery-shared-data
   // .data-quotation.workers.dev), which also supplies the exact per-model Basic Premium,
   // Additional Benefits, and promo interest rate figures below. Tiggo 7 Pro and Tiggo 8 Pro
@@ -126,16 +139,16 @@ export const VEHICLES: Vehicle[] = [
 
   // Jaecoo Malaysia lineup — 2WD/AWD (or the unbadged J5) variants of a model share that model's
   // general e-brochure, while an EV/PHEV variant gets its own dedicated one.
-  { id: 'jaecoo-j5', brand: 'Jaecoo', model: 'J5', variant: '', price: 108000, brochureUrl: '/brochures/jaecoo-j5.pdf', colours: ['Glacier Blue', 'Zircon Gray', 'Canyon Black', 'Snowy White'], years: [{ year: 2026 }] },
-  { id: 'jaecoo-j5-ev', brand: 'Jaecoo', model: 'J5', variant: 'EV', price: 118800, brochureUrl: '/brochures/jaecoo-j5-ev.pdf', colours: ['Alpine Green', 'Fjord Grey', 'Carbon Crystal Black'], years: [{ year: 2026 }] },
-  { id: 'jaecoo-j7-2wd', brand: 'Jaecoo', model: 'J7', variant: '2WD', price: 138800, brochureUrl: '/brochures/jaecoo-j7.pdf', colours: ['Model Green', 'Khaki White', 'Carbon Crystal Black', 'Moonlight Silver'], years: [{ year: 2026 }] },
-  { id: 'jaecoo-j7-awd', brand: 'Jaecoo', model: 'J7', variant: 'AWD', price: 148800, brochureUrl: '/brochures/jaecoo-j7.pdf', colours: ['Model Green', 'Khaki White', 'Carbon Crystal Black', 'Moonlight Silver'], years: [{ year: 2026 }] },
-  { id: 'jaecoo-j7-phev', brand: 'Jaecoo', model: 'J7', variant: 'PHEV', price: 158800, brochureUrl: '/brochures/jaecoo-j7-phev.pdf', colours: ['Carbon Crystal Black', 'Moonlight Silver', 'Olive Grey'], years: [{ year: 2026 }] },
-  { id: 'jaecoo-j8-2wd', brand: 'Jaecoo', model: 'J8', variant: '2WD', price: 178800, brochureUrl: '/brochures/jaecoo-j8.pdf', colours: ['Carbon Crystal Black', 'Khaki White', 'Olive Grey'], years: [{ year: 2026 }] },
-  { id: 'jaecoo-j8-awd', brand: 'Jaecoo', model: 'J8', variant: 'AWD', price: 198800, brochureUrl: '/brochures/jaecoo-j8.pdf', colours: ['Carbon Crystal Black + Black Roof', 'Khaki White + Black Roof', 'Olive Grey + Black Roof'], years: [{ year: 2026 }] },
-  { id: 'jaecoo-omoda-c9-2wd', brand: 'Jaecoo', model: 'Omoda C9', variant: '2WD', price: 168800, brochureUrl: '/brochures/jaecoo-omoda-c9.pdf', colours: ['Matte Grey', 'Khaki White', 'Carbon Crystal Black'], colourSurcharges: { 'Matte Grey': 3000 }, years: [{ year: 2026 }] },
-  { id: 'jaecoo-omoda-c9-awd', brand: 'Jaecoo', model: 'Omoda C9', variant: 'AWD', price: 188800, brochureUrl: '/brochures/jaecoo-omoda-c9.pdf', colours: ['Matte Grey', 'Khaki White', 'Carbon Crystal Black'], colourSurcharges: { 'Matte Grey': 3000 }, years: [{ year: 2026 }] },
-  { id: 'jaecoo-omoda-c9-phev', brand: 'Jaecoo', model: 'Omoda C9', variant: 'PHEV', price: 208800, brochureUrl: '/brochures/jaecoo-omoda-c9-phev.pdf', colours: ['Matte Grey', 'Khaki White', 'Carbon Crystal Black'], colourSurcharges: { 'Matte Grey': 3000 }, years: [{ year: 2026 }] },
+  { id: 'jaecoo-j5', brand: 'Omoda | Jaecoo', model: 'J5', variant: '', price: 108000, brochureUrl: '/brochures/jaecoo-j5.pdf', colours: ['Glacier Blue', 'Zircon Gray', 'Canyon Black', 'Snowy White'], years: [{ year: 2026 }] },
+  { id: 'jaecoo-j5-ev', brand: 'Omoda | Jaecoo', model: 'J5', variant: 'EV', price: 118800, brochureUrl: '/brochures/jaecoo-j5-ev.pdf', colours: ['Alpine Green', 'Fjord Grey', 'Carbon Crystal Black'], years: [{ year: 2026 }] },
+  { id: 'jaecoo-j7-2wd', brand: 'Omoda | Jaecoo', model: 'J7', variant: '2WD', price: 138800, brochureUrl: '/brochures/jaecoo-j7.pdf', colours: ['Model Green', 'Khaki White', 'Carbon Crystal Black', 'Moonlight Silver'], years: [{ year: 2026 }] },
+  { id: 'jaecoo-j7-awd', brand: 'Omoda | Jaecoo', model: 'J7', variant: 'AWD', price: 148800, brochureUrl: '/brochures/jaecoo-j7.pdf', colours: ['Model Green', 'Khaki White', 'Carbon Crystal Black', 'Moonlight Silver'], years: [{ year: 2026 }] },
+  { id: 'jaecoo-j7-phev', brand: 'Omoda | Jaecoo', model: 'J7', variant: 'PHEV', price: 158800, brochureUrl: '/brochures/jaecoo-j7-phev.pdf', colours: ['Carbon Crystal Black', 'Moonlight Silver', 'Olive Grey'], years: [{ year: 2026 }] },
+  { id: 'jaecoo-j8-2wd', brand: 'Omoda | Jaecoo', model: 'J8', variant: '2WD', price: 178800, brochureUrl: '/brochures/jaecoo-j8.pdf', colours: ['Carbon Crystal Black', 'Khaki White', 'Olive Grey'], years: [{ year: 2026 }] },
+  { id: 'jaecoo-j8-awd', brand: 'Omoda | Jaecoo', model: 'J8', variant: 'AWD', price: 198800, brochureUrl: '/brochures/jaecoo-j8.pdf', colours: ['Carbon Crystal Black + Black Roof', 'Khaki White + Black Roof', 'Olive Grey + Black Roof'], years: [{ year: 2026 }] },
+  { id: 'jaecoo-omoda-c9-2wd', brand: 'Omoda | Jaecoo', model: 'Omoda C9', variant: '2WD', price: 168800, brochureUrl: '/brochures/jaecoo-omoda-c9.pdf', colours: ['Matte Grey', 'Khaki White', 'Carbon Crystal Black'], colourSurcharges: { 'Matte Grey': 3000 }, years: [{ year: 2026 }] },
+  { id: 'jaecoo-omoda-c9-awd', brand: 'Omoda | Jaecoo', model: 'Omoda C9', variant: 'AWD', price: 188800, brochureUrl: '/brochures/jaecoo-omoda-c9.pdf', colours: ['Matte Grey', 'Khaki White', 'Carbon Crystal Black'], colourSurcharges: { 'Matte Grey': 3000 }, years: [{ year: 2026 }] },
+  { id: 'jaecoo-omoda-c9-phev', brand: 'Omoda | Jaecoo', model: 'Omoda C9', variant: 'PHEV', price: 208800, brochureUrl: '/brochures/jaecoo-omoda-c9-phev.pdf', colours: ['Matte Grey', 'Khaki White', 'Carbon Crystal Black'], colourSurcharges: { 'Matte Grey': 3000 }, years: [{ year: 2026 }] },
 ];
 
 /** Factory-default catalog, snapshotted before any account's saved overrides are applied on top —
@@ -448,7 +461,14 @@ export function modelVariantLabel(model: string, variant: string): string {
  *  but some (e.g. Chery's "Chery O5") already spell it out, which would otherwise render as
  *  "Chery Chery O5". Drops the brand prefix whenever the label already starts with it. */
 export function vehicleTitle(brand: string, modelLabel: string): string {
-  return modelLabel.toLowerCase().startsWith(brand.toLowerCase()) ? modelLabel : `${brand} ${modelLabel}`;
+  const lower = modelLabel.toLowerCase();
+  // A combined brand like "Omoda | Jaecoo" is really two marques: each model is named after just
+  // one of them — "Omoda C9" already spells out Omoda, while "J7" gets the Jaecoo prefix.
+  const marques = brand.split('|').map((m) => m.trim());
+  if (marques.length > 1) {
+    return marques.some((m) => lower.startsWith(m.toLowerCase())) ? modelLabel : `${marques[marques.length - 1]} ${modelLabel}`;
+  }
+  return lower.startsWith(brand.toLowerCase()) ? modelLabel : `${brand} ${modelLabel}`;
 }
 
 export { formatRM };

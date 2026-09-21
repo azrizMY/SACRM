@@ -1282,7 +1282,7 @@ export class CalculatorComponent implements AfterViewInit {
 
   private posterFileName(): string {
     const v = this.selectedVehicle();
-    return `Quote-${vehicleTitle(v.brand, v.model)}.png`.replace(/\s+/g, '-');
+    return `Quote-${vehicleTitle(v.brand, v.model)}.png`.replace(/\s*\|\s*/g, '-').replace(/\s+/g, '-');
   }
 
   private async downloadPosterBlob(blob: Blob): Promise<void> {
