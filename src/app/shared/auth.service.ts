@@ -73,19 +73,6 @@ export class AuthService {
     }
   }
 
-  /** `idToken` is the signed JWT handed back by Google Identity Services — the Worker verifies it
-   *  and creates/links the account server-side, then this behaves just like `login()`. */
-  async loginWithGoogle(idToken: string): Promise<AuthResult> {
-    try {
-      const user = await firstValueFrom(this.http.post<AuthUser>('/api/auth/google', { idToken }));
-      this.currentUser.set(user);
-      await this.loadUserData();
-      return { ok: true };
-    } catch (err) {
-      return { ok: false, error: extractError(err, "Couldn't sign in with Google. Please try again.") };
-    }
-  }
-
   /** Always resolves ok — the server intentionally responds the same way whether or not the email
    *  belongs to an account, so this can't be used to enumerate registered emails. */
   async forgotPassword(email: string): Promise<AuthResult> {
@@ -104,12 +91,6 @@ export class AuthService {
     } catch (err) {
       return { ok: false, error: extractError(err, "Couldn't reset your password. Please try again.") };
     }
-  }
-
-  /** Called by the setup page once brand and phone are saved, so authGuard lets the account through. */
-  completeOnboarding(): void {
-    const user = this.currentUser();
-    if (user) this.currentUser.set({ ...user, needsOnboarding: false });
   }
 
   /** For a signed-in user changing their password from Settings — distinct from resetPassword(),
@@ -135,9 +116,8 @@ export class AuthService {
   }
 
   /** Permanently deletes the signed-in account and every record it owns (server-side), then clears
-   *  all local state the same way logging out does. `password` is only needed for an account
-   *  without a Google login — the server rejects it otherwise. */
-  async deleteAccount(password?: string): Promise<AuthResult> {
+   *  all local state the same way logging out does. */
+  async deleteAccount(password: string): Promise<AuthResult> {
     try {
       await firstValueFrom(this.http.post('/api/auth/delete-account', { password }));
       this.logout();

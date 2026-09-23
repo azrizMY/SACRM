@@ -1,14 +1,13 @@
 /** Sent on every response (static assets and API alike). The CSP only allows what the app really
- *  loads: its own files, Google Identity Services (sign-in button), and Google Fonts. Inline styles
- *  stay allowed because Angular sets style attributes at runtime; inline *scripts* are not. */
+ *  loads: its own files, and Google Fonts. Inline styles stay allowed because Angular sets style
+ *  attributes at runtime; inline *scripts* are not. */
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' https://accounts.google.com/gsi/",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob:",
-  "connect-src 'self' https://accounts.google.com/gsi/ https://fonts.googleapis.com https://fonts.gstatic.com",
-  'frame-src https://accounts.google.com/gsi/',
+  "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com",
   "manifest-src 'self'",
   "worker-src 'self'",
   "object-src 'none'",

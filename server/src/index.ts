@@ -11,7 +11,6 @@ import { withSecurityHeaders } from './security-headers';
 export interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
-  GOOGLE_CLIENT_ID: string;
   RESEND_API_KEY: string;
   RESEND_FROM?: string;
 }

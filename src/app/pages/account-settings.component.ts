@@ -421,13 +421,7 @@ type NavItem = { id: string; label: string; icon: IconName };
                 </span>
                 <div class="flex flex-col gap-0.5">
                   <span class="text-sm font-semibold leading-none">Change Password</span>
-                  <span class="text-xs text-muted-foreground">
-                    @if (auth.currentUser()?.hasGoogleLogin) {
-                      Signed in with Google and never set a password? Use "Forgot password" on the login page instead.
-                    } @else {
-                      Needs your current password.
-                    }
-                  </span>
+                  <span class="text-xs text-muted-foreground">Needs your current password.</span>
                 </div>
               </div>
 
@@ -543,17 +537,15 @@ type NavItem = { id: string; label: string; icon: IconName };
                 Export
               </button>
             </div>
-            @if (!auth.currentUser()?.hasGoogleLogin) {
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Your password
-                <input
-                  type="password"
-                  autocomplete="current-password"
-                  [(ngModel)]="deletePassword"
-                  class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
-                />
-              </label>
-            }
+            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Your password
+              <input
+                type="password"
+                autocomplete="current-password"
+                [(ngModel)]="deletePassword"
+                class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
+              />
+            </label>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Type DELETE to confirm
               <input
@@ -806,13 +798,8 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
     setTimeout(() => this.seedFlash.set(false), 3000);
   }
 
-  /** Export is gated behind the account password. A Google-linked account has no password we can
-   *  check (see deleteAccount), so it exports straight away. */
+  /** Export is gated behind the account password. */
   requestExport() {
-    if (this.auth.currentUser()?.hasGoogleLogin) {
-      this.exportData();
-      return;
-    }
     this.exportPassword = '';
     this.exportError.set(null);
     this.confirmingExport.set(true);
@@ -870,13 +857,12 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
 
   async deleteAccount() {
     this.deleteError.set(null);
-    const needsPassword = !this.auth.currentUser()?.hasGoogleLogin;
-    if (needsPassword && !this.deletePassword) {
+    if (!this.deletePassword) {
       this.deleteError.set('Enter your password.');
       return;
     }
     this.deletingAccount.set(true);
-    const result = await this.auth.deleteAccount(needsPassword ? this.deletePassword : undefined);
+    const result = await this.auth.deleteAccount(this.deletePassword);
     this.deletingAccount.set(false);
     if (!result.ok) {
       this.deleteError.set(result.error);

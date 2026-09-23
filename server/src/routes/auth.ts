@@ -12,14 +12,12 @@ import {
   verifyPassword,
 } from '../auth';
 import { sendPasswordResetEmail } from '../email';
-import { verifyGoogleIdToken } from '../google';
 import { json, readJsonBody } from '../http';
 import { clientIp, isRateLimited } from '../rate-limit';
 import type { Env } from '../index';
 
 type SignupBody = { name?: string; email?: string; password?: string; phone?: string; primaryBrand?: string };
 type LoginBody = { email?: string; password?: string };
-type GoogleBody = { idToken?: string };
 type ForgotPasswordBody = { email?: string };
 type ResetPasswordBody = { token?: string; password?: string };
 type ChangePasswordBody = { currentPassword?: string; newPassword?: string };
@@ -38,21 +36,6 @@ function toMalaysianWhatsAppNumber(phone: string): string {
   if (digits.startsWith('60')) return digits;
   if (digits.startsWith('0')) return `60${digits.slice(1)}`;
   return digits;
-}
-
-/** Google sign-in skips the signup form, so a Google account can exist without a Primary Brand or a
- *  phone number. Checked from real data (not a one-shot "new account" flag) so an account that
- *  bailed out of setup — or was created before this existed — is still sent back to finish it.
- *  Email signups always supply both, so they're never flagged. */
-async function needsOnboarding(env: Env, userId: string, hasGoogleLogin: boolean): Promise<boolean> {
-  if (!hasGoogleLogin) return false;
-  const [settingsRow, advisorRow] = await Promise.all([
-    env.DB.prepare('SELECT data FROM settings WHERE user_id = ?').bind(userId).first<{ data: string }>(),
-    env.DB.prepare('SELECT data FROM advisor_profiles WHERE user_id = ?').bind(userId).first<{ data: string }>(),
-  ]);
-  const brand = settingsRow ? JSON.parse(settingsRow.data)?.dashboardTarget?.brand : undefined;
-  const phone = advisorRow ? JSON.parse(advisorRow.data)?.phoneDisplay : undefined;
-  return !brand || !phone;
 }
 
 /** Re-checks the signed-in user's password for a sensitive action (export, delete). Shares the
@@ -113,7 +96,7 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
     ]);
 
     const { token, expiresAt } = await createSession(env.DB, id);
-    return json({ id, email, name, publicToken, hasGoogleLogin: false, needsOnboarding: false }, 201, { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) });
+    return json({ id, email, name, publicToken }, 201, { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) });
   }
 
   if (url.pathname === '/api/auth/login' && request.method === 'POST') {
@@ -123,9 +106,9 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
     const password = body?.password;
     if (!email || !password) return json({ error: 'Email and password are required.' }, 400);
 
-    const user = await env.DB.prepare('SELECT id, email, name, password_hash, public_token, google_id, failed_attempts, locked_until FROM users WHERE email = ?')
+    const user = await env.DB.prepare('SELECT id, email, name, password_hash, public_token, failed_attempts, locked_until FROM users WHERE email = ?')
       .bind(email)
-      .first<{ id: string; email: string; name: string; password_hash: string; public_token: string; google_id: string | null; failed_attempts: number; locked_until: number | null }>();
+      .first<{ id: string; email: string; name: string; password_hash: string; public_token: string; failed_attempts: number; locked_until: number | null }>();
 
     if (user?.locked_until && user.locked_until > Date.now()) {
       const minutesLeft = Math.ceil((user.locked_until - Date.now()) / 60_000);
@@ -150,92 +133,7 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
 
     const { token, expiresAt } = await createSession(env.DB, user.id);
     return json(
-      {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        publicToken: user.public_token,
-        hasGoogleLogin: user.google_id != null,
-        needsOnboarding: await needsOnboarding(env, user.id, user.google_id != null),
-      },
-      200,
-      { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) },
-    );
-  }
-
-  if (url.pathname === '/api/auth/google' && request.method === 'POST') {
-    if (await isRateLimited(env, `google:${clientIp(request)}`, 40, 15 * 60 * 1000)) return json({ error: TOO_MANY }, 429);
-    const body = await readJsonBody<GoogleBody>(request);
-    if (!body?.idToken) return json({ error: 'Missing Google ID token.' }, 400);
-
-    let identity;
-    try {
-      identity = await verifyGoogleIdToken(body.idToken, env.GOOGLE_CLIENT_ID);
-    } catch (err) {
-      console.error('Google token verification failed', err);
-      return json({ error: 'Could not verify Google sign-in.' }, 401);
-    }
-
-    let user = await env.DB.prepare('SELECT id, email, name, public_token FROM users WHERE google_id = ?')
-      .bind(identity.googleId)
-      .first<{ id: string; email: string; name: string; public_token: string }>();
-
-    if (!user) {
-      const byEmail = await env.DB.prepare('SELECT id, email, name, public_token, email_verified FROM users WHERE email = ?')
-        .bind(identity.email)
-        .first<{ id: string; email: string; name: string; public_token: string; email_verified: number }>();
-
-      if (byEmail) {
-        if (byEmail.email_verified) {
-          await env.DB.prepare('UPDATE users SET google_id = ? WHERE id = ?').bind(identity.googleId, byEmail.id).run();
-          user = byEmail;
-        } else {
-          // Email/password signup never proves ownership of the address, so this account may have
-          // been registered by someone other than the real owner. Google just verified the owner,
-          // so cut off whatever password, session and public link the registrant holds before
-          // handing the account over.
-          const freshPublicToken = generatePublicToken();
-          await env.DB.prepare('UPDATE users SET google_id = ?, email_verified = 1, password_hash = ?, public_token = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?')
-            .bind(identity.googleId, await hashPassword(crypto.randomUUID()), freshPublicToken, byEmail.id)
-            .run();
-          await deleteAllSessionsForUser(env.DB, byEmail.id);
-          user = { ...byEmail, public_token: freshPublicToken };
-        }
-      } else {
-        const id = crypto.randomUUID();
-        const publicToken = generatePublicToken();
-        // No password on a Google-only account — password_hash still gets a value (rather than
-        // loosening the NOT NULL constraint, which SQLite/D1 can't cheaply ALTER) but it's a
-        // random value nobody knows, so it can never be used to log in via /api/auth/login.
-        const passwordHash = await hashPassword(crypto.randomUUID());
-        await env.DB.batch([
-          env.DB.prepare('INSERT INTO users (id, email, password_hash, name, created_at, public_token, google_id) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(
-            id,
-            identity.email,
-            passwordHash,
-            identity.name,
-            Date.now(),
-            publicToken,
-            identity.googleId,
-          ),
-          env.DB.prepare('INSERT INTO advisor_profiles (user_id, data) VALUES (?, ?)').bind(id, JSON.stringify({ name: identity.name, email: identity.email })),
-        ]);
-        user = { id, email: identity.email, name: identity.name, public_token: publicToken };
-      }
-    }
-
-    const { token, expiresAt } = await createSession(env.DB, user.id);
-    // Every path through this branch (found by google_id, linked by email, or freshly created)
-    // ends with google_id set on the row, so this is always true here.
-    return json(
-      {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        publicToken: user.public_token,
-        hasGoogleLogin: true,
-        needsOnboarding: await needsOnboarding(env, user.id, true),
-      },
+      { id: user.id, email: user.email, name: user.name, publicToken: user.public_token },
       200,
       { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) },
     );
@@ -304,9 +202,6 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
     if (newPassword.length < 8) return json({ error: 'New password must be at least 8 characters.' }, 400);
 
     const row = await env.DB.prepare('SELECT password_hash FROM users WHERE id = ?').bind(user.id).first<{ password_hash: string }>();
-    // A Google-only account's password_hash is a random value nobody knows (see /api/auth/google
-    // above) — this correctly rejects any "current password" attempt for one, same as if it were
-    // simply wrong; the client points those users at Forgot Password instead.
     if (!row || !(await verifyPassword(currentPassword, row.password_hash))) {
       return json({ error: 'Current password is incorrect.' }, 401);
     }
@@ -332,15 +227,10 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
     const user = await getUserFromSession(env.DB, request);
     if (!user) return json({ error: 'Not signed in.' }, 401);
 
-    // An account that can sign in with a password must prove it. A Google-linked account can't be
-    // held to that (its password may be a random value nobody knows — see /api/auth/google), so for
-    // those the live session plus the client's typed confirmation is the whole check.
-    if (!user.hasGoogleLogin) {
-      const body = await readJsonBody<{ password?: string }>(request);
-      const row = await env.DB.prepare('SELECT password_hash FROM users WHERE id = ?').bind(user.id).first<{ password_hash: string }>();
-      if (!body?.password || !row || !(await verifyPassword(body.password, row.password_hash))) {
-        return json({ error: 'Password is incorrect.' }, 401);
-      }
+    const body = await readJsonBody<{ password?: string }>(request);
+    const row = await env.DB.prepare('SELECT password_hash FROM users WHERE id = ?').bind(user.id).first<{ password_hash: string }>();
+    if (!body?.password || !row || !(await verifyPassword(body.password, row.password_hash))) {
+      return json({ error: 'Password is incorrect.' }, 401);
     }
 
     // Child rows are deleted explicitly rather than relying on ON DELETE CASCADE being enforced.
@@ -366,7 +256,7 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
   if (url.pathname === '/api/auth/me' && request.method === 'GET') {
     const user = await getUserFromSession(env.DB, request);
     if (!user) return json({ error: 'Not signed in.' }, 401);
-    return json({ ...user, needsOnboarding: await needsOnboarding(env, user.id, user.hasGoogleLogin) });
+    return json(user);
   }
 
   return json({ error: 'Not found' }, 404);
