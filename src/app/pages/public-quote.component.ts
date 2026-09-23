@@ -18,6 +18,7 @@ import {
   computeInsuranceBreakdown,
   computeQuotationTotals,
   formatRM,
+  loanForMonthlyPayment,
   modelVariantLabel,
   monthlyPayment,
   rebateForYear,
@@ -108,7 +109,7 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
 
           <!-- Customize quote -->
           <div
-            class="flex-col gap-4 xl:sticky xl:top-4 xl:col-span-1 xl:flex xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 2xl:static 2xl:block 2xl:max-h-none 2xl:columns-2 2xl:gap-4 2xl:overflow-visible 2xl:pr-0 2xl:[&>*]:mb-4 2xl:[&>*]:break-inside-avoid 2xl:[&>:first-child]:[column-span:all]"
+            class="flex-col gap-4 xl:sticky xl:top-4 xl:col-span-1 xl:flex xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 2xl:static 2xl:max-h-none 2xl:overflow-visible 2xl:pr-0"
             [ngClass]="mobileTab() === 'customize' ? 'flex' : 'hidden'"
           >
             <div class="flex items-center justify-between">
@@ -145,9 +146,11 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
               </div>
             </div>
 
-            <!-- Select car -->
-            <div data-tour="quote-car" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Select Car</span>
+            <div class="flex flex-col gap-4 2xl:grid 2xl:grid-cols-2 2xl:items-start 2xl:gap-4">
+              <div class="flex flex-col gap-4">
+              <!-- Select car -->
+              <div data-tour="quote-car" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+                <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Select Car</span>
 
               <div class="grid grid-cols-1 gap-3" [ngClass]="singleBrandMode ? '' : 'sm:grid-cols-2'">
                 @if (!singleBrandMode) {
@@ -230,7 +233,8 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                     (ngModelChange)="selectedColour.set($event)"
                     class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
                   >
-                    @for (c of colours; track c) { <option [value]="c">{{ colourOptionLabel(c) }}</option> }
+                    <option [ngValue]="null">Not Confirmed</option>
+                    @for (c of colours; track c) { <option [ngValue]="c">{{ colourOptionLabel(c) }}</option> }
                   </select>
                 </div>
               }
@@ -287,10 +291,12 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                 <span class="text-sm font-semibold tabular text-foreground">{{ fmt2(insurance()) }}</span>
               </div>
             </div>
+              </div>
 
-            <!-- Loan setup -->
+              <div class="flex flex-col gap-4">
+            <!-- Interest Rate -->
             <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Loan Setup</span>
+              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Interest Rate</span>
 
               <div class="flex flex-col gap-2">
                 <span class="text-xs font-medium text-muted-foreground">Interest Rate</span>
@@ -299,6 +305,11 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                   <span class="text-xs text-muted-foreground">{{ rateType() === 'flat' ? 'Flat' : 'EIR' }}</span>
                 </div>
               </div>
+            </div>
+
+            <!-- Loan setup -->
+            <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Loan Setup</span>
 
               <div class="flex flex-col gap-2">
                 <span class="text-xs font-medium text-muted-foreground">Downpayment</span>
@@ -328,6 +339,8 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                     [step]="downpaymentType() === 'percent' ? 1 : 500"
                     [ngModel]="downpaymentValue()"
                     (ngModelChange)="downpaymentValue.set(+$event || 0)"
+                    (blur)="commitDownpayment()"
+                    (keydown.enter)="commitDownpayment()"
                     class="h-10 w-full rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular outline-none transition-colors focus:border-ring"
                   />
                   <div class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
@@ -351,6 +364,12 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                 </div>
               </div>
 
+              <div class="flex items-center gap-3">
+                <div class="h-px flex-1 bg-border"></div>
+                <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">or</span>
+                <div class="h-px flex-1 bg-border"></div>
+              </div>
+
               <div class="flex flex-col gap-2">
                 <label for="loanAmountInput" class="text-xs font-medium text-muted-foreground">Loan Amount (RM)</label>
                 <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 focus-within:border-ring">
@@ -369,6 +388,32 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                   />
                 </div>
                 <span class="text-[11px] text-muted-foreground">Rounds down to the nearest RM100 once you finish typing — any remainder goes to the downpayment.</span>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <div class="h-px flex-1 bg-border"></div>
+                <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">or</span>
+                <div class="h-px flex-1 bg-border"></div>
+              </div>
+
+              <div class="flex flex-col gap-2">
+                <label for="monthlyInstallmentInput" class="text-xs font-medium text-muted-foreground">Monthly Installment (RM)</label>
+                <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 focus-within:border-ring">
+                  <span class="text-sm font-medium text-muted-foreground">RM</span>
+                  <input
+                    id="monthlyInstallmentInput"
+                    type="number"
+                    min="0"
+                    step="10"
+                    inputmode="numeric"
+                    [ngModel]="monthlyInstallmentDisplay()"
+                    (ngModelChange)="onMonthlyInstallmentInput($event)"
+                    (blur)="commitMonthlyInstallment()"
+                    (keydown.enter)="commitMonthlyInstallment()"
+                    class="w-full bg-transparent text-sm font-medium tabular outline-none"
+                  />
+                </div>
+                <span class="text-[11px] text-muted-foreground">Targets the {{ tenureYears() }} Yrs tenure and works backwards to the loan amount and deposit.</span>
               </div>
             </div>
 
@@ -395,6 +440,8 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                   }
                 </div>
                 <span class="text-[11px] text-muted-foreground">Pick one tenure — this is what your monthly payment above is based on.</span>
+              </div>
+            </div>
               </div>
             </div>
           </div>
@@ -590,10 +637,13 @@ export class PublicQuoteComponent implements OnInit {
       this.vehicles()[0] ??
       DEFAULT_VEHICLES[0],
   );
-  basePrice = computed(() => this.selectedVehicle().price + colourSurchargeFor(this.selectedVehicle(), this.selectedColour()));
+  // A colour surcharge (e.g. the Omoda C9 lineup's Matte Grey) is shown as a note next to the
+  // colour — both here and on the poster's "Available in:" list — but no longer added to the
+  // price; a colour is purely cosmetic now, never something that changes what the customer pays.
+  basePrice = computed(() => this.selectedVehicle().price);
 
-  /** e.g. "Matte Grey (+RM 3,000)" — surfaces a colour's surcharge right in the dropdown so the
-   *  customer sees the cost before picking it, not just after. */
+  /** e.g. "Matte Grey (+RM 3,000)" — shows the colour's note right in the dropdown, informational
+   *  only now (see basePrice above). */
   colourOptionLabel(colour: string): string {
     const surcharge = colourSurchargeFor(this.selectedVehicle(), colour);
     return surcharge > 0 ? `${colour} (+RM ${surcharge.toLocaleString('en-MY')})` : colour;
@@ -616,9 +666,12 @@ export class PublicQuoteComponent implements OnInit {
     const years = yearsForVariant2(this.vehicles(), this.selectedBrand(), this.selectedModelName(), variant);
     if (!years.includes(this.modelYear())) this.modelYear.set(years[0]);
     this.loanAmountDraft.set(null);
+    this.monthlyInstallmentDraft.set(null);
     // A different car has its own colour lineup — carrying over the previous car's pick could
-    // silently select a colour (and its surcharge) this car doesn't even offer.
-    this.selectedColour.set(this.selectedVehicle().colours?.[0] ?? null);
+    // silently select a colour (and its surcharge) this car doesn't even offer. Starts on "Not
+    // Confirmed" rather than assuming the first colour, since a customer hasn't actually chosen
+    // one yet — see the colour select's own default option.
+    this.selectedColour.set(null);
   }
 
   // Read-only on the public link — the SA controls this figure from the Car Database, a customer
@@ -690,6 +743,7 @@ export class PublicQuoteComponent implements OnInit {
    *  rounding remainder). */
   applyDownpaymentPreset(preset: 'tenPercent' | 'fullLoan') {
     this.loanAmountDraft.set(null);
+    this.monthlyInstallmentDraft.set(null);
     if (preset === 'tenPercent') {
       this.downpaymentType.set('percent');
       this.downpaymentValue.set(10);
@@ -704,6 +758,24 @@ export class PublicQuoteComponent implements OnInit {
     if (preset === 'tenPercent') return type === 'percent' && this.downpaymentValue() === 10;
     return type === 'amount' && this.downpaymentValue() === 0;
   }
+
+  /** Unlike Loan Amount/Monthly Installment (which need a draft signal so the derived, rounded
+   *  figure doesn't fight a mid-keystroke value — see loanAmountDraft above), Downpayment IS the
+   *  primary value, so it can bind straight to the signal and update everything else live, no
+   *  draft needed. But in Amt mode, whatever cash figure was typed is never exactly what ends up
+   *  charged: the loan behind it is floored to the nearest RM100 (see totals()), and that rounding
+   *  remainder spills back into the cash downpayment — same "remainder goes to the downpayment"
+   *  rule the Loan Amount field's own helper text already describes. The poster and the Loan
+   *  Amount field both reflect that real, spilled-over figure; settle the field to match once the
+   *  customer is done typing, so it never sits there showing a number that was never actually
+   *  charged. */
+  commitDownpayment() {
+    if (this.downpaymentType() === 'percent') {
+      this.downpaymentValue.set(Math.min(Math.max(0, this.downpaymentValue()), 100));
+    } else {
+      this.downpaymentValue.set(this.totals().downpaymentCash);
+    }
+  }
   loanAmountDisplay = computed(() => this.loanAmountDraft() ?? this.loanAmount());
 
   onLoanAmountInput(value: number) {
@@ -715,8 +787,33 @@ export class PublicQuoteComponent implements OnInit {
     if (draft !== null) {
       this.downpaymentType.set('amount');
       this.downpaymentValue.set(roundCents(Math.max(0, this.allInPrice() - draft)));
+      this.monthlyInstallmentDraft.set(null);
     }
     this.loanAmountDraft.set(null);
+  }
+
+  /** Same draft/commit pattern as Loan Amount above — holds whatever's typed until blur/Enter,
+   *  then works backwards from "I want to pay about RM X/month" (at the selected tenure) to the
+   *  loan amount that implies, and from there to the deposit. */
+  private monthlyInstallmentDraft = signal<number | null>(null);
+  /** Once committed, shows the instalment the loan actually settled on — not necessarily what was
+   *  typed, since the loan behind it is floored to the nearest RM100 (see commitMonthlyInstallment)
+   *  the same way a manually-typed Loan Amount is. Closest achievable, not exact. */
+  monthlyInstallmentDisplay = computed(() => this.monthlyInstallmentDraft() ?? roundCents(this.monthlyInstalment()));
+
+  onMonthlyInstallmentInput(value: number) {
+    this.monthlyInstallmentDraft.set(Math.max(0, +value || 0));
+  }
+
+  commitMonthlyInstallment() {
+    const draft = this.monthlyInstallmentDraft();
+    if (draft !== null) {
+      const impliedLoan = loanForMonthlyPayment(draft, this.interestRate(), this.tenureMonths(), this.rateType());
+      this.downpaymentType.set('amount');
+      this.downpaymentValue.set(roundCents(Math.max(0, this.allInPrice() - impliedLoan)));
+      this.loanAmountDraft.set(null);
+    }
+    this.monthlyInstallmentDraft.set(null);
   }
 
   brandLogoUrl = computed(() => brandLogo(this.selectedVehicle().brand));
@@ -766,7 +863,8 @@ export class PublicQuoteComponent implements OnInit {
       this.selectedBrand.set(preferred.brand);
       this.selectedModelName.set(preferred.model);
       this.selectedVariant.set(preferred.variant);
-      this.selectedColour.set(preferred.colours?.[0] ?? null);
+      // Starts on "Not Confirmed" rather than assuming the first colour — see onVariantChange.
+      this.selectedColour.set(null);
       this.modelYear.set(Math.max(...preferred.years.map((y) => y.year)));
       this.ncd.set(bundle.salesDefaults.ncd);
       this.downpaymentType.set('percent');
@@ -884,6 +982,10 @@ export class PublicQuoteComponent implements OnInit {
       `Hi ${this.bundle()!.advisor.name}, I'm interested in the ${vehicleTitle(vehicle.brand, modelVariantLabel(vehicle.model, vehicle.variant))} (${this.modelYear()}).`,
       '',
       "Here's the quote I put together:",
+      // Only mentioned for cars that actually offer a colour choice — see the Colour select's own
+      // @if (selectedVehicle().colours; ...) guard. "Not confirmed yet" (rather than omitting the
+      // line) since the advisor still needs to know a colour is expected, just not picked.
+      ...(vehicle.colours ? [`- Colour: ${this.selectedColour() ?? 'Not confirmed yet'}`] : []),
       `- Downpayment: ${this.fmt2(this.downpaymentCash())}`,
       `- Loan Amount: ${this.fmt2(this.loanAmount())}`,
       `- Rebate: ${this.fmt(this.rebateInput())}`,
@@ -907,6 +1009,7 @@ export class PublicQuoteComponent implements OnInit {
     this.downpaymentValue.set(bundle.salesDefaults.downpaymentPct);
     this.tenureYears.set(9);
     this.loanAmountDraft.set(null);
+    this.monthlyInstallmentDraft.set(null);
   }
 }
 
