@@ -6,7 +6,7 @@ import { InsuranceQuotationEditorComponent } from '../shared/insurance-quotation
 import { SettingsService } from '../shared/settings.service';
 import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
 import { brandInitials, brandLogo, brandStyle } from '../data/dashboard-data';
-import { basicPremiumDefault, formatRM, modelVariantLabel, type Vehicle, type VehicleYear } from '../data/calculator-data';
+import { basicPremiumDefault, computeInsuranceBreakdown, formatRM, modelVariantLabel, type Vehicle, type VehicleYear } from '../data/calculator-data';
 
 /** Everything the editor panel can change for one variant — price and rates live here, since
  *  they're the same regardless of which year is in stock; Rebate and Additional Rebate both live
@@ -127,7 +127,7 @@ type BrandGroup = { brand: string; models: ModelGroup[] };
                         </span>
                         <span class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                           <span>Price <strong class="font-semibold text-foreground">{{ fmt(v.price) }}</strong></span>
-                          <span>Insurance <strong class="font-semibold text-foreground">{{ v.basicPremium != null ? fmt(v.basicPremium) : 'Auto' }}</strong></span>
+                          <span>Insurance <strong class="font-semibold text-foreground">{{ fmt(savedInsuranceTotalFor(v)) }}</strong></span>
                           <span>Rate <strong class="font-semibold text-foreground">{{ v.interestRate != null ? v.interestRate + '%' : 'Default' }}</strong></span>
                         </span>
                       </div>
@@ -400,6 +400,14 @@ export class PriceSettingsComponent {
 
   fallbackBasicPremiumFor(v: Vehicle): number {
     return basicPremiumDefault(v.price, this.settingsService.settings().salesDefaults.basicPremiumRatePct);
+  }
+
+  /** The full Total Due this car's saved quotation (or its default, if never edited) actually
+   *  works out to — same figure the Itemized Insurance Quotation panel below shows, not just the
+   *  Basic Premium line, so the list row matches what a customer would actually be charged. */
+  savedInsuranceTotalFor(v: Vehicle): number {
+    const details = this.settingsService.getVehicleInsurance(v, this.fallbackBasicPremiumFor(v));
+    return computeInsuranceBreakdown(details, this.ncdPct()).totalDue;
   }
 
   // ---------- Editor panel ----------

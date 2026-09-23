@@ -40,12 +40,14 @@ const COLUMNS: Column[] = [
   { key: 'model', label: 'Model' },
 ];
 
-function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): number {
-  const av = a[key];
-  const bv = b[key];
-  let cmp = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av).localeCompare(String(bv));
-  if (cmp === 0 && key !== 'model') cmp = a.model.localeCompare(b.model);
-  if (cmp === 0 && key !== 'variant') cmp = a.variant.localeCompare(b.variant);
+/** Sorts by catalog declaration order (brand → model → variant), not alphabetically — the catalog
+ *  is already hand-ordered by spec (e.g. Standard/Executive/Premium, or Lite/Prime/Premium/Flagship),
+ *  same as the Calculator's own brand/model/variant dropdowns (see variantsForModel in
+ *  calculator-data.ts). Alphabetizing would scatter that (e.g. S70's "Flagship" sorting before its
+ *  own "Lite"), so both columns just toggle the direction of this same natural order rather than
+ *  switching to a text sort. */
+function compareVehicles(a: Vehicle, b: Vehicle, dir: SortDir, catalogIndex: Map<string, number>): number {
+  const cmp = (catalogIndex.get(a.id) ?? 0) - (catalogIndex.get(b.id) ?? 0);
   return dir === 'asc' ? cmp : -cmp;
 }
 
@@ -331,7 +333,7 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <button type="button" aria-label="Close brochure" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeBrochure()"></button>
 
-        <div class="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+        <div class="relative flex h-[94vh] w-[94vw] max-w-6xl flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex items-center gap-3 border-b border-border bg-gradient-to-br from-primary/12 via-card to-card p-4">
             <div
               class="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border"
@@ -362,8 +364,8 @@ function compareVehicles(a: Vehicle, b: Vehicle, key: SortKey, dir: SortDir): nu
             </button>
           </div>
 
-          <div class="flex-1 overflow-y-auto bg-muted/20">
-            <iframe [src]="safeBrochureUrl(brochure)" title="Brochure" class="h-[70vh] w-full"></iframe>
+          <div class="flex-1 bg-muted/20">
+            <iframe [src]="safeBrochureUrl(brochure)" title="Brochure" class="h-full w-full"></iframe>
           </div>
         </div>
       </div>
@@ -442,10 +444,11 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
   visibleColumns = computed(() => (this.brandFilter() === 'All' ? this.columns : this.columns.filter((c) => c.key !== 'brand')));
 
   filteredSorted = computed(() => {
-    let list = this.brandFilter() === 'All' ? this.allVehicles() : this.allVehicles().filter((v) => v.brand === this.brandFilter());
-    const key = this.sortKey();
+    const all = this.allVehicles();
+    let list = this.brandFilter() === 'All' ? all : all.filter((v) => v.brand === this.brandFilter());
     const dir = this.sortDir();
-    return [...list].sort((a, b) => compareVehicles(a, b, key, dir));
+    const catalogIndex = new Map(all.map((v, i) => [v.id, i]));
+    return [...list].sort((a, b) => compareVehicles(a, b, dir, catalogIndex));
   });
 
   openVehicle = computed(() => this.allVehicles().find((v) => v.id === this.openKey()) ?? null);
