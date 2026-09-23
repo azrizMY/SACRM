@@ -37,9 +37,12 @@ function isLocalDevHost(): boolean {
           </div>
 
           @if (error()) {
-            <div class="flex items-center gap-2 rounded-lg bg-[var(--destructive)]/10 px-3 py-2 text-xs font-medium text-[var(--destructive)]">
-              <app-icon name="info" [size]="14" class="shrink-0" />
-              {{ error() }}
+            <div class="flex flex-col gap-1.5 rounded-lg bg-[var(--destructive)]/10 px-3 py-2 text-xs font-medium text-[var(--destructive)]">
+              <span class="flex items-center gap-2">
+                <app-icon name="info" [size]="14" class="shrink-0" />
+                {{ error() }}
+              </span>
+              <a routerLink="/forgot-password" class="ml-[22px] font-semibold underline underline-offset-2">Reset your password</a>
             </div>
           }
 
