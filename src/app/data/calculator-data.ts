@@ -93,14 +93,11 @@ export const VEHICLES: Vehicle[] = [
   { id: 'proton-saga-standard', brand: 'Proton', model: 'Saga', variant: 'Standard', price: 38990, photoUrl: '/cars/proton-saga.png', brochureUrl: '/brochures/proton-saga.pdf', colours: ['Marine Blue', 'Space Grey', 'Ruby Red', 'Armour Silver', 'Snow White'], years: [{ year: 2026 }] },
   { id: 'proton-saga-executive', brand: 'Proton', model: 'Saga', variant: 'Executive', price: 44990, photoUrl: '/cars/proton-saga.png', brochureUrl: '/brochures/proton-saga.pdf', colours: ['Marine Blue', 'Space Grey', 'Ruby Red', 'Armour Silver', 'Snow White'], years: [{ year: 2026 }] },
   { id: 'proton-saga-premium', brand: 'Proton', model: 'Saga', variant: 'Premium', price: 49990, photoUrl: '/cars/proton-saga.png', brochureUrl: '/brochures/proton-saga.pdf', colours: ['Marine Blue', 'Space Grey', 'Ruby Red', 'Armour Silver', 'Snow White'], years: [{ year: 2026 }] },
-  { id: 'proton-persona-standard', brand: 'Proton', model: 'Persona', variant: 'Standard', price: 47800, photoUrl: '/cars/proton-persona.png', brochureUrl: '/brochures/proton-persona.pdf', years: [{ year: 2026 }] },
-  { id: 'proton-persona-executive', brand: 'Proton', model: 'Persona', variant: 'Executive', price: 53300, photoUrl: '/cars/proton-persona.png', brochureUrl: '/brochures/proton-persona.pdf', years: [{ year: 2026 }] },
-  { id: 'proton-persona-premium', brand: 'Proton', model: 'Persona', variant: 'Premium', price: 58300, photoUrl: '/cars/proton-persona.png', brochureUrl: '/brochures/proton-persona.pdf', years: [{ year: 2026 }] },
-  { id: 'proton-s70-1.5l-lite', brand: 'Proton', model: 'S70', variant: '1.5L Lite', price: 59800, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver', 'Ruby Red'], years: [{ year: 2026 }] },
-  { id: 'proton-s70-1.5l-prime', brand: 'Proton', model: 'S70', variant: '1.5L Prime', price: 62800, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver', 'Ruby Red'], years: [{ year: 2026 }] },
-  { id: 'proton-s70-premium', brand: 'Proton', model: 'S70', variant: 'Premium', price: 79800, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver', 'Ruby Red'], years: [{ year: 2026 }] },
-  { id: 'proton-s70-flagship', brand: 'Proton', model: 'S70', variant: 'Flagship', price: 89800, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver', 'Ruby Red'], years: [{ year: 2026 }] },
-  { id: 'proton-s70-flagship-x', brand: 'Proton', model: 'S70', variant: 'Flagship X', price: 94800, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver', 'Ruby Red'], years: [{ year: 2026 }] },
+  { id: 'proton-s70-1.5l-lite', brand: 'Proton', model: 'S70', variant: 'Lite', price: 59800, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver'], years: [{ year: 2026 }] },
+  { id: 'proton-s70-1.5l-prime', brand: 'Proton', model: 'S70', variant: 'Prime', price: 62800, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver'], years: [{ year: 2026 }] },
+  { id: 'proton-s70-premium', brand: 'Proton', model: 'S70', variant: 'Premium', price: 79800, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver'], years: [{ year: 2026 }] },
+  { id: 'proton-s70-flagship', brand: 'Proton', model: 'S70', variant: 'Flagship', price: 89800, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver'], years: [{ year: 2026 }] },
+  { id: 'proton-s70-flagship-x', brand: 'Proton', model: 'S70', variant: 'Flagship X', price: 94800, photoUrl: '/cars/proton-s70.png', brochureUrl: '/brochures/proton-s70.pdf', colours: ['Quartz Black', 'Marine Blue', 'Space Grey', 'Snow White', 'Armour Silver'], years: [{ year: 2026 }] },
   { id: 'proton-x50-executive', brand: 'Proton', model: 'X50', variant: 'Executive', price: 89800, photoUrl: '/cars/proton-x50.png', brochureUrl: '/brochures/proton-x50.pdf', colours: ['Snow White', 'Jet Grey', 'Armour Silver', 'Marine Blue', 'Quartz Black'], years: [{ year: 2026 }] },
   { id: 'proton-x50-premium', brand: 'Proton', model: 'X50', variant: 'Premium', price: 101800, photoUrl: '/cars/proton-x50.png', brochureUrl: '/brochures/proton-x50.pdf', colours: ['Snow White', 'Jet Grey', 'Armour Silver', 'Marine Blue', 'Quartz Black'], years: [{ year: 2026 }] },
   { id: 'proton-x50-flagship', brand: 'Proton', model: 'X50', variant: 'Flagship', price: 113300, photoUrl: '/cars/proton-x50.png', brochureUrl: '/brochures/proton-x50.pdf', colours: ['Snow White', 'Jet Grey', 'Armour Silver', 'Marine Blue', 'Quartz Black'], years: [{ year: 2026 }] },
@@ -132,7 +129,7 @@ export const VEHICLES: Vehicle[] = [
   { id: 'chery-tiggo-cross-turbo', brand: 'Chery', model: 'Tiggo Cross', variant: 'Turbo', price: 88800, interestRate: 2.3, basicPremium: 2206.67, addBenefits: 620.5, photoUrl: '/cars/chery-tiggo-cross-turbo.png', brochureUrl: '/brochures/chery-tiggo-cross.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Blood Stone Red'], years: [{ year: 2026 }] },
   { id: 'chery-tiggo-cross-hev', brand: 'Chery', model: 'Tiggo Cross', variant: 'Hybrid', price: 99800, interestRate: 2.3, basicPremium: 2435.47, addBenefits: 642.5, photoUrl: '/cars/chery-tiggo-cross-hybrid.png', brochureUrl: '/brochures/chery-tiggo-cross.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Moonlight Silver'], years: [{ year: 2026 }] },
   { id: 'chery-tiggo7-pro', brand: 'Chery', model: 'Tiggo 7', variant: 'Pro', price: 123800, interestRate: 2.3, basicPremium: 2934.67, addBenefits: 820.5, photoUrl: '/cars/chery-tiggo7-pro.png', brochureUrl: '/brochures/chery-tiggo7-pro.pdf', colours: ['Khaki White', 'Phantom Grey', 'Nasdaq Silver', 'Carbon Black'], years: [{ year: 2026 }] },
-  { id: 'chery-tiggo7-phev', brand: 'Chery', model: 'Tiggo 7', variant: 'PHEV', price: 129800, interestRate: 2.3, basicPremium: 3088.44, addBenefits: 832.5, photoUrl: '/cars/chery-tiggo7-phev.png', brochureUrl: '/brochures/chery-tiggo7-phev.pdf', colours: ['Phantom Grey', 'Khaki White', 'Blood Stone Red + Black Roof'], years: [{ year: 2026 }] },
+  { id: 'chery-tiggo7-phev', brand: 'Chery', model: 'Tiggo 7', variant: 'PHEV', price: 129800, interestRate: 2.3, basicPremium: 3088.44, addBenefits: 832.5, photoUrl: '/cars/chery-tiggo7-phev.png', brochureUrl: '/brochures/chery-tiggo7-phev.pdf', colours: ['Phantom Grey', 'Khaki White', 'Blood Stone Red'], years: [{ year: 2026 }] },
   { id: 'chery-tiggo8-1-6t', brand: 'Chery', model: 'Tiggo 8', variant: '', price: 129800, interestRate: 2.3, basicPremium: 3059.47, addBenefits: 832.5, photoUrl: '/cars/chery-tiggo8.png', brochureUrl: '/brochures/chery-tiggo8.pdf', colours: ['Dark Black', 'Khaki White'], years: [{ year: 2026 }] },
   { id: 'chery-tiggo8-pro', brand: 'Chery', model: 'Tiggo 8', variant: 'Pro', price: 159800, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-pro.png', brochureUrl: '/brochures/chery-tiggo8.pdf', colours: ['Dark Black', 'Khaki White', 'Aurora Green'], years: [{ year: 2026 }] },
   { id: 'chery-tiggo8-phev', brand: 'Chery', model: 'Tiggo 8', variant: 'PHEV', price: 159800, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-phev.png', brochureUrl: '/brochures/chery-tiggo8-phev.pdf', colours: ['Aurora Green', 'Khaki White', 'Carbon Black'], years: [{ year: 2026 }] },
@@ -442,6 +439,30 @@ export function monthlyEffective(principal: number, annualRatePct: number, month
 /** Routes to the right instalment formula for whichever rate type the quote was given in. */
 export function monthlyPayment(principal: number, annualRatePct: number, months: number, rateType: RateType): number {
   return rateType === 'effective' ? monthlyEffective(principal, annualRatePct, months) : monthlyFlat(principal, annualRatePct, months);
+}
+
+/** Inverse of monthlyFlat: the principal that produces a given instalment at this rate/tenure. */
+function loanForMonthlyFlat(monthly: number, annualRatePct: number, months: number): number {
+  const m = Math.max(monthly, 0);
+  const years = months / 12;
+  const factor = 1 + (Math.max(annualRatePct, 0) / 100) * years;
+  return (m * months) / factor;
+}
+
+/** Inverse of monthlyEffective: the principal that produces a given instalment at this rate/tenure. */
+function loanForMonthlyEffective(monthly: number, annualRatePct: number, months: number): number {
+  const m = Math.max(monthly, 0);
+  if (months <= 0) return 0;
+  const r = Math.max(annualRatePct, 0) / 100 / 12;
+  if (r === 0) return m * months;
+  const factor = Math.pow(1 + r, months);
+  return (m * (factor - 1)) / (r * factor);
+}
+
+/** Inverse of monthlyPayment — what loan amount a target instalment implies at this rate/tenure,
+ *  so the SA can dial in "I want to pay about RM X/month" and work backwards to the deposit. */
+export function loanForMonthlyPayment(monthly: number, annualRatePct: number, months: number, rateType: RateType): number {
+  return rateType === 'effective' ? loanForMonthlyEffective(monthly, annualRatePct, months) : loanForMonthlyFlat(monthly, annualRatePct, months);
 }
 
 /** Not every model has more than one variant (e.g. Chery O5) — the SA can leave Variant blank or

@@ -20,6 +20,7 @@ import {
   computeInsuranceBreakdown,
   computeQuotationTotals,
   formatRM,
+  loanForMonthlyPayment,
   modelVariantLabel,
   monthlyPayment,
   additionalRebateForYear,
@@ -365,9 +366,9 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
             </div>
           </div>
 
-          <!-- Loan setup -->
+          <!-- Interest Rate -->
           <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Loan Setup</span>
+            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Interest Rate</span>
 
             <div class="flex flex-col gap-2">
               <span class="text-xs font-medium text-muted-foreground">Rate Type</span>
@@ -415,6 +416,11 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                 <span class="text-sm font-medium text-muted-foreground">%</span>
               </div>
             </div>
+          </div>
+
+          <!-- Loan setup -->
+          <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Loan Setup</span>
 
             <div class="flex flex-col gap-2">
               <span class="text-xs font-medium text-muted-foreground">Downpayment</span>
@@ -444,6 +450,8 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                   [step]="downpaymentType() === 'percent' ? 1 : 500"
                   [ngModel]="downpaymentValue()"
                   (ngModelChange)="downpaymentValue.set(+$event || 0)"
+                  (blur)="commitDownpayment()"
+                  (keydown.enter)="commitDownpayment()"
                   class="h-10 w-full rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular outline-none transition-colors focus:border-ring"
                 />
                 <div class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
@@ -474,6 +482,12 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               </span>
             </div>
 
+            <div class="flex items-center gap-3">
+              <div class="h-px flex-1 bg-border"></div>
+              <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">or</span>
+              <div class="h-px flex-1 bg-border"></div>
+            </div>
+
             <div class="flex flex-col gap-2">
               <label for="loanAmountInput" class="text-xs font-medium text-muted-foreground">Loan Amount (RM)</label>
               <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 focus-within:border-ring">
@@ -492,6 +506,32 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                 />
               </div>
               <span class="text-[11px] text-muted-foreground">Rounds down to the nearest RM100 once you finish typing — any remainder goes to the downpayment.</span>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <div class="h-px flex-1 bg-border"></div>
+              <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">or</span>
+              <div class="h-px flex-1 bg-border"></div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <label for="monthlyInstallmentInput" class="text-xs font-medium text-muted-foreground">Monthly Installment (RM)</label>
+              <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 focus-within:border-ring">
+                <span class="text-sm font-medium text-muted-foreground">RM</span>
+                <input
+                  id="monthlyInstallmentInput"
+                  type="number"
+                  min="0"
+                  step="10"
+                  inputmode="numeric"
+                  [ngModel]="monthlyInstallmentDisplay()"
+                  (ngModelChange)="onMonthlyInstallmentInput($event)"
+                  (blur)="commitMonthlyInstallment()"
+                  (keydown.enter)="commitMonthlyInstallment()"
+                  class="w-full bg-transparent text-sm font-medium tabular outline-none"
+                />
+              </div>
+              <span class="text-[11px] text-muted-foreground">Targets the {{ monthlyInstallmentTenureLabel() }} tenure and works backwards to the loan amount and deposit.</span>
             </div>
           </div>
 
@@ -798,13 +838,16 @@ export class CalculatorComponent implements AfterViewInit {
       VEHICLES.find((v) => v.brand === this.selectedBrand() && v.model === this.selectedModelName() && v.variant === this.selectedVariant()) ??
       VEHICLES[0],
   );
-  basePrice = computed(() => this.selectedVehicle().price + colourSurchargeFor(this.selectedVehicle(), this.selectedColour()));
+  // Colour surcharges (e.g. the Omoda C9 lineup's Matte Grey) are shown as a note next to the
+  // colour — both here and on the poster's "Available in:" list — but no longer added to the
+  // price; a colour is purely cosmetic now, never something that changes what the customer pays.
+  basePrice = computed(() => this.selectedVehicle().price);
 
-  /** The Colour field only appears when picking one can actually change the price (currently just
-   *  the Omoda C9 lineup's Matte Grey surcharge) — every other car's colours are informational only
+  /** The Colour field only appears when this car actually has a surcharge to show a note for
+   *  (currently just the Omoda C9 lineup) — every other car's colours are informational only
    *  (see the poster's "Available in:" list), so a picker there would be a dropdown that does
    *  nothing. Data-driven off Vehicle.colourSurcharges rather than a hardcoded model check, so a
-   *  future colour surcharge on another car enables this automatically. */
+   *  future colour note on another car enables this automatically. */
   colourPickable = computed(() => {
     const vehicle = this.selectedVehicle();
     return Object.keys(vehicle.colourSurcharges ?? {}).length > 0 ? (vehicle.colours ?? []) : null;
@@ -842,6 +885,7 @@ export class CalculatorComponent implements AfterViewInit {
     this.insuranceOverride.set(null);
     this.interestRateManual.set(null);
     this.loanAmountDraft.set(null);
+    this.monthlyInstallmentDraft.set(null);
     // A different car has its own colour lineup — carrying over the previous car's pick could
     // silently select a colour (and its surcharge) this car doesn't even offer.
     this.selectedColour.set(this.selectedVehicle().colours?.[0] ?? null);
@@ -961,6 +1005,7 @@ export class CalculatorComponent implements AfterViewInit {
    *  rounding remainder). */
   applyDownpaymentPreset(preset: 'tenPercent' | 'fullLoan') {
     this.loanAmountDraft.set(null);
+    this.monthlyInstallmentDraft.set(null);
     if (preset === 'tenPercent') {
       this.downpaymentType.set('percent');
       this.downpaymentValue.set(10);
@@ -975,6 +1020,23 @@ export class CalculatorComponent implements AfterViewInit {
     if (preset === 'tenPercent') return type === 'percent' && this.downpaymentValue() === 10;
     return type === 'amount' && this.downpaymentValue() === 0;
   }
+
+  /** Unlike Loan Amount/Monthly Installment (which need a draft signal so the derived, rounded
+   *  figure doesn't fight a mid-keystroke value — see loanAmountDraft above), Downpayment IS the
+   *  primary value, so it can bind straight to the signal and update everything else live, no
+   *  draft needed. But in Amt mode, whatever cash figure was typed is never exactly what ends up
+   *  charged: the loan behind it is floored to the nearest RM100 (see totals()), and that rounding
+   *  remainder spills back into the cash downpayment — same "remainder goes to the downpayment"
+   *  rule the Loan Amount field's own helper text already describes. The poster and the Loan
+   *  Amount field both reflect that real, spilled-over figure; settle the field to match once the
+   *  SA is done typing, so it never sits there showing a number that was never actually charged. */
+  commitDownpayment() {
+    if (this.downpaymentType() === 'percent') {
+      this.downpaymentValue.set(Math.min(Math.max(0, this.downpaymentValue()), 100));
+    } else {
+      this.downpaymentValue.set(this.totals().downpaymentCash);
+    }
+  }
   loanAmountDisplay = computed(() => this.loanAmountDraft() ?? this.loanAmount());
 
   onLoanAmountInput(value: number) {
@@ -986,8 +1048,46 @@ export class CalculatorComponent implements AfterViewInit {
     if (draft !== null) {
       this.downpaymentType.set('amount');
       this.downpaymentValue.set(roundCents(Math.max(0, this.allInPrice() - draft)));
+      this.monthlyInstallmentDraft.set(null);
     }
     this.loanAmountDraft.set(null);
+  }
+
+  /** Same draft/commit pattern as the Loan Amount field above — holds whatever's typed until
+   *  blur/Enter, then works backwards from "I want to pay about RM X/month" to the loan amount
+   *  that implies, and from there to the deposit. Targets the longest of the 3 selected poster
+   *  tenures (e.g. 5/7/9 picked → 9 years) — that's the worst-case, highest-instalment row in the
+   *  repayment table above, so aiming the deposit at it keeps every shorter tenure under budget
+   *  too. Falls back to whatever's typed into Custom Tenure while that's active, since the table
+   *  then shows only that one row instead of the poster set. */
+  private monthlyInstallmentDraft = signal<number | null>(null);
+  monthlyInstallmentTenureMonths = computed(() =>
+    this.customTenureActive() ? this.highlightedTenure() : Math.max(...this.posterTenureYears()) * 12,
+  );
+  monthlyInstallmentTenureLabel = computed(() => {
+    const m = this.monthlyInstallmentTenureMonths();
+    return m % 12 === 0 ? `${m / 12} Yrs` : `${m} mo`;
+  });
+  /** Once committed, shows the instalment the loan actually settled on — not necessarily what was
+   *  typed, since the loan behind it is floored to the nearest RM100 (see commitMonthlyInstallment)
+   *  the same way a manually-typed Loan Amount is. Closest achievable, not exact. */
+  monthlyInstallmentDisplay = computed(() =>
+    this.monthlyInstallmentDraft() ?? roundCents(monthlyPayment(this.loanAmount(), this.interestRate(), this.monthlyInstallmentTenureMonths(), this.rateType())),
+  );
+
+  onMonthlyInstallmentInput(value: number) {
+    this.monthlyInstallmentDraft.set(Math.max(0, +value || 0));
+  }
+
+  commitMonthlyInstallment() {
+    const draft = this.monthlyInstallmentDraft();
+    if (draft !== null) {
+      const impliedLoan = loanForMonthlyPayment(draft, this.interestRate(), this.monthlyInstallmentTenureMonths(), this.rateType());
+      this.downpaymentType.set('amount');
+      this.downpaymentValue.set(roundCents(Math.max(0, this.allInPrice() - impliedLoan)));
+      this.loanAmountDraft.set(null);
+    }
+    this.monthlyInstallmentDraft.set(null);
   }
 
   /** Monthly payment for an arbitrary tenure, at the current loan amount/rate — powers the Add
@@ -1377,5 +1477,6 @@ export class CalculatorComponent implements AfterViewInit {
     this.customTenureActive.set(false);
     this.insuranceOverride.set(null);
     this.loanAmountDraft.set(null);
+    this.monthlyInstallmentDraft.set(null);
   }
 }
