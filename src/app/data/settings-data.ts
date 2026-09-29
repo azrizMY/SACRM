@@ -11,6 +11,9 @@ export type SalesDefaults = {
   basicPremiumRatePct: number;
   /** Which Rate Type the Calculator starts every new quote on. */
   defaultRateType: RateType;
+  /** Whether a new quote starts with Additional Rebate ticked (for cars that have one). Optional —
+   *  absent means ticked, the original behaviour. */
+  additionalRebateByDefault?: boolean;
   /** Which 3 tenure years (of 1-9) the Calculator's repayment table starts on for every new quote. */
   defaultTenureYears: number[];
   /** The choices in every Lead Source dropdown (e.g. "Roadshow – Mid Valley"). Optional so settings

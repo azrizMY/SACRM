@@ -104,6 +104,27 @@ type NavItem = { id: string; label: string; icon: IconName };
 
                 <div class="flex items-center justify-between gap-4 py-4">
                   <div class="flex flex-col">
+                    <span class="text-sm font-medium">Additional Rebate</span>
+                    <span class="text-xs text-muted-foreground">Tick Additional Rebate by default on new quotes and offer sheets, for cars that have one. You can still untick it per quote.</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-label="Tick Additional Rebate by default"
+                    [attr.aria-checked]="salesForm.additionalRebateByDefault ?? true"
+                    (click)="salesForm.additionalRebateByDefault = !(salesForm.additionalRebateByDefault ?? true)"
+                    class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
+                    [ngClass]="(salesForm.additionalRebateByDefault ?? true) ? 'bg-primary' : 'bg-muted'"
+                  >
+                    <span
+                      class="inline-block size-4 transform rounded-full bg-white shadow transition-transform"
+                      [ngClass]="(salesForm.additionalRebateByDefault ?? true) ? 'translate-x-6' : 'translate-x-1'"
+                    ></span>
+                  </button>
+                </div>
+
+                <div class="flex items-center justify-between gap-4 py-4">
+                  <div class="flex flex-col">
                     <span class="text-sm font-medium">Rate Type</span>
                     <span class="text-xs text-muted-foreground">Flat or EIR — which one a new quote opens on.</span>
                   </div>

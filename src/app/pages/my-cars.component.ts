@@ -582,7 +582,7 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
   offerTitle = signal(`${new Date().toLocaleDateString('en-MY', { month: 'long', year: 'numeric' })} Offers`);
   /** Exactly 3 tenure years, each getting its own monthly-instalment column on the offer sheet. */
   offerTenureYears = signal<number[]>([5, 7, 9]);
-  offerIncludeAdditionalRebate = signal(true);
+  offerIncludeAdditionalRebate = signal(this.settingsService.settings().salesDefaults.additionalRebateByDefault ?? true);
   downloadingOfferSheet = signal(false);
   sharingOfferSheet = signal(false);
   offerShareFallbackNotice = signal(false);

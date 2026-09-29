@@ -973,7 +973,10 @@ export class CalculatorComponent implements AfterViewInit {
   additionalRebateIsManual = computed(() => this.additionalRebateManual() !== null);
   additionalRebateValue = computed(() => this.additionalRebateManual() ?? this.autoAdditionalRebate());
 
-  autoAdditionalRebateEnabled = computed(() => additionalRebateForYear(this.selectedVehicle(), this.modelYear()) > 0);
+  /** Ticked when the car has an additional rebate and Settings says to include it by default. */
+  autoAdditionalRebateEnabled = computed(
+    () => additionalRebateForYear(this.selectedVehicle(), this.modelYear()) > 0 && (this.settingsService.settings().salesDefaults.additionalRebateByDefault ?? true),
+  );
   additionalRebateEnabled = computed(() => this.additionalRebateEnabledManual() ?? this.autoAdditionalRebateEnabled());
 
   // No separate "prior-year bonus" — switching Model Year switches selectedVehicle() to that
