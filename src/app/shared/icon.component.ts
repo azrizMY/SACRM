@@ -64,7 +64,8 @@ type IconName =
   | 'table'
   | 'share'
   | 'zoom-in'
-  | 'zoom-out';
+  | 'zoom-out'
+  | 'filter';
 
 const PATHS: Record<IconName, string> = {
   'layout-dashboard':
@@ -152,6 +153,7 @@ const PATHS: Record<IconName, string> = {
     '<circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/>',
   'zoom-out':
     '<circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="8" x2="14" y1="11" y2="11"/>',
+  filter: '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',
 };
 
 @Component({
@@ -173,6 +175,14 @@ const PATHS: Record<IconName, string> = {
       aria-hidden="true"
       [innerHTML]="svg"
     ></svg>
+  `,
+  // `class` is an @Input forwarded to the <svg>, but Angular also leaves the static class
+  // attribute on this host. Without a box of its own, the host's copy is inert — otherwise
+  // positioning classes apply twice (e.g. an absolute left-2.5 search icon lands at 20px).
+  styles: `
+    :host {
+      display: contents;
+    }
   `,
 })
 export class IconComponent {

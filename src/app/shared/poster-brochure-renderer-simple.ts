@@ -236,7 +236,8 @@ async function drawRow(ctx: CanvasRenderingContext2D, row: BrochureRow, top: num
 
   ctx.font = displayFont(f(24), 700);
   ctx.fillStyle = POSTER_COLORS.paper;
-  ctx.fillText(`− ${formatPosterCurrency(row.rebate)}`, cols.rebate + cols.rebateWidth / 2, centerY);
+  // A car with no rebate shows a plain dash rather than "− RM 0.00", so the real promos stand out.
+  ctx.fillText(row.rebate > 0 ? `− ${formatPosterCurrency(row.rebate)}` : '—', cols.rebate + cols.rebateWidth / 2, centerY);
 
   ctx.font = displayFont(f(20), 700);
   ctx.fillStyle = POSTER_COLORS.ink;

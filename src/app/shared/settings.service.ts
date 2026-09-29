@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import {
@@ -8,7 +8,16 @@ import {
   type NotificationPrefs,
   type SalesDefaults,
 } from '../data/settings-data';
+import { BANK_OPTIONS, INSURANCE_OPTIONS, SOURCE_TYPES } from '../data/customer-data';
 import { DEFAULT_EPR, defaultInsuranceQuotation, type InsuranceQuotationDetails, type Vehicle } from '../data/calculator-data';
+
+export const UNSPECIFIED_INSURER = 'Unspecified';
+
+/** A dropdown's choices plus the record's own value when it has since been removed from the list,
+ *  so opening an old record never silently swaps its bank/insurer/source for the first option. */
+export function withCurrent(list: string[], current: string | null | undefined): string[] {
+  return current && !list.includes(current) ? [...list, current] : list;
+}
 
 /** Merges whatever the server actually has on file onto the shipped defaults — an account with no
  *  saved settings yet just gets `{}` back, and a partially-saved blob from before a field existed
@@ -28,6 +37,15 @@ function mergeSettings(saved: Partial<AppSettings> | null): AppSettings {
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
   settings = signal<AppSettings>(DEFAULT_SETTINGS);
+
+  /** The Lead Source choices for this account — edited in Settings → New Leads. */
+  leadSources = computed(() => this.settings().salesDefaults.leadSources ?? SOURCE_TYPES);
+  /** Bank panel choices — edited in Settings → Banks & Insurance. */
+  banks = computed(() => this.settings().salesDefaults.banks ?? BANK_OPTIONS);
+  /** Insurer choices, without the "Unspecified" placeholder (see insuranceOptions). */
+  insurers = computed(() => this.settings().salesDefaults.insurers ?? INSURANCE_OPTIONS.filter((i) => i !== UNSPECIFIED_INSURER));
+  /** What an Insurance dropdown lists: "Unspecified" always first, then the account's insurers. */
+  insuranceOptions = computed(() => [UNSPECIFIED_INSURER, ...this.insurers()]);
 
   constructor(private http: HttpClient) {}
 

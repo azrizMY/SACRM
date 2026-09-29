@@ -18,7 +18,7 @@ import { authGuard, guestGuard } from './shared/auth.guard';
 import { AppShellComponent } from './shell/app-shell.component';
 
 export const routes: Routes = [
-  { path: 'welcome', component: LandingComponent, canActivate: [guestGuard] },
+  { path: 'welcome', component: LandingComponent },
   { path: 'login', component: LoginComponent, canActivate: [guestGuard] },
   { path: 'signup', component: SignupComponent, canActivate: [guestGuard] },
   { path: 'forgot-password', component: ForgotPasswordComponent, canActivate: [guestGuard] },

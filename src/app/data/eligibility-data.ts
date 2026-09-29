@@ -31,7 +31,7 @@ export const catalog: CarModel[] = [
 
 /** Fixed assumptions shown to the consultant. */
 export const LOAN_YEARS = 9;
-export const FLAT_RATE = 0.035; // 3.5% p.a. flat
+export const FLAT_RATE = 0.025; // 2.5% p.a. flat — matches the default flat rate
 export const DSR_LIMIT = 0.35; // max 35% of net salary
 
 export type EligibilityStatus = 'qualified' | 'potential' | 'not-eligible';

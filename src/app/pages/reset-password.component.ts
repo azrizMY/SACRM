@@ -10,21 +10,21 @@ import { AuthService } from '../shared/auth.service';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, IconComponent],
   template: `
-    <div class="flex min-h-dvh items-center justify-center bg-black px-4 py-10 text-foreground">
+    <div class="flex min-h-dvh items-center justify-center px-4 py-10 text-foreground">
       <div class="flex w-full max-w-sm flex-col gap-6">
         <a routerLink="/welcome" class="flex items-center justify-center gap-2.5">
-          <span class="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <span class="logo-chip flex size-10 items-center justify-center rounded-xl">
             <app-icon name="car" [size]="18" />
           </span>
           <div class="flex flex-col leading-tight">
-            <span class="text-sm font-semibold tracking-tight">Redline</span>
+            <span class="text-sm font-bold tracking-tight">Redline</span>
             <span class="text-[11px] text-muted-foreground">Dealership CRM</span>
           </div>
         </a>
 
-        <div class="flex flex-col gap-5 rounded-xl border border-border bg-card p-6 text-card-foreground shadow-sm">
+        <div class="flex flex-col gap-5 glass glow-border animate-rise rounded-2xl p-7 text-card-foreground shadow-[0_30px_80px_-30px_color-mix(in_oklch,var(--primary),transparent_60%)]">
           <div class="flex flex-col gap-1 text-center">
-            <h1 class="text-lg font-semibold tracking-tight">Choose a new password</h1>
+            <h1 class="text-2xl font-bold tracking-tight">Choose a new password</h1>
             <p class="text-sm text-muted-foreground">This link is valid for 30 minutes.</p>
           </div>
 
@@ -44,7 +44,7 @@ import { AuthService } from '../shared/auth.service';
             <form class="flex flex-col gap-4" (ngSubmit)="submit()">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 New Password
-                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 focus-within:border-ring">
+                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary),transparent_80%)]">
                   <app-icon name="lock" [size]="15" class="shrink-0 text-muted-foreground" />
                   <input
                     [type]="showPassword() ? 'text' : 'password'"
@@ -62,7 +62,7 @@ import { AuthService } from '../shared/auth.service';
 
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Confirm Password
-                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 focus-within:border-ring">
+                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary),transparent_80%)]">
                   <app-icon name="lock" [size]="15" class="shrink-0 text-muted-foreground" />
                   <input
                     [type]="showPassword() ? 'text' : 'password'"
@@ -78,7 +78,7 @@ import { AuthService } from '../shared/auth.service';
               <button
                 type="submit"
                 [disabled]="submitting()"
-                class="mt-1 flex items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+                class="mt-1 flex items-center justify-center btn-glow rounded-lg px-4 py-3 text-sm font-semibold disabled:opacity-60"
               >
                 Reset Password
               </button>

@@ -8,6 +8,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { formatRM } from '../data/calculator-data';
 import { monthlyCommissionTrend } from '../data/dashboard-stats';
 import { CustomerService } from '../shared/customer.service';
@@ -18,14 +19,21 @@ const PAD = { top: 8, right: 8, bottom: 24, left: 48 };
 @Component({
   selector: 'app-sales-trend-chart',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   template: `
-    <div class="flex h-full flex-col gap-6 rounded-xl border border-border bg-card py-6 text-card-foreground shadow-sm">
+    <div class="flex h-full flex-col gap-6 animate-rise rounded-xl border border-border bg-card py-6 text-card-foreground transition-colors duration-300 hover:border-primary/30">
       <div class="flex flex-col gap-1 px-6">
         <h3 class="font-semibold leading-none">Commission trend</h3>
         <p class="text-sm text-muted-foreground">Total commission earned, month by month</p>
       </div>
-      <div class="px-6">
+      <div class="relative px-6">
+        @if (isEmpty()) {
+          <!-- A flat zero line against a 50K axis looks broken — say why it's empty instead -->
+          <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 bg-card/85 px-8 text-center">
+            <span class="text-sm font-semibold">No commission recorded yet</span>
+            <a routerLink="/notes" class="text-xs text-primary hover:underline">Add it in Cost Breakdown →</a>
+          </div>
+        }
         <div class="relative w-full" #host [style.height.px]="height">
           <svg
             [attr.width]="width()"
@@ -117,6 +125,7 @@ export class SalesTrendChartComponent implements AfterViewInit, OnDestroy {
   constructor(private customers: CustomerService) {}
 
   data = computed(() => monthlyCommissionTrend(this.customers.records()));
+  isEmpty = computed(() => this.data().every((d) => d.commission === 0));
   yMax = computed(() => {
     const max = Math.max(1, ...this.data().map((d) => d.commission));
     return Math.ceil(max / 50000) * 50000 || 50000;

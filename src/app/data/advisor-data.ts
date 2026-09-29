@@ -1,3 +1,5 @@
+import type { Showroom, SocialLinks } from './social-data';
+
 export type AdvisorProfile = {
   name: string;
   role: string;
@@ -8,6 +10,9 @@ export type AdvisorProfile = {
   /** Uploaded headshot (data URL) shown on the Profile page and the Calculator's Quote Preview —
    *  falls back to initials on a gradient tile everywhere it's absent. */
   photoUrl?: string;
+  showroom?: Showroom;
+  /** Canonical profile URLs, only for platforms the SA filled in. */
+  socials?: SocialLinks;
 };
 
 export const DEFAULT_ADVISOR: AdvisorProfile = {

@@ -23,7 +23,7 @@ const TITLES: Record<string, string> = {
   standalone: true,
   imports: [CommonModule, RouterOutlet, SidebarComponent, TopbarComponent],
   template: `
-    <div class="flex h-dvh w-full overflow-hidden bg-background">
+    <div class="flex h-dvh w-full overflow-hidden">
       <!-- Desktop sidebar -->
       <div class="hidden md:block">
         <app-sidebar
@@ -58,7 +58,7 @@ const TITLES: Record<string, string> = {
       <!-- Main -->
       <div class="flex min-w-0 flex-1 flex-col">
         <app-topbar [title]="title()" [brand]="titleBrand()" (openMobile)="mobileOpen.set(true)" />
-        <main class="flex-1 overflow-y-auto p-4 md:p-6">
+        <main class="route-host flex-1 overflow-y-auto p-4 md:p-6">
           <router-outlet />
         </main>
       </div>

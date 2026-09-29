@@ -1,26 +1,30 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { NumberFieldComponent } from '../shared/number-field.component';
+import { ChipListEditorComponent } from '../shared/chip-list-editor.component';
 import { Router } from '@angular/router';
 import { IconComponent, type IconName } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { AuthService } from '../shared/auth.service';
 import { CustomerService } from '../shared/customer.service';
-import { SettingsService } from '../shared/settings.service';
+import { SettingsService, UNSPECIFIED_INSURER } from '../shared/settings.service';
+import { BANK_OPTIONS, INSURANCE_OPTIONS } from '../data/customer-data';
 import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
 import { NCD_OPTIONS } from '../data/calculator-data';
-import type { DashboardTarget, SalesDefaults } from '../data/settings-data';
+import { DEFAULT_COST_PRESETS, DEFAULT_LEAD_SOURCE, DEFAULT_STALE_LEAD_DAYS, type CostPreset, type DashboardTarget, type SalesDefaults } from '../data/settings-data';
 
 type NavItem = { id: string; label: string; icon: IconName };
 
 @Component({
   selector: 'app-account-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, NumberFieldComponent, ChipListEditorComponent],
   template: `
     <div class="mx-auto flex max-w-6xl flex-col gap-6">
       <div class="flex flex-col gap-1">
-        <h2 class="text-balance text-xl font-semibold tracking-tight">Settings</h2>
+        <h2 class="text-balance text-xl font-bold tracking-tight">Settings</h2>
         <p class="text-pretty text-sm text-muted-foreground">Quote preferences, notifications, and account data.</p>
       </div>
 
@@ -34,9 +38,13 @@ type NavItem = { id: string; label: string; icon: IconName };
             <button
               type="button"
               (click)="scrollToSection(item.id)"
-              class="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-left text-sm font-medium transition-colors"
-              [ngClass]="activeSection() === item.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+              class="relative flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-left text-sm font-medium transition-colors"
+              [ngClass]="activeSection() === item.id ? 'text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
             >
+              <!-- Same straight red edge bar as the main sidebar -->
+              @if (activeSection() === item.id) {
+                <span class="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-primary"></span>
+              }
               <app-icon [name]="item.icon" [size]="15" />
               {{ item.label }}
             </button>
@@ -70,17 +78,15 @@ type NavItem = { id: string; label: string; icon: IconName };
                     <span class="text-sm font-medium">Downpayment</span>
                     <span class="text-xs text-muted-foreground">Starting percentage on a new quote.</span>
                   </div>
-                  <div class="relative flex shrink-0 items-center">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="1"
-                      [(ngModel)]="salesForm.downpaymentPct"
-                      class="h-9 w-24 rounded-lg border border-input bg-input px-3 text-right text-sm text-foreground outline-none focus:border-ring"
-                    />
-                    <span class="pointer-events-none absolute right-3 text-sm text-muted-foreground">%</span>
-                  </div>
+                  <app-number-field
+                    class="w-24 shrink-0"
+                    suffix="%"
+                    ariaLabel="Default downpayment"
+                    [decimals]="0"
+                    [grouping]="false"
+                    [value]="salesForm.downpaymentPct"
+                    (valueChange)="salesForm.downpaymentPct = clampPct($event)"
+                  />
                 </div>
 
                 <div class="flex items-center justify-between gap-4 py-4">
@@ -125,18 +131,35 @@ type NavItem = { id: string; label: string; icon: IconName };
                   </div>
                 </div>
 
+                <div class="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">Default Rates</span>
+                    <span class="max-w-md text-xs text-muted-foreground">Used by every car without its own rate — a car's own rate is set in <a routerLink="/price-settings" class="font-medium text-primary hover:underline">Price Settings</a>. Leave EIR empty to be asked for the bank's rate.</span>
+                  </div>
+                  <div class="flex shrink-0 items-end gap-2">
+                    <label class="flex flex-col gap-1 text-[11px] font-medium text-muted-foreground">
+                      Flat
+                      <app-number-field class="w-24" suffix="%" ariaLabel="Default flat rate" [decimals]="2" [value]="salesForm.interestRate" (valueChange)="salesForm.interestRate = clampRate($event) ?? salesForm.interestRate" />
+                    </label>
+                    <label class="flex flex-col gap-1 text-[11px] font-medium text-muted-foreground">
+                      EIR
+                      <app-number-field class="w-24" suffix="%" ariaLabel="Default EIR" placeholder="Not set" [decimals]="2" [value]="salesForm.effectiveRate ?? null" (valueChange)="salesForm.effectiveRate = clampRate($event) ?? undefined" />
+                    </label>
+                  </div>
+                </div>
+
                 <div class="flex flex-col gap-3 py-4">
                   <div class="flex flex-col">
                     <span class="text-sm font-medium">Repayment Table Years</span>
                     <span class="text-xs text-muted-foreground">Pick 3 tenures — which years the Calculator's repayment table opens on.</span>
                   </div>
-                  <div role="group" aria-label="Repayment table tenures (years)" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
+                  <div role="group" aria-label="Repayment table tenures (years)" class="flex flex-wrap gap-1.5">
                     @for (y of posterYearOptions; track y) {
                       <button
                         type="button"
                         [attr.aria-pressed]="salesForm.defaultTenureYears.includes(y)"
                         (click)="toggleDefaultTenureYear(y)"
-                        class="flex aspect-square items-center justify-center rounded-full text-xs font-semibold transition-colors"
+                        class="flex size-10 items-center justify-center rounded-full text-xs font-semibold transition-colors"
                         [ngClass]="salesForm.defaultTenureYears.includes(y) ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                       >
                         {{ y }}
@@ -159,6 +182,141 @@ type NavItem = { id: string; label: string; icon: IconName };
                     <app-icon name="check" [size]="13" />
                     Saved
                   </span>
+                }
+              </div>
+            </div>
+
+            <!-- New leads -->
+            <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+              <div class="flex items-center gap-3 px-5 py-4">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <app-icon name="users" [size]="18" />
+                </span>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-sm font-semibold leading-none">New Leads</span>
+                  <span class="text-xs text-muted-foreground">Where your leads come from, and when a quiet lead gets flagged.</span>
+                </div>
+              </div>
+              <div class="flex flex-col divide-y divide-border border-t border-border px-5">
+                <div class="flex flex-col gap-3 py-4">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">Lead Sources</span>
+                    <span class="text-xs text-muted-foreground">The choices in every Lead Source dropdown. Tap one to make it the default for new leads. Removing a source never changes existing customers.</span>
+                  </div>
+                  <app-chip-list-editor
+                    [(items)]="leadSourcesForm"
+                    [selectable]="true"
+                    [(defaultItem)]="salesForm.leadSource"
+                    placeholder="e.g. Roadshow – Mid Valley"
+                    addLabel="New lead source"
+                  />
+                  @if (listError === 'leads') { <p class="text-xs text-[var(--destructive)]">Keep at least one source.</p> }
+                </div>
+                <div class="flex items-center justify-between gap-4 py-4">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">Follow-up Reminder</span>
+                    <span class="text-xs text-muted-foreground">Flag a lead in Customer Manager after this many days without an update.</span>
+                  </div>
+                  <app-number-field
+                    class="w-28 shrink-0"
+                    suffix="days"
+                    ariaLabel="Days before a lead is flagged"
+                    [decimals]="0"
+                    [grouping]="false"
+                    [value]="salesForm.staleLeadDays ?? defaultStaleDays"
+                    (valueChange)="salesForm.staleLeadDays = Math.min(90, Math.max(1, Math.round($event ?? defaultStaleDays)))"
+                  />
+                </div>
+              </div>
+              <div class="flex items-center gap-2 border-t border-border px-5 py-4">
+                <button type="button" (click)="saveLeadSettings()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Save Changes</button>
+                @if (savedFlashFor() === 'leads') {
+                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]"><app-icon name="check" [size]="13" /> Saved</span>
+                }
+              </div>
+            </div>
+
+            <!-- Banks & insurance -->
+            <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+              <div class="flex items-center gap-3 px-5 py-4">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <app-icon name="landmark" [size]="18" />
+                </span>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-sm font-semibold leading-none">Banks & Insurance</span>
+                  <span class="text-xs text-muted-foreground">Only the banks and insurers you actually work with — these are the choices in every dropdown.</span>
+                </div>
+              </div>
+              <div class="flex flex-col divide-y divide-border border-t border-border px-5">
+                <div class="flex flex-col gap-3 py-4">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">Banks</span>
+                    <span class="text-xs text-muted-foreground">Used for a customer's Bank Panel and for your Bankers list. Removing a bank never changes existing customers or bankers.</span>
+                  </div>
+                  <app-chip-list-editor [(items)]="banksForm" placeholder="e.g. Bank Muamalat" addLabel="New bank" />
+                  @if (listError === 'banks') { <p class="text-xs text-[var(--destructive)]">Keep at least one bank.</p> }
+                </div>
+                <div class="flex flex-col gap-3 py-4">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">Insurance Companies</span>
+                    <span class="text-xs text-muted-foreground">Used when recording a delivery. "Unspecified" is always available.</span>
+                  </div>
+                  <app-chip-list-editor [(items)]="insurersForm" placeholder="e.g. Takaful Ikhlas" addLabel="New insurance company" />
+                </div>
+              </div>
+              <div class="flex items-center gap-2 border-t border-border px-5 py-4">
+                <button type="button" (click)="saveBankLists()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Save Changes</button>
+                <button type="button" (click)="resetBankLists()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">Restore defaults</button>
+                @if (savedFlashFor() === 'banks') {
+                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]"><app-icon name="check" [size]="13" /> Saved</span>
+                }
+              </div>
+            </div>
+
+            <!-- Cost quick-buttons -->
+            <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+              <div class="flex items-center gap-3 px-5 py-4">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <app-icon name="wallet" [size]="18" />
+                </span>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-sm font-semibold leading-none">Cost Quick-Buttons</span>
+                  <span class="text-xs text-muted-foreground">The one-tap cost items on Cost Breakdown, with your own prices.</span>
+                </div>
+              </div>
+              <div class="flex flex-col gap-2 border-t border-border px-5 py-4 [&>*]:max-w-2xl">
+                @for (preset of costPresetsForm; track $index; let i = $index) {
+                  <div class="flex items-center gap-2">
+                    <input
+                      type="text"
+                      [(ngModel)]="preset.label"
+                      placeholder="Item, e.g. Tinted"
+                      [attr.aria-label]="'Cost item ' + (i + 1)"
+                      class="h-9 min-w-0 flex-1 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none"
+                    />
+                    <app-number-field class="w-32 shrink-0" prefix="RM" [decimals]="0" ariaLabel="Price" [value]="preset.amount" (valueChange)="preset.amount = $event ?? 0" />
+                    <button type="button" (click)="removeCostPreset(i)" aria-label="Remove item" class="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--destructive)]/10 hover:text-[var(--destructive)]">
+                      <app-icon name="trash" [size]="14" />
+                    </button>
+                  </div>
+                } @empty {
+                  <p class="text-xs text-muted-foreground">No quick-buttons — add one below.</p>
+                }
+                <div class="flex flex-wrap items-center gap-2 pt-1">
+                  <button type="button" (click)="addCostPreset()" class="flex items-center gap-1 rounded-lg bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent">
+                    <app-icon name="plus" [size]="12" />
+                    Add item
+                  </button>
+                  <button type="button" (click)="resetCostPresets()" class="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
+                    <app-icon name="rotate-ccw" [size]="12" />
+                    Restore defaults
+                  </button>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 border-t border-border px-5 py-4">
+                <button type="button" (click)="saveCostPresets()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Save Changes</button>
+                @if (savedFlashFor() === 'costs') {
+                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]"><app-icon name="check" [size]="13" /> Saved</span>
                 }
               </div>
             </div>
@@ -197,12 +355,14 @@ type NavItem = { id: string; label: string; icon: IconName };
                     <span class="text-sm font-medium">Monthly Target</span>
                     <span class="text-xs text-muted-foreground">Units target shown on the Dashboard.</span>
                   </div>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    [(ngModel)]="dashboardForm.target"
-                    class="h-9 w-24 shrink-0 rounded-lg border border-input bg-input px-3 text-right text-sm text-foreground outline-none focus:border-ring"
+                  <app-number-field
+                    class="w-24 shrink-0"
+                    suffix="units"
+                    ariaLabel="Monthly target"
+                    [decimals]="0"
+                    [grouping]="false"
+                    [value]="dashboardForm.target"
+                    (valueChange)="dashboardForm.target = Math.max(1, Math.round($event ?? 1))"
                   />
                 </div>
               </div>
@@ -311,7 +471,7 @@ type NavItem = { id: string; label: string; icon: IconName };
           <section id="data" data-section class="flex scroll-mt-20 flex-col gap-4">
             <div class="flex flex-col gap-0.5">
               <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Data &amp; Privacy</h3>
-              <p class="text-xs text-muted-foreground">Everything here lives only in this browser — no server involved.</p>
+              <p class="text-xs text-muted-foreground">Your data is saved to your account — export a copy any time.</p>
             </div>
 
             <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
@@ -644,6 +804,12 @@ type NavItem = { id: string; label: string; icon: IconName };
 })
 export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
   ncdOptions = NCD_OPTIONS;
+  Math = Math;
+
+  /** Keeps a typed percentage within 0–100. */
+  clampPct(v: number | null): number {
+    return Math.min(100, Math.max(0, Math.round(v ?? 0)));
+  }
 
   navItems: NavItem[] = [
     { id: 'defaults', label: 'Quote Preferences', icon: 'wallet' },
@@ -719,6 +885,11 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
     private host: ElementRef<HTMLElement>,
   ) {
     this.salesForm = { ...this.settingsService.settings().salesDefaults };
+    this.leadSourcesForm = [...this.settingsService.leadSources()];
+    this.banksForm = [...this.settingsService.banks()];
+    this.insurersForm = [...this.settingsService.insurers()];
+    this.salesForm.leadSource ??= this.leadSourcesForm[0] ?? DEFAULT_LEAD_SOURCE;
+    this.costPresetsForm = (this.settingsService.settings().salesDefaults.costPresets ?? DEFAULT_COST_PRESETS).map((c) => ({ ...c }));
     this.dashboardForm = { ...this.settingsService.settings().dashboardTarget };
   }
 
@@ -754,10 +925,88 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
 
   notifications = () => this.settingsService.settings().notifications;
 
-  saveQuoteDefaults() {
+  /** Every Quote Preferences card saves the same defaults object; `card` just picks which
+   *  card shows the "Saved" tick. */
+  saveQuoteDefaults(card: 'starting' | 'leads' = 'starting') {
     this.settingsService.updateSalesDefaults(this.salesForm);
-    this.savedFlash.set(true);
-    setTimeout(() => this.savedFlash.set(false), 2000);
+    if (card === 'starting') {
+      this.savedFlash.set(true);
+      setTimeout(() => this.savedFlash.set(false), 2000);
+    }
+    this.flash(card);
+  }
+
+  savedFlashFor = signal<string | null>(null);
+  private flash(card: string) {
+    this.savedFlashFor.set(card);
+    setTimeout(() => this.savedFlashFor() === card && this.savedFlashFor.set(null), 2000);
+  }
+
+  /** Working copies of the account's dropdown lists — saved only on each card's Save Changes. */
+  leadSourcesForm: string[] = [];
+  banksForm: string[] = [];
+  insurersForm: string[] = [];
+  /** Which card's list was left empty on save. */
+  listError: 'leads' | 'banks' | null = null;
+
+  saveLeadSettings() {
+    if (!this.leadSourcesForm.length) {
+      this.listError = 'leads';
+      return;
+    }
+    this.listError = null;
+    this.salesForm.leadSources = [...this.leadSourcesForm];
+    this.saveQuoteDefaults('leads');
+  }
+
+  saveBankLists() {
+    if (!this.banksForm.length) {
+      this.listError = 'banks';
+      return;
+    }
+    this.listError = null;
+    const banks = [...this.banksForm];
+    const insurers = this.insurersForm.filter((i) => i !== UNSPECIFIED_INSURER);
+    this.settingsService.updateSalesDefaults({ banks, insurers });
+    this.salesForm.banks = banks;
+    this.salesForm.insurers = insurers;
+    this.flash('banks');
+  }
+
+  resetBankLists() {
+    this.banksForm = [...BANK_OPTIONS];
+    this.insurersForm = INSURANCE_OPTIONS.filter((i) => i !== UNSPECIFIED_INSURER);
+    this.listError = null;
+  }
+  defaultStaleDays = DEFAULT_STALE_LEAD_DAYS;
+
+  /** Working copy of Cost Breakdown's quick-buttons — saved only on Save Changes. */
+  costPresetsForm: CostPreset[] = [];
+
+  addCostPreset() {
+    this.costPresetsForm = [...this.costPresetsForm, { label: '', amount: 0 }];
+  }
+
+  removeCostPreset(i: number) {
+    this.costPresetsForm = this.costPresetsForm.filter((_, idx) => idx !== i);
+  }
+
+  resetCostPresets() {
+    this.costPresetsForm = DEFAULT_COST_PRESETS.map((c) => ({ ...c }));
+  }
+
+  saveCostPresets() {
+    // Blank rows are dropped rather than saved as nameless buttons.
+    const presets = this.costPresetsForm.map((c) => ({ label: c.label.trim(), amount: c.amount })).filter((c) => c.label && c.amount !== 0);
+    this.costPresetsForm = presets.map((c) => ({ ...c }));
+    this.settingsService.updateSalesDefaults({ costPresets: presets });
+    this.salesForm.costPresets = presets;
+    this.flash('costs');
+  }
+
+  /** A typed rate within 0–30%, or null when cleared. */
+  clampRate(v: number | null): number | null {
+    return v == null ? null : Math.min(30, Math.max(0, v));
   }
 
   saveDefaultBrand() {

@@ -4,28 +4,29 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../shared/icon.component';
 import { AuthService } from '../shared/auth.service';
+import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
 
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, IconComponent],
   template: `
-    <div class="flex min-h-dvh items-center justify-center bg-black px-4 py-10 text-foreground">
+    <div class="flex min-h-dvh items-center justify-center px-4 py-10 text-foreground">
       <div class="flex w-full max-w-sm flex-col gap-6">
         <a routerLink="/welcome" class="flex items-center justify-center gap-2.5">
-          <span class="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <span class="logo-chip flex size-10 items-center justify-center rounded-xl">
             <app-icon name="car" [size]="18" />
           </span>
           <div class="flex flex-col leading-tight">
-            <span class="text-sm font-semibold tracking-tight">Redline</span>
+            <span class="text-sm font-bold tracking-tight">Redline</span>
             <span class="text-[11px] text-muted-foreground">Dealership CRM</span>
           </div>
         </a>
 
-        <div class="flex flex-col gap-5 rounded-xl border border-border bg-card p-6 text-card-foreground shadow-sm">
+        <div class="flex flex-col gap-5 glass glow-border animate-rise rounded-2xl p-7 text-card-foreground shadow-[0_30px_80px_-30px_color-mix(in_oklch,var(--primary),transparent_60%)]">
           <div class="flex flex-col gap-1 text-center">
-            <h1 class="text-lg font-semibold tracking-tight">Reset your password</h1>
-            <p class="text-sm text-muted-foreground">Enter your email and we'll send you a reset link.</p>
+            <h1 class="text-2xl font-bold tracking-tight">Reset your password</h1>
+            <p class="text-sm text-muted-foreground">Enter your email and the primary brand on your account, then choose a new password.</p>
           </div>
 
           @if (error()) {
@@ -35,16 +36,17 @@ import { AuthService } from '../shared/auth.service';
             </div>
           }
 
-          @if (sent()) {
+          @if (done()) {
             <div class="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-medium text-primary">
-              <app-icon name="info" [size]="14" class="shrink-0" />
-              If an account exists for that email, a reset link is on its way.
+              <app-icon name="check" [size]="14" class="shrink-0" />
+              Your password has been reset. You can log in with your new password now.
             </div>
+            <a routerLink="/login" class="flex items-center justify-center btn-glow rounded-lg px-4 py-3 text-sm font-semibold">Go to Log In</a>
           } @else {
             <form class="flex flex-col gap-4" (ngSubmit)="submit()">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Email
-                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 focus-within:border-ring">
+                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary),transparent_80%)]">
                   <app-icon name="mail" [size]="15" class="shrink-0 text-muted-foreground" />
                   <input
                     type="email"
@@ -57,12 +59,56 @@ import { AuthService } from '../shared/auth.service';
                 </div>
               </label>
 
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Primary Brand
+                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary),transparent_80%)]">
+                  <app-icon name="star" [size]="15" class="shrink-0 text-muted-foreground" />
+                  <select [(ngModel)]="primaryBrand" name="primaryBrand" class="h-10 w-full bg-transparent text-sm text-foreground outline-none">
+                    <option value="" disabled selected>The brand you chose for your account</option>
+                    @for (b of brands; track b) { <option [value]="b">{{ b }}</option> }
+                  </select>
+                </div>
+              </label>
+
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                New Password
+                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary),transparent_80%)]">
+                  <app-icon name="lock" [size]="15" class="shrink-0 text-muted-foreground" />
+                  <input
+                    [type]="showPassword() ? 'text' : 'password'"
+                    name="password"
+                    autocomplete="new-password"
+                    [(ngModel)]="password"
+                    placeholder="At least 8 characters"
+                    class="h-10 w-full bg-transparent text-sm text-foreground outline-none"
+                  />
+                  <button type="button" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" class="-mr-2 flex size-9 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground">
+                    <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" [size]="15" />
+                  </button>
+                </div>
+              </label>
+
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Confirm New Password
+                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary),transparent_80%)]">
+                  <app-icon name="lock" [size]="15" class="shrink-0 text-muted-foreground" />
+                  <input
+                    [type]="showPassword() ? 'text' : 'password'"
+                    name="confirmPassword"
+                    autocomplete="new-password"
+                    [(ngModel)]="confirmPassword"
+                    placeholder="Re-enter new password"
+                    class="h-10 w-full bg-transparent text-sm text-foreground outline-none"
+                  />
+                </div>
+              </label>
+
               <button
                 type="submit"
                 [disabled]="submitting()"
-                class="mt-1 flex items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+                class="mt-1 flex items-center justify-center btn-glow rounded-lg px-4 py-3 text-sm font-semibold disabled:opacity-60"
               >
-                Send Reset Link
+                Reset Password
               </button>
             </form>
           }
@@ -78,25 +124,43 @@ import { AuthService } from '../shared/auth.service';
 })
 export class ForgotPasswordComponent {
   email = '';
+  primaryBrand = '';
+  password = '';
+  confirmPassword = '';
+  showPassword = signal(false);
   error = signal<string | null>(null);
   submitting = signal(false);
-  sent = signal(false);
+  done = signal(false);
+  brands: string[];
 
-  constructor(private auth: AuthService) {}
+  constructor(
+    private auth: AuthService,
+    catalog: VehicleCatalogService,
+  ) {
+    this.brands = catalog.brands();
+  }
 
   async submit() {
     this.error.set(null);
-    if (!this.email.trim()) {
-      this.error.set('Enter your email address.');
+    if (!this.email.trim() || !this.primaryBrand || !this.password) {
+      this.error.set('Fill in your email, primary brand, and a new password.');
+      return;
+    }
+    if (this.password.length < 8) {
+      this.error.set('Password must be at least 8 characters.');
+      return;
+    }
+    if (this.password !== this.confirmPassword) {
+      this.error.set("Passwords don't match.");
       return;
     }
     this.submitting.set(true);
-    const result = await this.auth.forgotPassword(this.email.trim());
+    const result = await this.auth.forgotPassword(this.email.trim(), this.primaryBrand, this.password);
     this.submitting.set(false);
     if (!result.ok) {
       this.error.set(result.error);
       return;
     }
-    this.sent.set(true);
+    this.done.set(true);
   }
 }

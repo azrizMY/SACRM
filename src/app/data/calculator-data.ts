@@ -18,14 +18,18 @@ export type Vehicle = {
   model: string;
   variant: string;
   price: number;
-  /** Vehicle-specific promo interest rate — overrides the SA's default when set. This is the flat
-   *  rate; effectiveRate below is a separate, independently-quoted figure, not derived from it. */
+  /** Per-car flat rate the SA set in Price Settings — overrides their account default when set. The
+   *  catalog never ships one, so only an SA edit populates it. effectiveRate below is a separate,
+   *  independently-quoted figure, not derived from it. */
   interestRate?: number;
   /** Vehicle-specific promo effective/reducing-balance rate (EIR) — set only when the bank quotes
    *  one for this car; not calculated from interestRate (see RateType). */
   effectiveRate?: number;
   /** Insurer's exact Basic Premium for this model — overrides the %-of-RRP estimate when set. */
   basicPremium?: number;
+  /** Least cash the customer must put down on this variant, set in Price Settings — an RM figure or
+   *  a % of the car price. Absent or 0 means no minimum (Full Loan allowed). */
+  minDownpayment?: MinDownpayment;
   /** Insurer's exact Additional Benefits (riders) total for this model. */
   addBenefits?: number;
   /** Static file path under `public/` (e.g. `/cars/proton-saga-standard.png`) for this variant's
@@ -121,19 +125,20 @@ export const VEHICLES: Vehicle[] = [
   { id: 'proton-emas7-phev-premium-plus', brand: 'Proton e.MAS', model: 'e.MAS 7 PHEV', variant: 'Premium Plus', price: 129800, brochureUrl: '/brochures/proton-emas7-phev.pdf', colours: ['Aquamarine Blue', 'Obsidian Black', 'Galena Grey', 'Lithium White', 'Mercury Silver', 'Emerald Green'], years: [{ year: 2026 }] },
 
   // Chery Malaysia lineup — synced from the dealer's own live pricing feed (chery-shared-data
-  // .data-quotation.workers.dev), which also supplies the exact per-model Basic Premium,
-  // Additional Benefits, and promo interest rate figures below. Tiggo 7 Pro and Tiggo 8 Pro
+  // .data-quotation.workers.dev), which also supplies the exact per-model Basic Premium
+  // and Additional Benefits figures below. No per-car interest rate is baked in: every car uses
+  // the account's default flat rate unless the SA sets its own in Price Settings. Tiggo 7 Pro and Tiggo 8 Pro
   // (ICE) are still sold alongside their PHEV siblings, not discontinued.
-  { id: 'chery-o5-1-5t', brand: 'Chery', model: 'Chery O5', variant: '', price: 116800, interestRate: 2.3, basicPremium: 2789.07, addBenefits: 715.5, photoUrl: '/cars/chery-o5.png', brochureUrl: '/brochures/chery-o5.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Blood Stone Red'], years: [{ year: 2026 }] },
-  { id: 'chery-omoda-e5', brand: 'Chery', model: 'Omoda E5', variant: '', price: 146978, interestRate: 2.1, basicPremium: 3731.1, addBenefits: 775.5, photoUrl: '/cars/chery-omoda-e5.png', brochureUrl: '/brochures/chery-omoda-e5.pdf', years: [{ year: 2026 }] },
-  { id: 'chery-tiggo-cross-turbo', brand: 'Chery', model: 'Tiggo Cross', variant: 'Turbo', price: 88800, interestRate: 2.3, basicPremium: 2206.67, addBenefits: 620.5, photoUrl: '/cars/chery-tiggo-cross-turbo.png', brochureUrl: '/brochures/chery-tiggo-cross.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Blood Stone Red'], years: [{ year: 2026 }] },
-  { id: 'chery-tiggo-cross-hev', brand: 'Chery', model: 'Tiggo Cross', variant: 'Hybrid', price: 99800, interestRate: 2.3, basicPremium: 2435.47, addBenefits: 642.5, photoUrl: '/cars/chery-tiggo-cross-hybrid.png', brochureUrl: '/brochures/chery-tiggo-cross.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Moonlight Silver'], years: [{ year: 2026 }] },
-  { id: 'chery-tiggo7-pro', brand: 'Chery', model: 'Tiggo 7', variant: 'Pro', price: 123800, interestRate: 2.3, basicPremium: 2934.67, addBenefits: 820.5, photoUrl: '/cars/chery-tiggo7-pro.png', brochureUrl: '/brochures/chery-tiggo7-pro.pdf', colours: ['Khaki White', 'Phantom Grey', 'Nasdaq Silver', 'Carbon Black'], years: [{ year: 2026 }] },
-  { id: 'chery-tiggo7-phev', brand: 'Chery', model: 'Tiggo 7', variant: 'PHEV', price: 129800, interestRate: 2.3, basicPremium: 3088.44, addBenefits: 832.5, photoUrl: '/cars/chery-tiggo7-phev.png', brochureUrl: '/brochures/chery-tiggo7-phev.pdf', colours: ['Phantom Grey', 'Khaki White', 'Blood Stone Red'], years: [{ year: 2026 }] },
-  { id: 'chery-tiggo8-1-6t', brand: 'Chery', model: 'Tiggo 8', variant: '', price: 129800, interestRate: 2.3, basicPremium: 3059.47, addBenefits: 832.5, photoUrl: '/cars/chery-tiggo8.png', brochureUrl: '/brochures/chery-tiggo8.pdf', colours: ['Dark Black', 'Khaki White'], years: [{ year: 2026 }] },
-  { id: 'chery-tiggo8-pro', brand: 'Chery', model: 'Tiggo 8', variant: 'Pro', price: 159800, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-pro.png', brochureUrl: '/brochures/chery-tiggo8.pdf', colours: ['Dark Black', 'Khaki White', 'Aurora Green'], years: [{ year: 2026 }] },
-  { id: 'chery-tiggo8-phev', brand: 'Chery', model: 'Tiggo 8', variant: 'PHEV', price: 159800, interestRate: 2.3, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-phev.png', brochureUrl: '/brochures/chery-tiggo8-phev.pdf', colours: ['Aurora Green', 'Khaki White', 'Carbon Black'], years: [{ year: 2026 }] },
-  { id: 'chery-tiggo9', brand: 'Chery', model: 'Tiggo 9', variant: '', price: 179800, interestRate: 2.3, basicPremium: 4126.35, addBenefits: 1192.5, photoUrl: '/cars/chery-tiggo9.png', brochureUrl: '/brochures/chery-tiggo9.pdf', colours: ['Matte Grey', 'Carbon Black'], years: [{ year: 2026 }] },
+  { id: 'chery-o5-1-5t', brand: 'Chery', model: 'Chery O5', variant: '', price: 116800, basicPremium: 2789.07, addBenefits: 715.5, photoUrl: '/cars/chery-o5.png', brochureUrl: '/brochures/chery-o5.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Blood Stone Red'], years: [{ year: 2026 }] },
+  { id: 'chery-omoda-e5', brand: 'Chery', model: 'Omoda E5', variant: '', price: 146978, basicPremium: 3731.1, addBenefits: 775.5, photoUrl: '/cars/chery-omoda-e5.png', brochureUrl: '/brochures/chery-omoda-e5.pdf', years: [{ year: 2026 }] },
+  { id: 'chery-tiggo-cross-turbo', brand: 'Chery', model: 'Tiggo Cross', variant: 'Turbo', price: 88800, basicPremium: 2206.67, addBenefits: 620.5, photoUrl: '/cars/chery-tiggo-cross-turbo.png', brochureUrl: '/brochures/chery-tiggo-cross.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Blood Stone Red'], years: [{ year: 2026 }] },
+  { id: 'chery-tiggo-cross-hev', brand: 'Chery', model: 'Tiggo Cross', variant: 'Hybrid', price: 99800, basicPremium: 2435.47, addBenefits: 642.5, photoUrl: '/cars/chery-tiggo-cross-hybrid.png', brochureUrl: '/brochures/chery-tiggo-cross.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Moonlight Silver'], years: [{ year: 2026 }] },
+  { id: 'chery-tiggo7-pro', brand: 'Chery', model: 'Tiggo 7', variant: 'Pro', price: 123800, basicPremium: 2934.67, addBenefits: 820.5, photoUrl: '/cars/chery-tiggo7-pro.png', brochureUrl: '/brochures/chery-tiggo7-pro.pdf', colours: ['Khaki White', 'Phantom Grey', 'Nasdaq Silver', 'Carbon Black'], years: [{ year: 2026 }] },
+  { id: 'chery-tiggo7-phev', brand: 'Chery', model: 'Tiggo 7', variant: 'PHEV', price: 129800, basicPremium: 3088.44, addBenefits: 832.5, photoUrl: '/cars/chery-tiggo7-phev.png', brochureUrl: '/brochures/chery-tiggo7-phev.pdf', colours: ['Phantom Grey', 'Khaki White', 'Blood Stone Red'], years: [{ year: 2026 }] },
+  { id: 'chery-tiggo8-1-6t', brand: 'Chery', model: 'Tiggo 8', variant: '', price: 129800, basicPremium: 3059.47, addBenefits: 832.5, photoUrl: '/cars/chery-tiggo8.png', brochureUrl: '/brochures/chery-tiggo8.pdf', colours: ['Dark Black', 'Khaki White'], years: [{ year: 2026 }] },
+  { id: 'chery-tiggo8-pro', brand: 'Chery', model: 'Tiggo 8', variant: 'Pro', price: 159800, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-pro.png', brochureUrl: '/brochures/chery-tiggo8.pdf', colours: ['Dark Black', 'Khaki White', 'Aurora Green'], years: [{ year: 2026 }] },
+  { id: 'chery-tiggo8-phev', brand: 'Chery', model: 'Tiggo 8', variant: 'PHEV', price: 159800, basicPremium: 3710.35, addBenefits: 892.5, photoUrl: '/cars/chery-tiggo8-phev.png', brochureUrl: '/brochures/chery-tiggo8-phev.pdf', colours: ['Aurora Green', 'Khaki White', 'Carbon Black'], years: [{ year: 2026 }] },
+  { id: 'chery-tiggo9', brand: 'Chery', model: 'Tiggo 9', variant: '', price: 179800, basicPremium: 4126.35, addBenefits: 1192.5, photoUrl: '/cars/chery-tiggo9.png', brochureUrl: '/brochures/chery-tiggo9.pdf', colours: ['Matte Grey', 'Carbon Black'], years: [{ year: 2026 }] },
 
   // Jaecoo Malaysia lineup — 2WD/AWD (or the unbadged J5) variants of a model share that model's
   // general e-brochure, while an EV/PHEV variant gets its own dedicated one.
@@ -160,7 +165,15 @@ export const DEFAULT_VEHICLES: Vehicle[] = VEHICLES.map((v) => ({ ...v, years: v
  *  API (`/api/vehicle-overrides`) and applied onto this hardcoded catalog by
  *  VehicleCatalogService.loadOverrides() once the signed-in account is known — never at module
  *  load, since which overrides apply depends on who's logged in. */
-export type VehicleOverride = Partial<Pick<Vehicle, 'price' | 'interestRate' | 'effectiveRate' | 'years'>>;
+export type VehicleOverride = Partial<Pick<Vehicle, 'price' | 'interestRate' | 'effectiveRate' | 'minDownpayment' | 'years'>>;
+
+export type MinDownpayment = { type: 'amount' | 'percent'; value: number };
+
+/** A variant's minimum downpayment in RM (a % is taken of `carPrice`, before rebate), or 0 for none. */
+export function minDownpaymentCash(min: MinDownpayment | undefined, carPrice: number): number {
+  if (!min || !(min.value > 0)) return 0;
+  return roundCents(min.type === 'percent' ? (min.value / 100) * carPrice : min.value);
+}
 
 /** Unique models for a brand, in catalog order — used to drive cascading brand→model selects. */
 export function modelsForBrand(brand: string): string[] {
@@ -361,6 +374,10 @@ export type QuotationTotalsInput = {
   loanBasisInsuranceAmount?: number;
   downpaymentType: DownpaymentType;
   downpaymentValue: number;
+  /** The variant's minimum downpayment (see minDownpaymentCash), counted BEFORE rebate: the rebate
+   *  goes towards it, so the customer's own cash only has to cover what the rebate doesn't. A rebate
+   *  at or above the minimum leaves just the RM100 loan rounding. 0/absent = no minimum. */
+  minDownpaymentCash?: number;
 };
 
 export type QuotationTotals = {
@@ -407,6 +424,11 @@ export function computeQuotationTotals(input: QuotationTotalsInput): QuotationTo
     loanAmount = Math.min(fixedLoanAmount, Math.floor(totalAmountDue / 100) * 100);
   }
 
+  // The variant's minimum downpayment caps the loan (still in RM100 steps), whatever was typed —
+  // less whatever the rebate already covers, since the minimum is measured before rebate.
+  const minCash = Math.max(0, (input.minDownpaymentCash ?? 0) - input.effectiveRebate);
+  if ((input.minDownpaymentCash ?? 0) > 0) loanAmount = Math.min(loanAmount, Math.floor(Math.max(0, totalAmountDue - minCash) / 100) * 100);
+
   const downpaymentCash = roundCents(Math.max(0, totalAmountDue - loanAmount));
   return { insuranceAmount, totalAmountDue, downpaymentCash, loanAmount };
 }
@@ -434,6 +456,15 @@ export function monthlyEffective(principal: number, annualRatePct: number, month
   if (r === 0) return p / months;
   const factor = Math.pow(1 + r, months);
   return (p * r * factor) / (factor - 1);
+}
+
+/** The rate a quote starts on for this car and rate type: the car's own rate (Price Settings),
+ *  else the account default for that type. Null when quoting EIR and neither the car nor the
+ *  account has an EIR — a flat rate is never substituted, since the same number as an EIR means a
+ *  much cheaper loan and would understate the monthly instalment. */
+export function defaultRateFor(vehicle: Vehicle, rateType: RateType, defaults: { interestRate: number; effectiveRate?: number }): number | null {
+  if (rateType === 'effective') return vehicle.effectiveRate ?? defaults.effectiveRate ?? null;
+  return vehicle.interestRate ?? defaults.interestRate;
 }
 
 /** Routes to the right instalment formula for whichever rate type the quote was given in. */
@@ -479,18 +510,33 @@ export function modelVariantLabel(model: string, variant: string): string {
   return v ? `${model} ${v}` : model;
 }
 
+const SELF_NAMED_MARQUES = ['Omoda'];
+
 /** Brand + model/variant label combined for display — most models don't repeat the brand name,
  *  but some (e.g. Chery's "Chery O5") already spell it out, which would otherwise render as
  *  "Chery Chery O5". Drops the brand prefix whenever the label already starts with it. */
 export function vehicleTitle(brand: string, modelLabel: string): string {
   const lower = modelLabel.toLowerCase();
+  // Omoda is a marque of its own even when sold under another brand (Chery's "Omoda E5"), so its
+  // models never take the parent brand's prefix.
+  if (SELF_NAMED_MARQUES.some((m) => lower.startsWith(`${m.toLowerCase()} `))) return modelLabel;
   // A combined brand like "Omoda | Jaecoo" is really two marques: each model is named after just
   // one of them — "Omoda C9" already spells out Omoda, while "J7" gets the Jaecoo prefix.
   const marques = brand.split('|').map((m) => m.trim());
   if (marques.length > 1) {
     return marques.some((m) => lower.startsWith(m.toLowerCase())) ? modelLabel : `${marques[marques.length - 1]} ${modelLabel}`;
   }
-  return lower.startsWith(brand.toLowerCase()) ? modelLabel : `${brand} ${modelLabel}`;
+  if (lower.startsWith(brand.toLowerCase())) return modelLabel;
+  // A sub-brand that also names its models ("Proton e.MAS" + "e.MAS 5") shares the overlapping
+  // words once: "Proton e.MAS 5", not "Proton e.MAS e.MAS 5".
+  const brandWords = brand.split(' ');
+  const modelWords = modelLabel.split(' ');
+  for (let n = Math.min(brandWords.length, modelWords.length); n > 0; n--) {
+    const tail = brandWords.slice(-n).join(' ').toLowerCase();
+    const head = modelWords.slice(0, n).join(' ').toLowerCase();
+    if (tail === head) return [...brandWords, ...modelWords.slice(n)].join(' ');
+  }
+  return `${brand} ${modelLabel}`;
 }
 
 export { formatRM };

@@ -7,7 +7,7 @@ import { formatRM } from '../data/calculator-data';
 import { BrandMarkComponent } from '../shared/brand-mark.component';
 import { IconComponent, IconName } from '../shared/icon.component';
 
-type Row = { id: string; customer: string; phone: string; model: string; brand: string; profit: number; date: string };
+type Row = { id: string; customer: string; phone: string; model: string; brand: string; profit: number; pending: boolean; date: string };
 
 type SortKey = 'customer' | 'brand' | 'profit' | 'date';
 type SortDir = 'asc' | 'desc';
@@ -28,6 +28,7 @@ function toRow(r: CustomerRecord): Row {
     model: r.model,
     brand: r.brand,
     profit: dealProfit(r),
+    pending: r.commission == null,
     date: r.deliveryDate ?? r.date,
   };
 }
@@ -37,7 +38,7 @@ function toRow(r: CustomerRecord): Row {
   standalone: true,
   imports: [CommonModule, RouterLink, BrandMarkComponent, IconComponent],
   template: `
-    <div class="flex flex-col gap-6 rounded-xl border border-border bg-card py-6 text-card-foreground shadow-sm">
+    <div class="flex flex-col gap-6 animate-rise rounded-xl border border-border bg-card py-6 text-card-foreground transition-colors duration-300 hover:border-primary/30">
       <div class="flex flex-col gap-1 px-6">
         <h3 class="font-semibold leading-none">Recent deals</h3>
         <p class="text-sm text-muted-foreground">Delivered deals and the profit each one earned</p>
@@ -75,7 +76,7 @@ function toRow(r: CustomerRecord): Row {
                       <a
                         [routerLink]="['/leads']"
                         [queryParams]="{ customer: deal.id }"
-                        class="font-mono text-xs text-primary tabular hover:underline"
+                        class="text-xs text-muted-foreground tabular hover:text-primary hover:underline"
                       >{{ deal.phone }}</a>
                     </div>
                   </td>
@@ -88,10 +89,14 @@ function toRow(r: CustomerRecord): Row {
                       </div>
                     </div>
                   </td>
-                  <td class="p-4 text-right align-middle font-mono font-medium tabular text-[var(--success)]">
-                    {{ deal.profit >= 0 ? '+' : '' }}{{ fmt(deal.profit) }}
+                  <td class="p-4 text-right align-middle font-medium tabular">
+                    @if (deal.pending) {
+                      <span class="rounded-md bg-[var(--warning)]/14 px-1.5 py-0.5 text-[11px] font-semibold text-[var(--warning)]">Pending</span>
+                    } @else {
+                      <span [ngClass]="deal.profit >= 0 ? 'text-[var(--success)]' : 'text-[var(--destructive)]'">{{ deal.profit >= 0 ? '+' : '' }}{{ fmt(deal.profit) }}</span>
+                    }
                   </td>
-                  <td class="p-4 text-right align-middle font-mono text-sm text-muted-foreground tabular">{{ fullDate(deal.date) }}</td>
+                  <td class="whitespace-nowrap p-4 text-right align-middle text-sm text-muted-foreground tabular">{{ fullDate(deal.date) }}</td>
                 </tr>
               } @empty {
                 <tr>
@@ -197,6 +202,6 @@ export class RecentDealsTableComponent {
   }
 
   fullDate(date: string): string {
-    return new Date(date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' });
+    return new Date(date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
   }
 }

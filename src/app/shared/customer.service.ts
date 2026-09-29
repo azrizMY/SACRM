@@ -1,8 +1,10 @@
 import { Injectable, computed, signal } from '@angular/core';
-import { formatRM } from '../data/calculator-data';
+import { formatRM, modelVariantLabel, vehicleTitle } from '../data/calculator-data';
+import { TO_BE_CONFIRMED_COLOUR } from '../data/customer-data';
 import type {
   BookedInput,
   CancelledInput,
+  CarSpec,
   CostingInput,
   CostItem,
   CustomerRecord,
@@ -12,6 +14,7 @@ import type {
   FreeGiftItem,
   InProgressInput,
   NewLeadInput,
+  PendingRequote,
   QuotationDetails,
 } from '../data/customer-data';
 import { buildSeedRecords } from '../data/seed-data';
@@ -29,6 +32,11 @@ const EDIT_SECTIONS: Record<string, (keyof EditCustomerInput)[]> = {
   Cancellation: ['cancelReason', 'cancelNotes'],
 };
 const EDIT_SECTIONS_ORDER = Object.keys(EDIT_SECTIONS);
+
+/** "Chery Tiggo 8 PHEV 2026" — how a car reads in the activity log. */
+function carLabel(c: CarSpec): string {
+  return `${vehicleTitle(c.brand, modelVariantLabel(c.model, c.variant))} ${c.yearMade}`;
+}
 
 @Injectable({ providedIn: 'root' })
 export class CustomerService {
@@ -182,8 +190,33 @@ export class CustomerService {
     await this.mutate(id, () => ({ changes: { costItems: items } }));
   }
 
+  /** Saving a quotation is also what resolves a pending re-quote after a car change. */
   async updateQuotation(id: string, quotation: QuotationDetails): Promise<void> {
-    await this.mutate(id, () => ({ changes: { quotation } }));
+    await this.mutate(id, (existing) => ({
+      changes: { quotation, pendingRequote: undefined },
+      messages: existing.pendingRequote ? [`Re-quoted for ${carLabel(existing)}`] : [],
+    }));
+  }
+
+  /**
+   * Swaps the customer's car. Colour always resets to "To be Confirmed" (even if the new car
+   * offers the same colour name) since it has to be re-confirmed for a different car. If the record
+   * has a quotation, it's flagged for re-quote — nothing is recalculated here; the SA re-quotes
+   * explicitly. Changing twice before re-quoting keeps the *first* snapshot, since that's what the
+   * customer was actually quoted. Delivered records are refused (the car has been handed over).
+   */
+  async changeCar(id: string, car: CarSpec, opts: { pendingRequote?: PendingRequote; note?: string } = {}): Promise<void> {
+    await this.mutate(id, (existing) => {
+      if (existing.status === 'Delivered') return { changes: {} };
+      return {
+        changes: {
+          ...car,
+          colour: TO_BE_CONFIRMED_COLOUR,
+          pendingRequote: existing.quotation ? (existing.pendingRequote ?? opts.pendingRequote) : undefined,
+        },
+        messages: [`Car changed: ${carLabel(existing)} → ${carLabel(car)}${opts.note ? ` (${opts.note})` : ''}`, 'Colour reset to To be Confirmed'],
+      };
+    });
   }
 
   async deleteCustomer(id: string): Promise<void> {

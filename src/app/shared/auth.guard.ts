@@ -6,7 +6,11 @@ import { AuthService } from './auth.service';
 export const authGuard: CanActivateFn = (_route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
-  if (!auth.isAuthenticated()) return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
+  if (!auth.isAuthenticated()) {
+    // A visitor hitting the bare site gets the landing page; deep links go to login and come back.
+    if (state.url === '/' || state.url === '/dashboard') return router.createUrlTree(['/welcome']);
+    return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
+  }
   return true;
 };
 

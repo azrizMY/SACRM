@@ -1,14 +1,25 @@
 import { apiRequest } from './api-client';
 import type { VehicleOverride } from '../data/calculator-data';
 import type { VehicleInsuranceOverrides } from '../data/settings-data';
+import type { Showroom, SocialLinks } from '../data/social-data';
 
-export type PublicAdvisor = { name: string; role: string; phoneDisplay: string; phoneWa: string; photoUrl?: string };
+export type PublicAdvisor = {
+  name: string;
+  role: string;
+  phoneDisplay: string;
+  phoneWa: string;
+  photoUrl?: string;
+  bio?: string;
+  showroom?: Showroom;
+  socials?: SocialLinks;
+};
 
 export type PublicQuoteBundle = {
   advisor: PublicAdvisor;
   salesDefaults: {
     defaultRateType: 'flat' | 'effective';
     interestRate: number;
+    effectiveRate?: number;
     downpaymentPct: number;
     ncd: number;
     basicPremiumRatePct: number;

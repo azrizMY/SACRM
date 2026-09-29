@@ -1,6 +1,7 @@
 import { Component, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CountUpDirective } from '../shared/count-up.directive';
 import { IconComponent } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { AuthService } from '../shared/auth.service';
@@ -10,22 +11,35 @@ import { ImageCropModalComponent } from '../shared/image-crop-modal.component';
 import { CUSTOMER_STATUS_META } from '../data/customer-data';
 import { vehicleTitle } from '../data/calculator-data';
 import type { AdvisorProfile } from '../data/advisor-data';
-import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
+import { formatMalaysianPhone, toMalaysianWhatsAppNumber } from '../data/dashboard-data';
+import { BrandIconComponent } from '../shared/brand-icon.component';
+import {
+  SOCIAL_PLATFORMS,
+  displayLink,
+  hasShowroom,
+  normalizeMapsUrl,
+  normalizeSocialLink,
+  showroomMapsHref,
+  socialEntries,
+  type Showroom,
+  type SocialLinks,
+  type SocialPlatform,
+} from '../data/social-data';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, ImageCropModalComponent],
+  imports: [CommonModule, FormsModule, IconComponent, ImageCropModalComponent, BrandIconComponent, CountUpDirective],
   template: `
     <div class="mx-auto flex max-w-5xl flex-col gap-5">
       <div class="flex flex-col gap-1">
-        <h2 class="text-balance text-xl font-semibold tracking-tight">My Profile</h2>
+        <h2 class="text-balance text-xl font-bold tracking-tight">My Profile</h2>
         <p class="text-pretty text-sm text-muted-foreground">What customers see on your quotes and shared links.</p>
       </div>
 
       <!-- Identity card -->
       <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-        <div class="flex flex-col gap-5 bg-gradient-to-br from-primary/12 via-card to-card p-6 sm:flex-row sm:items-start sm:justify-between">
+        <div class="flex flex-col gap-5 p-6 sm:flex-row sm:items-start sm:justify-between">
           <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div class="relative flex size-20 shrink-0">
               @if ((editing() ? form.photoUrl : advisor.profile().photoUrl); as photo) {
@@ -126,13 +140,145 @@ import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
             <div class="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
               <app-icon name="phone" [size]="16" class="shrink-0 text-primary" />
               @if (!editing()) {
-                <span class="truncate text-sm">{{ advisor.profile().phoneDisplay }}</span>
+                <span class="truncate text-sm">{{ formatPhone(advisor.profile().phoneDisplay) }}</span>
               } @else {
                 <input type="text" [(ngModel)]="form.phoneDisplay" placeholder="e.g. 012-345 6789" class="h-8 w-full bg-transparent text-sm text-foreground outline-none" />
               }
             </div>
           </div>
         </div>
+
+        <!-- Showroom -->
+        <div class="flex flex-col gap-3 border-t border-border p-6">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Showroom</span>
+            <span class="text-xs text-muted-foreground">Shown on the Profile tab of your customer link, with directions.</span>
+          </div>
+          @if (!editing()) {
+            @if (hasShowroom(advisor.profile().showroom)) {
+              <div class="flex items-start gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+                <app-icon name="map-pin" [size]="16" class="mt-0.5 shrink-0 text-primary" />
+                <div class="flex min-w-0 flex-col gap-0.5">
+                  @if (advisor.profile().showroom?.name; as name) {
+                    <span class="text-sm font-medium">{{ name }}</span>
+                  }
+                  @if (advisor.profile().showroom?.address; as address) {
+                    <span class="whitespace-pre-line text-xs leading-relaxed text-muted-foreground">{{ address }}</span>
+                  }
+                  @if (showroomMapsHref(advisor.profile().showroom); as href) {
+                    <a [href]="href" target="_blank" rel="noopener noreferrer" class="mt-1 w-fit text-xs font-medium text-primary underline-offset-2 hover:underline">Open in Google Maps</a>
+                  }
+                </div>
+              </div>
+            } @else {
+              <p class="text-xs text-muted-foreground">No showroom added yet — tap Edit Profile to add one.</p>
+            }
+          } @else {
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Showroom Name
+                <input
+                  type="text"
+                  [(ngModel)]="showroomForm.name"
+                  placeholder="e.g. Proton 3S Glenmarie"
+                  maxlength="200"
+                  class="h-9 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
+                />
+              </label>
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Google Maps Link <span class="font-normal">(optional)</span>
+                <input
+                  type="url"
+                  [(ngModel)]="showroomForm.mapsUrl"
+                  (ngModelChange)="mapsError.set(null)"
+                  placeholder="https://maps.app.goo.gl/…"
+                  class="h-9 rounded-lg border bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
+                  [ngClass]="mapsError() ? 'border-destructive' : 'border-input'"
+                />
+                @if (mapsError(); as err) {
+                  <span class="text-[11px] font-medium text-destructive">{{ err }}</span>
+                }
+              </label>
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground sm:col-span-2">
+                Address
+                <textarea
+                  rows="2"
+                  [(ngModel)]="showroomForm.address"
+                  placeholder="Street, postcode, city, state"
+                  maxlength="500"
+                  class="rounded-lg border border-input bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-ring"
+                ></textarea>
+              </label>
+            </div>
+            <p class="text-[11px] text-muted-foreground">Without a Maps link, directions search for the showroom name and address.</p>
+          }
+        </div>
+
+        <!-- Social media -->
+        <div class="flex flex-col gap-3 border-t border-border p-6">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Social Media</span>
+            <span class="text-xs text-muted-foreground">Only the ones you fill in are shown to customers.</span>
+          </div>
+          @if (!editing()) {
+            @if (socialEntries(advisor.profile().socials); as entries) {
+              @if (entries.length) {
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  @for (s of entries; track s.id) {
+                    <a
+                      [href]="s.href"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2 transition-colors hover:bg-accent"
+                    >
+                      <app-brand-icon [name]="s.id" [size]="28" [tile]="true" />
+                      <div class="flex min-w-0 flex-col">
+                        <span class="text-sm font-medium leading-tight">{{ s.label }}</span>
+                        <span class="truncate text-[11px] text-muted-foreground">{{ displayLink(s.href) }}</span>
+                      </div>
+                    </a>
+                  }
+                </div>
+              } @else {
+                <p class="text-xs text-muted-foreground">No social media added yet — tap Edit Profile to add your pages.</p>
+              }
+            }
+          } @else {
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              @for (p of socialPlatforms; track p.id) {
+                <div class="flex flex-col gap-1">
+                  <label class="flex items-center gap-2.5 rounded-lg border bg-input px-2 focus-within:border-ring" [ngClass]="socialErrors()[p.id] ? 'border-destructive' : 'border-input'">
+                    <app-brand-icon [name]="p.id" [size]="24" [tile]="true" />
+                    <span class="sr-only">{{ p.label }}</span>
+                    <input
+                      type="text"
+                      autocapitalize="off"
+                      autocomplete="off"
+                      spellcheck="false"
+                      [(ngModel)]="socialForm[p.id]"
+                      (ngModelChange)="clearSocialError(p.id)"
+                      [placeholder]="p.label + ' — @username or link'"
+                      class="h-9 w-full min-w-0 bg-transparent text-sm text-foreground outline-none"
+                    />
+                  </label>
+                  @if (socialErrors()[p.id]; as err) {
+                    <span class="text-[11px] font-medium text-destructive">{{ err }}</span>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        @if (editing()) {
+          <div class="flex items-center justify-end gap-2 border-t border-border px-6 py-4">
+            @if (hasFormErrors()) {
+              <span class="mr-auto text-[11px] font-medium text-destructive">Fix the highlighted fields to save.</span>
+            }
+            <button type="button" (click)="cancelEdit()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
+            <button type="button" (click)="saveEdit()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90">Save</button>
+          </div>
+        }
       </div>
 
       <!-- Shareable links -->
@@ -160,9 +306,18 @@ import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
                 (click)="copyCustomerLink()"
                 class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
               >
-                <app-icon [name]="linkCopied() ? 'check' : 'share'" [size]="13" />
+                <app-icon [name]="linkCopied() ? 'check' : 'clipboard-check'" [size]="13" />
                 {{ linkCopied() ? 'Copied!' : 'Copy' }}
               </button>
+              <a
+                [href]="customerLinkUrl()"
+                target="_blank"
+                rel="noopener"
+                class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
+              >
+                <app-icon name="arrow-up-right" [size]="13" />
+                Open
+              </a>
             </div>
           </div>
 
@@ -178,9 +333,18 @@ import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
                 (click)="copyBrandOnlyLink()"
                 class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
               >
-                <app-icon [name]="brandLinkCopied() ? 'check' : 'share'" [size]="13" />
+                <app-icon [name]="brandLinkCopied() ? 'check' : 'clipboard-check'" [size]="13" />
                 {{ brandLinkCopied() ? 'Copied!' : 'Copy' }}
               </button>
+              <a
+                [href]="brandOnlyLinkUrl()"
+                target="_blank"
+                rel="noopener"
+                class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
+              >
+                <app-icon name="arrow-up-right" [size]="13" />
+                Open
+              </a>
             </div>
           </div>
         </div>
@@ -188,40 +352,43 @@ import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
 
       <!-- Stats -->
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-          <span class="flex size-10 shrink-0 items-center justify-center rounded-full" [ngClass]="statusMeta.Lead.tone">
+        <div class="lift group flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
+          <span class="flex size-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" [ngClass]="statusMeta.Lead.tone">
             <app-icon name="users" [size]="18" />
           </span>
           <div class="flex flex-col">
             <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Leads</span>
-            <span class="text-lg font-semibold tabular">{{ customers.leads().length }}</span>
+            <span class="font-mono text-xl font-bold tabular" [appCountUp]="'' + (customers.leads().length)"></span>
           </div>
         </div>
-        <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-          <span class="flex size-10 shrink-0 items-center justify-center rounded-full" [ngClass]="statusMeta.Booked.tone">
+        <div class="lift group flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
+          <span class="flex size-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" [ngClass]="statusMeta.Booked.tone">
             <app-icon name="clipboard-check" [size]="18" />
           </span>
           <div class="flex flex-col">
             <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Booked</span>
-            <span class="text-lg font-semibold tabular">{{ customers.booked().length }}</span>
+            <span class="font-mono text-xl font-bold tabular" [appCountUp]="'' + (customers.booked().length)"></span>
           </div>
         </div>
-        <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-          <span class="flex size-10 shrink-0 items-center justify-center rounded-full" [ngClass]="statusMeta.Delivered.tone">
+        <div class="lift group flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
+          <span class="flex size-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" [ngClass]="statusMeta.Delivered.tone">
             <app-icon name="car" [size]="18" />
           </span>
           <div class="flex flex-col">
             <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Delivered</span>
-            <span class="text-lg font-semibold tabular">{{ customers.delivered().length }}</span>
+            <span class="font-mono text-xl font-bold tabular" [appCountUp]="'' + (customers.delivered().length)"></span>
           </div>
         </div>
-        <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-          <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+        <div class="lift group flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
+          <span class="flex size-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110 bg-primary/15 text-primary">
             <app-icon name="wallet" [size]="18" />
           </span>
           <div class="flex flex-col">
             <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Commission Earned</span>
-            <span class="text-lg font-semibold tabular">{{ fmt(totalCommission()) }}</span>
+            <span class="font-mono text-xl font-bold tabular" [appCountUp]="'' + (fmt(totalCommission()))"></span>
+            @if (pendingCommission() > 0) {
+              <span class="text-[11px] font-medium text-[var(--warning)]">{{ pendingCommission() }} awaiting commission</span>
+            }
           </div>
         </div>
       </div>
@@ -239,7 +406,7 @@ import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
                 {{ statusMeta[r.status].label }}
               </span>
               <span class="min-w-0 flex-1 truncate">{{ r.name }} &middot; {{ vehicleTitle(r.brand, r.model) }}</span>
-              <span class="text-xs text-muted-foreground tabular">{{ r.date }}</span>
+              <span class="whitespace-nowrap text-xs text-muted-foreground tabular">{{ shortDate(r.date) }}</span>
             </li>
           } @empty {
             <li class="p-6 text-center text-sm text-muted-foreground">No activity yet.</li>
@@ -266,6 +433,24 @@ export class ProfileComponent {
   form: AdvisorProfile;
   linkCopied = signal(false);
   brandLinkCopied = signal(false);
+
+  formatPhone = formatMalaysianPhone;
+  socialPlatforms = SOCIAL_PLATFORMS;
+  socialEntries = socialEntries;
+  displayLink = displayLink;
+  hasShowroom = hasShowroom;
+  showroomMapsHref = showroomMapsHref;
+  showroomForm: Showroom = {};
+  socialForm: Partial<Record<SocialPlatform, string>> = {};
+  mapsError = signal<string | null>(null);
+  socialErrors = signal<Partial<Record<SocialPlatform, string>>>({});
+  hasFormErrors = computed(() => !!this.mapsError() || Object.keys(this.socialErrors()).length > 0);
+
+  clearSocialError(platform: SocialPlatform) {
+    if (!this.socialErrors()[platform]) return;
+    const { [platform]: _, ...rest } = this.socialErrors();
+    this.socialErrors.set(rest);
+  }
 
   constructor(
     public advisor: AdvisorService,
@@ -300,24 +485,61 @@ export class ProfileComponent {
     }
   }
 
+  shortDate(d: string): string {
+    return d ? new Date(d).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  }
+
   totalCommission = computed(() => this.customers.records().reduce((sum, r) => sum + (r.commission ?? 0), 0));
+  /** In Progress / Delivered deals with no commission keyed in yet (same rule as Cost Breakdown). */
+  pendingCommission = computed(
+    () => this.customers.records().filter((r) => (r.status === 'In Progress' || r.status === 'Delivered') && r.commission == null).length,
+  );
 
   recentActivity = computed(() => [...this.customers.records()].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5));
 
   startEdit() {
-    this.form = { ...this.advisor.profile() };
+    const profile = this.advisor.profile();
+    this.form = { ...profile };
+    // Separate copies so typing into nested fields never mutates the live profile before Save.
+    this.showroomForm = { ...profile.showroom };
+    this.socialForm = { ...profile.socials };
+    this.mapsError.set(null);
+    this.socialErrors.set({});
     this.photoError.set(null);
     this.editing.set(true);
   }
 
   cancelEdit() {
     this.photoError.set(null);
+    this.mapsError.set(null);
+    this.socialErrors.set({});
     this.editing.set(false);
   }
 
   saveEdit() {
+    const mapsUrl = normalizeMapsUrl(this.showroomForm.mapsUrl);
+    this.mapsError.set(mapsUrl === null ? 'Enter a full link, e.g. https://maps.app.goo.gl/…' : null);
+
+    const socials: SocialLinks = {};
+    const errors: Partial<Record<SocialPlatform, string>> = {};
+    for (const p of SOCIAL_PLATFORMS) {
+      const href = normalizeSocialLink(p.id, this.socialForm[p.id]);
+      if (href === null) errors[p.id] = `Enter a ${p.label} username or a ${p.hosts[0]} link.`;
+      else if (href) socials[p.id] = href;
+    }
+    this.socialErrors.set(errors);
+    if (this.hasFormErrors()) return;
+
+    const showroom: Showroom = {
+      name: this.showroomForm.name?.trim() || undefined,
+      address: this.showroomForm.address?.trim() || undefined,
+      mapsUrl: mapsUrl || undefined,
+    };
+    this.form.showroom = hasShowroom(showroom) ? showroom : undefined;
+    this.form.socials = Object.keys(socials).length ? socials : undefined;
     // No separate WhatsApp-number field — derived from the display phone itself, in Malaysian
     // local format ("012-345 6789") or already with the country code either way.
+    this.form.phoneDisplay = formatMalaysianPhone(this.form.phoneDisplay.trim());
     this.form.phoneWa = toMalaysianWhatsAppNumber(this.form.phoneDisplay);
     this.advisor.update(this.form);
     this.photoError.set(null);

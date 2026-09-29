@@ -1,17 +1,15 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnInit, Output, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnInit, Output, ViewChild, inject } from '@angular/core';
+import { SettingsService, withCurrent } from './settings.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from './icon.component';
-import { MODEL_YEARS, NCD_OPTIONS, TENURE_OPTIONS, VEHICLES, coloursForVehicle, modelsForBrand, variantsForModel } from '../data/calculator-data';
+import { NCD_OPTIONS, TENURE_OPTIONS, coloursForVehicle, modelVariantLabel, vehicleTitle } from '../data/calculator-data';
 import {
-  BANK_OPTIONS,
   CANCEL_REASON_OPTIONS,
   COLOUR_OPTIONS,
   DOCUMENT_STATUS_META,
   DOCUMENT_STATUS_OPTIONS,
   FINANCING_TYPE_OPTIONS,
-  INSURANCE_OPTIONS,
-  SOURCE_TYPES,
   TO_BE_CONFIRMED_COLOUR,
   TRADE_IN_OPTIONS,
   type CustomerRecord,
@@ -53,7 +51,7 @@ import {
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Lead Source
                 <select [(ngModel)]="form.sourceType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                  @for (s of sourceTypes; track s) { <option [value]="s">{{ s }}</option> }
+                  @for (s of sourceOptions(); track s) { <option [value]="s">{{ s }}</option> }
                 </select>
               </label>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
@@ -88,32 +86,12 @@ import {
           <!-- Vehicle -->
           <fieldset class="flex flex-col gap-3">
             <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Vehicle</legend>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Brand
-                <select [(ngModel)]="form.brand" (ngModelChange)="onBrandChange($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                  @for (b of brands; track b) { <option [value]="b">{{ b }}</option> }
-                </select>
-              </label>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Model
-                <select [(ngModel)]="form.model" (ngModelChange)="onModelChange($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                  @for (m of modelsForBrand(form.brand!); track m) { <option [value]="m">{{ m }}</option> }
-                </select>
-              </label>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Variant
-                <select [(ngModel)]="form.variant" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                  @for (v of variantsForModel(form.brand!, form.model!); track v) { <option [value]="v">{{ v }}</option> }
-                </select>
-              </label>
+            <!-- The car itself is changed only through "Change car" (customer panel), which flags the
+                 quotation for re-quote and logs the swap — never silently from here. -->
+            <div class="flex flex-col gap-0.5 rounded-lg bg-muted/50 px-3 py-2.5">
+              <span class="text-sm font-semibold text-foreground">{{ vehicleTitle(record.brand, modelVariantLabel(record.model, record.variant)) }} · {{ record.yearMade }}</span>
+              <span class="text-[11px] text-muted-foreground">To switch to a different car, use <strong class="text-foreground">Change car</strong> in the customer panel.</span>
             </div>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Year Made
-              <select [(ngModel)]="form.yearMade" class="h-10 w-full rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                @for (y of modelYears; track y) { <option [ngValue]="y">{{ y }}</option> }
-              </select>
-            </label>
             <label
               #colourField
               [class]="'flex flex-col gap-1 text-xs font-medium text-muted-foreground rounded-lg transition-shadow duration-700 ' + (highlightColour ? 'ring-2 ring-[var(--warning)] ring-offset-2 ring-offset-card' : '')"
@@ -199,7 +177,7 @@ import {
                     Bank Panel
                     <select [(ngModel)]="form.bankPanel" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
                       @if (!form.bankPanel) { <option value="">Select bank…</option> }
-                      @for (b of bankOptions; track b) { <option [value]="b">{{ b }}</option> }
+                      @for (b of bankOptions(); track b) { <option [value]="b">{{ b }}</option> }
                     </select>
                   </label>
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
@@ -243,7 +221,7 @@ import {
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Insurance <span class="text-muted-foreground/70">(optional)</span>
                   <select [(ngModel)]="form.insuranceName" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                    @for (i of insuranceOptions; track i) { <option [value]="i">{{ i }}</option> }
+                    @for (i of insuranceOptions(); track i) { <option [value]="i">{{ i }}</option> }
                   </select>
                 </label>
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
@@ -306,23 +284,31 @@ export class CustomerEditModalComponent implements OnInit, AfterViewInit {
   @ViewChild('colourField') private colourFieldRef?: ElementRef<HTMLElement>;
   highlightColour = false;
 
-  sourceTypes = SOURCE_TYPES;
+  private settings = inject(SettingsService);
+
+  /** This account's sources — plus the record's current one if it was removed from the list since,
+   *  so opening an old lead never silently swaps its source. */
+  sourceOptions(): string[] {
+    return withCurrent(this.settings.leadSources(), this.form?.sourceType);
+  }
   colourOptions = COLOUR_OPTIONS;
   tradeInOptions = TRADE_IN_OPTIONS;
   documentStatusOptions = DOCUMENT_STATUS_OPTIONS;
-  bankOptions = BANK_OPTIONS;
-  insuranceOptions = INSURANCE_OPTIONS;
+  bankOptions(): string[] {
+    return withCurrent(this.settings.banks(), this.form?.bankPanel);
+  }
+  insuranceOptions(): string[] {
+    return withCurrent(this.settings.insuranceOptions(), this.form?.insuranceName);
+  }
   ncdOptions = NCD_OPTIONS;
   tenureOptions = TENURE_OPTIONS;
-  modelYears = MODEL_YEARS;
-  brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
   financingTypeOptions = FINANCING_TYPE_OPTIONS;
   cancelReasons = CANCEL_REASON_OPTIONS;
 
   form: EditCustomerInput = {};
 
-  modelsForBrand = modelsForBrand;
-  variantsForModel = variantsForModel;
+  vehicleTitle = vehicleTitle;
+  modelVariantLabel = modelVariantLabel;
 
   private effectiveStage(): CustomerStatus {
     return this.record.status === 'Cancelled' ? (this.record.previousStatus ?? 'Lead') : this.record.status;
@@ -339,7 +325,7 @@ export class CustomerEditModalComponent implements OnInit, AfterViewInit {
   get colourOptionsForForm(): string[] {
     // Prefer this exact car's own factory colours when the catalog has them; not every model has
     // one hardcoded yet, so those fall back to the generic list.
-    const vehicleColours = coloursForVehicle(this.form.brand ?? '', this.form.model ?? '', this.form.variant ?? '');
+    const vehicleColours = coloursForVehicle(this.record.brand, this.record.model, this.record.variant);
     if (this.showColourRequired) return vehicleColours ?? COLOUR_OPTIONS.filter((c) => c !== TO_BE_CONFIRMED_COLOUR);
     return vehicleColours ? [TO_BE_CONFIRMED_COLOUR, ...vehicleColours] : COLOUR_OPTIONS;
   }
@@ -404,10 +390,6 @@ export class CustomerEditModalComponent implements OnInit, AfterViewInit {
       email: r.email,
       drivingLicenceNo: r.drivingLicenceNo,
       sourceType: r.sourceType,
-      brand: r.brand,
-      model: r.model,
-      variant: r.variant,
-      yearMade: r.yearMade,
       colour: this.showColourRequired && r.colour === TO_BE_CONFIRMED_COLOUR ? '' : r.colour,
       downpayment: r.downpayment,
       ncd: r.ncd,
@@ -442,17 +424,6 @@ export class CustomerEditModalComponent implements OnInit, AfterViewInit {
         setTimeout(() => (this.highlightColour = false), 1800);
       }, 100);
     }
-  }
-
-  onBrandChange(brand: string) {
-    this.form.brand = brand;
-    const firstModel = this.modelsForBrand(brand)[0];
-    this.onModelChange(firstModel);
-  }
-
-  onModelChange(model: string) {
-    this.form.model = model;
-    this.form.variant = this.variantsForModel(this.form.brand!, model)[0];
   }
 
   docLabel(d: DocumentStatus): string {

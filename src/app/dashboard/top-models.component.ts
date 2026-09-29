@@ -9,7 +9,7 @@ import { topModelsByUnits } from '../data/dashboard-stats';
   standalone: true,
   imports: [CommonModule, BrandMarkComponent],
   template: `
-    <div class="flex h-full flex-col gap-6 rounded-xl border border-border bg-card py-6 text-card-foreground shadow-sm">
+    <div class="flex h-full flex-col gap-6 animate-rise rounded-xl border border-border bg-card py-6 text-card-foreground transition-colors duration-300 hover:border-primary/30">
       <div class="flex flex-col gap-1 px-6">
         <h3 class="font-semibold leading-none">Top 5 best-selling models</h3>
         <p class="text-sm text-muted-foreground">Across all brands this month</p>
@@ -19,15 +19,15 @@ import { topModelsByUnits } from '../data/dashboard-stats';
           <ul class="flex flex-col gap-4">
             @for (m of models(); track m.brand + m.model; let i = $index) {
               <li class="flex items-center gap-3">
-                <span class="w-4 shrink-0 font-mono text-sm text-muted-foreground tabular">{{ i + 1 }}</span>
+                <span class="flex size-6 shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold tabular" [ngClass]="i === 0 ? 'logo-chip' : 'bg-muted text-muted-foreground'">{{ i + 1 }}</span>
                 <app-brand-mark [brand]="m.brand" />
                 <div class="min-w-0 flex-1">
                   <p class="truncate text-sm font-medium">{{ m.model }}</p>
                   <div class="mt-1.5 flex items-center gap-2">
-                    <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div class="h-full rounded-full bg-primary" [style.width.%]="(m.units / max()) * 100"></div>
+                    <div class="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div class="bar-fill h-full rounded-full" [style.--i]="i" [style.width.%]="(m.units / max()) * 100"></div>
                     </div>
-                    <span class="w-14 shrink-0 text-right font-mono text-xs text-muted-foreground tabular">{{ m.units }} units</span>
+                    <span class="w-14 shrink-0 text-right font-mono text-xs text-muted-foreground tabular">{{ m.units }} {{ m.units === 1 ? 'unit' : 'units' }}</span>
                   </div>
                 </div>
               </li>

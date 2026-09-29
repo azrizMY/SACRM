@@ -23,7 +23,7 @@ const R_INNER = 58;
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="flex h-full flex-col gap-6 rounded-xl border border-border bg-card py-6 text-card-foreground shadow-sm">
+    <div class="flex h-full flex-col gap-6 animate-rise rounded-xl border border-border bg-card py-6 text-card-foreground transition-colors duration-300 hover:border-primary/30">
       <div class="flex flex-col gap-1 px-6">
         <h3 class="font-semibold leading-none">Lead status breakdown</h3>
         <p class="text-sm text-muted-foreground">Distribution across the pipeline</p>

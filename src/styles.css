@@ -52,61 +52,67 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Dark-first automotive dashboard theme */
+/* Dark-first "solid premium" automotive theme: opaque charcoal surfaces separated by
+   elevation (lighter fill + soft shadow) rather than outlines, with a single faint red glow
+   at the top of the page. Borders are hairlines kept for table rows and dividers. */
 :root,
 .dark {
   color-scheme: dark;
-  --background: oklch(0.145 0.003 285);
-  --foreground: oklch(0.97 0 0);
+  --background: oklch(0.13 0.004 280);
+  --foreground: oklch(0.97 0.003 280);
 
-  --card: oklch(0.195 0.003 285);
-  --card-foreground: oklch(0.97 0 0);
+  --card: oklch(0.185 0.005 280);
+  --card-solid: var(--card);
+  --card-foreground: oklch(0.97 0.003 280);
 
-  --popover: oklch(0.205 0.004 285);
-  --popover-foreground: oklch(0.97 0 0);
+  --popover: oklch(0.215 0.006 280);
+  --popover-foreground: oklch(0.97 0.003 280);
 
-  /* Bold automotive red accent (~#e00012) */
-  --primary: oklch(0.585 0.236 25.5);
+  /* Bold automotive red accent (~#e00012), with a warm companion for gradients */
+  --primary: oklch(0.6 0.235 25.5);
   --primary-foreground: oklch(0.99 0 0);
+  --primary-glow: oklch(0.7 0.19 45);
 
-  --secondary: oklch(0.26 0.004 285);
+  --secondary: oklch(0.24 0.006 280);
   --secondary-foreground: oklch(0.97 0 0);
 
-  --muted: oklch(0.26 0.004 285);
-  --muted-foreground: oklch(0.68 0.005 285);
+  --muted: oklch(0.24 0.006 280);
+  --muted-foreground: oklch(0.7 0.012 280);
 
-  --accent: oklch(0.27 0.006 285);
+  --accent: oklch(0.27 0.007 280);
   --accent-foreground: oklch(0.98 0 0);
 
-  --destructive: oklch(0.62 0.22 22);
+  --destructive: oklch(0.64 0.22 22);
   --destructive-foreground: oklch(0.99 0 0);
 
-  --success: oklch(0.72 0.17 152);
-  --success-foreground: oklch(0.16 0.02 152);
+  --success: oklch(0.76 0.17 155);
+  --success-foreground: oklch(0.16 0.02 155);
 
-  --warning: oklch(0.79 0.15 78);
+  --warning: oklch(0.8 0.15 78);
   --warning-foreground: oklch(0.2 0.03 78);
 
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.585 0.236 25.5);
+  --border: oklch(1 0 0 / 6%);
+  --input: oklch(0.235 0.006 280);
+  --ring: oklch(0.6 0.235 25.5);
 
-  --chart-1: oklch(0.585 0.236 25.5);
-  --chart-2: oklch(0.72 0.17 152);
-  --chart-3: oklch(0.79 0.15 78);
-  --chart-4: oklch(0.62 0.13 250);
-  --chart-5: oklch(0.55 0.01 285);
+  --chart-1: oklch(0.6 0.235 25.5);
+  --chart-2: oklch(0.76 0.17 155);
+  --chart-3: oklch(0.8 0.15 78);
+  --chart-4: oklch(0.66 0.14 255);
+  --chart-5: oklch(0.58 0.02 280);
 
-  --radius: 0.7rem;
+  --radius: 0.8rem;
 
-  --sidebar: oklch(0.165 0.003 285);
-  --sidebar-foreground: oklch(0.9 0 0);
-  --sidebar-primary: oklch(0.585 0.236 25.5);
+  --sidebar: oklch(0.155 0.005 280);
+  --sidebar-foreground: oklch(0.92 0 0);
+  --sidebar-primary: oklch(0.6 0.235 25.5);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.24 0.004 285);
+  --sidebar-accent: oklch(0.22 0.006 280);
   --sidebar-accent-foreground: oklch(0.98 0 0);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.585 0.236 25.5);
+  --sidebar-border: oklch(1 0 0 / 5%);
+  --sidebar-ring: oklch(0.6 0.235 25.5);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @layer base {
@@ -117,9 +123,13 @@
   body {
     height: 100%;
   }
+  html {
+    background-color: var(--background);
+  }
   body {
     margin: 0;
-    background-color: var(--background);
+    /* Transparent so the aurora layers (z-index -1) show; html carries the base colour. */
+    background-color: transparent;
     color: var(--foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
@@ -137,9 +147,283 @@
     background-color: var(--popover);
     color: var(--popover-foreground);
   }
+  ::selection {
+    background: color-mix(in oklch, var(--primary), transparent 55%);
+  }
+  /* Table headers read as small caps labels on a faint band. */
+  thead tr {
+    background-color: oklch(1 0 0 / 2.5%);
+  }
+  thead th {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  tbody tr {
+    transition: background-color 0.15s;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(1 0 0 / 14%) transparent;
+  }
+}
+
+/* Backdrop: a faint dot grid near the top of the screen that fades to plain near-black further
+   down. Fixed to the viewport, so the content scrolls over it. Page roots keep a transparent
+   background so it shows. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(oklch(1 0 0 / 7%) 1px, transparent 1.3px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, #000 0%, transparent 60%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 60%);
+}
+
+/* Cards separate from the page by fill and a soft shadow, not an outline: the border stays
+   (so layouts don't shift by 1px) but goes transparent. Unlayered so it beats the templates'
+   border-border / shadow-sm utilities. */
+.bg-card:is(.rounded-lg, .rounded-xl, .rounded-2xl),
+/* Grey-filled wells (segmented-control tracks, secondary buttons, stat boxes) likewise
+   read by their fill alone. */
+:is([class*='bg-muted'], [class*='bg-secondary']).border:is(.rounded-md, .rounded-lg, .rounded-xl) {
+  border-color: transparent;
+}
+.bg-card.rounded-xl,
+.bg-card.rounded-2xl {
+  box-shadow:
+    inset 0 1px 0 0 oklch(1 0 0 / 4%),
+    0 1px 2px 0 oklch(0 0 0 / 40%),
+    0 10px 28px -14px oklch(0 0 0 / 70%);
+}
+/* Selected segment in a segmented control (Preview / Customize, Specs / Offers): a raised,
+   lighter pill so the active option is obvious without an outline. */
+button.bg-card[aria-selected='true'] {
+  background-color: oklch(0.3 0.008 280);
+  box-shadow:
+    inset 0 1px 0 0 oklch(1 0 0 / 7%),
+    0 1px 3px 0 oklch(0 0 0 / 50%);
+}
+/* Every solid primary button across the app inherits the gradient + glow of .btn-glow. */
+button.bg-primary,
+a.bg-primary {
+  background-image: linear-gradient(135deg, var(--primary), color-mix(in oklch, var(--primary), var(--primary-glow) 45%));
+  box-shadow:
+    inset 0 1px 0 0 oklch(1 0 0 / 22%),
+    0 8px 22px -10px color-mix(in oklch, var(--primary), transparent 30%);
+  transition:
+    filter 0.2s,
+    box-shadow 0.2s;
+}
+button.bg-primary:disabled {
+  box-shadow: none;
+}
+button.bg-primary:hover:not(:disabled),
+a.bg-primary:hover {
+  filter: brightness(1.08);
+}
+/* Modal panels and the tour tooltip sit above a dimmed page, so they read better solid. */
+.fixed .bg-card,
+.fixed.bg-card {
+  background-color: var(--card-solid);
+}
+
+/* ---------------------------------------------------------------------------
+   App-wide motion, applied by selector so every page (including the customer
+   quote link) behaves the same without per-template classes.
+   --------------------------------------------------------------------------- */
+
+/* Top-level content cards rise in, staggered by their position among siblings. Skips cards
+   nested in another card, anything inside a fixed overlay, and cards that already opt into
+   .animate-rise with their own --i. Fill is backwards only, so once finished the card's own transform
+   (e.g. .lift:hover) applies again and no containing block is left behind for modals. */
+:is(.bg-card.rounded-xl, .bg-card.rounded-2xl):not(.animate-rise, .bg-card *, .fixed *) {
+  animation: rl-rise 0.55s var(--ease-out-expo) backwards;
+}
+:is(.bg-card.rounded-xl, .bg-card.rounded-2xl):not(.animate-rise, .bg-card *, .fixed *):nth-child(2) { animation-delay: 60ms; }
+:is(.bg-card.rounded-xl, .bg-card.rounded-2xl):not(.animate-rise, .bg-card *, .fixed *):nth-child(3) { animation-delay: 120ms; }
+:is(.bg-card.rounded-xl, .bg-card.rounded-2xl):not(.animate-rise, .bg-card *, .fixed *):nth-child(4) { animation-delay: 180ms; }
+:is(.bg-card.rounded-xl, .bg-card.rounded-2xl):not(.animate-rise, .bg-card *, .fixed *):nth-child(5) { animation-delay: 240ms; }
+:is(.bg-card.rounded-xl, .bg-card.rounded-2xl):not(.animate-rise, .bg-card *, .fixed *):nth-child(n + 6) { animation-delay: 300ms; }
+
+/* Modals: the dimmed backdrop fades, the panel pops. Matches the shared markup
+   <div class="fixed inset-0 ..."><button class="absolute inset-0 ..."/><div class="relative ... bg-card"> */
+.fixed.inset-0 > button.absolute.inset-0 {
+  animation: rl-fade 0.2s ease-out both;
+}
+.fixed.inset-0 > .relative.bg-card {
+  animation: rl-pop 0.32s var(--ease-out-expo) backwards;
+  box-shadow:
+    inset 0 1px 0 0 oklch(1 0 0 / 7%),
+    0 30px 80px -20px oklch(0 0 0 / 80%);
+}
+@keyframes rl-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+
+/* Dropdowns and popovers fade down into place. */
+.absolute.bg-popover:not(.pointer-events-none) {
+  animation: rl-drop 0.18s var(--ease-out-expo) backwards;
+  box-shadow: 0 18px 50px -12px oklch(0 0 0 / 75%);
+}
+@keyframes rl-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* Clickable cards (brochure tiles, settings rows, quote options) lighten on hover. */
+button.bg-card,
+a.bg-card {
+  transition:
+    background-color 0.2s,
+    box-shadow 0.2s;
+}
+button.bg-card:hover:not(:disabled, [aria-selected='true']),
+a.bg-card:hover {
+  background-color: oklch(0.215 0.006 280);
+}
+
+/* Form fields share the soft red focus halo used on the auth pages. */
+.border-input {
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.border-input:focus,
+.border-input:focus-within {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary), transparent 80%);
+}
+
+
+@layer components {
+  /* Solid chrome surface (sidebar, quote-page menus, hero panels). */
+  .glass {
+    background-color: var(--sidebar);
+  }
+
+  /* 1px gradient border via a masked pseudo-element; pair with a rounded-* class. */
+  .glow-border {
+    position: relative;
+    isolation: isolate;
+  }
+  .glow-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--primary), transparent 50%),
+      transparent 30%
+    );
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .btn-glow {
+    background-image: linear-gradient(135deg, var(--primary), color-mix(in oklch, var(--primary), var(--primary-glow) 45%));
+    color: var(--primary-foreground);
+    box-shadow:
+      inset 0 1px 0 0 oklch(1 0 0 / 22%),
+      0 8px 24px -8px color-mix(in oklch, var(--primary), transparent 30%);
+    transition:
+      transform 0.2s var(--ease-out-expo),
+      box-shadow 0.2s var(--ease-out-expo),
+      filter 0.2s;
+  }
+  .btn-glow:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+    box-shadow:
+      inset 0 1px 0 0 oklch(1 0 0 / 25%),
+      0 14px 34px -10px color-mix(in oklch, var(--primary), transparent 15%);
+  }
+  .btn-glow:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+  }
+
+  .text-gradient {
+    background: linear-gradient(100deg, var(--primary) 10%, var(--primary-glow) 60%, oklch(0.85 0.12 70));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .logo-chip {
+    background-image: linear-gradient(135deg, var(--primary), var(--primary-glow));
+    color: var(--primary-foreground);
+    box-shadow:
+      inset 0 1px 0 0 oklch(1 0 0 / 30%),
+      0 6px 18px -6px color-mix(in oklch, var(--primary), transparent 20%);
+  }
+
+  /* Hover lift + glow for cards. The transform exists only while hovered, so it never
+     becomes a containing block for fixed-position content opened from inside. */
+  .lift {
+    transition:
+      transform 0.35s var(--ease-out-expo),
+      box-shadow 0.35s var(--ease-out-expo);
+  }
+  .lift:hover {
+    transform: translateY(-3px);
+    box-shadow:
+      inset 0 1px 0 0 oklch(1 0 0 / 6%),
+      0 20px 40px -18px oklch(0 0 0 / 80%);
+  }
+
+  /* Gradient progress fill that sweeps in from the left; set --i to stagger. */
+  .bar-fill {
+    background-image: linear-gradient(90deg, var(--primary), var(--primary-glow));
+    transform-origin: left;
+    animation: rl-grow-x 1s var(--ease-out-expo) both;
+    animation-delay: calc(var(--i, 0) * 80ms + 150ms);
+  }
 }
 
 /* Animation helpers */
+@keyframes rl-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes rl-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+/* Fade-and-rise on mount. Set --i on siblings for a staggered cascade. */
+.animate-rise {
+  animation: rl-rise 0.6s var(--ease-out-expo) backwards;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+/* Route transition: the component the outlet inserts rises in. Opacity only — a transform
+   here would trap the pages' position:fixed modals for the duration of the animation. */
+@keyframes rl-fade {
+  from {
+    opacity: 0;
+  }
+}
+.route-host > router-outlet + * {
+  display: block;
+  animation: rl-fade 0.35s ease-out both;
+}
 @keyframes rl-slide-in-left {
   from {
     transform: translateX(-100%);
@@ -149,7 +433,7 @@
   }
 }
 .animate-slide-in-left {
-  animation: rl-slide-in-left 0.2s ease-out;
+  animation: rl-slide-in-left 0.25s var(--ease-out-expo);
 }
 @keyframes rl-ping {
   75%,
@@ -160,6 +444,16 @@
 }
 .animate-rl-ping {
   animation: rl-ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* iOS Safari zooms the page in when a focused field's font is under 16px and never zooms back

@@ -1,10 +1,11 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
+import { SettingsService, withCurrent } from '../shared/settings.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent, type IconName } from '../shared/icon.component';
 import { BankerService } from '../shared/banker.service';
 import { BANK_OPTIONS } from '../data/customer-data';
-import { MALAYSIAN_STATES, canSubmitBanker, normalizeUsername, usernameDisplay, whatsAppHref, type BankerRecord, type NewBankerInput } from '../data/banker-data';
+import { MALAYSIAN_STATES, canSubmitBanker, normalizeUsername, shareBankerHref, usernameDisplay, whatsAppHref, type BankerRecord, type NewBankerInput } from '../data/banker-data';
 
 type Tab = 'All' | 'Favourites';
 type ModalKind = 'add' | 'edit' | null;
@@ -36,7 +37,7 @@ function compareBankers(a: BankerRecord, b: BankerRecord, key: SortKey, dir: Sor
     <div class="mx-auto flex max-w-7xl flex-col gap-5 pb-16">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="flex flex-col gap-1">
-          <h2 class="text-balance text-xl font-semibold tracking-tight">Bankers</h2>
+          <h2 class="text-balance text-xl font-bold tracking-tight">Bankers</h2>
           <p class="text-pretty text-sm text-muted-foreground">Your bank contacts, filterable by state and bank — star the ones you work with most.</p>
         </div>
         <button
@@ -98,7 +99,7 @@ function compareBankers(a: BankerRecord, b: BankerRecord, key: SortKey, dir: Sor
           <div class="flex flex-col gap-1">
             <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Bank</span>
             <div class="flex flex-wrap gap-1.5">
-              @for (b of banks; track b) {
+              @for (b of banks(); track b) {
                 <button
                   type="button"
                   (click)="toggleBankFilter(b)"
@@ -197,6 +198,16 @@ function compareBankers(a: BankerRecord, b: BankerRecord, key: SortKey, dir: Sor
                       >
                         <app-icon name="star" [filled]="b.favourite" [size]="13" />
                       </button>
+                      <a
+                        [href]="shareHref(b)"
+                        target="_blank"
+                        rel="noopener"
+                        title="Send contact via WhatsApp"
+                        aria-label="Send contact via WhatsApp"
+                        class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <app-icon name="share" [size]="13" />
+                      </a>
                       <button type="button" (click)="openEdit(b)" title="Edit" aria-label="Edit banker" class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
                         <app-icon name="pencil" [size]="13" />
                       </button>
@@ -207,7 +218,7 @@ function compareBankers(a: BankerRecord, b: BankerRecord, key: SortKey, dir: Sor
                   </td>
                 </tr>
               } @empty {
-                <tr><td colspan="5" class="p-8 text-center text-sm text-muted-foreground">No bankers match.</td></tr>
+                <tr class="hover:bg-transparent"><td colspan="5"><ng-container [ngTemplateOutlet]="emptyState" /></td></tr>
               }
             </tbody>
           </table>
@@ -253,6 +264,16 @@ function compareBankers(a: BankerRecord, b: BankerRecord, key: SortKey, dir: Sor
                 <span class="text-xs text-muted-foreground">{{ b.branch }}</span>
               }
               <div class="flex items-center gap-1.5 border-t border-border pt-2">
+                <a
+                  [href]="shareHref(b)"
+                  target="_blank"
+                  rel="noopener"
+                  title="Send contact via WhatsApp"
+                  aria-label="Send contact via WhatsApp"
+                  class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  <app-icon name="share" [size]="14" />
+                </a>
                 <button type="button" (click)="openEdit(b)" title="Edit" aria-label="Edit banker" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
                   <app-icon name="pencil" [size]="14" />
                 </button>
@@ -262,7 +283,7 @@ function compareBankers(a: BankerRecord, b: BankerRecord, key: SortKey, dir: Sor
               </div>
             </div>
           } @empty {
-            <p class="p-8 text-center text-sm text-muted-foreground">No bankers match.</p>
+            <ng-container [ngTemplateOutlet]="emptyState" />
           }
         </div>
       </div>
@@ -299,7 +320,7 @@ function compareBankers(a: BankerRecord, b: BankerRecord, key: SortKey, dir: Sor
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Bank
                 <select [(ngModel)]="form.bank" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                  @for (b of banks; track b) { <option [value]="b">{{ b }}</option> }
+                  @for (b of bankChoices(); track b) { <option [value]="b">{{ b }}</option> }
                 </select>
               </label>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
@@ -355,13 +376,55 @@ function compareBankers(a: BankerRecord, b: BankerRecord, key: SortKey, dir: Sor
         </div>
       </div>
     }
+
+    <!-- Shared by the desktop table and the mobile card list -->
+    <ng-template #emptyState>
+      <div class="flex flex-col items-center gap-3 px-6 py-12 text-center">
+        <span class="relative flex size-14 items-center justify-center">
+          <span class="absolute inset-0 rounded-2xl bg-primary/25 blur-xl"></span>
+          <span class="logo-chip relative flex size-14 items-center justify-center rounded-2xl">
+            <app-icon [name]="emptyKind() === 'favourites' ? 'star' : emptyKind() === 'filtered' ? 'search' : 'landmark'" [size]="24" />
+          </span>
+        </span>
+        @switch (emptyKind()) {
+          @case ('none') {
+            <p class="text-base font-bold">No bankers yet</p>
+            <p class="max-w-xs text-pretty text-sm text-muted-foreground">Save the bank officers you work with so their numbers are one tap away when a loan needs pushing.</p>
+            <button type="button" (click)="openAdd()" class="btn-glow mt-1 flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold">
+              <app-icon name="plus" [size]="14" />
+              Add your first banker
+            </button>
+          }
+          @case ('favourites') {
+            <p class="text-base font-bold">No favourites yet</p>
+            <p class="max-w-xs text-pretty text-sm text-muted-foreground">Tap the star on any banker to pin them here.</p>
+            <button type="button" (click)="selectTab('All')" class="mt-1 rounded-lg border border-border px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:border-primary/40">
+              Browse all bankers
+            </button>
+          }
+          @default {
+            <p class="text-base font-bold">No bankers match</p>
+            <p class="max-w-xs text-pretty text-sm text-muted-foreground">Try a different name, state or bank.</p>
+            <button type="button" (click)="clearFilters()" class="mt-1 rounded-lg border border-border px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:border-primary/40">
+              Clear filters
+            </button>
+          }
+        }
+      </div>
+    </ng-template>
   `,
 })
 export class BankersComponent {
   tabs: Tab[] = ['All', 'Favourites'];
   activeTab = signal<Tab>('All');
 
-  banks = BANK_OPTIONS;
+  private settings = inject(SettingsService);
+  /** Filter chips: your banks (Settings → Banks & Insurance), plus any a saved banker still uses. */
+  banks = computed(() => [...new Set([...this.settings.banks(), ...this.bankers.bankers().map((b) => b.bank).filter(Boolean)])]);
+  /** The banker form's choices — your banks, plus this banker's own if it has since been removed. */
+  bankChoices(): string[] {
+    return withCurrent(this.settings.banks(), this.form.bank);
+  }
   states = MALAYSIAN_STATES;
   canSubmitBanker = canSubmitBanker;
 
@@ -431,6 +494,13 @@ export class BankersComponent {
     return this.sortDir() === 'asc' ? 'arrow-up' : 'arrow-down';
   }
 
+  /** Which empty state to show when the list is empty: nothing saved yet, no favourites, or filtered out. */
+  emptyKind(): 'none' | 'favourites' | 'filtered' {
+    if (this.hasActiveFilters()) return 'filtered';
+    if (this.activeTab() === 'Favourites') return 'favourites';
+    return this.bankers.bankers().length ? 'filtered' : 'none';
+  }
+
   hasActiveFilters(): boolean {
     return !!this.search() || this.stateFilter() !== 'All' || this.selectedBanks().size > 0;
   }
@@ -449,6 +519,10 @@ export class BankersComponent {
     return whatsAppHref(b);
   }
 
+  shareHref(b: BankerRecord): string {
+    return shareBankerHref(b);
+  }
+
   usernameText(b: BankerRecord): string | null {
     return usernameDisplay(b.username);
   }
@@ -459,7 +533,7 @@ export class BankersComponent {
   }
 
   openAdd() {
-    this.form = { ...EMPTY_FORM };
+    this.form = { ...EMPTY_FORM, bank: this.settings.banks()[0] ?? EMPTY_FORM.bank };
     this.editingId.set(null);
     this.modal.set('add');
   }

@@ -4,7 +4,7 @@
 
 /** Fills an arbitrary closed polygon — used for the header's slash, the 2026 tag, and (in later
  *  stages) every notched-corner tile the spec calls for. */
-export function fillPolygon(ctx: CanvasRenderingContext2D, points: [number, number][], fillStyle: string): void {
+export function fillPolygon(ctx: CanvasRenderingContext2D, points: [number, number][], fillStyle: string | CanvasGradient): void {
   ctx.beginPath();
   ctx.moveTo(points[0][0], points[0][1]);
   for (const [x, y] of points.slice(1)) ctx.lineTo(x, y);

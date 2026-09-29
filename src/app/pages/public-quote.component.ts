@@ -2,13 +2,15 @@ import { Component, ElementRef, HostListener, OnInit, ViewChild, computed, effec
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { IconComponent } from '../shared/icon.component';
+import { IconComponent, type IconName } from '../shared/icon.component';
+import { BrandIconComponent } from '../shared/brand-icon.component';
+import { hasShowroom, showroomMapsHref, showroomWazeHref, socialEntries } from '../data/social-data';
 import { TourService, type TourStep } from '../shared/tour.service';
 import { fetchPublicQuote, type PublicQuoteBundle } from '../shared/public-quote-api';
 import { posterFontsReady } from '../shared/poster-theme';
 import { classicTemplate } from '../shared/poster-template-classic';
 import type { PosterData } from '../shared/poster-data';
-import { brandLogo } from '../data/dashboard-data';
+import { brandLogo, formatMalaysianPhone } from '../data/dashboard-data';
 import { DEFAULT_EPR, defaultInsuranceQuotation } from '../data/calculator-data';
 import {
   DEFAULT_VEHICLES,
@@ -17,14 +19,18 @@ import {
   colourSurchargeFor,
   computeInsuranceBreakdown,
   computeQuotationTotals,
+  minDownpaymentCash,
+  defaultRateFor,
   formatRM,
   loanForMonthlyPayment,
   modelVariantLabel,
   monthlyPayment,
   rebateForYear,
   roundCents,
+  variantLabel,
   type DownpaymentType,
   type InsuranceQuotationDetails,
+  type RateType,
   type Vehicle,
   type VehicleOverride,
   vehicleTitle,
@@ -34,28 +40,74 @@ import {
  *  year buttons, just single-select here instead of "pick 3 for a comparison table". */
 const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
 
+type PageSection = 'quote' | 'profile' | 'cars';
+
 @Component({
   selector: 'app-public-quote',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, BrandIconComponent],
   template: `
     @if (loading()) {
-      <div class="flex min-h-screen items-center justify-center bg-background">
+      <div class="flex min-h-screen items-center justify-center">
         <app-icon name="refresh-cw" [size]="24" class="animate-spin text-muted-foreground" />
       </div>
     } @else if (notFound()) {
-      <div class="flex min-h-screen flex-col items-center justify-center gap-2 bg-background p-6 text-center">
+      <div class="flex min-h-screen flex-col items-center justify-center gap-2 p-6 text-center">
         <app-icon name="x-circle" [size]="28" class="text-muted-foreground" />
         <h1 class="text-lg font-semibold">This link isn't valid</h1>
         <p class="max-w-xs text-sm text-muted-foreground">Please check the link your sales advisor sent you, or ask them to resend it.</p>
       </div>
     } @else {
-      <div class="mx-auto flex max-w-7xl flex-col gap-6 p-4 md:p-6 2xl:max-w-[1800px]">
+      <!-- Desktop side menu (mobile/tablet use the bottom tab bar) -->
+      <aside class="glass fixed inset-y-0 left-0 z-30 hidden w-60 flex-col gap-6 border-r border-border px-4 py-6 xl:flex">
+        <div class="flex flex-col items-center gap-2 px-2 text-center">
+          @if (bundle()!.advisor.photoUrl; as photo) {
+            <img [src]="photo" alt="" class="size-16 rounded-full object-cover ring-2 ring-primary/60 ring-offset-2 ring-offset-background" />
+          } @else {
+            <span class="flex size-16 items-center justify-center rounded-full text-xl font-bold text-white/90" [style.background]="avatarGradient">{{ advisorInitials() }}</span>
+          }
+          <div class="flex min-w-0 max-w-full flex-col gap-0.5">
+            <span class="truncate text-sm font-semibold">{{ bundle()!.advisor.name }}</span>
+            @if (bundle()!.advisor.role; as role) {
+              <span class="truncate text-xs text-muted-foreground">{{ role }}</span>
+            }
+          </div>
+        </div>
+        <nav role="tablist" aria-label="Page sections" aria-orientation="vertical" class="flex flex-col gap-1">
+          @for (t of sections; track t.id) {
+            <button
+              type="button"
+              role="tab"
+              [attr.aria-selected]="section() === t.id"
+              (click)="selectSection(t.id)"
+              class="group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all duration-200"
+              [ngClass]="section() === t.id ? 'text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+            >
+              @if (section() === t.id) {
+                <span class="absolute inset-y-2 -left-4 w-[3px] rounded-r-full bg-primary"></span>
+              }
+              <app-icon [name]="t.icon" [size]="18" />
+              {{ t.label }}
+            </button>
+          }
+        </nav>
+      </aside>
+
+      <div class="xl:pl-60">
+      <div [class.hidden]="section() !== 'quote'">
+      <div class="mx-auto flex max-w-7xl flex-col gap-6 p-4 pb-24 md:p-6 md:pb-24 xl:pb-6 2xl:max-w-[1800px]">
         <!-- Mobile Preview/Customize switcher -->
-        <div class="sticky -top-4 z-10 -mx-4 flex flex-col gap-2 bg-background px-4 pb-2 pt-0 md:-mx-6 md:px-6 xl:hidden">
+        <!-- Pinned flush to the top (pulled up over the page's own top padding) so no strip of the
+             background glow shows above it. -->
+        <div class="sticky top-0 z-10 -mx-4 -mt-4 flex flex-col gap-2 border-b border-border bg-background px-4 pb-2 pt-4 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 xl:hidden">
           <div class="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
-            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">OTR Price</span>
-            <span class="text-sm font-bold tabular">{{ fmt2(allInPrice()) }}</span>
+            @if (isCashPurchase()) {
+              <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Selling price</span>
+              <span class="text-sm font-bold tabular">{{ fmt2(allInPrice()) }}</span>
+            } @else {
+              <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Monthly · {{ tenureYears() }} yrs</span>
+              <span class="text-sm font-bold tabular text-primary">{{ fmt2(monthlyInstalment()) }}</span>
+            }
           </div>
           <div role="tablist" aria-label="Quote view" class="flex rounded-lg border border-border bg-muted/30 p-1">
             <button
@@ -81,10 +133,10 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
           </div>
         </div>
 
-        <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-3 2xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] 2xl:gap-8">
+        <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_24rem] 2xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] 2xl:gap-8">
           <!-- Quote preview -->
           <div
-            class="flex-col gap-2 xl:sticky xl:top-4 xl:col-span-2 xl:flex 2xl:col-span-1"
+            class="flex-col gap-2 xl:sticky xl:top-4 xl:flex"
             [ngClass]="mobileTab() === 'preview' ? 'flex' : 'hidden'"
           >
             <div data-tour="quote-preview" class="shrink-0 overflow-hidden rounded-xl shadow-md xl:mx-auto">
@@ -98,18 +150,65 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                 class="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 xl:hidden"
               >
                 <app-icon name="message-circle" [size]="16" />
-                WhatsApp Advisor
+                WhatsApp Me Here
               </button>
             }
-            <p class="flex shrink-0 items-center justify-center gap-1.5 text-center text-[10px] leading-relaxed text-muted-foreground">
-              <app-icon name="info" [size]="12" class="shrink-0" />
+            <p class="shrink-0 text-balance text-center text-[10px] leading-relaxed text-muted-foreground">
+              <app-icon name="info" [size]="12" class="mr-1 inline-block align-[-2px]" />
               Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here.
             </p>
+
+            <!-- Phones/tablets: Follow Me below the disclaimer (desktop shows it in the Customize column) -->
+            <!-- A compact one-row card so it fits the gap above the bottom bar without making the
+                 page much longer than the stacked desktop version would. -->
+            @if (socials().length) {
+              <div class="flex shrink-0 items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-card-foreground xl:hidden">
+                <span class="flex min-w-0 flex-1 flex-col">
+                  <span class="text-xs font-bold">Follow Me</span>
+                  <span class="truncate text-[11px] text-muted-foreground">Latest promos &amp; new arrivals</span>
+                </span>
+                @for (s of socials(); track s.id) {
+                  <a
+                    [href]="s.href"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    [attr.aria-label]="s.label + ' (opens in a new tab)'"
+                    [title]="s.label"
+                    class="rounded-lg outline-none transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <app-brand-icon [name]="s.id" [size]="34" [tile]="true" />
+                  </a>
+                }
+              </div>
+            }
           </div>
+
+          <!-- The SA's social links (same set as Profile's "Follow Me"), compact -->
+          <ng-template #followMe>
+            @if (socials().length) {
+              <section class="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 text-card-foreground">
+                <span class="text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Follow Me</span>
+                <div class="flex flex-wrap justify-center gap-x-1 gap-y-3">
+                  @for (s of socials(); track s.id) {
+                    <a
+                      [href]="s.href"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      [attr.aria-label]="s.label + ' (opens in a new tab)'"
+                      class="group flex w-16 flex-col items-center gap-1 rounded-xl p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <app-brand-icon [name]="s.id" [size]="42" [tile]="true" class="transition-transform group-hover:scale-105 group-active:scale-95" />
+                      <span class="w-full truncate text-center text-[10px] font-medium text-muted-foreground group-hover:text-foreground">{{ s.label }}</span>
+                    </a>
+                  }
+                </div>
+              </section>
+            }
+          </ng-template>
 
           <!-- Customize quote -->
           <div
-            class="flex-col gap-4 xl:sticky xl:top-4 xl:col-span-1 xl:flex xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 2xl:static 2xl:max-h-none 2xl:overflow-visible 2xl:pr-0"
+            class="flex-col gap-4 xl:sticky xl:top-4 xl:flex xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 2xl:static 2xl:max-h-none 2xl:overflow-visible 2xl:pr-0"
             [ngClass]="mobileTab() === 'customize' ? 'flex' : 'hidden'"
           >
             <div class="flex items-center justify-between">
@@ -123,7 +222,7 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                     class="hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-accent xl:flex"
                   >
                     <app-icon name="message-circle" [size]="13" />
-                    WhatsApp Advisor
+                    WhatsApp Me Here
                   </button>
                 }
                 <button
@@ -291,6 +390,11 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                 <span class="text-sm font-semibold tabular text-foreground">{{ fmt2(insurance()) }}</span>
               </div>
             </div>
+
+            <!-- Desktop: Follow Me under Insurance — on wide screens this lands beside Tenure -->
+            <div class="hidden xl:block">
+              <ng-container [ngTemplateOutlet]="followMe" />
+            </div>
               </div>
 
               <div class="flex flex-col gap-4">
@@ -328,7 +432,7 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                     class="rounded-lg border px-2 py-2 text-xs font-semibold transition-colors"
                     [ngClass]="isDownpaymentPreset('fullLoan') ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                   >
-                    Full Loan
+                    {{ minDownpayment() > 0 ? 'Minimum' : 'Full Loan' }}
                   </button>
                 </div>
                 <div class="flex gap-2">
@@ -362,6 +466,16 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
                     </button>
                   </div>
                 </div>
+                @if (minDownpayment() > 0) {
+                  @if (downpaymentRaisedToMin()) {
+                    <div class="flex items-start gap-2 rounded-lg bg-[var(--warning)]/12 px-3 py-2 text-[11px] text-foreground">
+                      <app-icon name="alert-triangle" [size]="13" class="mt-px shrink-0 text-[var(--warning)]" />
+                      <span>This car needs a <strong>{{ fmt(minDownpayment()) }}</strong> minimum downpayment (rebate counts towards it) — raised to meet it.</span>
+                    </div>
+                  } @else {
+                    <span class="text-[11px] text-muted-foreground">Minimum downpayment for this car: {{ fmt(minDownpayment()) }} before rebate</span>
+                  }
+                }
               </div>
 
               <div class="flex items-center gap-3">
@@ -447,6 +561,268 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
           </div>
         </div>
       </div>
+      </div>
+
+      @if (section() === 'profile') {
+        <div class="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4 pb-28 md:p-6 md:pb-28 xl:py-8">
+          <!-- Advisor card -->
+          <section class="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm">
+            <div class="h-24 bg-gradient-to-br from-primary/70 via-primary/25 to-card sm:h-28"></div>
+            <div class="-mt-12 flex flex-col items-center gap-3 px-5 pb-5 text-center sm:-mt-14">
+              @if (bundle()!.advisor.photoUrl; as photo) {
+                <img [src]="photo" alt="" class="size-24 rounded-full object-cover ring-4 ring-card sm:size-28" />
+              } @else {
+                <span class="flex size-24 items-center justify-center rounded-full text-3xl font-bold text-white/90 ring-4 ring-card sm:size-28" [style.background]="avatarGradient">
+                  {{ advisorInitials() }}
+                </span>
+              }
+              <div class="flex flex-col items-center gap-1.5">
+                <h1 class="text-balance text-xl font-semibold tracking-tight">{{ bundle()!.advisor.name }}</h1>
+                @if (bundle()!.advisor.role; as role) {
+                  <span class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">{{ role }}</span>
+                }
+                @if (bundle()!.advisor.phoneDisplay; as phone) {
+                  <span class="text-sm tabular text-muted-foreground">{{ formatPhone(phone) }}</span>
+                }
+              </div>
+              @if (bundle()!.advisor.bio; as bio) {
+                <p class="max-w-md whitespace-pre-line text-pretty text-sm leading-relaxed text-muted-foreground">{{ bio }}</p>
+              }
+              @if (callHref() || profileWhatsAppHref()) {
+                <div class="grid w-full auto-cols-fr grid-flow-col gap-2 pt-1">
+                  @if (callHref(); as href) {
+                    <a
+                      [href]="href"
+                      class="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                    >
+                      <app-icon name="phone" [size]="16" />
+                      Call
+                    </a>
+                  }
+                  @if (profileWhatsAppHref(); as href) {
+                    <a
+                      [href]="href"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-3 text-sm font-semibold text-white shadow-sm transition-[filter] hover:brightness-95"
+                    >
+                      <app-brand-icon name="whatsapp" [size]="16" />
+                      WhatsApp
+                    </a>
+                  }
+                </div>
+              }
+            </div>
+          </section>
+
+          <!-- Showroom -->
+          @if (showroom(); as s) {
+            <section class="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm">
+              <div class="flex items-start gap-3">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <app-icon name="map-pin" [size]="18" />
+                </span>
+                <div class="flex min-w-0 flex-col gap-1">
+                  <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Visit the Showroom</span>
+                  <span class="text-sm font-semibold">{{ s.name || 'Showroom' }}</span>
+                  @if (s.address; as address) {
+                    <p class="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{{ address }}</p>
+                  }
+                </div>
+              </div>
+              <div class="grid auto-cols-fr grid-flow-col gap-2">
+                @if (showroomMapsHref(); as href) {
+                  <a
+                    [href]="href"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 text-sm font-medium transition-colors hover:bg-accent"
+                  >
+                    <app-brand-icon name="googlemaps" [size]="16" class="text-[#4285F4]" />
+                    Google Maps
+                  </a>
+                }
+                @if (showroomWazeHref(); as href) {
+                  <a
+                    [href]="href"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 text-sm font-medium transition-colors hover:bg-accent"
+                  >
+                    <app-brand-icon name="waze" [size]="16" class="text-[#33CCFF]" />
+                    Waze
+                  </a>
+                }
+              </div>
+            </section>
+          }
+
+          <!-- Social media -->
+          @if (socials().length) {
+            <section class="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm">
+              <span class="text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Follow Me</span>
+              <div class="flex flex-wrap justify-center gap-x-2 gap-y-4">
+                @for (s of socials(); track s.id) {
+                  <a
+                    [href]="s.href"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    [attr.aria-label]="s.label + ' (opens in a new tab)'"
+                    class="group flex w-[4.5rem] flex-col items-center gap-1.5 rounded-xl p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <app-brand-icon [name]="s.id" [size]="52" [tile]="true" class="transition-transform group-hover:scale-105 group-active:scale-95" />
+                    <span class="w-full truncate text-center text-[11px] font-medium text-muted-foreground group-hover:text-foreground">{{ s.label }}</span>
+                  </a>
+                }
+              </div>
+            </section>
+          }
+
+          <button
+            type="button"
+            (click)="selectSection('cars')"
+            class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
+          >
+            <span class="flex items-center gap-3">
+              <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <app-icon name="car" [size]="18" />
+              </span>
+              <span class="flex flex-col gap-0.5">
+                <span class="text-sm font-semibold">Browse cars &amp; brochures</span>
+                <span class="text-xs text-muted-foreground">See every model and open its brochure.</span>
+              </span>
+            </span>
+            <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground" />
+          </button>
+
+          <button
+            type="button"
+            (click)="selectSection('quote')"
+            class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
+          >
+            <span class="flex items-center gap-3">
+              <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <app-icon name="calculator" [size]="18" />
+              </span>
+              <span class="flex flex-col gap-0.5">
+                <span class="text-sm font-semibold">Build your own quote</span>
+                <span class="text-xs text-muted-foreground">See your monthly instalment in under a minute.</span>
+              </span>
+            </span>
+            <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground" />
+          </button>
+        </div>
+      }
+
+      <!-- Cars: the SA's lineup with brochures, grouped by model. View + quote only — no Share here,
+           since this page is the customer's, not the SA's. -->
+      @if (section() === 'cars') {
+        <div class="mx-auto flex w-full max-w-7xl flex-col gap-5 p-4 pb-28 md:p-6 md:pb-28 xl:py-8">
+          <div class="flex flex-col gap-1">
+            <h1 class="text-xl font-bold tracking-tight">Cars &amp; brochures</h1>
+            <p class="text-sm text-muted-foreground">Browse the lineup, open a brochure, or get a quote for any car.</p>
+          </div>
+
+          @if (carsBrands().length > 1) {
+            <div role="tablist" aria-label="Brand" class="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-0.5 md:mx-0 md:flex-wrap md:px-0">
+              @for (b of carsBrands(); track b) {
+                <button
+                  type="button"
+                  role="tab"
+                  [attr.aria-selected]="carsBrand() === b"
+                  (click)="selectCarsBrand(b)"
+                  class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
+                  [ngClass]="carsBrand() === b ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                >
+                  {{ b }}
+                </button>
+              }
+            </div>
+          }
+
+          @for (g of carGroupsForBrowse(); track g.key) {
+            <section class="flex flex-col gap-3">
+              <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h2 class="text-lg font-bold tracking-tight">{{ vehicleTitle(g.brand, g.model) }}</h2>
+                <span class="text-xs text-muted-foreground">
+                  {{ g.cars.length }} {{ g.cars.length === 1 ? 'variant' : 'variants' }} · from
+                  <span class="font-semibold text-foreground tabular">{{ fmt(g.fromPrice) }}</span>
+                </span>
+              </div>
+              <div class="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-2 md:mx-0 md:scroll-px-0 md:px-0">
+                @for (v of g.cars; track v.id) {
+                  <article class="w-[44%] shrink-0 snap-start sm:w-[30%] lg:w-[220px] flex flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
+                    <div class="relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-gradient-to-b from-white to-[oklch(0.9_0.005_280)]">
+                      @if (v.photoUrl) {
+                        <img [src]="v.photoUrl" [alt]="modelVariantLabel(v.model, v.variant)" loading="lazy" class="h-full w-full object-contain p-2.5" />
+                      } @else {
+                        <app-icon name="car" [size]="28" class="text-muted-foreground" />
+                      }
+                      @if (browseRebate(v) > 0) {
+                        <span class="absolute right-2 top-2 rounded-md bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground shadow">
+                          Rebate {{ fmt(browseRebate(v)) }}
+                        </span>
+                      }
+                    </div>
+                    <div class="flex flex-1 flex-col gap-2.5 p-3">
+                      <div class="flex min-w-0 flex-col gap-1">
+                        <span class="truncate text-sm font-bold">{{ variantText(v.variant) || v.model }}</span>
+                        <span class="text-xs text-muted-foreground"><span class="font-semibold text-foreground tabular">{{ fmt(v.price) }}</span> OTR</span>
+                      </div>
+                      <div class="mt-auto flex gap-2">
+                        @if (v.brochureUrl) {
+                          <a
+                            [href]="v.brochureUrl"
+                            target="_blank"
+                            rel="noopener"
+                            class="flex flex-1 items-center justify-center gap-1 rounded-lg bg-muted py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
+                          >
+                            <app-icon name="file-text" [size]="13" />
+                            Brochure
+                          </a>
+                        }
+                        <button
+                          type="button"
+                          (click)="quoteThisCar(v)"
+                          class="flex flex-1 items-center justify-center gap-1 rounded-lg bg-primary/12 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+                        >
+                          <app-icon name="calculator" [size]="13" />
+                          Quote
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                }
+              </div>
+            </section>
+          }
+        </div>
+      }
+      </div>
+
+      <!-- Mobile/tablet bottom tab bar -->
+      <nav
+        aria-label="Page sections"
+        class="glass fixed inset-x-0 bottom-0 z-40 border-t border-border pb-[env(safe-area-inset-bottom)] xl:hidden"
+      >
+        <div role="tablist" class="mx-auto flex max-w-md">
+          @for (t of sections; track t.id) {
+            <button
+              type="button"
+              role="tab"
+              [attr.aria-selected]="section() === t.id"
+              (click)="selectSection(t.id)"
+              class="flex flex-1 flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-medium transition-colors"
+              [ngClass]="section() === t.id ? 'text-primary' : 'text-muted-foreground'"
+            >
+              <span class="flex h-8 w-14 items-center justify-center rounded-full transition-all duration-300" [ngClass]="section() === t.id ? 'logo-chip scale-105' : ''">
+                <app-icon [name]="t.icon" [size]="20" />
+              </span>
+              {{ t.label }}
+            </button>
+          }
+        </div>
+      </nav>
 
       @if (insuranceBreakdownOpen()) {
         <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -455,7 +831,7 @@ const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
             <div class="flex items-center gap-3 border-b border-border p-4">
               <div class="flex flex-col">
                 <span class="text-sm font-semibold">Insurance Breakdown</span>
-                <span class="text-[11px] text-muted-foreground">{{ selectedVehicle().brand }} {{ modelVariantLabel(selectedVehicle().model, selectedVehicle().variant) }}</span>
+                <span class="text-[11px] text-muted-foreground">{{ vehicleTitle(selectedVehicle().brand, modelVariantLabel(selectedVehicle().model, selectedVehicle().variant)) }}</span>
               </div>
               <button type="button" (click)="closeInsuranceBreakdown()" aria-label="Close" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
                 <app-icon name="x" [size]="16" />
@@ -552,9 +928,105 @@ export class PublicQuoteComponent implements OnInit {
   singleBrandMode = this.route.snapshot.data['singleBrand'] === true;
   mobileTab = signal<'preview' | 'customize'>('preview');
 
+  sections: { id: PageSection; label: string; icon: IconName }[] = [
+    // Quote is the page's main feature, so it always sits in the middle of the tab bar.
+    { id: 'profile', label: 'Profile', icon: 'user' },
+    { id: 'quote', label: 'Quote', icon: 'calculator' },
+    { id: 'cars', label: 'Cars', icon: 'car' },
+  ];
+
+  // ---------- Cars (browse + brochures) ----------
+
+  vehicleTitle = vehicleTitle;
+  variantText = variantLabel;
+  /** Brands the Cars section can show — just the SA's Primary Brand on the single-brand link. */
+  carsBrands = computed(() => {
+    const defaultBrand = this.bundle()?.defaultBrand;
+    return this.singleBrandMode && defaultBrand && this.brands().includes(defaultBrand) ? [defaultBrand] : this.brands();
+  });
+  private carsBrandPick = signal<string | null>(null);
+  carsBrand = computed(() => {
+    const brands = this.carsBrands();
+    const pick = this.carsBrandPick();
+    if (pick && brands.includes(pick)) return pick;
+    const defaultBrand = this.bundle()?.defaultBrand;
+    return defaultBrand && brands.includes(defaultBrand) ? defaultBrand : (brands[0] ?? '');
+  });
+  selectCarsBrand(brand: string) {
+    this.carsBrandPick.set(brand);
+  }
+
+  /** One group per model of the chosen brand, in catalog order. */
+  carGroupsForBrowse = computed(() => {
+    const groups: { key: string; brand: string; model: string; cars: Vehicle[]; fromPrice: number }[] = [];
+    for (const v of this.vehicles().filter((x) => x.brand === this.carsBrand())) {
+      const key = `${v.brand}|${v.model}`;
+      let g = groups.find((x) => x.key === key);
+      if (!g) groups.push((g = { key, brand: v.brand, model: v.model, cars: [], fromPrice: v.price }));
+      g.cars.push(v);
+      g.fromPrice = Math.min(g.fromPrice, v.price);
+    }
+    return groups;
+  });
+
+  /** The base rebate for this variant's newest model year — the same rebate the Quote applies
+   *  (Additional Rebate never applies on the public link). */
+  browseRebate(v: Vehicle): number {
+    return rebateForYear(v, Math.max(...v.years.map((y) => y.year)));
+  }
+
+  /** Jumps to the Quote section with this exact car already selected. */
+  quoteThisCar(v: Vehicle) {
+    this.selectedBrand.set(v.brand);
+    this.selectModelVariant(v.model, v.variant);
+    this.selectSection('quote');
+  }
+  section = signal<PageSection>('profile');
+
+  selectSection(id: PageSection) {
+    const changed = this.section() !== id;
+    this.section.set(id);
+    window.scrollTo({ top: 0, behavior: changed ? 'instant' : 'smooth' });
+    // First visit to the Quote tab on this device gets the walkthrough.
+    if (id === 'quote' && changed && !this.tour.hasSeen('quote')) {
+      // Only if they're still on Quote once the delay is up — not over whichever section they moved to.
+      setTimeout(() => {
+        if (this.section() === 'quote') void this.startTour();
+      }, 400);
+    }
+  }
+
+  avatarGradient =
+    'radial-gradient(circle at 30% 20%, var(--primary), transparent 70%), linear-gradient(145deg, var(--primary), color-mix(in oklch, var(--primary), black 55%))';
+
+  callHref = computed(() => {
+    const advisor = this.bundle()?.advisor;
+    const wa = (advisor?.phoneWa ?? '').replace(/[^0-9]/g, '');
+    if (wa) return `tel:+${wa}`;
+    const local = (advisor?.phoneDisplay ?? '').replace(/[^0-9+]/g, '');
+    return local ? `tel:${local}` : null;
+  });
+
+  profileWhatsAppHref = computed(() => {
+    const advisor = this.bundle()?.advisor;
+    const wa = (advisor?.phoneWa ?? '').replace(/[^0-9]/g, '');
+    if (!wa) return null;
+    const text = `Hi ${advisor!.name}, I came across your profile and would like to know more.`;
+    return `https://wa.me/${wa}?text=${encodeURIComponent(text)}`;
+  });
+
+  showroom = computed(() => {
+    const s = this.bundle()?.advisor.showroom;
+    return hasShowroom(s) ? s! : null;
+  });
+  showroomMapsHref = computed(() => showroomMapsHref(this.showroom()));
+  showroomWazeHref = computed(() => showroomWazeHref(this.showroom()));
+  socials = computed(() => socialEntries(this.bundle()?.advisor.socials));
+
   fmt = (v: number) => formatRM(v);
   fmt2 = (v: number) => `RM ${v.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   modelVariantLabel = modelVariantLabel;
+  formatPhone = formatMalaysianPhone;
   ncdOptions = NCD_OPTIONS;
 
   advisorInitials = computed(() =>
@@ -686,12 +1158,19 @@ export class PublicQuoteComponent implements OnInit {
    *  here, so a customer can't type in an unrealistically low rate for themselves. Mirrors the
    *  Calculator's own auto-rate lookup (vehicle's own promo rate for this type, else the SA's
    *  sales default), just with no override path. */
-  rateType = computed(() => this.bundle()?.salesDefaults.defaultRateType ?? 'flat');
-  interestRate = computed(() => {
-    const vehicle = this.selectedVehicle();
-    const fallback = this.bundle()?.salesDefaults.interestRate ?? 3.5;
-    return this.rateType() === 'effective' ? (vehicle.effectiveRate ?? fallback) : (vehicle.interestRate ?? fallback);
+  private rateDefaults = computed(() => {
+    const d = this.bundle()?.salesDefaults;
+    return { interestRate: d?.interestRate ?? 2.5, effectiveRate: d?.effectiveRate };
   });
+  /** The SA's default Rate Type — except that an EIR quote on a car with no EIR anywhere (neither
+   *  its own nor an account default) falls back to quoting flat, labelled as flat. The customer
+   *  can't be asked for the bank's rate here, and a flat figure passed off as EIR would understate
+   *  the instalment. */
+  rateType = computed((): RateType => {
+    const preferred = this.bundle()?.salesDefaults.defaultRateType ?? 'flat';
+    return preferred === 'effective' && defaultRateFor(this.selectedVehicle(), 'effective', this.rateDefaults()) === null ? 'flat' : preferred;
+  });
+  interestRate = computed(() => defaultRateFor(this.selectedVehicle(), this.rateType(), this.rateDefaults()) ?? this.rateDefaults().interestRate);
 
   insuranceRatePct = computed(() => this.bundle()?.salesDefaults.basicPremiumRatePct ?? 3.27);
   autoBasicPremium = computed(() => this.selectedVehicle().basicPremium ?? basicPremiumDefault(this.basePrice(), this.insuranceRatePct()));
@@ -726,8 +1205,27 @@ export class PublicQuoteComponent implements OnInit {
       loanBasisInsuranceAmount: this.loanBasisInsurance(),
       downpaymentType: this.downpaymentType(),
       downpaymentValue: this.downpaymentValue(),
+      minDownpaymentCash: this.minDownpayment(),
     }),
   );
+  /** This variant's minimum downpayment (set by the advisor in Price Settings), before rebate; 0 = none. */
+  minDownpayment = computed(() => minDownpaymentCash(this.selectedVehicle().minDownpayment, this.basePrice()));
+  /** Cash still needed to meet the minimum once the rebate is counted towards it. */
+  minCashNeeded = computed(() => roundCents(Math.max(0, this.minDownpayment() - this.effectiveRebate())));
+  /** True when what was entered fell short of the minimum and the quote was raised to it. */
+  downpaymentRaisedToMin = computed(() => {
+    if (this.minDownpayment() <= 0 || this.totals().loanAmount === 0) return false;
+    const unclamped = computeQuotationTotals({
+      basePrice: this.basePrice(),
+      effectiveRebate: this.effectiveRebate(),
+      insuranceAmount: this.insurance(),
+      loanBasisInsuranceAmount: this.loanBasisInsurance(),
+      downpaymentType: this.downpaymentType(),
+      downpaymentValue: this.downpaymentValue(),
+    });
+    return unclamped.downpaymentCash < this.totals().downpaymentCash;
+  });
+
   allInPrice = computed(() => this.totals().totalAmountDue);
   downpaymentCash = computed(() => this.totals().downpaymentCash);
   loanAmount = computed(() => this.totals().loanAmount);
@@ -749,14 +1247,14 @@ export class PublicQuoteComponent implements OnInit {
       this.downpaymentValue.set(10);
     } else {
       this.downpaymentType.set('amount');
-      this.downpaymentValue.set(0);
+      this.downpaymentValue.set(this.minCashNeeded());
     }
   }
 
   isDownpaymentPreset(preset: 'tenPercent' | 'fullLoan'): boolean {
     const type = this.downpaymentType();
     if (preset === 'tenPercent') return type === 'percent' && this.downpaymentValue() === 10;
-    return type === 'amount' && this.downpaymentValue() === 0;
+    return type === 'amount' && this.downpaymentValue() === this.minCashNeeded();
   }
 
   /** Unlike Loan Amount/Monthly Installment (which need a draft signal so the derived, rounded
@@ -874,18 +1372,20 @@ export class PublicQuoteComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
-    // A customer opening this link for the first time on this device gets the walkthrough.
-    setTimeout(() => {
-      if (!this.notFound() && !this.tour.hasSeen('quote')) void this.startTour();
-    }, 1000);
   }
 
-  /** The customer-facing walkthrough — also replayable from the Guide button. The WhatsApp Advisor
+  /** The customer-facing walkthrough — also replayable from the Guide button. The "WhatsApp Me Here"
    *  step matters most: it's a small text button, and it's how a customer sends the quote on. */
   startTour() {
     const advisor = this.bundle()?.advisor.name || 'your advisor';
-    const showPreview = () => this.mobileTab.set('preview');
-    const showCustomize = () => this.mobileTab.set('customize');
+    const showPreview = () => {
+      this.section.set('quote');
+      this.mobileTab.set('preview');
+    };
+    const showCustomize = () => {
+      this.section.set('quote');
+      this.mobileTab.set('customize');
+    };
     const steps: TourStep[] = [
       {
         title: 'Build your own quote',
@@ -919,7 +1419,7 @@ export class PublicQuoteComponent implements OnInit {
       {
         target: 'quote-whatsapp',
         title: `Send it to ${advisor}`,
-        body: `Happy with the numbers? Tap "WhatsApp Advisor" to send this exact quote to ${advisor}, who will confirm the final figures with you.`,
+        body: `Happy with the numbers? Tap "WhatsApp Me Here" to send this exact quote to ${advisor}, who will confirm the final figures with you.`,
         before: showPreview,
         skipIfMissing: true,
         doneLabel: 'Got it',
@@ -951,8 +1451,7 @@ export class PublicQuoteComponent implements OnInit {
         initials: this.advisorInitials(),
         photoUrl: advisor.photoUrl ?? null,
         phoneDisplay: advisor.phoneDisplay,
-        // The public quote bundle never carries the advisor's bio — see server/public.ts's own
-        // "never email/bio" rule for this unauthenticated, customer-facing endpoint.
+        // The bio is shown on the Profile tab, not on the customer's quote poster.
         bio: '',
       },
       otrPrice: this.basePrice(),

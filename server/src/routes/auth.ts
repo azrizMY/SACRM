@@ -4,28 +4,28 @@ import {
   deleteAllSessionsForUser,
   deleteSession,
   generatePublicToken,
-  generateResetToken,
   getUserFromSession,
   hashPassword,
   sessionCookieHeader,
   sha256Hex,
   verifyPassword,
 } from '../auth';
-import { sendPasswordResetEmail } from '../email';
 import { json, readJsonBody } from '../http';
 import { clientIp, isRateLimited } from '../rate-limit';
 import type { Env } from '../index';
 
 type SignupBody = { name?: string; email?: string; password?: string; phone?: string; primaryBrand?: string };
 type LoginBody = { email?: string; password?: string };
-type ForgotPasswordBody = { email?: string };
+type ForgotPasswordBody = { email?: string; primaryBrand?: string; password?: string };
 type ResetPasswordBody = { token?: string; password?: string };
 type ChangePasswordBody = { currentPassword?: string; newPassword?: string };
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MS = 30 * 60 * 1000;
-const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
+/** Mirrors the client's DEFAULT_SETTINGS.dashboardTarget.brand — what an account with no saved
+ *  Primary Brand sees in its own Settings. */
+const DEFAULT_PRIMARY_BRAND = 'Chery';
 const TOO_MANY = 'Too many attempts. Please try again later.';
 
 /** Mirrors the client's toMalaysianWhatsAppNumber (dashboard-data.ts) so a freshly-seeded advisor
@@ -140,29 +140,33 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
   }
 
   if (url.pathname === '/api/auth/forgot-password' && request.method === 'POST') {
+    // Resets on the spot once the email + Primary Brand match — no reset email is sent.
     const body = await readJsonBody<ForgotPasswordBody>(request);
     const email = body?.email?.trim().toLowerCase();
-    if (!email) return json({ error: 'Email is required.' }, 400);
+    const primaryBrand = body?.primaryBrand?.trim().toLowerCase();
+    const password = body?.password;
+    if (!email || !primaryBrand || !password) return json({ error: 'Email, primary brand, and new password are required.' }, 400);
+    if (password.length < 8) return json({ error: 'Password must be at least 8 characters.' }, 400);
     if (await isRateLimited(env, `forgot-ip:${clientIp(request)}`, 10, HOUR_MS)) return json({ error: TOO_MANY }, 429);
-    // Per-address cap stops someone flooding one inbox; answered like a normal success so it
-    // can't be used to probe which emails are registered.
-    if (await isRateLimited(env, `forgot-email:${email}`, 3, HOUR_MS)) return json({ ok: true });
+    if (await isRateLimited(env, `forgot-email:${email}`, 10, HOUR_MS)) return json({ error: TOO_MANY }, 429);
 
     const user = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first<{ id: string }>();
-    if (user) {
-      const resetToken = generateResetToken();
-      await env.DB.batch([
-        env.DB.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(user.id),
-        env.DB.prepare('INSERT INTO password_resets (token, user_id, expires_at) VALUES (?, ?, ?)').bind(await sha256Hex(resetToken), user.id, Date.now() + RESET_TOKEN_TTL_MS),
-      ]);
-      const resetLink = `${url.origin}/reset-password?token=${resetToken}`;
-      try {
-        await sendPasswordResetEmail(env, email, resetLink);
-      } catch (err) {
-        console.error('Failed to send password reset email', err);
-      }
+    const settingsRow = user
+      ? await env.DB.prepare('SELECT data FROM settings WHERE user_id = ?').bind(user.id).first<{ data: string }>()
+      : null;
+    const savedBrand: string = (settingsRow ? JSON.parse(settingsRow.data).dashboardTarget?.brand : undefined) ?? DEFAULT_PRIMARY_BRAND;
+    // Same message for an unknown email and a wrong brand, so this can't be used to probe which
+    // emails are registered.
+    if (!user || savedBrand.trim().toLowerCase() !== primaryBrand) {
+      return json({ error: "That email and primary brand don't match an account." }, 400);
     }
-    // Same response whether or not the account exists, so this can't be used to enumerate emails.
+
+    const passwordHash = await hashPassword(password);
+    await env.DB.batch([
+      env.DB.prepare('UPDATE users SET password_hash = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?').bind(passwordHash, user.id),
+      env.DB.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(user.id),
+    ]);
+    await deleteAllSessionsForUser(env.DB, user.id);
     return json({ ok: true });
   }
 

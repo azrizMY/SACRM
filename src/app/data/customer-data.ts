@@ -149,8 +149,27 @@ export type CustomerRecord = {
   // recomputed on demand so they never drift from the shared calculator math.
   quotation?: QuotationDetails;
 
+  /** Set when the car is changed on a record that already had a quotation — that quotation still
+   *  holds the previous car's rebate, rate and insurance until the SA re-quotes (which clears
+   *  this). Holds what the old quotation worked out to, so the re-quote can keep the customer's
+   *  agreed RM down payment and show old vs new. */
+  pendingRequote?: PendingRequote;
+
   createdAt: number;
   updatedAt: number;
+};
+
+export type CarSpec = { brand: string; model: string; variant: string; yearMade: number };
+
+export type PendingRequote = {
+  /** The car the existing quotation was made for. */
+  from: CarSpec;
+  changedAt: number;
+  allInPrice: number;
+  downpaymentCash: number;
+  loanAmount: number;
+  tenureMonths: number;
+  monthly: number;
 };
 
 export type ActivityEntry = { id: string; date: number; message: string };

@@ -73,14 +73,13 @@ export class AuthService {
     }
   }
 
-  /** Always resolves ok — the server intentionally responds the same way whether or not the email
-   *  belongs to an account, so this can't be used to enumerate registered emails. */
-  async forgotPassword(email: string): Promise<AuthResult> {
+  /** Resets the password on the spot when the email and Primary Brand match the account. */
+  async forgotPassword(email: string, primaryBrand: string, password: string): Promise<AuthResult> {
     try {
-      await firstValueFrom(this.http.post('/api/auth/forgot-password', { email }));
+      await firstValueFrom(this.http.post('/api/auth/forgot-password', { email, primaryBrand, password }));
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: extractError(err, "Couldn't send the reset email. Please try again.") };
+      return { ok: false, error: extractError(err, "Couldn't reset your password. Please try again.") };
     }
   }
 

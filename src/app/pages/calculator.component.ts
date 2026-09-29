@@ -6,11 +6,13 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../shared/icon.component';
 import { InsuranceQuotationEditorComponent } from '../shared/insurance-quotation-editor.component';
+import { NumberFieldComponent } from '../shared/number-field.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { CustomerService } from '../shared/customer.service';
 import { SettingsService } from '../shared/settings.service';
-import { CUSTOMER_STATUS_META, FINANCING_TYPE_OPTIONS, SOURCE_TYPES, TO_BE_CONFIRMED_COLOUR, type CustomerRecord, type FinancingType } from '../data/customer-data';
+import { CUSTOMER_STATUS_META, FINANCING_TYPE_OPTIONS, TO_BE_CONFIRMED_COLOUR, type CustomerRecord, type FinancingType } from '../data/customer-data';
 import { todayStr } from '../shared/date-utils';
+import { DEFAULT_LEAD_SOURCE } from '../data/settings-data';
 import { brandLogo, toMalaysianWhatsAppNumber } from '../data/dashboard-data';
 import {
   NCD_OPTIONS,
@@ -19,6 +21,8 @@ import {
   colourSurchargeFor,
   computeInsuranceBreakdown,
   computeQuotationTotals,
+  minDownpaymentCash,
+  defaultRateFor,
   formatRM,
   loanForMonthlyPayment,
   modelVariantLabel,
@@ -37,20 +41,29 @@ import { downloadBlob } from '../shared/pdf-writer';
 import { posterFontsReady } from '../shared/poster-theme';
 import { classicTemplate } from '../shared/poster-template-classic';
 import { compactMyTemplate } from '../shared/poster-template-my';
+import { promoTemplate, squareTemplate } from '../shared/poster-template-social';
 import type { PosterData } from '../shared/poster-data';
 import type { PosterTemplate, PosterTemplateId } from '../shared/poster-templates';
 
 @Component({
   selector: 'app-calculator',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent, InsuranceQuotationEditorComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, NumberFieldComponent, InsuranceQuotationEditorComponent],
   template: `
     <div class="mx-auto flex max-w-7xl flex-col gap-6">
       <!-- Mobile Preview/Customize switcher -->
-      <div class="sticky -top-4 z-10 -mx-4 -mt-4 flex flex-col gap-2 bg-background px-4 pb-2 pt-4 md:-top-6 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 xl:hidden">
+      <div class="sticky -top-4 z-10 -mx-4 -mt-4 flex flex-col gap-2 border-b border-border bg-background px-4 pb-2 pt-4 md:-top-6 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 xl:hidden">
+        <!-- Live monthly (same as the customer link), so changes on Customize show without switching to Preview -->
         <div class="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
-          <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">OTR Price</span>
-          <span class="text-sm font-bold tabular">{{ fmt2(allInPrice()) }}</span>
+          @if (isCashPurchase()) {
+            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Selling price</span>
+            <span class="text-sm font-bold tabular">{{ fmt2(allInPrice()) }}</span>
+          } @else {
+            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Monthly · {{ selectedTenureLabel() }}</span>
+            <span class="text-sm font-bold tabular" [ngClass]="rateMissing() ? 'text-[var(--warning)]' : 'text-primary'">
+              {{ rateMissing() ? 'Rate needed' : fmt2(selectedTenureMonthly()) }}
+            </span>
+          }
         </div>
         <div role="tablist" aria-label="Quote view" class="flex rounded-lg border border-border bg-muted/30 p-1">
           <button
@@ -85,14 +98,14 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
           [ngClass]="mobileTab() === 'preview' ? 'flex' : 'hidden'"
         >
           @if (availableTemplates().length > 1) {
-            <div role="radiogroup" aria-label="Poster template" class="flex w-full shrink-0 gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
+            <div role="radiogroup" aria-label="Poster template" class="flex w-full shrink-0 gap-1.5 overflow-x-auto rounded-xl border border-border bg-muted/40 p-1.5">
               @for (t of availableTemplates(); track t.id) {
                 <button
                   type="button"
                   role="radio"
                   [attr.aria-checked]="selectedTemplateId() === t.id"
                   (click)="selectedTemplateId.set(t.id)"
-                  class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-center transition-colors"
+                  class="flex-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold text-center transition-colors"
                   [ngClass]="selectedTemplateId() === t.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                 >
                   {{ t.label }}
@@ -100,9 +113,29 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               }
             </div>
           }
-          <div class="shrink-0 overflow-hidden rounded-xl shadow-md">
-            <canvas #posterCanvas class="block w-full h-auto"></canvas>
+          <div class="relative mx-auto w-full shrink-0 overflow-hidden rounded-xl shadow-md" [ngClass]="previewWidthClass()">
+            <canvas #posterCanvas class="block w-full h-auto" [class.blur-sm]="rateMissing()"></canvas>
+            @if (rateMissing()) {
+              <!-- The poster would otherwise show a 0% EIR and an instalment that isn't real -->
+              <div class="absolute inset-0 flex items-center justify-center bg-black/55 p-6">
+                <div class="flex max-w-xs flex-col items-center gap-2 rounded-xl bg-card px-5 py-4 text-center shadow-xl">
+                  <app-icon name="alert-triangle" [size]="20" class="text-[var(--warning)]" />
+                  <span class="text-sm font-bold">EIR needed</span>
+                  <span class="text-xs text-muted-foreground">Enter the bank's effective rate under Interest Rate to finish this quote.</span>
+                </div>
+              </div>
+            }
           </div>
+
+          @if (rateMissing()) {
+            <div class="flex items-start gap-2.5 rounded-lg bg-[var(--warning)]/12 px-4 py-3 text-sm text-foreground">
+              <app-icon name="alert-triangle" [size]="16" class="mt-0.5 shrink-0 text-[var(--warning)]" />
+              <span class="flex-1">
+                No EIR is set for this car — enter the bank's effective rate under <strong>Interest Rate</strong> before sharing. The monthly figures above aren't
+                real until you do.
+              </span>
+            </div>
+          }
 
           @if (posterShareFallbackNotice()) {
             <div class="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/8 px-4 py-2.5 text-sm">
@@ -115,7 +148,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
             <button
               type="button"
               (click)="copyPosterImage()"
-              [disabled]="copyingPoster()"
+              [disabled]="copyingPoster() || rateMissing()"
               class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
             >
               <app-icon [name]="posterCopied() ? 'check' : 'clipboard-check'" [size]="15" />
@@ -124,7 +157,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
             <button
               type="button"
               (click)="sharePosterImage()"
-              [disabled]="sharingPoster()"
+              [disabled]="sharingPoster() || rateMissing()"
               class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
             >
               <app-icon name="share" [size]="15" />
@@ -228,7 +261,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                       type="button"
                       role="radio"
                       [attr.aria-checked]="y === modelYear()"
-                      (click)="modelYear.set(y)"
+                      (click)="selectModelYear(y)"
                       class="flex-1 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors"
                       [ngClass]="y === modelYear() ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                     >
@@ -266,32 +299,19 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
 
             <div class="flex flex-col gap-2">
               <div class="flex items-center justify-between">
-                <label for="rebateInput" class="text-xs font-medium text-muted-foreground">Rebate (RM)</label>
-                <span class="rounded-md px-1.5 py-0.5 text-[10px] font-semibold" [ngClass]="rebateIsManual() ? 'bg-[var(--warning)]/15 text-[var(--warning)]' : 'bg-muted text-muted-foreground'">
-                  {{ rebateIsManual() ? 'Manual' : 'Default' }}
-                </span>
+                <label for="rebateInput" class="text-xs font-medium text-muted-foreground">Rebate</label>
+                <ng-container [ngTemplateOutlet]="sourceBadge" [ngTemplateOutletContext]="{ $implicit: rebateIsManual(), field: 'rebate' }" />
               </div>
-              <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 focus-within:border-ring">
-                <span class="text-sm font-medium text-muted-foreground">RM</span>
-                <input
-                  id="rebateInput"
-                  type="number"
-                  min="0"
-                  step="500"
-                  inputmode="numeric"
-                  [ngModel]="rebateInput()"
-                  (ngModelChange)="onRebateChange($event)"
-                  class="w-full bg-transparent text-sm font-medium tabular outline-none"
-                />
-              </div>
+              <app-number-field inputId="rebateInput" prefix="RM" [decimals]="0" [value]="rebateInput()" (valueChange)="onRebateChange($event)" />
             </div>
 
             <div class="flex flex-col gap-2">
               <div class="flex items-center justify-between">
-                <label for="additionalRebateInput" class="text-xs font-medium text-muted-foreground">Additional Rebate (RM)</label>
-                <span class="rounded-md px-1.5 py-0.5 text-[10px] font-semibold" [ngClass]="additionalRebateIsManual() ? 'bg-[var(--warning)]/15 text-[var(--warning)]' : 'bg-muted text-muted-foreground'">
-                  {{ additionalRebateIsManual() ? 'Manual' : 'Default' }}
-                </span>
+                <label for="additionalRebateInput" class="text-xs font-medium text-muted-foreground">Additional Rebate</label>
+                <ng-container
+                  [ngTemplateOutlet]="sourceBadge"
+                  [ngTemplateOutletContext]="{ $implicit: additionalRebateIsManual() || additionalRebateEnabled() !== autoAdditionalRebateEnabled(), field: 'additionalRebate' }"
+                />
               </div>
               <div class="flex items-center gap-2">
                 <input
@@ -301,45 +321,46 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                   aria-label="Include additional rebate"
                   class="size-4 shrink-0 rounded border-input accent-primary"
                 />
-                <div
-                  class="flex flex-1 items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 focus-within:border-ring"
-                  [class.opacity-50]="!additionalRebateEnabled()"
-                >
-                  <span class="text-sm font-medium text-muted-foreground">RM</span>
-                  <input
-                    id="additionalRebateInput"
-                    type="number"
-                    min="0"
-                    step="500"
-                    inputmode="numeric"
-                    [disabled]="!additionalRebateEnabled()"
-                    [ngModel]="additionalRebateValue()"
-                    (ngModelChange)="onAdditionalRebateChange($event)"
-                    class="w-full bg-transparent text-sm font-medium tabular outline-none disabled:cursor-not-allowed"
-                  />
-                </div>
+                <app-number-field
+                  class="flex-1"
+                  inputId="additionalRebateInput"
+                  prefix="RM"
+                  [decimals]="0"
+                  [disabled]="!additionalRebateEnabled()"
+                  [value]="additionalRebateValue()"
+                  (valueChange)="onAdditionalRebateChange($event)"
+                />
               </div>
             </div>
           </div>
 
           <!-- Insurance -->
           <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Insurance</span>
-                <span class="rounded-md px-1.5 py-0.5 text-[10px] font-semibold" [ngClass]="insuranceIsManual() ? 'bg-[var(--warning)]/15 text-[var(--warning)]' : 'bg-muted text-muted-foreground'">
-                  {{ insuranceIsManual() ? 'Manual' : 'Default' }}
-                </span>
-              </div>
+            <div class="flex items-center gap-2">
               <button
                 type="button"
-                (click)="openInsuranceBreakdown()"
-                class="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-accent"
+                (click)="insuranceOpen.set(!insuranceOpen())"
+                [attr.aria-expanded]="insuranceOpen()"
+                class="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
-                <app-icon name="settings" [size]="12" />
-                Insurance Breakdown
+                <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Insurance</span>
+                  <span class="truncate text-sm font-semibold tabular text-foreground">{{ fmt2(insurance()) }} <span class="font-normal text-muted-foreground">· {{ ncd() }}% NCD</span></span>
+                </span>
+                <app-icon name="chevron-down" [size]="16" [class]="'shrink-0 text-muted-foreground transition-transform duration-200 ' + (insuranceOpen() ? 'rotate-180' : '')" />
               </button>
+              <ng-container [ngTemplateOutlet]="sourceBadge" [ngTemplateOutletContext]="{ $implicit: insuranceIsManual(), field: 'insurance' }" />
             </div>
+
+            @if (insuranceOpen()) {
+            <button
+              type="button"
+              (click)="openInsuranceBreakdown()"
+              class="flex w-fit items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-accent"
+            >
+              <app-icon name="settings" [size]="12" />
+              Insurance Breakdown
+            </button>
 
             <div class="flex flex-col gap-2">
               <label for="ncdSelect" class="text-xs font-medium text-muted-foreground">
@@ -360,16 +381,32 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               </select>
             </div>
 
-            <div class="flex flex-col gap-1 rounded-lg bg-muted/40 px-3 py-2.5 text-[11px] text-muted-foreground">
-              <span>Total Insurance Cost</span>
-              <span class="text-sm font-semibold tabular text-foreground">{{ fmt2(insurance()) }}</span>
-            </div>
+            }
           </div>
 
           <!-- Interest Rate -->
           <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Interest Rate</span>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                (click)="rateOpen.set(!rateExpanded())"
+                [attr.aria-expanded]="rateExpanded()"
+                class="flex min-w-0 flex-1 items-center gap-2 text-left"
+              >
+                <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Interest Rate</span>
+                  @if (rateMissing()) {
+                    <span class="text-sm font-semibold text-[var(--warning)]">EIR needed</span>
+                  } @else {
+                    <span class="text-sm font-semibold tabular text-foreground">{{ interestRate() }}% <span class="font-normal text-muted-foreground">· {{ rateType() === 'flat' ? 'Flat' : 'EIR' }}</span></span>
+                  }
+                </span>
+                <app-icon name="chevron-down" [size]="16" [class]="'shrink-0 text-muted-foreground transition-transform duration-200 ' + (rateExpanded() ? 'rotate-180' : '')" />
+              </button>
+              <ng-container [ngTemplateOutlet]="sourceBadge" [ngTemplateOutletContext]="{ $implicit: interestRateIsManual(), field: 'rate' }" />
+            </div>
 
+            @if (rateExpanded()) {
             <div class="flex flex-col gap-2">
               <span class="text-xs font-medium text-muted-foreground">Rate Type</span>
               <div role="radiogroup" aria-label="Rate Type" class="flex gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
@@ -397,25 +434,22 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
             </div>
 
             <div class="flex flex-col gap-2">
-              <div class="flex items-center justify-between">
-                <label for="interestRateInput" class="text-xs font-medium text-muted-foreground">{{ rateType() === 'flat' ? 'Flat Rate (%)' : 'Effective Rate (%)' }}</label>
-                <span class="rounded-md px-1.5 py-0.5 text-[10px] font-semibold" [ngClass]="interestRateIsManual() ? 'bg-[var(--warning)]/15 text-[var(--warning)]' : 'bg-muted text-muted-foreground'">
-                  {{ interestRateIsManual() ? 'Manual' : 'Default' }}
+              <label for="interestRateInput" class="text-xs font-medium text-muted-foreground">{{ rateType() === 'flat' ? 'Flat rate' : 'Effective rate (EIR)' }}</label>
+              <app-number-field
+                inputId="interestRateInput"
+                suffix="%"
+                [value]="rateMissing() ? null : interestRate()"
+                [invalid]="rateMissing()"
+                placeholder="Bank's EIR"
+                (valueChange)="onInterestRateChange($event)"
+              />
+              @if (rateMissing()) {
+                <span class="text-[11px] text-[var(--warning)]">
+                  This car has no EIR and there's no default EIR — type the bank's rate here, or set a default EIR in Price Settings.
                 </span>
-              </div>
-              <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 focus-within:border-ring">
-                <input
-                  id="interestRateInput"
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  [ngModel]="interestRate()"
-                  (ngModelChange)="onInterestRateChange($event)"
-                  class="w-full bg-transparent text-sm font-medium tabular outline-none"
-                />
-                <span class="text-sm font-medium text-muted-foreground">%</span>
-              </div>
+              }
             </div>
+            }
           </div>
 
           <!-- Loan setup -->
@@ -439,20 +473,18 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                   class="rounded-lg border px-2 py-2 text-xs font-semibold transition-colors"
                   [ngClass]="isDownpaymentPreset('fullLoan') ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                 >
-                  Full Loan
+                  {{ minDownpayment() > 0 ? 'Minimum' : 'Full Loan' }}
                 </button>
               </div>
               <div class="flex gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  [attr.max]="downpaymentType() === 'percent' ? 100 : null"
-                  [step]="downpaymentType() === 'percent' ? 1 : 500"
-                  [ngModel]="downpaymentValue()"
-                  (ngModelChange)="downpaymentValue.set(+$event || 0)"
-                  (blur)="commitDownpayment()"
-                  (keydown.enter)="commitDownpayment()"
-                  class="h-10 w-full rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular outline-none transition-colors focus:border-ring"
+                <app-number-field
+                  class="min-w-0 flex-1"
+                  ariaLabel="Downpayment"
+                  [prefix]="downpaymentType() === 'amount' ? 'RM' : ''"
+                  [suffix]="downpaymentType() === 'percent' ? '%' : ''"
+                  [value]="downpaymentValue()"
+                  (valueChange)="downpaymentValue.set($event ?? 0)"
+                  (committed)="commitDownpayment()"
                 />
                 <div class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
                   <button
@@ -473,13 +505,33 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                   </button>
                 </div>
               </div>
-              <span class="text-[11px] text-muted-foreground">
-                @if (downpaymentType() === 'percent') {
-                  Rebate is applied to reduce the cash downpayment needed.
+              @if (minDownpayment() > 0) {
+                @if (downpaymentRaisedToMin()) {
+                  <div class="flex items-start gap-2 rounded-lg bg-[var(--warning)]/12 px-3 py-2 text-[11px] text-foreground">
+                    <app-icon name="alert-triangle" [size]="13" class="mt-px shrink-0 text-[var(--warning)]" />
+                    <span>This car needs a <strong>{{ fmt(minDownpayment()) }}</strong> minimum downpayment (rebate counts towards it) — raised to meet it.</span>
+                  </div>
                 } @else {
-                  Rebate reduces the car price separately, not counted as cash deposit.
+                  <span class="text-[11px] text-muted-foreground">Minimum downpayment for this car: {{ fmt(minDownpayment()) }} before rebate</span>
                 }
-              </span>
+              }
+              @if (downpaymentRebateNote(); as n) {
+                <div class="flex flex-col gap-0.5 rounded-lg bg-[var(--success)]/10 px-3 py-2 text-[11px] text-foreground">
+                  @if (n.covered) {
+                    <span><strong>Rebates cover the {{ n.pct }}% down payment.</strong> Customer pays {{ fmt2(n.after) }} (loan rounding only).</span>
+                  } @else {
+                    <span>{{ n.pct }}% is {{ fmt(n.before) }} — rebates of {{ fmt(n.rebate) }} bring it down to <strong>{{ fmt2(n.after) }}</strong>.</span>
+                  }
+                </div>
+              } @else {
+                <span class="text-[11px] text-muted-foreground">
+                  @if (downpaymentType() === 'percent') {
+                    Rebate is applied to reduce the cash downpayment needed.
+                  } @else {
+                    Rebate reduces the car price separately, not counted as cash deposit.
+                  }
+                </span>
+              }
             </div>
 
             <div class="flex items-center gap-3">
@@ -489,23 +541,20 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
             </div>
 
             <div class="flex flex-col gap-2">
-              <label for="loanAmountInput" class="text-xs font-medium text-muted-foreground">Loan Amount (RM)</label>
-              <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 focus-within:border-ring">
-                <span class="text-sm font-medium text-muted-foreground">RM</span>
-                <input
-                  id="loanAmountInput"
-                  type="number"
-                  min="0"
-                  step="100"
-                  inputmode="numeric"
-                  [ngModel]="loanAmountDisplay()"
-                  (ngModelChange)="onLoanAmountInput($event)"
-                  (blur)="commitLoanAmount()"
-                  (keydown.enter)="commitLoanAmount()"
-                  class="w-full bg-transparent text-sm font-medium tabular outline-none"
-                />
-              </div>
-              <span class="text-[11px] text-muted-foreground">Rounds down to the nearest RM100 once you finish typing — any remainder goes to the downpayment.</span>
+              <label for="loanAmountInput" class="text-xs font-medium text-muted-foreground">Loan Amount</label>
+              <app-number-field
+                inputId="loanAmountInput"
+                prefix="RM"
+                [decimals]="0"
+                [value]="loanAmountDisplay()"
+                (valueChange)="onLoanAmountInput($event)"
+                (committed)="commitLoanAmount()"
+              />
+              @if (loanCapNote(); as note) {
+                <span class="text-[11px] font-medium text-[var(--warning)]">{{ note }}</span>
+              } @else {
+                <span class="text-[11px] text-muted-foreground">Rounds down to the nearest RM100 once you finish typing — any remainder goes to the downpayment.</span>
+              }
             </div>
 
             <div class="flex items-center gap-3">
@@ -515,23 +564,19 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
             </div>
 
             <div class="flex flex-col gap-2">
-              <label for="monthlyInstallmentInput" class="text-xs font-medium text-muted-foreground">Monthly Installment (RM)</label>
-              <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 focus-within:border-ring">
-                <span class="text-sm font-medium text-muted-foreground">RM</span>
-                <input
-                  id="monthlyInstallmentInput"
-                  type="number"
-                  min="0"
-                  step="10"
-                  inputmode="numeric"
-                  [ngModel]="monthlyInstallmentDisplay()"
-                  (ngModelChange)="onMonthlyInstallmentInput($event)"
-                  (blur)="commitMonthlyInstallment()"
-                  (keydown.enter)="commitMonthlyInstallment()"
-                  class="w-full bg-transparent text-sm font-medium tabular outline-none"
-                />
-              </div>
-              <span class="text-[11px] text-muted-foreground">Targets the {{ monthlyInstallmentTenureLabel() }} tenure and works backwards to the loan amount and deposit.</span>
+              <label for="monthlyInstallmentInput" class="text-xs font-medium text-muted-foreground">Monthly Installment</label>
+              <app-number-field
+                inputId="monthlyInstallmentInput"
+                prefix="RM"
+                [value]="monthlyInstallmentDisplay()"
+                (valueChange)="onMonthlyInstallmentInput($event)"
+                (committed)="commitMonthlyInstallment()"
+              />
+              @if (monthlyCapNote(); as note) {
+                <span class="text-[11px] font-medium text-[var(--warning)]">{{ note }}</span>
+              } @else {
+                <span class="text-[11px] text-muted-foreground">Targets the {{ monthlyInstallmentTenureLabel() }} tenure and works backwards to the loan amount and deposit.</span>
+              }
             </div>
           </div>
 
@@ -579,6 +624,23 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
       </div>
     </div>
 
+    <!-- "Default" / tappable "Manual ↺" badge — tapping Manual puts just that field back on its default -->
+    <ng-template #sourceBadge let-manual let-field="field">
+      @if (manual) {
+        <button
+          type="button"
+          (click)="resetField(field)"
+          title="Back to the default value"
+          class="flex shrink-0 items-center gap-1 rounded-md bg-[var(--warning)]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--warning)] transition-colors hover:bg-[var(--warning)]/25"
+        >
+          Manual
+          <app-icon name="rotate-ccw" [size]="10" />
+        </button>
+      } @else {
+        <span class="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">Default</span>
+      }
+    </ng-template>
+
     <!-- Add Lead modal -->
     @if (leadModalOpen()) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -615,7 +677,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Source Type
               <select [(ngModel)]="leadSource" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                @for (s of sourceTypes; track s) { <option [value]="s">{{ s }}</option> }
+                @for (s of sourceTypes(); track s) { <option [value]="s">{{ s }}</option> }
               </select>
             </label>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
@@ -636,9 +698,6 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                 </select>
               </label>
             }
-            <p class="text-[11px] text-muted-foreground">
-              Save the lead, or message this customer on WhatsApp — to do both, WhatsApp them first (Save Lead closes this form).
-            </p>
             @if (leadSaved()) {
               <span class="flex items-center gap-1.5 text-[11px] font-medium text-[var(--success)]">
                 <app-icon name="check" [size]="12" />
@@ -665,12 +724,13 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
             </button>
             <button
               type="button"
-              (click)="openWhatsAppForLead()"
-              [disabled]="!leadName || !leadPhone || sendingWhatsApp() || !!existingLeadForPhone()"
-              class="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+              (click)="saveAndWhatsApp()"
+              [disabled]="!leadName || !leadPhone || sendingWhatsApp() || !!existingLeadForPhone() || rateMissing()"
+              [title]="rateMissing() ? 'Enter the EIR first — the quote image would show an incomplete rate' : 'Save this lead and open WhatsApp with the quote image copied'"
+              class="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
             >
               <app-icon name="message-circle" [size]="13" />
-              {{ sendingWhatsApp() ? 'Copying image…' : 'WhatsApp' }}
+              {{ sendingWhatsApp() ? 'Copying image…' : 'Save & WhatsApp' }}
             </button>
           </div>
         </div>
@@ -727,6 +787,7 @@ export class CalculatorComponent implements AfterViewInit {
   fmt2 = (v: number) => `RM ${v.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   modelVariantLabel = modelVariantLabel;
   vehicleTitle = vehicleTitle;
+  roundCents = roundCents;
   statusMeta = CUSTOMER_STATUS_META;
 
   brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
@@ -886,6 +947,7 @@ export class CalculatorComponent implements AfterViewInit {
     this.interestRateManual.set(null);
     this.loanAmountDraft.set(null);
     this.monthlyInstallmentDraft.set(null);
+    this.clearRebateOverrides();
     // A different car has its own colour lineup — carrying over the previous car's pick could
     // silently select a colour (and its surcharge) this car doesn't even offer.
     this.selectedColour.set(this.selectedVehicle().colours?.[0] ?? null);
@@ -918,16 +980,55 @@ export class CalculatorComponent implements AfterViewInit {
   // year's own database row, so rebateInput() (via autoRebate) already reflects that year's figure.
   effectiveRebate = computed(() => this.rebateInput() + (this.additionalRebateEnabled() ? this.additionalRebateValue() : 0));
 
-  onRebateChange(value: number) {
-    this.rebateManual.set(Math.max(0, +value || 0));
+  /** Rebates belong to a specific car and model year — a figure typed for one must never ride
+   *  along silently onto another (same reasoning as insurance/rate in onVariantChange). */
+  private clearRebateOverrides() {
+    this.rebateManual.set(null);
+    this.additionalRebateManual.set(null);
+    this.additionalRebateEnabledManual.set(null);
+  }
+
+  selectModelYear(year: number) {
+    if (year === this.modelYear()) return;
+    this.modelYear.set(year);
+    this.clearRebateOverrides();
+  }
+
+  // Per-field "back to default" — tapping a Manual badge undoes just that one field.
+  resetField(field: 'rebate' | 'additionalRebate' | 'insurance' | 'rate') {
+    if (field === 'rebate') this.resetRebate();
+    else if (field === 'additionalRebate') this.resetAdditionalRebate();
+    else if (field === 'insurance') this.resetInsurance();
+    else this.resetInterestRate();
+  }
+
+  resetRebate() {
+    this.rebateManual.set(null);
+  }
+
+  resetAdditionalRebate() {
+    this.additionalRebateManual.set(null);
+    this.additionalRebateEnabledManual.set(null);
+  }
+
+  resetInsurance() {
+    this.insuranceOverride.set(null);
+  }
+
+  resetInterestRate() {
+    this.interestRateManual.set(null);
+  }
+
+  onRebateChange(value: number | null) {
+    this.rebateManual.set(Math.max(0, value ?? 0));
   }
 
   onAdditionalRebateEnabledChange(value: boolean) {
     this.additionalRebateEnabledManual.set(value);
   }
 
-  onAdditionalRebateChange(value: number) {
-    this.additionalRebateManual.set(Math.max(0, +value || 0));
+  onAdditionalRebateChange(value: number | null) {
+    this.additionalRebateManual.set(Math.max(0, value ?? 0));
   }
 
   insuranceRatePct = computed(() => this.settingsService.settings().salesDefaults.basicPremiumRatePct);
@@ -957,17 +1058,22 @@ export class CalculatorComponent implements AfterViewInit {
   /** The model's own promo rate for whichever Rate Type is active, when known, beats the SA's
    *  general default — flat and effective are independently-quoted figures on the vehicle (see
    *  Vehicle.effectiveRate), so switching rate type looks up the matching field, not a conversion. */
-  autoInterestRate = computed(() => {
-    const vehicle = this.selectedVehicle();
-    const fallback = this.settingsService.settings().salesDefaults.interestRate;
-    return this.rateType() === 'effective' ? (vehicle.effectiveRate ?? fallback) : (vehicle.interestRate ?? fallback);
-  });
+  autoInterestRate = computed(() => defaultRateFor(this.selectedVehicle(), this.rateType(), this.settingsService.settings().salesDefaults));
   interestRateIsManual = computed(() => this.interestRateManual() !== null);
-  interestRate = computed(() => this.interestRateManual() ?? this.autoInterestRate());
+  /** Quoting EIR on a car with no EIR anywhere (its own or the account default) and none typed —
+   *  the SA must enter the bank's rate; sharing is blocked until they do (see the preview column). */
+  rateMissing = computed(() => this.interestRateManual() === null && this.autoInterestRate() === null);
+  interestRate = computed(() => this.interestRateManual() ?? this.autoInterestRate() ?? 0);
 
-  onInterestRateChange(value: number) {
-    this.interestRateManual.set(Math.max(0, +value || 0));
+  onInterestRateChange(value: number | null) {
+    this.interestRateManual.set(value == null ? null : Math.max(0, value));
   }
+
+  // Insurance and Interest Rate are usually left on their defaults, so they fold into one-line
+  // summaries; the rate section forces itself open while a rate is missing.
+  insuranceOpen = signal(false);
+  rateOpen = signal(false);
+  rateExpanded = computed(() => this.rateOpen() || this.rateMissing());
 
   /** Switching Rate Type drops any manual rate override — a flat-mode number typed in has no
    *  business surviving as an effective-mode number, so each type starts back at its own default. */
@@ -984,8 +1090,28 @@ export class CalculatorComponent implements AfterViewInit {
       loanBasisInsuranceAmount: this.loanBasisInsurance(),
       downpaymentType: this.downpaymentType(),
       downpaymentValue: this.downpaymentValue(),
+      minDownpaymentCash: this.minDownpayment(),
     }),
   );
+  /** This variant's minimum cash downpayment (Price Settings), 0 when it has none. */
+  minDownpayment = computed(() => minDownpaymentCash(this.selectedVehicle().minDownpayment, this.basePrice()));
+  /** Cash the customer must still put down to meet the minimum — the minimum is before rebate, so
+   *  the rebate counts towards it. */
+  minCashNeeded = computed(() => roundCents(Math.max(0, this.minDownpayment() - this.effectiveRebate())));
+  /** True when what was entered fell short of the minimum and the quote was raised to it. */
+  downpaymentRaisedToMin = computed(() => {
+    const min = this.minDownpayment();
+    if (min <= 0 || this.totals().loanAmount === 0) return false;
+    const unclamped = computeQuotationTotals({
+      basePrice: this.basePrice(),
+      effectiveRebate: this.effectiveRebate(),
+      insuranceAmount: this.insurance(),
+      loanBasisInsuranceAmount: this.loanBasisInsurance(),
+      downpaymentType: this.downpaymentType(),
+      downpaymentValue: this.downpaymentValue(),
+    });
+    return unclamped.downpaymentCash < this.totals().downpaymentCash;
+  });
 
   allInPrice = computed(() => this.totals().totalAmountDue);
   downpaymentCash = computed(() => this.totals().downpaymentCash);
@@ -1011,14 +1137,14 @@ export class CalculatorComponent implements AfterViewInit {
       this.downpaymentValue.set(10);
     } else {
       this.downpaymentType.set('amount');
-      this.downpaymentValue.set(0);
+      this.downpaymentValue.set(this.minCashNeeded());
     }
   }
 
   isDownpaymentPreset(preset: 'tenPercent' | 'fullLoan'): boolean {
     const type = this.downpaymentType();
     if (preset === 'tenPercent') return type === 'percent' && this.downpaymentValue() === 10;
-    return type === 'amount' && this.downpaymentValue() === 0;
+    return type === 'amount' && this.downpaymentValue() === this.minCashNeeded();
   }
 
   /** Unlike Loan Amount/Monthly Installment (which need a draft signal so the derived, rounded
@@ -1039,19 +1165,37 @@ export class CalculatorComponent implements AfterViewInit {
   }
   loanAmountDisplay = computed(() => this.loanAmountDraft() ?? this.loanAmount());
 
-  onLoanAmountInput(value: number) {
-    this.loanAmountDraft.set(Math.max(0, +value || 0));
+  /** Shown under Loan Amount / Monthly Installment when what was typed couldn't be honoured in
+   *  full (asked for more than the whole amount due) — cleared as soon as they type again. */
+  loanCapNote = signal<string | null>(null);
+  monthlyCapNote = signal<string | null>(null);
+
+  onLoanAmountInput(value: number | null) {
+    this.loanCapNote.set(null);
+    this.loanAmountDraft.set(Math.max(0, value ?? 0));
   }
 
   commitLoanAmount() {
     const draft = this.loanAmountDraft();
     if (draft !== null) {
+      if (draft > this.allInPrice()) {
+        this.loanCapNote.set(`Capped at ${this.fmt(this.allInPrice())} — the loan can't be more than the total amount due.`);
+      }
       this.downpaymentType.set('amount');
       this.downpaymentValue.set(roundCents(Math.max(0, this.allInPrice() - draft)));
       this.monthlyInstallmentDraft.set(null);
     }
     this.loanAmountDraft.set(null);
   }
+
+  /** The percent-mode down payment before rebates, and how rebates bring it down — rebates come
+   *  off the cash down payment (see computeQuotationTotals), so "10%" can end up far below 10%. */
+  downpaymentRebateNote = computed(() => {
+    if (this.downpaymentType() !== 'percent' || this.effectiveRebate() <= 0 || this.isCashPurchase()) return null;
+    const referenceTotal = this.basePrice() + this.loanBasisInsurance();
+    const before = roundCents((Math.max(0, this.downpaymentValue()) / 100) * referenceTotal);
+    return { pct: this.downpaymentValue(), before, rebate: this.effectiveRebate(), after: this.downpaymentCash(), covered: this.effectiveRebate() >= before };
+  });
 
   /** Same draft/commit pattern as the Loan Amount field above — holds whatever's typed until
    *  blur/Enter, then works backwards from "I want to pay about RM X/month" to the loan amount
@@ -1075,14 +1219,18 @@ export class CalculatorComponent implements AfterViewInit {
     this.monthlyInstallmentDraft() ?? roundCents(monthlyPayment(this.loanAmount(), this.interestRate(), this.monthlyInstallmentTenureMonths(), this.rateType())),
   );
 
-  onMonthlyInstallmentInput(value: number) {
-    this.monthlyInstallmentDraft.set(Math.max(0, +value || 0));
+  onMonthlyInstallmentInput(value: number | null) {
+    this.monthlyCapNote.set(null);
+    this.monthlyInstallmentDraft.set(Math.max(0, value ?? 0));
   }
 
   commitMonthlyInstallment() {
     const draft = this.monthlyInstallmentDraft();
     if (draft !== null) {
       const impliedLoan = loanForMonthlyPayment(draft, this.interestRate(), this.monthlyInstallmentTenureMonths(), this.rateType());
+      if (impliedLoan > this.allInPrice()) {
+        this.monthlyCapNote.set(`${this.fmt(draft)}/mo would cover more than the whole car — the loan is capped at the total amount due.`);
+      }
       this.downpaymentType.set('amount');
       this.downpaymentValue.set(roundCents(Math.max(0, this.allInPrice() - impliedLoan)));
       this.loanAmountDraft.set(null);
@@ -1114,7 +1262,7 @@ export class CalculatorComponent implements AfterViewInit {
   posterTenureSummary = computed(() => [...this.posterTenureYears()].sort((a, b) => b - a).join(' · '));
 
   onCustomTenureInput(value: number) {
-    this.highlightedTenure.set(+value || 1);
+    this.highlightedTenure.set(Math.min(120, Math.max(1, Math.round(+value || 1))));
     this.customTenureActive.set(true);
   }
 
@@ -1150,13 +1298,13 @@ export class CalculatorComponent implements AfterViewInit {
 
   quoteDate = computed(() => new Date().toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' }));
 
-  sourceTypes = SOURCE_TYPES;
+  sourceTypes = this.settingsService.leadSources;
   financingTypeOptions = FINANCING_TYPE_OPTIONS;
   leadModalOpen = signal(false);
   leadSaved = signal(false);
   leadName = '';
   leadPhone = '';
-  leadSource = SOURCE_TYPES[0];
+  leadSource = DEFAULT_LEAD_SOURCE;
   leadFinancingType: FinancingType = 'Loan';
 
   constructor(
@@ -1179,13 +1327,27 @@ export class CalculatorComponent implements AfterViewInit {
   /** Every poster design the Quote Preview can render — all consuming the same PosterData, so
    *  adding one is purely a new layout/renderer pair (see poster-templates.ts), never a change to
    *  how data is gathered above. */
-  readonly templates: PosterTemplate[] = [classicTemplate, compactMyTemplate];
+  readonly templates: PosterTemplate[] = [classicTemplate, compactMyTemplate, squareTemplate, promoTemplate];
   /** The compact MY template's entire design is a monthly-payment figure — there's no sensible
    *  cash-buyer version of a poster whose headline is a monthly instalment, so it drops out of the
    *  picker entirely for a cash deal rather than needing its own cash layout. */
-  availableTemplates = computed(() => (this.isCashPurchase() ? this.templates.filter((t) => t.id === 'classic') : this.templates));
+  availableTemplates = computed(() => {
+    const data = this.buildPosterData();
+    return this.templates.filter((t) => !(this.isCashPurchase() && t.id === 'compact-my') && (t.isAvailable?.(data) ?? true));
+  });
   selectedTemplateId = signal<PosterTemplateId>('classic');
   currentTemplate = computed(() => this.availableTemplates().find((t) => t.id === this.selectedTemplateId()) ?? this.availableTemplates()[0]);
+  /** Caps the preview's width for the social shapes, which would otherwise stretch to the full column. */
+  previewWidthClass = computed(() => {
+    switch (this.currentTemplate().aspect) {
+      case 'square':
+        return 'max-w-[520px]';
+      case 'promo':
+        return 'max-w-[440px]';
+      default:
+        return '';
+    }
+  });
 
   /** Assembles the plain data object the renderer draws from — nothing in poster-renderer.ts
    *  reads a component signal directly, so every figure on the poster traces back to here. */
@@ -1258,7 +1420,8 @@ export class CalculatorComponent implements AfterViewInit {
   openLeadModal() {
     this.leadName = '';
     this.leadPhone = '';
-    this.leadSource = SOURCE_TYPES[0];
+    const defaults = this.settingsService.settings().salesDefaults;
+    this.leadSource = defaults.leadSource ?? this.sourceTypes()[0] ?? DEFAULT_LEAD_SOURCE;
     // Matches whatever the quote is actually showing right now — a downpayment already dialled
     // to 100% is a cash deal, so the lead shouldn't default back to Hire Purchase just because
     // that's the modal's own baseline.
@@ -1317,6 +1480,20 @@ export class CalculatorComponent implements AfterViewInit {
     await this.saveLeadRecord();
     // Only closes once the lead actually saved — never on the early-return path (a duplicate
     // phone), where the modal needs to stay open so the SA can see and act on that warning.
+    if (this.leadSaved()) this.closeLeadModal();
+  }
+
+  /**
+   * Saves the lead and opens WhatsApp in one go. Order matters: the clipboard write and the
+   * WhatsApp window both have to happen while the tap's user-activation is still fresh, so the
+   * save (a network round-trip) runs alongside them rather than first; the modal closes once the
+   * save has landed.
+   */
+  async saveAndWhatsApp() {
+    if (this.sendingWhatsApp() || this.existingLeadForPhone()) return;
+    const saving = this.saveLeadRecord();
+    await this.openWhatsAppForLead();
+    await saving;
     if (this.leadSaved()) this.closeLeadModal();
   }
 
@@ -1382,7 +1559,9 @@ export class CalculatorComponent implements AfterViewInit {
 
   private posterFileName(): string {
     const v = this.selectedVehicle();
-    return `Quote-${vehicleTitle(v.brand, v.model)}.png`.replace(/\s*\|\s*/g, '-').replace(/\s+/g, '-');
+    const t = this.currentTemplate();
+    const suffix = t.aspect ? `-${t.label}` : '';
+    return `Quote-${vehicleTitle(v.brand, v.model)}${suffix}.png`.replace(/\s*\|\s*/g, '-').replace(/\s+/g, '-');
   }
 
   private async downloadPosterBlob(blob: Blob): Promise<void> {

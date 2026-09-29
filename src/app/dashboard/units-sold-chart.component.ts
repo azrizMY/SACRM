@@ -20,7 +20,7 @@ const STAGES: Stage[] = [
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="flex h-full flex-col gap-6 rounded-xl border border-border bg-card py-6 text-card-foreground shadow-sm">
+    <div class="flex h-full flex-col gap-6 animate-rise rounded-xl border border-border bg-card py-6 text-card-foreground transition-colors duration-300 hover:border-primary/30">
       <div class="flex flex-col gap-3 px-6">
         <div class="flex flex-col gap-1">
           <h3 class="font-semibold leading-none">Pipeline trend</h3>
@@ -157,10 +157,12 @@ export class UnitsSoldChartComponent implements AfterViewInit, OnDestroy {
 
   yTicks = computed(() => {
     const plotH = this.height - this.pad.top - this.pad.bottom;
-    const steps = 4;
+    // yMax is always a multiple of 5, so 5 steps keeps every tick a whole number — 4 steps
+    // rounded 2.5 up to 3 and dropped the 2 (and could repeat a label on small axes).
+    const steps = 5;
     const yMax = this.yMax();
     return Array.from({ length: steps + 1 }, (_, i) => {
-      const value = Math.round((yMax / steps) * i);
+      const value = (yMax / steps) * i;
       const y = this.pad.top + plotH - (value / yMax) * plotH;
       return { value, y };
     });

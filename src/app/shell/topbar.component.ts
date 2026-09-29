@@ -10,7 +10,7 @@ import { NotificationBellComponent } from './notification-bell.component';
   standalone: true,
   imports: [CommonModule, NgTemplateOutlet, IconComponent, NotificationBellComponent],
   template: `
-    <header class="flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur md:px-6">
+    <header class="flex h-16 shrink-0 items-center gap-3 border-b border-border bg-background px-4 md:px-6">
       <button
         type="button"
         class="flex size-9 items-center justify-center rounded-md text-foreground transition-colors hover:bg-accent md:hidden"
@@ -21,10 +21,9 @@ import { NotificationBellComponent } from './notification-bell.component';
       </button>
 
       <div class="flex items-center gap-2">
-        <h1 class="text-lg font-semibold tracking-tight text-balance">{{ title }}</h1>
+        <h1 class="text-lg font-bold tracking-tight text-balance">{{ title }}</h1>
         @if (brand) {
-          <span class="text-muted-foreground" aria-hidden="true">&middot;</span>
-          <span class="text-sm font-medium text-muted-foreground">{{ brand }}</span>
+          <span class="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">{{ brand }}</span>
         }
       </div>
 

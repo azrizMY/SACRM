@@ -85,6 +85,23 @@ export function usernameDisplay(username?: string): string | null {
   return hasUsername(trimmed) ? trimmed! : null;
 }
 
+/** Plain-text summary of a banker's card — shared via shareBankerHref below, not shown on screen. */
+function bankerContactText(b: BankerRecord): string {
+  const lines = [`*${b.name}* — ${b.bank}`, b.branch ? `${b.branch}, ${b.state}` : b.state];
+  if (b.phone?.trim()) lines.push(`Phone: ${b.phone.trim()}`);
+  const username = usernameDisplay(b.username);
+  if (username) lines.push(`WhatsApp: ${username}`);
+  if (b.notes?.trim()) lines.push('', b.notes.trim());
+  return lines.join('\n');
+}
+
+/** No phone number in the link on purpose — this shares the banker's card to whichever contact the
+ *  SA picks next in WhatsApp, unlike whatsAppHref() above which opens a chat with the banker
+ *  themselves. */
+export function shareBankerHref(b: BankerRecord): string {
+  return `https://wa.me/?text=${encodeURIComponent(bankerContactText(b))}`;
+}
+
 /** Normalizes a saved username to always carry its "@" prefix, and collapses the empty "@"
  *  placeholder down to undefined so it isn't stored as a fake value. */
 export function normalizeUsername(value?: string): string | undefined {

@@ -1,34 +1,41 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IconComponent, type IconName } from '../shared/icon.component';
 import { DateRangePickerComponent } from '../shared/date-range-picker.component';
-import { CustomerAccordionDetailComponent } from '../shared/customer-accordion-detail.component';
+import { CustomerDetailComponent } from '../shared/customer-detail.component';
 import { CustomerEditModalComponent } from '../shared/customer-edit-modal.component';
 import { CustomerNoteModalComponent } from '../shared/customer-note-modal.component';
 import { CustomerService } from '../shared/customer.service';
-import { SettingsService } from '../shared/settings.service';
+import { SettingsService, UNSPECIFIED_INSURER, withCurrent } from '../shared/settings.service';
+import { DEFAULT_STALE_LEAD_DAYS } from '../data/settings-data';
 import {
   DEFAULT_INSURANCE_RATE_PCT,
+  MODEL_YEARS,
   NCD_OPTIONS,
   TENURE_OPTIONS,
   VEHICLES,
   basicPremiumDefault,
   computeInsuranceBreakdown,
   computeQuotationTotals,
+  minDownpaymentCash,
   additionalRebateForYear,
+  defaultRateFor,
   coloursForVehicle,
   modelVariantLabel,
+  modelsForBrand,
   monthlyPayment,
   rebateForYear,
+  variantsForModel,
   vehicleTitle,
   type RateType,
   type Vehicle,
 } from '../data/calculator-data';
 import { BrandMarkComponent } from '../shared/brand-mark.component';
 import { todayStr } from '../shared/date-utils';
+import { celebrate } from '../shared/celebrate';
 import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
 import {
   CANCEL_REASON_OPTIONS,
@@ -37,8 +44,6 @@ import {
   DOCUMENT_STATUS_META,
   DOCUMENT_STATUS_OPTIONS,
   FINANCING_TYPE_OPTIONS,
-  INSURANCE_OPTIONS,
-  SOURCE_TYPES,
   STAGE_DATE_HEADER,
   TO_BE_CONFIRMED_COLOUR,
   canSubmitBooked,
@@ -52,6 +57,7 @@ import {
   isCashDeal,
   type BookedInput,
   type CancelledInput,
+  type CarSpec,
   type CustomerRecord,
   type CustomerStatus,
   type DeliveredInput,
@@ -59,11 +65,12 @@ import {
   type EditCustomerInput,
   type FinancingType,
   type InProgressInput,
+  type PendingRequote,
   type QuotationDetails,
 } from '../data/customer-data';
 
 type Tab = 'All' | 'Lead' | 'Booked' | 'In Progress' | 'Delivered' | 'Cancelled';
-type ModalKind = 'booked' | 'inprogress' | 'delivered' | 'cancel' | 'edit' | 'note' | null;
+type ModalKind = 'booked' | 'inprogress' | 'delivered' | 'cancel' | 'edit' | 'note' | 'changecar' | null;
 /** 'stageDate' is a synthetic column — every tab's "date" column is the derived stage-entry
  *  date (see stageEnteredAt), never a raw stored field, so it isn't a real CustomerRecord key. */
 type SortKey = keyof CustomerRecord | 'stageDate';
@@ -130,15 +137,33 @@ function compareRecords(a: CustomerRecord, b: CustomerRecord, key: SortKey, dir:
   return dir === 'asc' ? cmp : -cmp;
 }
 
+const COLUMNS_BY_TAB: Record<Tab, Column[]> = {
+  All: ALL_COLUMNS,
+  Lead: LEAD_COLUMNS,
+  Booked: BOOKED_COLUMNS,
+  'In Progress': INPROGRESS_COLUMNS,
+  Delivered: DELIVERED_COLUMNS,
+  Cancelled: CANCELLED_COLUMNS,
+};
+
 const TD = 'whitespace-nowrap p-4 align-middle';
 const TD_R = 'whitespace-nowrap p-4 text-right align-middle';
 
-const ALL_COLSPAN = ALL_COLUMNS.length + 1;
-const LEAD_COLSPAN = LEAD_COLUMNS.length + 1;
-const BOOKED_COLSPAN = BOOKED_COLUMNS.length + 1;
-const INPROGRESS_COLSPAN = INPROGRESS_COLUMNS.length + 1;
-const DELIVERED_COLSPAN = DELIVERED_COLUMNS.length + 1;
-const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** A lead with no activity for this many days is flagged as going stale. */
+const WARN_TONE = 'bg-[var(--warning)]/14 text-[var(--warning)]';
+const DANGER_TONE = 'bg-[var(--destructive)]/12 text-[var(--destructive)]';
+
+/** Something about a record the SA should act on — `label` is the short row chip, `detail` the
+ *  sentence shown in the customer panel. */
+type Attention = { label: string; detail: string; tone: string };
+
+/** The button label for moving a record to its next pipeline stage, if it has one. */
+const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
+  Lead: 'Book',
+  Booked: 'Start progress',
+  'In Progress': 'Deliver',
+};
 
 @Component({
   selector: 'app-customer-manager',
@@ -149,586 +174,214 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
     RouterLink,
     IconComponent,
     DateRangePickerComponent,
-    CustomerAccordionDetailComponent,
+    CustomerDetailComponent,
     CustomerEditModalComponent,
     CustomerNoteModalComponent,
     BrandMarkComponent,
   ],
   template: `
-    <div class="mx-auto flex max-w-7xl flex-col gap-5">
+    <div class="mx-auto flex max-w-7xl flex-col gap-5 transition-[margin] duration-300" [ngClass]="panelRecord() ? '2xl:mr-[476px]' : ''">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="flex flex-col gap-1">
-          <h2 class="text-balance text-xl font-semibold tracking-tight">Customer Manager</h2>
+          <h2 class="text-balance text-xl font-bold tracking-tight">Customer Manager</h2>
           <p class="text-pretty text-sm text-muted-foreground">Track every customer from lead to booking to delivery.</p>
         </div>
+        <a
+          routerLink="/calculator"
+          title="Leads are created by saving a quote in the Calculator"
+          class="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground"
+        >
+          <app-icon name="plus" [size]="14" />
+          New lead
+        </a>
       </div>
 
-      <!-- Tabs + search -->
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" aria-label="Pipeline stage" class="flex flex-wrap items-center gap-1.5">
-          @for (t of tabs; track t) {
-            <button
-              type="button"
-              role="tab"
-              [attr.aria-selected]="t === activeTab()"
-              (click)="selectTab(t)"
-              class="rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
-              [ngClass]="
-                t === activeTab()
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              "
-            >
-              {{ t }} ({{ countFor(t) }})
-            </button>
+      <!-- Pipeline: All · Lead → Booked → In Progress → Delivered · Cancelled -->
+      <div role="tablist" aria-label="Pipeline stage" class="-mx-4 flex items-stretch gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
+        <div class="flex shrink-0 rounded-xl bg-card p-1">
+          <ng-container [ngTemplateOutlet]="stageTab" [ngTemplateOutletContext]="{ $implicit: 'All' }" />
+        </div>
+        <div class="flex shrink-0 items-center rounded-xl bg-card p-1">
+          @for (s of pipelineStages; track s; let last = $last) {
+            <ng-container [ngTemplateOutlet]="stageTab" [ngTemplateOutletContext]="{ $implicit: s }" />
+            @if (!last) {
+              <app-icon name="chevron-right" [size]="14" class="mx-0.5 shrink-0 text-muted-foreground/40" />
+            }
           }
         </div>
-        <div class="relative w-full sm:w-64">
-          <app-icon name="search" [size]="14" class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            placeholder="Name or car…"
-            [ngModel]="nameFilter()"
-            (ngModelChange)="nameFilter.set($event)"
-            class="h-9 w-full rounded-md border border-input bg-input pl-8 pr-3 text-sm text-foreground outline-none focus:border-ring"
-          />
+        <div class="flex shrink-0 rounded-xl bg-card p-1">
+          <ng-container [ngTemplateOutlet]="stageTab" [ngTemplateOutletContext]="{ $implicit: 'Cancelled' }" />
         </div>
       </div>
 
-      <!-- Filters -->
-      <div class="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 text-card-foreground shadow-sm">
-        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <div class="flex flex-col gap-1">
-            <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Car Brand</span>
-            <select
-              [ngModel]="carFilter()"
-              (ngModelChange)="carFilter.set($event)"
-              class="h-9 rounded-md border border-input bg-input px-2.5 text-sm text-foreground outline-none focus:border-ring"
-            >
-              <option value="All">All Cars</option>
-              @for (b of brands; track b) { <option [value]="b">{{ b }}</option> }
-            </select>
-          </div>
-          <div class="flex flex-col gap-1">
-            <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Source</span>
-            <select
-              [ngModel]="sourceFilter()"
-              (ngModelChange)="sourceFilter.set($event)"
-              class="h-9 rounded-md border border-input bg-input px-2.5 text-sm text-foreground outline-none focus:border-ring"
-            >
-              <option value="All">All Sources</option>
-              @for (s of sourceTypes; track s) { <option [value]="s">{{ s }}</option> }
-            </select>
-          </div>
-          <div class="flex flex-col gap-1">
-            <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Date Range</span>
-            <app-date-range-picker
-              [from]="dateFromFilter()"
-              (fromChange)="dateFromFilter.set($event)"
-              [to]="dateToFilter()"
-              (toChange)="dateToFilter.set($event)"
+      <!-- Search, filters, needs-attention -->
+      <div class="flex flex-col gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="relative min-w-0 flex-1 basis-56 sm:max-w-sm">
+            <app-icon name="search" [size]="14" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="search"
+              placeholder="Name, car, phone or IC…"
+              [ngModel]="nameFilter()"
+              (ngModelChange)="nameFilter.set($event); page.set(0)"
+              class="h-10 w-full rounded-lg border border-input bg-input pl-9 pr-3 text-sm text-foreground outline-none"
             />
           </div>
+          <button
+            type="button"
+            (click)="filtersOpen.set(!filtersOpen())"
+            [attr.aria-expanded]="filtersOpen()"
+            class="flex h-10 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors"
+            [ngClass]="filtersOpen() || filterChips().length ? 'bg-accent text-foreground' : 'bg-card text-muted-foreground hover:bg-accent hover:text-foreground'"
+          >
+            <app-icon name="filter" [size]="13" />
+            Filters
+            @if (filterChips().length) {
+              <span class="rounded-md bg-primary/20 px-1.5 text-[11px] font-bold text-primary tabular">{{ filterChips().length }}</span>
+            }
+          </button>
+          <button
+            type="button"
+            (click)="attentionOnly.set(!attentionOnly()); page.set(0)"
+            [attr.aria-pressed]="attentionOnly()"
+            [disabled]="!attentionOnly() && attentionCount() === 0"
+            class="flex h-10 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors disabled:opacity-40"
+            [ngClass]="attentionOnly() ? 'bg-[var(--warning)]/20 text-[var(--warning)]' : 'bg-card text-muted-foreground hover:bg-accent hover:text-foreground'"
+          >
+            <app-icon name="alert-triangle" [size]="13" />
+            Needs attention
+            <span class="rounded-md bg-[var(--warning)]/20 px-1.5 text-[11px] font-bold text-[var(--warning)] tabular">{{ attentionCount() }}</span>
+          </button>
         </div>
-        @if (hasActiveFilters()) {
-          <div class="flex justify-end">
-            <button
-              type="button"
-              (click)="clearFilters()"
-              class="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              <app-icon name="x" [size]="12" />
-              Clear filters
-            </button>
+
+        @if (filtersOpen()) {
+          <div class="grid grid-cols-2 gap-3 rounded-xl bg-card p-3 lg:grid-cols-4">
+            <div class="flex flex-col gap-1">
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Car Brand</span>
+              <select
+                [ngModel]="carFilter()"
+                (ngModelChange)="carFilter.set($event); page.set(0)"
+                class="h-9 rounded-md border border-input bg-input px-2.5 text-sm text-foreground outline-none"
+              >
+                <option value="All">All Cars</option>
+                @for (b of brands; track b) { <option [value]="b">{{ b }}</option> }
+              </select>
+            </div>
+            <div class="flex flex-col gap-1">
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Source</span>
+              <select
+                [ngModel]="sourceFilter()"
+                (ngModelChange)="sourceFilter.set($event); page.set(0)"
+                class="h-9 rounded-md border border-input bg-input px-2.5 text-sm text-foreground outline-none"
+              >
+                <option value="All">All Sources</option>
+                @for (s of sourceTypes(); track s) { <option [value]="s">{{ s }}</option> }
+              </select>
+            </div>
+            <div class="col-span-2 flex flex-col gap-1">
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Date Range</span>
+              <app-date-range-picker
+                [from]="dateFromFilter()"
+                (fromChange)="dateFromFilter.set($event); page.set(0)"
+                [to]="dateToFilter()"
+                (toChange)="dateToFilter.set($event); page.set(0)"
+              />
+            </div>
+          </div>
+        }
+
+        @if (filterChips().length) {
+          <div class="flex flex-wrap items-center gap-1.5">
+            @for (chip of filterChips(); track chip.label) {
+              <button
+                type="button"
+                (click)="chip.clear(); page.set(0)"
+                [attr.aria-label]="'Remove filter ' + chip.label"
+                class="flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-[var(--destructive)]/15"
+              >
+                {{ chip.label }}
+                <app-icon name="x" [size]="11" class="text-muted-foreground" />
+              </button>
+            }
+            <button type="button" (click)="clearFilters()" class="px-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">Clear all</button>
           </div>
         }
       </div>
 
-      <!-- Table -->
-      <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+      <!-- List -->
+      <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
+        <!-- Table (sm and up) -->
         <div class="hidden overflow-x-auto sm:block">
-          @if (activeTab() === 'All') {
-            <table class="w-full caption-bottom text-sm">
-              <thead>
-                <tr class="border-b border-border text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  @for (col of allColumns; track col.key) {
-                    <th class="h-10 whitespace-nowrap px-4 align-middle" [ngClass]="col.align === 'right' ? 'text-right' : 'text-left'">
-                      <button
-                        type="button"
-                        (click)="toggleSort(col.key)"
-                        class="inline-flex items-center gap-1 text-xs font-medium transition-colors hover:text-foreground"
-                        [ngClass]="[col.align === 'right' ? 'flex-row-reverse' : '', sortKey() === col.key ? 'text-foreground' : 'text-muted-foreground']"
-                      >
-                        {{ col.label }}
-                        <app-icon [name]="sortIcon(col.key)" [size]="14" class="opacity-70" />
-                      </button>
-                    </th>
-                  }
-                  <th class="h-10 whitespace-nowrap px-4 align-middle text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (r of rows(); track r.id) {
-                  <tr [id]="'customer-row-' + r.id" class="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/40" (click)="toggleExpand(r.id)">
-                    <td [class]="TD">
-                      <div class="flex flex-col">
-                        <span class="font-medium">{{ r.name }}</span>
-                        <a [href]="waLink(r.phone)" target="_blank" rel="noopener" (click)="$event.stopPropagation()" class="text-xs text-primary hover:underline">{{ r.phone }}</a>
-                      </div>
-                    </td>
-                    <td [class]="TD">
-                      <div class="flex items-center gap-2">
-                        <app-brand-mark [brand]="r.brand" />
-                        <div class="flex flex-col">
-                          <span class="text-sm">{{ modelVariantLabel(r.model, r.variant) }}</span>
-                          <span class="text-xs text-muted-foreground">{{ r.yearMade }} &middot; {{ r.colour }}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td [class]="TD">
-                      <span class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="statusMeta(r.status).tone">
-                        <span class="size-1.5 rounded-full" [ngClass]="statusMeta(r.status).dot"></span>
-                        {{ statusMeta(r.status).label }}
-                      </span>
-                    </td>
-                    <td [class]="TD + ' text-sm text-muted-foreground'">{{ r.sourceType }}</td>
-                    <td [class]="TD_R + ' text-xs text-muted-foreground tabular'">{{ stageDateText(r) }} &middot; {{ r.status }}</td>
-                    <td [class]="TD_R">
-                      <div class="flex items-center justify-end gap-1.5" (click)="$event.stopPropagation()">
-                        <button type="button" (click)="openQuotation(r)" title="View Quotation" aria-label="View quotation" class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                          <app-icon name="file-text" [size]="13" />
-                        </button>
-                        <button type="button" (click)="requestDelete(r)" title="Delete" aria-label="Delete customer" class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-[var(--destructive)] hover:text-[var(--destructive)]">
-                          <app-icon name="trash" [size]="13" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  @if (expandedId() === r.id) {
-                    <tr class="border-b border-border bg-muted/20 last:border-0">
-                      <td [attr.colspan]="allColspan" class="p-0">
-                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" />
-                      </td>
-                    </tr>
-                  }
-                } @empty {
-                  <tr><td colspan="6" class="p-8 text-center text-sm text-muted-foreground">No customers match.</td></tr>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-border">
+                @for (col of columns(); track col.key) {
+                  <th class="h-10 whitespace-nowrap px-4 align-middle" [ngClass]="col.align === 'right' ? 'text-right' : 'text-left'">
+                    <button
+                      type="button"
+                      (click)="toggleSort(col.key)"
+                      class="inline-flex items-center gap-1 uppercase transition-colors hover:text-foreground"
+                      [ngClass]="[col.align === 'right' ? 'flex-row-reverse' : '', sortKey() === col.key ? 'text-foreground' : '']"
+                    >
+                      {{ col.label }}
+                      <app-icon [name]="sortIcon(col.key)" [size]="13" class="opacity-70" />
+                    </button>
+                  </th>
                 }
-              </tbody>
-            </table>
-          }
-
-          @if (activeTab() === 'Lead') {
-            <table class="w-full caption-bottom text-sm">
-              <thead>
-                <tr class="border-b border-border text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  @for (col of leadColumns; track col.key) {
-                    <th class="h-10 whitespace-nowrap px-4 align-middle" [ngClass]="col.align === 'right' ? 'text-right' : 'text-left'">
-                      <button type="button" (click)="toggleSort(col.key)" class="inline-flex items-center gap-1 text-xs font-medium transition-colors hover:text-foreground" [ngClass]="[col.align === 'right' ? 'flex-row-reverse' : '', sortKey() === col.key ? 'text-foreground' : 'text-muted-foreground']">
-                        {{ col.label }}
-                        <app-icon [name]="sortIcon(col.key)" [size]="14" class="opacity-70" />
-                      </button>
-                    </th>
+                <th class="h-10 whitespace-nowrap px-4 text-right align-middle">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of rows(); track r.id) {
+                <tr
+                  [id]="'customer-row-' + r.id"
+                  (click)="openPanel(r.id)"
+                  class="cursor-pointer border-b border-border transition-colors last:border-0"
+                  [ngClass]="r.id === panelId() ? 'bg-primary/10 shadow-[inset_3px_0_0_var(--primary)]' : 'hover:bg-muted/40'"
+                >
+                  @for (col of columns(); track col.key) {
+                    <td [class]="col.align === 'right' ? TD_R : TD">
+                      <ng-container [ngTemplateOutlet]="cell" [ngTemplateOutletContext]="{ $implicit: r, key: col.key }" />
+                    </td>
                   }
-                  <th class="h-10 whitespace-nowrap px-4 align-middle text-right">Action</th>
+                  <td [class]="TD_R">
+                    <ng-container [ngTemplateOutlet]="rowActions" [ngTemplateOutletContext]="{ $implicit: r, mobile: false }" />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                @for (r of rows(); track r.id) {
-                  <tr [id]="'customer-row-' + r.id" class="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/40" (click)="toggleExpand(r.id)">
-                    <td [class]="TD">
-                      <div class="flex flex-col">
-                        <span class="flex items-center gap-1.5 font-medium">
-                          {{ r.name }}
-                        </span>
-                        <a [href]="waLink(r.phone)" target="_blank" rel="noopener" (click)="$event.stopPropagation()" class="text-xs text-primary hover:underline">{{ r.phone }}</a>
-                      </div>
-                    </td>
-                    <td [class]="TD">
-                      <div class="flex items-center gap-2">
-                        <app-brand-mark [brand]="r.brand" />
-                        <div class="flex flex-col">
-                          <span class="text-sm">{{ modelVariantLabel(r.model, r.variant) }}</span>
-                          <span class="text-xs text-muted-foreground">{{ r.yearMade }}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td [class]="TD + ' text-sm text-muted-foreground'">{{ r.sourceType }}</td>
-                    <td [class]="TD_R + ' text-xs text-muted-foreground tabular'">{{ stageDateText(r) }}</td>
-                    <td [class]="TD_R">
-                      <div class="flex items-center justify-end gap-1.5" (click)="$event.stopPropagation()">
-                        <button type="button" (click)="openQuotation(r)" title="View Quotation" aria-label="View quotation" class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                          <app-icon name="file-text" [size]="13" />
-                        </button>
-                        <button type="button" (click)="openBooked(r)" title="Mark as Booked" aria-label="Mark as Booked" class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                          <app-icon name="chevron-right" [size]="13" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  @if (expandedId() === r.id) {
-                    <tr class="border-b border-border bg-muted/20 last:border-0">
-                      <td [attr.colspan]="leadColspan" class="p-0">
-                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" />
-                      </td>
-                    </tr>
-                  }
-                } @empty {
-                  <tr><td colspan="5" class="p-8 text-center text-sm text-muted-foreground">No leads match.</td></tr>
-                }
-              </tbody>
-            </table>
-          }
-
-          @if (activeTab() === 'Booked') {
-            <table class="w-full caption-bottom text-sm">
-              <thead>
-                <tr class="border-b border-border text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  @for (col of bookedColumns; track col.key) {
-                    <th class="h-10 whitespace-nowrap px-4 align-middle" [ngClass]="col.align === 'right' ? 'text-right' : 'text-left'">
-                      <button type="button" (click)="toggleSort(col.key)" class="inline-flex items-center gap-1 text-xs font-medium transition-colors hover:text-foreground" [ngClass]="[col.align === 'right' ? 'flex-row-reverse' : '', sortKey() === col.key ? 'text-foreground' : 'text-muted-foreground']">
-                        {{ col.label }}
-                        <app-icon [name]="sortIcon(col.key)" [size]="14" class="opacity-70" />
-                      </button>
-                    </th>
-                  }
-                  <th class="h-10 whitespace-nowrap px-4 align-middle text-right">Action</th>
+              } @empty {
+                <tr class="hover:bg-transparent">
+                  <td [attr.colspan]="columns().length + 1" class="p-10 text-center text-sm text-muted-foreground">{{ emptyMessageForActiveTab() }}</td>
                 </tr>
-              </thead>
-              <tbody>
-                @for (r of rows(); track r.id) {
-                  <tr [id]="'customer-row-' + r.id" class="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/40" (click)="toggleExpand(r.id)">
-                    <td [class]="TD">
-                      <div class="flex flex-col">
-                        <span class="font-medium">{{ r.name }}</span>
-                        <a [href]="waLink(r.phone)" target="_blank" rel="noopener" (click)="$event.stopPropagation()" class="text-xs text-primary hover:underline">{{ r.phone }}</a>
-                      </div>
-                    </td>
-                    <td [class]="TD">
-                      <div class="flex items-center gap-2">
-                        <app-brand-mark [brand]="r.brand" />
-                        <div class="flex flex-col">
-                          <span class="text-sm">{{ modelVariantLabel(r.model, r.variant) }}</span>
-                          <span class="text-xs text-muted-foreground">{{ r.yearMade }} &middot; {{ r.colour }}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td [class]="TD + ' text-sm'">{{ r.icNo }}</td>
-                    <td [class]="TD + ' text-sm text-muted-foreground'">{{ r.sourceType }}</td>
-                    <td [class]="TD">
-                      @if (isCash(r)) {
-                        <span class="text-sm text-muted-foreground">Cash</span>
-                      } @else {
-                        <span class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="docMeta(r.documentStatus).tone">
-                          <span class="size-1.5 rounded-full" [ngClass]="docMeta(r.documentStatus).dot"></span>
-                          {{ docMeta(r.documentStatus).label }}
-                        </span>
-                      }
-                    </td>
-                    <td [class]="TD_R + ' text-xs text-muted-foreground tabular'">{{ stageDateText(r) }}</td>
-                    <td [class]="TD_R">
-                      <div class="flex items-center justify-end gap-1.5" (click)="$event.stopPropagation()">
-                        <button type="button" (click)="openQuotation(r)" title="View Quotation" aria-label="View quotation" class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                          <app-icon name="file-text" [size]="13" />
-                        </button>
-                        <button type="button" (click)="openInProgress(r)" title="Start Progress" aria-label="Start Progress" class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                          <app-icon name="chevron-right" [size]="13" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  @if (expandedId() === r.id) {
-                    <tr class="border-b border-border bg-muted/20 last:border-0">
-                      <td [attr.colspan]="bookedColspan" class="p-0">
-                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" />
-                      </td>
-                    </tr>
-                  }
-                } @empty {
-                  <tr><td colspan="8" class="p-8 text-center text-sm text-muted-foreground">No bookings match.</td></tr>
-                }
-              </tbody>
-            </table>
-          }
-
-          @if (activeTab() === 'In Progress') {
-            <table class="w-full caption-bottom text-sm">
-              <thead>
-                <tr class="border-b border-border text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  @for (col of inprogressColumns; track col.key) {
-                    <th class="h-10 whitespace-nowrap px-4 align-middle" [ngClass]="col.align === 'right' ? 'text-right' : 'text-left'">
-                      <button type="button" (click)="toggleSort(col.key)" class="inline-flex items-center gap-1 text-xs font-medium transition-colors hover:text-foreground" [ngClass]="[col.align === 'right' ? 'flex-row-reverse' : '', sortKey() === col.key ? 'text-foreground' : 'text-muted-foreground']">
-                        {{ col.label }}
-                        <app-icon [name]="sortIcon(col.key)" [size]="14" class="opacity-70" />
-                      </button>
-                    </th>
-                  }
-                  <th class="h-10 whitespace-nowrap px-4 align-middle text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (r of rows(); track r.id) {
-                  <tr [id]="'customer-row-' + r.id" class="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/40" (click)="toggleExpand(r.id)">
-                    <td [class]="TD">
-                      <div class="flex flex-col">
-                        <span class="flex items-center gap-1.5 font-medium">
-                          {{ r.name }}
-                          @if (readyExceptGifts(r)) {
-                            <app-icon name="alert-triangle" [size]="12" class="text-[var(--warning)]" title="Ready for delivery except free gifts — outstanding items on Cost Breakdown" />
-                          }
-                        </span>
-                        <a [href]="waLink(r.phone)" target="_blank" rel="noopener" (click)="$event.stopPropagation()" class="text-xs text-primary hover:underline">{{ r.phone }}</a>
-                      </div>
-                    </td>
-                    <td [class]="TD">
-                      <div class="flex items-center gap-2">
-                        <app-brand-mark [brand]="r.brand" />
-                        <div class="flex flex-col">
-                          <span class="text-sm">{{ modelVariantLabel(r.model, r.variant) }}</span>
-                          <span class="text-xs text-muted-foreground">{{ r.yearMade }} &middot; {{ r.colour }}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td [class]="TD + ' text-sm'">{{ r.icNo }}</td>
-                    <td [class]="TD">
-                      @if (isCash(r)) {
-                        <span class="text-sm text-muted-foreground">Cash</span>
-                      } @else {
-                        <span class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="docMeta(r.documentStatus).tone">
-                          <span class="size-1.5 rounded-full" [ngClass]="docMeta(r.documentStatus).dot"></span>
-                          {{ docMeta(r.documentStatus).label }}
-                        </span>
-                      }
-                    </td>
-                    <td [class]="TD + ' text-sm text-muted-foreground'">{{ r.tradeInStatus || 'No Trade-in' }}</td>
-                    <td [class]="TD_R + ' text-xs text-muted-foreground tabular'">{{ stageDateText(r) }}</td>
-                    <td [class]="TD_R">
-                      <div class="flex items-center justify-end gap-1.5" (click)="$event.stopPropagation()">
-                        <button type="button" (click)="openQuotation(r)" title="View Quotation" aria-label="View quotation" class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                          <app-icon name="file-text" [size]="13" />
-                        </button>
-                        <button type="button" (click)="openDelivered(r)" title="Deliver" aria-label="Deliver" class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                          <app-icon name="chevron-right" [size]="13" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  @if (expandedId() === r.id) {
-                    <tr class="border-b border-border bg-muted/20 last:border-0">
-                      <td [attr.colspan]="inprogressColspan" class="p-0">
-                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" />
-                      </td>
-                    </tr>
-                  }
-                } @empty {
-                  <tr><td colspan="7" class="p-8 text-center text-sm text-muted-foreground">Nothing in progress.</td></tr>
-                }
-              </tbody>
-            </table>
-          }
-
-          @if (activeTab() === 'Delivered') {
-            <table class="w-full caption-bottom text-sm">
-              <thead>
-                <tr class="border-b border-border text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  @for (col of deliveredColumns; track col.key) {
-                    <th class="h-10 whitespace-nowrap px-4 align-middle" [ngClass]="col.align === 'right' ? 'text-right' : 'text-left'">
-                      <button type="button" (click)="toggleSort(col.key)" class="inline-flex items-center gap-1 text-xs font-medium transition-colors hover:text-foreground" [ngClass]="[col.align === 'right' ? 'flex-row-reverse' : '', sortKey() === col.key ? 'text-foreground' : 'text-muted-foreground']">
-                        {{ col.label }}
-                        <app-icon [name]="sortIcon(col.key)" [size]="14" class="opacity-70" />
-                      </button>
-                    </th>
-                  }
-                  <th class="h-10 whitespace-nowrap px-4 align-middle text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (r of rows(); track r.id) {
-                  <tr [id]="'customer-row-' + r.id" class="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/40" (click)="toggleExpand(r.id)">
-                    <td [class]="TD">
-                      <div class="flex flex-col">
-                        <span class="font-medium">{{ r.name }}</span>
-                        <a [href]="waLink(r.phone)" target="_blank" rel="noopener" (click)="$event.stopPropagation()" class="text-xs text-primary hover:underline">{{ r.phone }}</a>
-                      </div>
-                    </td>
-                    <td [class]="TD">
-                      <div class="flex items-center gap-2">
-                        <app-brand-mark [brand]="r.brand" />
-                        <div class="flex flex-col">
-                          <span class="text-sm">{{ modelVariantLabel(r.model, r.variant) }}</span>
-                          <span class="text-xs text-muted-foreground">{{ r.yearMade }}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td [class]="TD + ' text-sm'">{{ r.bankPanel }}</td>
-                    <td [class]="TD + ' text-sm'">{{ r.insuranceName }}</td>
-                    <td [class]="TD + ' text-sm tabular'">{{ r.plateNo }}</td>
-                    <td [class]="TD_R + ' text-xs text-muted-foreground tabular'">{{ stageDateText(r) }}</td>
-                    <td [class]="TD_R">
-                      <div class="flex items-center justify-end gap-1.5" (click)="$event.stopPropagation()">
-                        <button type="button" (click)="openQuotation(r)" title="View Quotation" aria-label="View quotation" class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                          <app-icon name="file-text" [size]="13" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  @if (expandedId() === r.id) {
-                    <tr class="border-b border-border bg-muted/20 last:border-0">
-                      <td [attr.colspan]="deliveredColspan" class="p-0">
-                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" />
-                      </td>
-                    </tr>
-                  }
-                } @empty {
-                  <tr><td colspan="7" class="p-8 text-center text-sm text-muted-foreground">No deliveries match.</td></tr>
-                }
-              </tbody>
-            </table>
-          }
-
-          @if (activeTab() === 'Cancelled') {
-            <table class="w-full caption-bottom text-sm">
-              <thead>
-                <tr class="border-b border-border text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  @for (col of cancelledColumns; track col.key) {
-                    <th class="h-10 whitespace-nowrap px-4 align-middle" [ngClass]="col.align === 'right' ? 'text-right' : 'text-left'">
-                      <button type="button" (click)="toggleSort(col.key)" class="inline-flex items-center gap-1 text-xs font-medium transition-colors hover:text-foreground" [ngClass]="[col.align === 'right' ? 'flex-row-reverse' : '', sortKey() === col.key ? 'text-foreground' : 'text-muted-foreground']">
-                        {{ col.label }}
-                        <app-icon [name]="sortIcon(col.key)" [size]="14" class="opacity-70" />
-                      </button>
-                    </th>
-                  }
-                  <th class="h-10 whitespace-nowrap px-4 align-middle text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (r of rows(); track r.id) {
-                  <tr [id]="'customer-row-' + r.id" class="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/40" (click)="toggleExpand(r.id)">
-                    <td [class]="TD">
-                      <div class="flex flex-col">
-                        <span class="font-medium">{{ r.name }}</span>
-                        <a [href]="waLink(r.phone)" target="_blank" rel="noopener" (click)="$event.stopPropagation()" class="text-xs text-primary hover:underline">{{ r.phone }}</a>
-                      </div>
-                    </td>
-                    <td [class]="TD">
-                      <div class="flex items-center gap-2">
-                        <app-brand-mark [brand]="r.brand" />
-                        <div class="flex flex-col">
-                          <span class="text-sm">{{ modelVariantLabel(r.model, r.variant) }}</span>
-                          <span class="text-xs text-muted-foreground">{{ r.yearMade }} &middot; {{ r.colour }}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td [class]="TD + ' text-sm text-muted-foreground'">{{ r.sourceType }}</td>
-                    <td [class]="TD + ' text-sm'">{{ r.cancelReason || '—' }}</td>
-                    <td [class]="TD_R + ' text-xs text-muted-foreground tabular'">{{ stageDateText(r) }}</td>
-                    <td [class]="TD_R">
-                      <div class="flex items-center justify-end gap-1.5" (click)="$event.stopPropagation()">
-                        <button type="button" (click)="openQuotation(r)" title="View Quotation" aria-label="View quotation" class="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                          <app-icon name="file-text" [size]="13" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  @if (expandedId() === r.id) {
-                    <tr class="border-b border-border bg-muted/20 last:border-0">
-                      <td [attr.colspan]="cancelledColspan" class="p-0">
-                        <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" />
-                      </td>
-                    </tr>
-                  }
-                } @empty {
-                  <tr><td colspan="6" class="p-8 text-center text-sm text-muted-foreground">No cancelled deals.</td></tr>
-                }
-              </tbody>
-            </table>
-          }
+              }
+            </tbody>
+          </table>
         </div>
 
-        <!-- Mobile cards -->
-        <div class="flex flex-col gap-3 p-3 sm:hidden">
+        <!-- Cards (phones) -->
+        <div class="flex flex-col divide-y divide-border sm:hidden">
           @for (r of rows(); track r.id) {
-            <div [id]="'customer-row-' + r.id" class="overflow-hidden rounded-lg border border-border">
-              <div class="flex cursor-pointer flex-col gap-2 p-3 transition-colors hover:bg-muted/40" (click)="toggleExpand(r.id)">
+            <div [id]="'customer-card-' + r.id" [ngClass]="r.id === panelId() ? 'bg-primary/10' : ''">
+              <div role="button" tabindex="0" (click)="openPanel(r.id)" (keydown.enter)="openPanel(r.id)" class="flex cursor-pointer flex-col gap-2 px-4 pb-2 pt-3.5">
                 <div class="flex items-start justify-between gap-2">
-                  <div class="flex min-w-0 flex-col">
-                    <span class="flex items-center gap-1.5 font-medium">
-                      <span class="truncate">{{ r.name }}</span>
-                      @if (activeTab() === 'In Progress' && readyExceptGifts(r)) {
-                        <app-icon name="alert-triangle" [size]="12" class="shrink-0 text-[var(--warning)]" title="Ready for delivery except free gifts — outstanding items on Cost Breakdown" />
-                      }
-                    </span>
-                    <a [href]="waLink(r.phone)" target="_blank" rel="noopener" (click)="$event.stopPropagation()" class="w-fit text-xs text-primary hover:underline">{{ r.phone }}</a>
-                  </div>
-                  <app-icon name="chevron-down" [size]="16" class="mt-0.5 shrink-0 text-muted-foreground transition-transform" [ngClass]="expandedId() === r.id ? 'rotate-180' : ''" />
+                  <ng-container [ngTemplateOutlet]="cell" [ngTemplateOutletContext]="{ $implicit: r, key: 'name' }" />
+                  <app-icon name="chevron-right" [size]="16" class="mt-0.5 shrink-0 text-muted-foreground" />
                 </div>
-                <div class="flex items-center gap-2">
-                  <app-brand-mark [brand]="r.brand" />
-                  <div class="flex flex-col">
-                    <span class="text-sm">{{ modelVariantLabel(r.model, r.variant) }}</span>
-                    <span class="text-xs text-muted-foreground">{{ r.yearMade }} &middot; {{ r.colour }}</span>
-                  </div>
-                </div>
-                <div class="grid grid-cols-2 gap-2 border-t border-border pt-2">
+                <ng-container [ngTemplateOutlet]="cell" [ngTemplateOutletContext]="{ $implicit: r, key: 'brand' }" />
+                <div class="grid grid-cols-2 gap-2">
                   @for (col of cardMetaColumns(); track col.key) {
-                    <div class="flex flex-col gap-0.5">
+                    <div class="flex min-w-0 flex-col gap-0.5">
                       <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{{ col.label }}</span>
-                      @if (col.key === 'status') {
-                        <span class="inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="statusMeta(r.status).tone">
-                          <span class="size-1.5 rounded-full" [ngClass]="statusMeta(r.status).dot"></span>
-                          {{ statusMeta(r.status).label }}
-                        </span>
-                      } @else if (col.key === 'documentStatus') {
-                        @if (isCash(r)) {
-                          <span class="text-sm text-muted-foreground">Cash</span>
-                        } @else {
-                          <span class="inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="docMeta(r.documentStatus).tone">
-                            <span class="size-1.5 rounded-full" [ngClass]="docMeta(r.documentStatus).dot"></span>
-                            {{ docMeta(r.documentStatus).label }}
-                          </span>
-                        }
-                      } @else {
-                        <span [ngClass]="col.key === 'stageDate' ? 'text-xs text-muted-foreground tabular' : 'text-sm'">{{ cardFieldValue(r, col.key) }}</span>
-                      }
+                      <ng-container [ngTemplateOutlet]="cell" [ngTemplateOutletContext]="{ $implicit: r, key: col.key }" />
                     </div>
                   }
                 </div>
               </div>
-              <div class="flex items-center gap-1.5 border-t border-border bg-muted/20 p-2" (click)="$event.stopPropagation()">
-                <button type="button" (click)="openQuotation(r)" title="View Quotation" aria-label="View quotation" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                  <app-icon name="file-text" [size]="14" />
-                </button>
-                @switch (activeTab()) {
-                  @case ('All') {
-                    <button type="button" (click)="requestDelete(r)" title="Delete" aria-label="Delete customer" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-[var(--destructive)] hover:text-[var(--destructive)]">
-                      <app-icon name="trash" [size]="14" />
-                    </button>
-                  }
-                  @case ('Lead') {
-                    <button type="button" (click)="openBooked(r)" title="Mark as Booked" aria-label="Mark as Booked" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                      <app-icon name="chevron-right" [size]="14" />
-                    </button>
-                  }
-                  @case ('Booked') {
-                    <button type="button" (click)="openInProgress(r)" title="Start Progress" aria-label="Start Progress" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                      <app-icon name="chevron-right" [size]="14" />
-                    </button>
-                  }
-                  @case ('In Progress') {
-                    <button type="button" (click)="openDelivered(r)" title="Deliver" aria-label="Deliver" class="inline-flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                      <app-icon name="chevron-right" [size]="14" />
-                    </button>
-                  }
-                }
+              <div class="px-4 pb-3">
+                <ng-container [ngTemplateOutlet]="rowActions" [ngTemplateOutletContext]="{ $implicit: r, mobile: true }" />
               </div>
-              @if (expandedId() === r.id) {
-                <div class="border-t border-border bg-muted/20">
-                  <app-customer-accordion-detail [record]="r" (edit)="onAccordionEdit($event)" (addNote)="onAccordionAddNote($event)" (cancel)="openCancel($event)" (reopen)="requestReopen($event)" />
-                </div>
-              }
             </div>
           } @empty {
-            <p class="p-8 text-center text-sm text-muted-foreground">{{ emptyMessageForActiveTab() }}</p>
+            <p class="p-10 text-center text-sm text-muted-foreground">{{ emptyMessageForActiveTab() }}</p>
           }
         </div>
 
@@ -739,7 +392,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
             <select
               [ngModel]="pageSize()"
               (ngModelChange)="setPageSize($event)"
-              class="h-8 rounded-md border border-input bg-input px-2 text-xs text-foreground outline-none focus:border-ring"
+              class="h-8 rounded-md border border-input bg-input px-2 text-xs text-foreground outline-none"
             >
               @for (n of pageSizeOptions; track n) { <option [ngValue]="n">{{ n }}</option> }
             </select>
@@ -750,7 +403,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
               type="button"
               (click)="prevPage()"
               [disabled]="currentPage() === 0"
-              class="inline-flex size-8 items-center justify-center rounded-md border border-input bg-transparent transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+              class="inline-flex size-8 items-center justify-center rounded-md bg-muted transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
               aria-label="Previous page"
             >
               <app-icon name="chevron-left" [size]="16" />
@@ -760,7 +413,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
               type="button"
               (click)="nextPage()"
               [disabled]="currentPage() >= pageCount() - 1"
-              class="inline-flex size-8 items-center justify-center rounded-md border border-input bg-transparent transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+              class="inline-flex size-8 items-center justify-center rounded-md bg-muted transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
               aria-label="Next page"
             >
               <app-icon name="chevron-right" [size]="16" />
@@ -769,6 +422,224 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
         </div>
       </div>
     </div>
+
+    <!-- One pipeline tab -->
+    <ng-template #stageTab let-t>
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="t === activeTab()"
+        (click)="selectTab(t)"
+        class="flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
+        [ngClass]="t === activeTab() ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
+      >
+        @if (t !== 'All') {
+          <span class="size-2 shrink-0 rounded-full" [ngClass]="t === activeTab() ? 'bg-white/80' : statusMeta(t).dot"></span>
+        }
+        {{ t }}
+        <span class="rounded-md px-1.5 text-[11px] font-bold tabular" [ngClass]="t === activeTab() ? 'bg-white/20' : 'bg-muted text-foreground'">{{ countFor(t) }}</span>
+      </button>
+    </ng-template>
+
+    <!-- One cell of a customer row (shared by the table and the phone cards) -->
+    <ng-template #cell let-r let-key="key">
+      @switch (key) {
+        @case ('name') {
+          <div class="flex min-w-0 flex-col gap-1">
+            <span class="truncate font-semibold">{{ r.name }}</span>
+            <span class="text-xs text-muted-foreground tabular">{{ r.phone }}</span>
+            @if (attention(r); as flags) {
+              @if (flags.length) {
+                <span class="flex flex-wrap gap-1">
+                  @for (a of flags; track a.label) {
+                    <span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold" [ngClass]="a.tone">
+                      <app-icon name="alert-triangle" [size]="10" />
+                      {{ a.label }}
+                    </span>
+                  }
+                </span>
+              }
+            }
+          </div>
+        }
+        @case ('brand') {
+          <div class="flex items-center gap-2">
+            <app-brand-mark [brand]="r.brand" />
+            <div class="flex min-w-0 flex-col">
+              <span class="truncate text-sm">{{ modelVariantLabel(r.model, r.variant) }}</span>
+              <span class="text-xs text-muted-foreground">
+                {{ r.yearMade }}@if (r.colour !== TO_BE_CONFIRMED_COLOUR) { · {{ r.colour }} }
+              </span>
+            </div>
+          </div>
+        }
+        @case ('status') {
+          <span class="inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="statusMeta(r.status).tone">
+            <span class="size-1.5 rounded-full" [ngClass]="statusMeta(r.status).dot"></span>
+            {{ statusMeta(r.status).label }}
+          </span>
+        }
+        @case ('documentStatus') {
+          @if (isCash(r)) {
+            <span class="text-sm text-muted-foreground">Cash</span>
+          } @else {
+            <span class="inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="docMeta(r.documentStatus).tone">
+              <span class="size-1.5 rounded-full" [ngClass]="docMeta(r.documentStatus).dot"></span>
+              {{ docMeta(r.documentStatus).label }}
+            </span>
+          }
+        }
+        @case ('stageDate') {
+          <span class="text-xs tabular" [ngClass]="isStale(r) ? 'font-semibold text-[var(--warning)]' : 'text-muted-foreground'" [title]="stageDateText(r)">
+            {{ relativeDate(currentStageTs(r)) }}
+          </span>
+        }
+        @default {
+          <span class="text-sm" [ngClass]="key === 'sourceType' ? 'text-muted-foreground' : ''">{{ cardFieldValue(r, key) }}</span>
+        }
+      }
+    </ng-template>
+
+    <!-- Row actions: contact, quotation, next pipeline step -->
+    <ng-template #rowActions let-r let-mobile="mobile">
+      <div class="flex items-center gap-1" [ngClass]="mobile ? '' : 'justify-end'" (click)="$event.stopPropagation()">
+        <a
+          [href]="waLink(r.phone)"
+          target="_blank"
+          rel="noopener"
+          [title]="'WhatsApp ' + r.phone"
+          aria-label="WhatsApp"
+          class="inline-flex size-8 items-center justify-center rounded-lg text-[#25D366] transition-colors hover:bg-[#25D366]/15"
+        >
+          <app-icon name="message-circle" [size]="15" />
+        </a>
+        <a [href]="'tel:' + r.phone" [title]="'Call ' + r.phone" aria-label="Call" class="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+          <app-icon name="phone" [size]="14" />
+        </a>
+        <button
+          type="button"
+          (click)="openQuotation(r)"
+          [title]="r.pendingRequote ? 'Quotation — re-quote needed' : 'View quotation'"
+          aria-label="View quotation"
+          class="relative inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <app-icon name="file-text" [size]="14" />
+          @if (r.pendingRequote) {
+            <span class="absolute right-1 top-1 size-2 rounded-full bg-[var(--warning)]"></span>
+          }
+        </button>
+        @if (nextStep(r); as step) {
+          <button
+            type="button"
+            (click)="runNextStep(r)"
+            class="flex items-center gap-1 whitespace-nowrap rounded-lg bg-primary/12 px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+            [ngClass]="mobile ? 'ml-auto' : 'ml-1'"
+          >
+            {{ step }}
+            <app-icon name="chevron-right" [size]="13" />
+          </button>
+        }
+      </div>
+    </ng-template>
+
+    <!-- Customer panel: full-screen sheet on phones, side panel from md up. Below 2xl a backdrop
+         dims the list; from 2xl the list shifts left and stays usable. Stage/quotation modals
+         (z-50) open above it. -->
+    @if (panelRecord(); as p) {
+      <button type="button" aria-label="Close customer" class="cm-backdrop fixed inset-0 z-30 hidden bg-black/60 md:block 2xl:hidden" (click)="closePanel()"></button>
+      <aside
+        role="dialog"
+        [attr.aria-label]="p.name"
+        class="cm-drawer fixed inset-0 z-40 flex flex-col bg-card text-card-foreground md:left-auto md:w-[460px] md:border-l md:border-border md:shadow-[0_0_60px_-10px_oklch(0_0_0/80%)]"
+      >
+        <!-- Header -->
+        <div class="flex items-center gap-3 border-b border-border px-4 py-3">
+          <span class="logo-chip flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold">{{ initials(p.name) }}</span>
+          <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span class="truncate text-sm font-bold">{{ p.name }}</span>
+            <span class="flex items-center gap-2 text-xs text-muted-foreground">
+              <span class="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium" [ngClass]="statusMeta(p.status).tone">
+                <span class="size-1.5 rounded-full" [ngClass]="statusMeta(p.status).dot"></span>
+                {{ statusMeta(p.status).label }}
+              </span>
+              @if (panelIndex() >= 0) {
+                <span class="tabular">{{ panelIndex() + 1 }} of {{ filteredSorted().length }}</span>
+              }
+            </span>
+          </div>
+          <div class="flex shrink-0 items-center">
+            <button type="button" (click)="stepPanel(-1)" [disabled]="panelIndex() <= 0" aria-label="Previous customer" title="Previous (Alt+↑)" class="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-30">
+              <app-icon name="arrow-up" [size]="15" />
+            </button>
+            <button type="button" (click)="stepPanel(1)" [disabled]="panelIndex() < 0 || panelIndex() >= filteredSorted().length - 1" aria-label="Next customer" title="Next (Alt+↓)" class="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-30">
+              <app-icon name="arrow-down" [size]="15" />
+            </button>
+            <button type="button" (click)="closePanel()" aria-label="Close" title="Close (Esc)" class="ml-1 flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+              <app-icon name="x" [size]="16" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="flex flex-col gap-2 border-b border-border p-3">
+          <div class="grid grid-cols-3 gap-2">
+            <a [href]="waLink(p.phone)" target="_blank" rel="noopener" class="flex flex-col items-center gap-1 rounded-lg bg-[#25D366]/12 py-2 text-[11px] font-semibold text-[#25D366] transition-colors hover:bg-[#25D366]/20">
+              <app-icon name="message-circle" [size]="16" />
+              WhatsApp
+            </a>
+            <a [href]="'tel:' + p.phone" class="flex flex-col items-center gap-1 rounded-lg bg-muted py-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-accent">
+              <app-icon name="phone" [size]="16" />
+              Call
+            </a>
+            <button type="button" (click)="openQuotation(p)" class="relative flex flex-col items-center gap-1 rounded-lg bg-muted py-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-accent">
+              <app-icon name="file-text" [size]="16" />
+              Quotation
+              @if (p.pendingRequote) {
+                <span class="absolute right-2 top-2 size-2 rounded-full bg-[var(--warning)]"></span>
+              }
+            </button>
+          </div>
+          @if (nextStep(p); as step) {
+            <button type="button" (click)="runNextStep(p)" class="flex items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-xs font-semibold text-primary-foreground">
+              {{ step }}
+              <app-icon name="chevron-right" [size]="14" />
+            </button>
+          }
+        </div>
+
+        <!-- Body -->
+        <div class="flex flex-1 flex-col gap-3 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          @if (p.pendingRequote; as pr) {
+            <div class="flex items-start gap-2.5 rounded-xl bg-[var(--warning)]/12 p-3">
+              <app-icon name="alert-triangle" [size]="15" class="mt-0.5 shrink-0 text-[var(--warning)]" />
+              <div class="flex min-w-0 flex-1 flex-col gap-2">
+                <span class="text-xs text-foreground">
+                  Car changed from <strong>{{ carTitle(pr.from) }}</strong>. The quotation still uses the old car's rebate, rate and insurance.
+                </span>
+                <button type="button" (click)="openQuotation(p)" class="w-fit rounded-lg bg-[var(--warning)] px-3 py-1.5 text-xs font-semibold text-[var(--warning-foreground)]">Re-quote now</button>
+              </div>
+            </div>
+          }
+          @for (a of attention(p); track a.label) {
+            @if (a.label !== 'Re-quote needed') {
+              <div class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium" [ngClass]="a.tone">
+                <app-icon name="alert-triangle" [size]="13" class="shrink-0" />
+                {{ a.detail }}
+              </div>
+            }
+          }
+          <app-customer-detail
+            [record]="p"
+            (edit)="onEdit($event)"
+            (addNote)="onAddNote($event)"
+            (changeCar)="openChangeCar($event)"
+            (cancel)="openCancel($event)"
+            (reopen)="requestReopen($event)"
+            (delete)="requestDelete($event)"
+          />
+        </div>
+      </aside>
+    }
 
     <!-- Mark as Booked modal -->
     @if (modal() === 'booked' && activeRecord(); as rec) {
@@ -896,7 +767,7 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Insurance Name
                 <select [(ngModel)]="deliveredForm.insuranceName" class="h-10 w-full rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                  @for (i of insuranceOptions; track i) { <option [value]="i">{{ i }}</option> }
+                  @for (i of insuranceOptions(); track i) { <option [value]="i">{{ i }}</option> }
                 </select>
               </label>
             </div>
@@ -958,6 +829,127 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
       </div>
     }
 
+    <!-- Change car modal -->
+    @if (modal() === 'changecar' && activeRecord(); as rec) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
+        <div class="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+          <div class="flex items-center gap-3 border-b border-border p-4">
+            <span class="text-sm font-semibold">Change car &middot; {{ rec.name }}</span>
+            <button type="button" (click)="closeModal()" aria-label="Close" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+              <app-icon name="x" [size]="16" />
+            </button>
+          </div>
+          <div class="flex flex-col gap-4 overflow-y-auto p-4">
+            <p class="text-xs text-muted-foreground">Currently <strong class="text-foreground">{{ carTitle(rec) }}</strong></p>
+
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Brand
+                <select [ngModel]="changeCarForm.brand" (ngModelChange)="onChangeCarBrand($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none">
+                  @for (b of brands; track b) { <option [value]="b">{{ b }}</option> }
+                </select>
+              </label>
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Model
+                <select [ngModel]="changeCarForm.model" (ngModelChange)="onChangeCarModel($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none">
+                  @for (m of modelsForBrand(changeCarForm.brand); track m) { <option [value]="m">{{ m }}</option> }
+                </select>
+              </label>
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Variant
+                <select [ngModel]="changeCarForm.variant" (ngModelChange)="onChangeCarVariant($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none">
+                  @for (v of variantsForModel(changeCarForm.brand, changeCarForm.model); track v) { <option [value]="v">{{ v || changeCarForm.model }}</option> }
+                </select>
+              </label>
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Model year
+                <select [(ngModel)]="changeCarForm.yearMade" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none">
+                  @for (y of changeCarYears(); track y) { <option [ngValue]="y">{{ y }}</option> }
+                </select>
+              </label>
+            </div>
+
+            @if (changeCarIsDifferent(rec)) {
+              @let cp = changeCarPreview(rec);
+              <div class="flex flex-col divide-y divide-border rounded-lg bg-muted/50 text-xs">
+                <div class="flex items-center justify-between gap-3 px-3 py-2">
+                  <span class="text-muted-foreground">Price</span>
+                  <span class="flex items-center gap-2 tabular">
+                    <span class="text-muted-foreground">{{ fmt(cp.oldPrice) }}</span>
+                    <app-icon name="chevron-right" [size]="12" class="text-muted-foreground" />
+                    <strong class="text-foreground">{{ fmt(cp.newPrice) }}</strong>
+                    @if (cp.delta !== 0) {
+                      <span class="rounded-md px-1.5 py-0.5 text-[10px] font-bold" [ngClass]="cp.delta > 0 ? 'bg-[var(--warning)]/15 text-[var(--warning)]' : 'bg-[var(--success)]/15 text-[var(--success)]'">
+                        {{ cp.delta > 0 ? '+' : '−' }}{{ fmt(abs(cp.delta)) }}
+                      </span>
+                    }
+                  </span>
+                </div>
+                <div class="flex items-center justify-between gap-3 px-3 py-2">
+                  <span class="text-muted-foreground">Rebate (this year)</span>
+                  <span class="flex items-center gap-2 tabular">
+                    <span class="text-muted-foreground">{{ fmt(cp.oldRebate) }}</span>
+                    <app-icon name="chevron-right" [size]="12" class="text-muted-foreground" />
+                    <strong class="text-foreground">{{ fmt(cp.newRebate) }}</strong>
+                  </span>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-2">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">What happens</span>
+                <ul class="flex flex-col gap-1.5 text-xs text-foreground">
+                  <li class="flex items-start gap-2"><app-icon name="info" [size]="13" class="mt-0.5 shrink-0 text-muted-foreground" /> Colour resets to "To be Confirmed" — confirm it again for the new car.</li>
+                  @if (rec.quotation) {
+                    <li class="flex items-start gap-2">
+                      <app-icon name="info" [size]="13" class="mt-0.5 shrink-0 text-muted-foreground" />
+                      @if (isCash(rec)) {
+                        The quotation is flagged and you'll re-quote next — it stays a cash deal at the new car's price.
+                      } @else {
+                        The quotation is flagged and you'll re-quote next — the customer's agreed down payment ({{ fmt(cp.oldDownpayment) }}) is kept as the starting point.
+                      }
+                    </li>
+                  }
+                  <li class="flex items-start gap-2"><app-icon name="info" [size]="13" class="mt-0.5 shrink-0 text-muted-foreground" /> The change is recorded in the activity history.</li>
+                </ul>
+              </div>
+
+              @if (changeCarNeedsAck(rec)) {
+                <div class="flex flex-col gap-2 rounded-lg bg-[var(--warning)]/10 p-3">
+                  <span class="flex items-center gap-1.5 text-xs font-semibold text-[var(--warning)]">
+                    <app-icon name="alert-triangle" [size]="13" />
+                    This deal is already {{ rec.status }}
+                  </span>
+                  <ul class="flex list-disc flex-col gap-1 pl-5 text-[11px] text-foreground">
+                    @for (w of changeCarWarnings(rec, cp.delta); track w) {
+                      <li>{{ w }}</li>
+                    }
+                  </ul>
+                  <label class="mt-1 flex items-center gap-2 text-xs font-medium text-foreground">
+                    <input type="checkbox" [(ngModel)]="changeCarAck" class="size-4 shrink-0 rounded border-input accent-primary" />
+                    I've gone through this with the customer
+                  </label>
+                </div>
+              }
+            } @else {
+              <p class="rounded-lg bg-muted/50 px-3 py-2.5 text-xs text-muted-foreground">Pick a different brand, model, variant or year.</p>
+            }
+          </div>
+          <div class="flex items-center justify-end gap-2 border-t border-border p-4">
+            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
+            <button
+              type="button"
+              (click)="submitChangeCar(rec)"
+              [disabled]="!changeCarIsDifferent(rec) || (changeCarNeedsAck(rec) && !changeCarAck)"
+              class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+            >
+              Change car
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
     <!-- Quotation modal -->
     @if (activeQuotationRecord(); as qrec) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -974,6 +966,15 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
             <!-- View mode -->
             <div class="flex flex-col gap-3 overflow-y-auto p-4">
               <p class="text-sm font-medium">{{ vehicleTitle(qrec.brand, qrec.model) }} &middot; {{ qrec.variant }}</p>
+              @if (qrec.pendingRequote; as pr) {
+                <div class="flex items-start gap-2 rounded-lg bg-[var(--warning)]/12 px-3 py-2.5 text-[11px] text-foreground">
+                  <app-icon name="alert-triangle" [size]="14" class="mt-0.5 shrink-0 text-[var(--warning)]" />
+                  <span>
+                    Car changed from <strong>{{ carTitle(pr.from) }}</strong> on {{ formatStageDate(pr.changedAt) }}. These figures still use the old car's rebate, rate and
+                    insurance — re-quote before sending it to the customer.
+                  </span>
+                </div>
+              }
               @if (quotationViewNumbers(qrec); as qv) {
                 <div class="flex items-center gap-4 rounded-xl border border-border bg-muted/30 px-4 py-3">
                   <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
@@ -1029,10 +1030,17 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
             </div>
             <div class="flex flex-wrap items-center justify-end gap-2 border-t border-border p-4">
               @if (qrec.status !== 'Delivered') {
-                <button type="button" (click)="startEditQuotation()" class="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent">
-                  <app-icon name="pencil" [size]="13" />
-                  Edit
-                </button>
+                @if (qrec.pendingRequote) {
+                  <button type="button" (click)="startEditQuotation()" class="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
+                    <app-icon name="refresh-cw" [size]="13" />
+                    Re-quote now
+                  </button>
+                } @else {
+                  <button type="button" (click)="startEditQuotation()" class="flex items-center gap-1.5 rounded-md bg-muted px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent">
+                    <app-icon name="pencil" [size]="13" />
+                    Edit
+                  </button>
+                }
               }
             </div>
           } @else {
@@ -1042,6 +1050,45 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
                 <p class="rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">No quotation yet for this customer — fill in the details below to create one.</p>
               }
               <p class="text-sm font-medium">{{ vehicleTitle(qrec.brand, qrec.model) }} &middot; {{ qrec.variant }}</p>
+              @if (qrec.pendingRequote; as pr) {
+                @if (quotationPreview(); as qp) {
+                  <div class="flex flex-col gap-2 rounded-lg bg-[var(--warning)]/10 p-3">
+                    <span class="flex items-center gap-1.5 text-xs font-semibold text-[var(--warning)]">
+                      <app-icon name="refresh-cw" [size]="13" />
+                      Re-quoting for the new car
+                    </span>
+                    <p class="text-[11px] text-muted-foreground">
+                      Rebate, rate and insurance now come from the new car. The down payment starts at the customer's agreed amount — change it if you've agreed something else.
+                    </p>
+                    <div class="grid grid-cols-[auto_1fr_1fr] items-baseline gap-x-3 gap-y-1.5 text-[11px]">
+                      <span></span>
+                      <span class="truncate font-semibold text-muted-foreground">Before · {{ carTitle(pr.from) }}</span>
+                      <span class="truncate font-semibold text-foreground">Now · {{ carTitle(qrec) }}</span>
+
+                      <span class="text-muted-foreground">Selling price</span>
+                      <span class="tabular text-muted-foreground">{{ fmt(pr.allInPrice) }}</span>
+                      <span class="font-semibold tabular text-foreground">{{ fmt(qp.allInPrice) }}</span>
+
+                      @if (quotationFinancingType !== 'Cash') {
+                        <span class="text-muted-foreground">Down payment</span>
+                        <span class="tabular text-muted-foreground">{{ fmt(pr.downpaymentCash) }}</span>
+                        <span class="font-semibold tabular text-foreground">
+                          {{ fmt(qp.downpaymentCash) }}
+                          <span class="font-normal text-muted-foreground">· {{ pctOf(qp.downpaymentCash, qp.allInPrice) }}</span>
+                        </span>
+
+                        <span class="text-muted-foreground">Loan amount</span>
+                        <span class="tabular text-muted-foreground">{{ fmt(pr.loanAmount) }}</span>
+                        <span class="font-semibold tabular text-foreground">{{ fmt(qp.loanAmount) }}</span>
+
+                        <span class="text-muted-foreground">Monthly</span>
+                        <span class="tabular text-muted-foreground">{{ fmt(pr.monthly) }} · {{ pr.tenureMonths / 12 }}y</span>
+                        <span class="font-semibold tabular text-foreground">{{ fmt(monthlyFor(qp, quotationForm.tenureMonths)) }} · {{ quotationForm.tenureMonths / 12 }}y</span>
+                      }
+                    </div>
+                  </div>
+                }
+              }
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 Financing Type
                 <select [ngModel]="quotationFinancingType" (ngModelChange)="onQuotationFinancingTypeChange($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -1225,37 +1272,33 @@ const CANCELLED_COLSPAN = CANCELLED_COLUMNS.length + 1;
   `,
 })
 export class CustomerManagerComponent {
-  tabs: Tab[] = ['All', 'Lead', 'Booked', 'In Progress', 'Delivered', 'Cancelled'];
+  /** The connected Lead → Delivered steps; All and Cancelled sit either side of them. */
+  pipelineStages: Tab[] = ['Lead', 'Booked', 'In Progress', 'Delivered'];
   activeTab = signal<Tab>('All');
 
   TD = TD;
   TD_R = TD_R;
 
-  allColumns = ALL_COLUMNS;
-  leadColumns = LEAD_COLUMNS;
-  bookedColumns = BOOKED_COLUMNS;
-  inprogressColumns = INPROGRESS_COLUMNS;
-  deliveredColumns = DELIVERED_COLUMNS;
-  cancelledColumns = CANCELLED_COLUMNS;
+  /** The active tab's columns — one table renders every tab from this. */
+  columns = computed(() => COLUMNS_BY_TAB[this.activeTab()]);
 
-  sourceTypes = SOURCE_TYPES;
+  /** Filter choices: this account's sources, plus any still on a customer after being removed. */
+  sourceTypes = computed(() => {
+    const used = this.customers.records().map((r) => r.sourceType).filter((s): s is string => !!s);
+    return [...new Set([...this.settings.leadSources(), ...used])];
+  });
   documentStatusOptions = DOCUMENT_STATUS_OPTIONS;
   TO_BE_CONFIRMED_COLOUR = TO_BE_CONFIRMED_COLOUR;
 
-  insuranceOptions = INSURANCE_OPTIONS;
+  insuranceOptions(): string[] {
+    return withCurrent(this.settings.insuranceOptions(), this.deliveredForm?.insuranceName);
+  }
   cancelReasons = CANCEL_REASON_OPTIONS;
   ncdOptions = NCD_OPTIONS;
   tenureOptions = TENURE_OPTIONS;
   brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
   pageSizeOptions = PAGE_SIZE_OPTIONS;
   financingTypeOptions = FINANCING_TYPE_OPTIONS;
-
-  allColspan = ALL_COLSPAN;
-  leadColspan = LEAD_COLSPAN;
-  bookedColspan = BOOKED_COLSPAN;
-  inprogressColspan = INPROGRESS_COLSPAN;
-  deliveredColspan = DELIVERED_COLSPAN;
-  cancelledColspan = CANCELLED_COLSPAN;
 
   // `toLocaleString` with no options defaults to *up to 3* fraction digits, not 2 — invisible for
   // whole numbers but shows a stray 3rd decimal (e.g. "3,889.176") on anything that doesn't divide
@@ -1280,19 +1323,7 @@ export class CustomerManagerComponent {
   /** Mobile card fields: the active tab's columns minus name/brand, which the card already shows
    *  in its own header rows. */
   cardMetaColumns(): Column[] {
-    const cols =
-      this.activeTab() === 'Lead'
-        ? this.leadColumns
-        : this.activeTab() === 'Booked'
-          ? this.bookedColumns
-          : this.activeTab() === 'In Progress'
-            ? this.inprogressColumns
-            : this.activeTab() === 'Delivered'
-              ? this.deliveredColumns
-              : this.activeTab() === 'Cancelled'
-                ? this.cancelledColumns
-                : this.allColumns;
-    return cols.filter((c) => c.key !== 'name' && c.key !== 'brand');
+    return this.columns().filter((c) => c.key !== 'name' && c.key !== 'brand');
   }
 
   /** Plain-text value for a mobile card field; 'status'/'documentStatus' are rendered as badges
@@ -1345,10 +1376,114 @@ export class CustomerManagerComponent {
     return !!r.plateNo && !!r.chassisNo && !!r.engineNo && !!r.insuranceName && !!r.deliveryDate && !freeGiftsComplete(r);
   }
 
-  // Accordion row expand/collapse — only one customer expanded at a time.
-  expandedId = signal<string | null>(null);
-  toggleExpand(id: string) {
-    this.expandedId.set(this.expandedId() === id ? null : id);
+  // ---------- Customer panel ----------
+
+  panelId = signal<string | null>(null);
+  panelRecord = computed(() => this.customers.records().find((r) => r.id === this.panelId()) ?? null);
+  /** Position within the current (filtered, sorted) list — drives Prev/Next; -1 once the open
+   *  record no longer matches the list (e.g. a filter hides it), which disables stepping. */
+  panelIndex = computed(() => this.filteredSorted().findIndex((r) => r.id === this.panelId()));
+
+  openPanel(id: string) {
+    this.panelId.set(id);
+  }
+
+  closePanel() {
+    this.panelId.set(null);
+  }
+
+  stepPanel(delta: number) {
+    const target = this.filteredSorted()[this.panelIndex() + delta];
+    if (!target) return;
+    this.panelId.set(target.id);
+    // Keep the list's page in step so the highlighted row stays visible behind the panel.
+    const index = this.panelIndex();
+    if (index >= 0) this.page.set(Math.floor(index / this.pageSize()));
+  }
+
+  /** Esc closes the panel and Alt+↑/↓ steps through customers — only when no dialog is open on
+   *  top of it, so Esc never closes the panel from underneath a form. */
+  @HostListener('document:keydown', ['$event'])
+  onKeydown(e: KeyboardEvent) {
+    if (!this.panelId() || this.modal() || this.quotationModalId() || this.deleteTargetId() || this.reopenTargetId()) return;
+    if (e.key === 'Escape') {
+      this.closePanel();
+    } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault();
+      this.stepPanel(e.key === 'ArrowUp' ? -1 : 1);
+    }
+  }
+
+  initials(name: string): string {
+    return (
+      name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w) => w[0]!.toUpperCase())
+        .join('') || '?'
+    );
+  }
+
+  carTitle(c: CarSpec): string {
+    return `${vehicleTitle(c.brand, modelVariantLabel(c.model, c.variant))} ${c.yearMade}`;
+  }
+
+  // ---------- Row status: next step, staleness, needs-attention ----------
+
+  nextStep(r: CustomerRecord): string | null {
+    return NEXT_STEP[r.status] ?? null;
+  }
+
+  runNextStep(r: CustomerRecord) {
+    if (r.status === 'Lead') this.openBooked(r);
+    else if (r.status === 'Booked') this.openInProgress(r);
+    else if (r.status === 'In Progress') this.openDelivered(r);
+  }
+
+  private daysSince(ts: number): number {
+    return Math.floor((Date.now() - ts) / DAY_MS);
+  }
+
+  currentStageTs(r: CustomerRecord): number {
+    return currentStageEnteredAt(r);
+  }
+
+  /** "Today", "3d ago", "2w ago", then the plain date past a month — the exact date is in the tooltip. */
+  relativeDate(ts: number): string {
+    const d = this.daysSince(ts);
+    if (d <= 0) return 'Today';
+    if (d === 1) return 'Yesterday';
+    if (d < 7) return `${d}d ago`;
+    if (d < 30) return `${Math.floor(d / 7)}w ago`;
+    return formatStageDate(ts);
+  }
+
+  isStale(r: CustomerRecord): boolean {
+    const days = this.settings.settings().salesDefaults.staleLeadDays ?? DEFAULT_STALE_LEAD_DAYS;
+    return r.status === 'Lead' && this.daysSince(r.updatedAt) >= days;
+  }
+
+  /** Everything worth flagging on a record, built only from data it already has. */
+  attention(r: CustomerRecord): Attention[] {
+    const out: Attention[] = [];
+    if (r.pendingRequote) {
+      out.push({ label: 'Re-quote needed', detail: 'The car was changed — re-quote before sending the quotation.', tone: WARN_TONE });
+    }
+    if (this.isStale(r)) {
+      const d = this.daysSince(r.updatedAt);
+      out.push({ label: `No update in ${d}d`, detail: `No activity for ${d} days — time to follow up.`, tone: WARN_TONE });
+    }
+    if (r.status === 'Booked' && !isCashDeal(r) && (r.documentStatus ?? 'NO') === 'NO') {
+      out.push({ label: 'Docs not submitted', detail: "Loan documents haven't been submitted to the bank yet.", tone: DANGER_TONE });
+    }
+    if (r.status === 'In Progress' && r.colour === TO_BE_CONFIRMED_COLOUR) {
+      out.push({ label: 'Colour to confirm', detail: 'Colour is still "To be Confirmed" — it must be set before delivery.', tone: WARN_TONE });
+    }
+    if (r.status === 'In Progress' && this.readyExceptGifts(r)) {
+      out.push({ label: 'Gifts outstanding', detail: 'Ready for delivery except free gifts — outstanding items on Cost Breakdown.', tone: WARN_TONE });
+    }
+    return out;
   }
 
   modal = signal<ModalKind>(null);
@@ -1357,6 +1492,8 @@ export class CustomerManagerComponent {
   reopenTargetId = signal<string | null>(null);
 
   nameFilter = signal('');
+  filtersOpen = signal(false);
+  attentionOnly = signal(false);
   // Deliberately starts on "All", not the account's Primary Brand — hiding other brands' existing
   // customers by default risks the SA forgetting about them.
   carFilter = signal('All');
@@ -1391,12 +1528,16 @@ export class CustomerManagerComponent {
     this.sourceFilter.set('All');
     this.dateFromFilter.set('');
     this.dateToFilter.set('');
+    this.attentionOnly.set(false);
     this.activeTab.set(record.status);
     const index = this.filteredSorted().findIndex((r) => r.id === id);
     this.page.set(index >= 0 ? Math.floor(index / this.pageSize()) : 0);
-    this.expandedId.set(id);
+    this.openPanel(id);
     setTimeout(() => {
-      document.getElementById(`customer-row-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Table row on tablet/desktop, card on phones — only one of the two is visible.
+      for (const el of [document.getElementById(`customer-row-${id}`), document.getElementById(`customer-card-${id}`)]) {
+        if (el?.offsetParent) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     });
   }
 
@@ -1415,6 +1556,7 @@ export class CustomerManagerComponent {
     if (!id) return;
     await this.customers.deleteCustomer(id);
     this.deleteTargetId.set(null);
+    if (this.panelId() === id) this.closePanel();
   }
 
   reopenTarget = computed(() => this.customers.records().find((r) => r.id === this.reopenTargetId()) ?? null);
@@ -1450,7 +1592,9 @@ export class CustomerManagerComponent {
     this.page.set(0);
   }
 
-  filteredSorted = computed(() => {
+  /** Tab + search + filters, before the Needs-attention toggle — so its count shows how many of
+   *  *these* need attention. */
+  private matching = computed(() => {
     const tab = this.activeTab();
     let list = this.customers.records();
     if (tab !== 'All') {
@@ -1459,13 +1603,27 @@ export class CustomerManagerComponent {
 
     const search = this.nameFilter().trim().toLowerCase();
     if (search) {
-      list = list.filter((r) => `${r.name} ${r.brand} ${r.model} ${r.variant}`.toLowerCase().includes(search));
+      // Digits-only comparison too, so "0123456789" finds "012-345 6789" and IC numbers match with
+      // or without dashes.
+      const digits = search.replace(/\D/g, '');
+      const digitsMatch = (v?: string) => digits.length >= 3 && !!v && v.replace(/\D/g, '').includes(digits);
+      list = list.filter(
+        (r) =>
+          `${r.name} ${r.brand} ${r.model} ${r.variant} ${r.phone} ${r.icNo ?? ''}`.toLowerCase().includes(search) || digitsMatch(r.phone) || digitsMatch(r.icNo),
+      );
     }
     if (this.carFilter() !== 'All') list = list.filter((r) => r.brand === this.carFilter());
     if (this.sourceFilter() !== 'All') list = list.filter((r) => r.sourceType === this.sourceFilter());
     if (this.dateFromFilter()) list = list.filter((r) => r.date >= this.dateFromFilter());
     if (this.dateToFilter()) list = list.filter((r) => r.date <= this.dateToFilter());
+    return list;
+  });
 
+  attentionCount = computed(() => this.matching().filter((r) => this.attention(r).length > 0).length);
+
+  filteredSorted = computed(() => {
+    let list = this.matching();
+    if (this.attentionOnly()) list = list.filter((r) => this.attention(r).length > 0);
     const key = this.sortKey();
     const dir = this.sortDir();
     return [...list].sort((a, b) => compareRecords(a, b, key, dir));
@@ -1511,15 +1669,24 @@ export class CustomerManagerComponent {
     return this.sortDir() === 'asc' ? 'arrow-up' : 'arrow-down';
   }
 
-  hasActiveFilters(): boolean {
-    return (
-      !!this.nameFilter() ||
-      this.carFilter() !== 'All' ||
-      this.sourceFilter() !== 'All' ||
-      !!this.dateFromFilter() ||
-      !!this.dateToFilter()
-    );
-  }
+  /** Active Brand / Source / Date filters as removable chips (search lives in its own box). */
+  filterChips = computed(() => {
+    const chips: { label: string; clear: () => void }[] = [];
+    if (this.carFilter() !== 'All') chips.push({ label: this.carFilter(), clear: () => this.carFilter.set('All') });
+    if (this.sourceFilter() !== 'All') chips.push({ label: this.sourceFilter(), clear: () => this.sourceFilter.set('All') });
+    const from = this.dateFromFilter();
+    const to = this.dateToFilter();
+    if (from || to) {
+      chips.push({
+        label: from && to ? `${from} → ${to}` : from ? `From ${from}` : `Until ${to}`,
+        clear: () => {
+          this.dateFromFilter.set('');
+          this.dateToFilter.set('');
+        },
+      });
+    }
+    return chips;
+  });
 
   clearFilters() {
     this.nameFilter.set('');
@@ -1550,7 +1717,7 @@ export class CustomerManagerComponent {
   deliveredForm: DeliveredInput = this.blankDeliveredForm();
 
   private blankDeliveredForm(): DeliveredInput {
-    return { insuranceName: INSURANCE_OPTIONS[0], plateNo: '', deliveryDate: todayStr(), chassisNo: '', engineNo: '', deliveryNotes: '' };
+    return { insuranceName: UNSPECIFIED_INSURER, plateNo: '', deliveryDate: todayStr(), chassisNo: '', engineNo: '', deliveryNotes: '' };
   }
 
   cancelForm: CancelledInput = this.blankCancelForm();
@@ -1604,7 +1771,7 @@ export class CustomerManagerComponent {
   openDelivered(record: CustomerRecord) {
     this.activeRecordId.set(record.id);
     this.deliveredForm = {
-      insuranceName: record.insuranceName ?? INSURANCE_OPTIONS[0],
+      insuranceName: record.insuranceName ?? UNSPECIFIED_INSURER,
       plateNo: record.plateNo ?? '',
       deliveryDate: record.deliveryDate ?? todayStr(),
       chassisNo: record.chassisNo ?? '',
@@ -1620,16 +1787,136 @@ export class CustomerManagerComponent {
     this.modal.set('cancel');
   }
 
-  // ---------- Accordion actions (Edit / Add Note / Change Status) ----------
+  // ---------- Panel actions (Edit / Add Note / Change car) ----------
 
-  onAccordionEdit(record: CustomerRecord) {
+  onEdit(record: CustomerRecord) {
     this.activeRecordId.set(record.id);
     this.modal.set('edit');
   }
 
-  onAccordionAddNote(record: CustomerRecord) {
+  onAddNote(record: CustomerRecord) {
     this.activeRecordId.set(record.id);
     this.modal.set('note');
+  }
+
+  // ---------- Change car ----------
+
+  modelsForBrand = modelsForBrand;
+  variantsForModel = variantsForModel;
+  abs = Math.abs;
+  changeCarForm: CarSpec = { brand: '', model: '', variant: '', yearMade: 0 };
+  changeCarAck = false;
+
+  openChangeCar(record: CustomerRecord) {
+    if (record.status === 'Delivered' || record.status === 'Cancelled') return;
+    this.activeRecordId.set(record.id);
+    this.changeCarForm = { brand: record.brand, model: record.model, variant: record.variant, yearMade: record.yearMade };
+    this.changeCarAck = false;
+    this.modal.set('changecar');
+  }
+
+  onChangeCarBrand(brand: string) {
+    this.changeCarForm.brand = brand;
+    this.onChangeCarModel(modelsForBrand(brand)[0] ?? '');
+  }
+
+  onChangeCarModel(model: string) {
+    this.changeCarForm.model = model;
+    this.onChangeCarVariant(variantsForModel(this.changeCarForm.brand, model)[0] ?? '');
+  }
+
+  onChangeCarVariant(variant: string) {
+    this.changeCarForm.variant = variant;
+    const years = this.changeCarYears();
+    if (!years.includes(this.changeCarForm.yearMade)) this.changeCarForm.yearMade = years[0];
+  }
+
+  /** The chosen variant's model years from the catalog (newest first), else the generic list. */
+  changeCarYears(): number[] {
+    const v = this.findVehicle(this.changeCarForm);
+    const years = v ? v.years.map((y) => y.year).sort((a, b) => b - a) : [];
+    return years.length ? years : MODEL_YEARS;
+  }
+
+  changeCarIsDifferent(rec: CustomerRecord): boolean {
+    const f = this.changeCarForm;
+    return f.brand !== rec.brand || f.model !== rec.model || f.variant !== rec.variant || f.yearMade !== rec.yearMade;
+  }
+
+  /** Booked / In Progress deals have paperwork and financing tied to the old car — confirm first. */
+  changeCarNeedsAck(rec: CustomerRecord): boolean {
+    return rec.status === 'Booked' || rec.status === 'In Progress';
+  }
+
+  // Plain method, not computed(): changeCarForm is a mutable object bound with ngModel.
+  changeCarPreview(rec: CustomerRecord) {
+    const oldVehicle = this.findRecordVehicle(rec);
+    const newVehicle = this.findVehicle(this.changeCarForm);
+    const oldPrice = oldVehicle?.price ?? 0;
+    const newPrice = newVehicle?.price ?? 0;
+    const q = rec.quotation;
+    const oldRebate = q ? q.rebate + (q.additionalRebateEnabled ? (q.additionalRebateValue ?? 0) : 0) : oldVehicle ? this.yearRebate(oldVehicle, rec.yearMade) : 0;
+    const newRebate = newVehicle ? this.yearRebate(newVehicle, this.changeCarForm.yearMade) : 0;
+    const oldDownpayment = q ? this.computeQuotationNumbers(rec, q).downpaymentCash : 0;
+    return { oldPrice, newPrice, delta: newPrice - oldPrice, oldRebate, newRebate, oldDownpayment };
+  }
+
+  changeCarWarnings(rec: CustomerRecord, delta: number): string[] {
+    const oldCar = this.carTitle(rec);
+    const diff = delta === 0 ? 'the same price' : `${delta > 0 ? 'RM ' + this.abs(delta).toLocaleString('en-MY') + ' more' : 'RM ' + this.abs(delta).toLocaleString('en-MY') + ' less'}`;
+    const warnings: string[] = [];
+    if (rec.status === 'Booked') {
+      warnings.push(`The booking was made for the ${oldCar} — check whether the booking form or fee needs redoing.`);
+      if (!isCashDeal(rec) && rec.documentStatus && rec.documentStatus !== 'NO') {
+        warnings.push(`Loan documents were already ${this.docMeta(rec.documentStatus).label.toLowerCase()} for the old car's price.`);
+      }
+    }
+    if (rec.status === 'In Progress') {
+      if (isCashDeal(rec)) {
+        warnings.push(`Cash deal — the new car is ${diff}. Confirm the new total with the customer.`);
+      } else {
+        const loan = rec.loanAmount != null ? ` for ${this.fmt(rec.loanAmount)}` : '';
+        const bank = rec.bankPanel ? ` with ${rec.bankPanel}` : '';
+        warnings.push(`The loan was approved${bank}${loan}. The new car is ${diff} — re-submit to the bank if the loan amount changes.`);
+      }
+    }
+    return warnings;
+  }
+
+  async submitChangeCar(rec: CustomerRecord) {
+    if (!this.changeCarIsDifferent(rec) || (this.changeCarNeedsAck(rec) && !this.changeCarAck)) return;
+    const delta = this.changeCarPreview(rec).delta;
+    const note = delta === 0 ? undefined : `price ${delta > 0 ? '+' : '−'}${this.fmt(this.abs(delta))}`;
+    const pendingRequote = rec.quotation ? this.snapshotForRequote(rec) : undefined;
+    await this.customers.changeCar(rec.id, { ...this.changeCarForm }, { pendingRequote, note });
+    this.closeModal();
+    // Straight into the re-quote so the stale quotation is dealt with while the SA is here; if
+    // they close it, the record stays flagged until they come back to it.
+    const updated = this.customers.records().find((r) => r.id === rec.id);
+    if (updated?.pendingRequote) this.openQuotation(updated);
+  }
+
+  /** What the existing quotation works out to, captured before the car changes underneath it. */
+  private snapshotForRequote(rec: CustomerRecord): PendingRequote {
+    const q = rec.quotation!;
+    const n = this.computeQuotationNumbers(rec, q);
+    return {
+      from: { brand: rec.brand, model: rec.model, variant: rec.variant, yearMade: rec.yearMade },
+      changedAt: Date.now(),
+      allInPrice: n.allInPrice,
+      downpaymentCash: n.downpaymentCash,
+      loanAmount: n.loanAmount,
+      tenureMonths: q.tenureMonths,
+      monthly: this.monthlyFor(n, q.tenureMonths),
+    };
+  }
+
+  private yearRebate(v: Vehicle, year: number): number {
+    return rebateForYear(v, year) + additionalRebateForYear(v, year);
+  }
+
+  private findVehicle(c: CarSpec): Vehicle | undefined {
+    return VEHICLES.find((v) => v.brand === c.brand && v.model === c.model && v.variant === c.variant);
   }
 
   async submitEdit(id: string, input: EditCustomerInput) {
@@ -1651,6 +1938,7 @@ export class CustomerManagerComponent {
     if (!canSubmitBooked(this.bookedForm)) return;
     await this.customers.markBooked(id, this.bookedForm);
     this.closeModal();
+    celebrate();
     this.activeTab.set('Booked');
   }
 
@@ -1667,6 +1955,7 @@ export class CustomerManagerComponent {
     if (!rec || !canSubmitDelivered(this.deliveredForm, this.giftsCompleteFor(rec), rec.colour !== TO_BE_CONFIRMED_COLOUR)) return;
     await this.customers.markDelivered(id, this.deliveredForm);
     this.closeModal();
+    celebrate();
     this.activeTab.set('Delivered');
   }
 
@@ -1699,7 +1988,7 @@ export class CustomerManagerComponent {
     return {
       rebate: hasYear ? rebateForYear(vehicle, yearMade) : 0,
       ncd: 0,
-      interestRate: 3.5,
+      interestRate: vehicle?.interestRate ?? this.settings.settings().salesDefaults.interestRate,
       rateType: 'flat',
       downpaymentType: 'percent',
       downpaymentValue: 10,
@@ -1713,11 +2002,57 @@ export class CustomerManagerComponent {
     return VEHICLES.find((v) => v.brand === record.brand && v.model === record.model && v.variant === record.variant);
   }
 
+  /** A pending re-quote opens straight into the editor, pre-filled for the new car. */
   openQuotation(record: CustomerRecord) {
     this.quotationModalId.set(record.id);
-    this.quotationForm = record.quotation ? { ...record.quotation } : this.blankQuotationForm(this.findRecordVehicle(record), record.yearMade);
     this.quotationFinancingType = record.financingType ?? 'Loan';
+    if (record.quotation && record.pendingRequote) {
+      this.quotationForm = this.requoteForm(record);
+      this.quotationEditing.set(true);
+      return;
+    }
+    this.quotationForm = record.quotation ? { ...record.quotation } : this.blankQuotationForm(this.findRecordVehicle(record), record.yearMade);
     this.quotationEditing.set(!record.quotation);
+  }
+
+  /**
+   * Starting point for re-quoting after a car change. What belongs to the *car* comes from the new
+   * car — rebate and additional rebate for its model year, its rate (or the account default), and
+   * its insurance quotation, frozen as a snapshot like the Calculator does. What belongs to the
+   * *customer* carries over — NCD, tenure, rate type, and the down payment as the same RM amount
+   * they agreed (not the same %, which would silently change the cash they need on a pricier car).
+   */
+  private requoteForm(rec: CustomerRecord): QuotationDetails {
+    const q = rec.quotation!;
+    const pr = rec.pendingRequote!;
+    const v = this.findRecordVehicle(rec);
+    const defaults = this.settings.settings().salesDefaults;
+    const rateType = q.rateType ?? 'flat';
+    const additional = v ? additionalRebateForYear(v, rec.yearMade) : 0;
+    const insurance = v ? this.settings.getVehicleInsurance(v, basicPremiumDefault(v.price, defaults.basicPremiumRatePct)) : undefined;
+    const cash = (rec.financingType ?? 'Loan') === 'Cash';
+    return {
+      ...q,
+      rebate: v ? rebateForYear(v, rec.yearMade) : 0,
+      additionalRebateEnabled: additional > 0,
+      additionalRebateValue: additional,
+      // No EIR for the new car anywhere → keep the rate already quoted rather than reuse a flat one.
+      interestRate: (v ? defaultRateFor(v, rateType, defaults) : null) ?? q.interestRate,
+      insuranceDetails: insurance,
+      basicPremium: insurance?.basicPremium,
+      downpaymentType: cash ? 'percent' : 'amount',
+      downpaymentValue: cash ? 100 : pr.downpaymentCash,
+    };
+  }
+
+  formatStageDate = formatStageDate;
+
+  monthlyFor(numbers: { repaymentRows: { months: number; monthly: number }[] }, months: number): number {
+    return numbers.repaymentRows.find((r) => r.months === months)?.monthly ?? 0;
+  }
+
+  pctOf(part: number, whole: number): string {
+    return whole > 0 ? `${((part / whole) * 100).toFixed(1)}%` : '—';
   }
 
   closeQuotation() {
@@ -1727,7 +2062,7 @@ export class CustomerManagerComponent {
 
   startEditQuotation() {
     const rec = this.activeQuotationRecord();
-    if (rec?.quotation) this.quotationForm = { ...rec.quotation };
+    if (rec?.quotation) this.quotationForm = rec.pendingRequote ? this.requoteForm(rec) : { ...rec.quotation };
     this.quotationFinancingType = rec?.financingType ?? 'Loan';
     this.quotationEditing.set(true);
   }
@@ -1788,6 +2123,7 @@ export class CustomerManagerComponent {
       loanBasisInsuranceAmount: loanBasisInsurance,
       downpaymentType: q.downpaymentType,
       downpaymentValue: q.downpaymentValue,
+      minDownpaymentCash: minDownpaymentCash(vehicle?.minDownpayment, basePrice),
     });
 
     const rateType: RateType = q.rateType ?? 'flat';

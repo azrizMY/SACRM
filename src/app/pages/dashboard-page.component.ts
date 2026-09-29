@@ -26,21 +26,21 @@ import { RecentLeadsComponent } from '../dashboard/recent-leads.component';
       <app-kpi-cards />
 
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        <app-sales-trend-chart />
-        <app-units-sold-chart />
-        <app-model-performance-chart />
+        <app-sales-trend-chart style="--i: 5" />
+        <app-units-sold-chart style="--i: 6" />
+        <app-model-performance-chart style="--i: 7" />
       </div>
 
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <app-lead-status-chart />
-        <app-top-models />
+        <app-lead-status-chart style="--i: 8" />
+        <app-top-models style="--i: 9" />
       </div>
 
       <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div class="xl:col-span-2">
-          <app-recent-deals-table />
+          <app-recent-deals-table style="--i: 10" />
         </div>
-        <app-recent-leads />
+        <app-recent-leads style="--i: 11" />
       </div>
     </div>
   `,
