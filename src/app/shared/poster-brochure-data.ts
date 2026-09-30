@@ -1,3 +1,5 @@
+import type { Lang } from './i18n-core';
+
 /** One catalog row on the brand brochure — every model/variant/year of the chosen brand gets its
  *  own row, independent of whatever car is selected in the single-quote Calculator above it. */
 export type BrochureRow = {
@@ -24,6 +26,8 @@ export type BrochureRow = {
 };
 
 export type BrochureData = {
+  /** Language the offer sheet is drawn in — the advisor's poster language. */
+  lang: Lang;
   brand: string;
   logoUrl: string | null;
   /** e.g. "September 2026 Offers" — user-editable, defaults from today's date. */

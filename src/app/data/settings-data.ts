@@ -1,4 +1,5 @@
 import type { InsuranceQuotationDetails, RateType } from './calculator-data';
+import type { Lang } from '../shared/i18n-core';
 
 export type SalesDefaults = {
   interestRate: number;
@@ -11,6 +12,11 @@ export type SalesDefaults = {
   basicPremiumRatePct: number;
   /** Which Rate Type the Calculator starts every new quote on. */
   defaultRateType: RateType;
+  /** Language of the app's own screens (Settings → Language). Absent = English. */
+  uiLanguage?: Lang;
+  /** Language of everything customers see — quote posters, offer sheets and the customer link —
+   *  chosen separately from the UI language. Absent = English. */
+  posterLanguage?: Lang;
   /** Whether a new quote starts with Additional Rebate ticked (for cars that have one). Optional —
    *  absent means ticked, the original behaviour. */
   additionalRebateByDefault?: boolean;
@@ -63,11 +69,21 @@ export type DashboardTarget = {
   target: number;
 };
 
+/** The Dashboard's "Get set up" checklist. Most steps are read from real data (photo, price edits,
+ *  customers); these are the ones with nothing else to check. */
+export type Onboarding = {
+  /** Copied a customer link, or copied/shared/downloaded a quote poster. */
+  quoteShared?: boolean;
+  /** Closed the checklist before finishing it. */
+  hidden?: boolean;
+};
+
 export type AppSettings = {
   salesDefaults: SalesDefaults;
   notifications: NotificationPrefs;
   dashboardTarget: DashboardTarget;
   vehicleInsurance: VehicleInsuranceOverrides;
+  onboarding: Onboarding;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -75,4 +91,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   notifications: { newLeadAlerts: true, bookingReminders: true, weeklySummary: false },
   dashboardTarget: { brand: 'Chery', target: 4 },
   vehicleInsurance: {},
+  onboarding: {},
 };

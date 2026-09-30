@@ -1,11 +1,15 @@
 import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
 import { MARGIN, POSTER_WIDTH, type PosterLayout } from './poster-layout';
-import { fillPolygon, fillTrackedText, fillNotchedRect, notchedRectPath, formatPosterCurrency, measureTrackedText, wrapPosterText } from './poster-draw-utils';
+import { fillPolygon, fillTrackedText, fillNotchedRect, formatPosterCurrency, measureTrackedText, wrapPosterText } from './poster-draw-utils';
 import { loadPosterImage } from './poster-images';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
-import { swatchHexFor } from './poster-colour-swatches';
 import { formatMalaysianPhone } from '../data/dashboard-data';
 import type { PosterData } from './poster-data';
+import { translate, type Lang, type Params } from './i18n-core';
+
+/** Poster text in the advisor's chosen poster language (Settings → Language). */
+const T = (data: { lang?: Lang }, en: string, params?: Params) => translate(data.lang ?? 'en', en, params);
+
 
 /** Paints every band's background exactly as the spec's vertical map describes, before any text
  *  or artwork goes on top — this is the skeleton every later drawing stage layers onto.
@@ -80,7 +84,7 @@ export async function drawHeader(ctx: CanvasRenderingContext2D, data: PosterData
   ctx.font = labelFont(9.5, 700);
   ctx.fillStyle = POSTER_COLORS.gray;
   ctx.textBaseline = 'middle';
-  fillTrackedText(ctx, 'VEHICLE LOAN ESTIMATE', M + 16, 48, 2.8);
+  fillTrackedText(ctx, T(data, 'VEHICLE LOAN ESTIMATE'), M + 16, 48, 2.8);
 
   // Brand logo, right-aligned to 900-M — drawn exactly as uploaded (no recolouring: the dealer's
   // own logo file is the source of truth for its colours) — or the text fallback if this vehicle
@@ -131,135 +135,6 @@ export async function drawHeader(ctx: CanvasRenderingContext2D, data: PosterData
   ctx.fillText(String(data.year), M + 42, 134);
 }
 
-/** Section 2 — car hero (background --paper): the uploaded cutout, object-contain within its
- *  528x298 box. Draws nothing when the vehicle has no photo yet — the white band stays empty
- *  rather than showing a placeholder. */
-export async function drawCarHero(ctx: CanvasRenderingContext2D, layout: PosterLayout, data: PosterData): Promise<void> {
-  if (!data.carImageUrl) return;
-
-  const heroWidth = 528;
-  const heroHeight = 298;
-  const heroX = (POSTER_WIDTH - heroWidth) / 2;
-  const heroY = layout.carHeroTop;
-
-  try {
-    const img = await loadPosterImage(data.carImageUrl);
-    // object-contain within the 528x298 box — the upload never stretches.
-    const scale = Math.min(heroWidth / img.naturalWidth, heroHeight / img.naturalHeight);
-    const drawWidth = img.naturalWidth * scale;
-    const drawHeight = img.naturalHeight * scale;
-    const drawX = heroX + (heroWidth - drawWidth) / 2;
-    const drawY = heroY + (heroHeight - drawHeight) / 2;
-    ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-  } catch {
-    // Broken/unreadable upload — leave the hero band blank rather than show a broken-image icon.
-  }
-}
-
-/** Optional card in the car-hero band's top-right, listing this variant's factory colour options
- *  (a dot + name per row) — draws nothing when the Car Database has none hardcoded for this exact
- *  vehicle yet (Vehicle.colours), same "absent means don't draw" rule as the hero photo itself.
- *  Sized to its content rather than a fixed box, and right-aligned to the same edge the header's
- *  brand logo uses, so it reads as part of the same layout rhythm rather than a bolted-on overlay.
- *
- *  Styled as a dark panel-gradient chip with a 3px red top accent — the same recipe as the price
- *  panel and footer — rather than a plain white box, so it reads as a designed part of this poster
- *  instead of a flat rectangle sitting on the white hero band. */
-export function drawColourSwatches(ctx: CanvasRenderingContext2D, layout: PosterLayout, data: PosterData): void {
-  if (data.colours.length === 0) return;
-
-  const rightEdge = POSTER_WIDTH - MARGIN;
-  const notch = 12;
-  const accentBar = 3;
-  const padding = 13;
-  const dotRadius = 5;
-  const dotToText = 9;
-  const rowHeight = 21;
-  const headerGap = 10;
-  const headerLabel = 'AVAILABLE IN';
-  const headerSpacing = 1.8;
-
-  ctx.font = labelFont(9.5, 700);
-  const headerWidth = measureTrackedText(ctx, headerLabel, headerSpacing);
-
-  const noteFor = (colour: string) => {
-    const surcharge = data.colourSurcharges[colour];
-    return surcharge ? ` (+RM ${surcharge.toLocaleString('en-MY')})` : '';
-  };
-
-  ctx.font = labelFont(11, 700);
-  const nameWidths = data.colours.map((c) => ctx.measureText(c).width);
-  ctx.font = labelFont(9.5, 400);
-  const noteWidths = data.colours.map((c) => ctx.measureText(noteFor(c)).width);
-  const maxRowTextWidth = Math.max(...data.colours.map((_, i) => nameWidths[i] + noteWidths[i]));
-  const rowWidth = dotRadius * 2 + dotToText + maxRowTextWidth;
-
-  const cardWidth = padding * 2 + Math.max(headerWidth, rowWidth);
-  const cardHeight = accentBar + padding * 2 + 10 + headerGap + data.colours.length * rowHeight;
-  const cardX = rightEdge - cardWidth;
-  const cardY = layout.carHeroTop + 14;
-
-  // Soft drop shadow, cast by the card's own notched silhouette — drawn as its own pass so the
-  // shadow follows the cut corner instead of a plain rectangle's.
-  ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.32)';
-  ctx.shadowBlur = 16;
-  ctx.shadowOffsetY = 6;
-  notchedRectPath(ctx, cardX, cardY, cardWidth, cardHeight, notch);
-  ctx.fillStyle = POSTER_COLORS.panelB;
-  ctx.fill();
-  ctx.restore();
-
-  // Gradient body + accent bar, clipped to the notched silhouette so the bar's square corner
-  // never pokes past the cut top-right corner.
-  ctx.save();
-  notchedRectPath(ctx, cardX, cardY, cardWidth, cardHeight, notch);
-  ctx.clip();
-  const bodyGradient = ctx.createLinearGradient(cardX, 0, cardX + cardWidth, 0);
-  bodyGradient.addColorStop(0, POSTER_COLORS.panelA);
-  bodyGradient.addColorStop(1, POSTER_COLORS.panelB);
-  ctx.fillStyle = bodyGradient;
-  ctx.fillRect(cardX, cardY, cardWidth, cardHeight);
-  ctx.fillStyle = POSTER_COLORS.acc;
-  ctx.fillRect(cardX, cardY, cardWidth, accentBar);
-  ctx.restore();
-
-  notchedRectPath(ctx, cardX, cardY, cardWidth, cardHeight, notch);
-  ctx.strokeStyle = POSTER_COLORS.partition;
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  ctx.font = labelFont(9.5, 700);
-  ctx.fillStyle = POSTER_COLORS.acc;
-  ctx.textBaseline = 'middle';
-  fillTrackedText(ctx, headerLabel, cardX + padding, cardY + accentBar + padding + 4, headerSpacing);
-
-  ctx.textAlign = 'left';
-  data.colours.forEach((colour, i) => {
-    const rowY = cardY + accentBar + padding + 10 + headerGap + i * rowHeight + rowHeight / 2;
-    const dotX = cardX + padding + dotRadius;
-    ctx.beginPath();
-    ctx.arc(dotX, rowY, dotRadius, 0, Math.PI * 2);
-    ctx.fillStyle = swatchHexFor(colour);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    const textX = dotX + dotRadius + dotToText;
-    ctx.font = labelFont(11, 700);
-    ctx.fillStyle = POSTER_COLORS.paper;
-    ctx.fillText(colour, textX, rowY);
-
-    const note = noteFor(colour);
-    if (note) {
-      ctx.font = labelFont(9.5, 400);
-      ctx.fillStyle = POSTER_COLORS.panelGray;
-      ctx.fillText(note, textX + nameWidths[i], rowY);
-    }
-  });
-}
-
 /** Draws an image cropped/scaled to cover an arbitrary box (like CSS object-fit: cover), clipped
  *  to whatever path is already current on the context — used for the consultant avatar tile. */
 function drawImageCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, width: number, height: number): void {
@@ -286,7 +161,7 @@ export async function drawPricePanel(ctx: CanvasRenderingContext2D, data: Poster
   ctx.fillStyle = POSTER_COLORS.panelGray;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  fillTrackedText(ctx, 'SELLING PRICE', M, 550, 2.8);
+  fillTrackedText(ctx, T(data, 'SELLING PRICE'), M, 550, 2.8);
 
   // Selling price figure.
   ctx.font = displayFont(50, 700);
@@ -302,10 +177,10 @@ export async function drawPricePanel(ctx: CanvasRenderingContext2D, data: Poster
   const boxWidth = 196;
   const twoBoxWidth = boxWidth * 2 + 14; // 210 - 196 = the gap between the two normal tiles
   const boxes: { x: number; width: number; label: string; value: number }[] = data.isCashPurchase
-    ? [{ x: M, width: twoBoxWidth, label: 'CASH PRICE', value: data.sellingPrice }]
+    ? [{ x: M, width: twoBoxWidth, label: T(data, 'CASH PRICE'), value: data.sellingPrice }]
     : [
-        { x: M, width: boxWidth, label: 'DOWNPAYMENT', value: data.downpayment },
-        { x: M + 210, width: boxWidth, label: 'LOAN AMOUNT', value: data.loanAmount },
+        { x: M, width: boxWidth, label: T(data, 'DOWNPAYMENT'), value: data.downpayment },
+        { x: M + 210, width: boxWidth, label: T(data, 'LOAN AMOUNT'), value: data.loanAmount },
       ];
   for (const box of boxes) {
     fillNotchedRect(ctx, box.x, boxY, box.width, boxHeight, 14, POSTER_COLORS.panelCard);
@@ -431,8 +306,8 @@ export function drawDataSection(ctx: CanvasRenderingContext2D, layout: PosterLay
   ctx.fillStyle = POSTER_COLORS.panelGrayD;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  fillTrackedText(ctx, 'PRICE BREAKDOWN', leftX, labelY, 2.8);
-  fillTrackedText(ctx, data.isCashPurchase ? 'CASH BUYER PERKS' : 'MONTHLY ESTIMATE', rightX, labelY, 2.8);
+  fillTrackedText(ctx, T(data, 'PRICE BREAKDOWN'), leftX, labelY, 2.8);
+  fillTrackedText(ctx, data.isCashPurchase ? T(data, 'CASH BUYER PERKS') : T(data, 'MONTHLY ESTIMATE'), rightX, labelY, 2.8);
 
   if (!data.isCashPurchase) {
     ctx.fillStyle = POSTER_COLORS.acc;
@@ -444,21 +319,21 @@ export function drawDataSection(ctx: CanvasRenderingContext2D, layout: PosterLay
   // ---- Left: price breakdown ----
   const rows: { label: string; sub: string; subColor: string; value: string; valueColor: string }[] = [
     {
-      label: 'OTR price',
-      sub: '(without insurance)',
+      label: T(data, 'OTR price'),
+      sub: T(data, '(without insurance)'),
       subColor: POSTER_COLORS.panelGray,
       value: formatPosterCurrency(data.otrPrice),
       valueColor: POSTER_COLORS.paper,
     },
     {
-      label: 'Insurance',
-      sub: `(${data.ncdPct}% NCD)`,
+      label: T(data, 'Insurance'),
+      sub: T(data, '({pct}% NCD)', { pct: data.ncdPct }),
       subColor: POSTER_COLORS.panelGray,
       value: `+ ${formatPosterCurrency(data.insurance)}`,
       valueColor: POSTER_COLORS.amber,
     },
     {
-      label: 'Rebate',
+      label: T(data, 'Rebate'),
       sub: '',
       subColor: POSTER_COLORS.green,
       value: `− ${formatPosterCurrency(data.rebate)}`,
@@ -508,7 +383,7 @@ export function drawDataSection(ctx: CanvasRenderingContext2D, layout: PosterLay
   ctx.fillStyle = POSTER_COLORS.panelGray;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  fillTrackedText(ctx, 'SELLING PRICE', 74, totalStripTop + 18, 2.2);
+  fillTrackedText(ctx, T(data, 'SELLING PRICE'), 74, totalStripTop + 18, 2.2);
 
   ctx.font = displayFont(24, 700);
   ctx.fillStyle = POSTER_COLORS.paper;
@@ -517,7 +392,7 @@ export function drawDataSection(ctx: CanvasRenderingContext2D, layout: PosterLay
   // ---- Right: monthly estimate cards, or a cash-buyer perks pitch in the same 3-card slot ----
   const cardGap = 10;
   if (data.isCashPurchase) {
-    const perks = ['No Interest Charges', 'No Loan Approval Needed', 'Immediate Ownership'];
+    const perks = ['No Interest Charges', 'No Loan Approval Needed', 'Immediate Ownership'].map((p) => T(data, p));
     perks.forEach((perk, i) => {
       const cardTop = contentTop + i * (cardHeight + cardGap);
       const centerY = cardTop + cardHeight / 2;
@@ -570,8 +445,8 @@ export function drawDataSection(ctx: CanvasRenderingContext2D, layout: PosterLay
 
       ctx.font = labelFont(7.5, 700);
       ctx.fillStyle = POSTER_COLORS.acc;
-      const lowestWidth = measureTrackedText(ctx, 'LOWEST', 1.3);
-      fillTrackedText(ctx, 'LOWEST', pillX + (pillWidth - lowestWidth) / 2, pillY + pillHeight / 2, 1.3);
+      const lowestWidth = measureTrackedText(ctx, T(data, 'LOWEST'), 1.3);
+      fillTrackedText(ctx, T(data, 'LOWEST'), pillX + (pillWidth - lowestWidth) / 2, pillY + pillHeight / 2, 1.3);
     }
 
     ctx.font = displayFont(23, 700);
@@ -594,11 +469,11 @@ export function drawFooter(ctx: CanvasRenderingContext2D, layout: PosterLayout, 
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText('WhatsApp me now', 116, top + 52);
+  ctx.fillText(T(data, 'WhatsApp me now'), 116, top + 52);
 
   ctx.font = labelFont(12, 400);
   ctx.fillStyle = POSTER_COLORS.panelGray;
-  ctx.fillText('Check your eligibility before the current promotion ends', 116, top + 78);
+  ctx.fillText(T(data, 'Check your eligibility before the current promotion ends'), 116, top + 78);
 
   ctx.font = displayFont(30, 700);
   ctx.fillStyle = POSTER_COLORS.paper;

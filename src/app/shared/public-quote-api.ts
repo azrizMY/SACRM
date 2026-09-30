@@ -23,6 +23,8 @@ export type PublicQuoteBundle = {
     downpaymentPct: number;
     ncd: number;
     basicPremiumRatePct: number;
+    /** The advisor's poster language — the whole customer link is shown in it. */
+    posterLanguage?: 'en' | 'ms';
   };
   vehicleInsurance: VehicleInsuranceOverrides;
   vehicleOverrides: Record<string, VehicleOverride>;

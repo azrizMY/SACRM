@@ -8,6 +8,7 @@
  *  catalog (12 rows) on one A5 page whenever possible, only spilling to a second page if a brand
  *  ever exceeds that. */
 import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
+import { carImageWithShadow } from './car-shadow';
 import { loadPosterImage } from './poster-images';
 import { fillPolygon, fillTrackedText, measureTrackedText, formatPosterCurrency } from './poster-draw-utils';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
@@ -15,6 +16,13 @@ import { formatMalaysianPhone } from '../data/dashboard-data';
 import { buildQrMatrix } from './qr-code';
 import { drawDocumentsRequired } from './poster-brochure-documents-required';
 import type { BrochureData, BrochureRow } from './poster-brochure-data';
+import { translate, type Lang, type Params } from './i18n-core';
+
+/** The page being drawn's language — set at the top of each page render, so helpers that only get
+ *  the canvas (header bar, rows, documents list) don't each need it threaded through. */
+let lang: Lang = 'en';
+const L = (en: string, params?: Params) => translate(lang, en, params);
+
 
 export const PAGE_WIDTH = 1748;
 export const PAGE_HEIGHT = 2480;
@@ -85,7 +93,7 @@ export async function drawHeader(
   data: BrochureData,
   pageIndex: number,
   pageCount: number,
-  eyebrow = 'CURRENT OFFERS',
+  eyebrow = L('CURRENT OFFERS'),
   headerHeight = HEADER_HEIGHT,
 ): Promise<void> {
   ctx.fillStyle = POSTER_COLORS.paper;
@@ -146,7 +154,7 @@ export async function drawHeader(
     ctx.fillStyle = POSTER_COLORS.grayD;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`Page ${pageIndex + 1} of ${pageCount}`, rightEdge, titleBaseline);
+    ctx.fillText(L('Page {n} of {total}', { n: pageIndex + 1, total: pageCount }), rightEdge, titleBaseline);
   }
 }
 
@@ -166,14 +174,14 @@ function drawTableHeaderBar(ctx: CanvasRenderingContext2D, barTop: number): void
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
-  fillTrackedText(ctx, 'MODEL & VARIANT', cols.model + 12, headerY, 1.6);
+  fillTrackedText(ctx, L('MODEL & VARIANT'), cols.model + 12, headerY, 1.6);
 
   ctx.textAlign = 'center';
   ctx.font = labelFont(10.5, 700);
-  ctx.fillText('OTR PRICE', cols.otr + cols.otrWidth / 2, headerY);
-  ctx.fillText('INSURANCE', cols.insurance + cols.insuranceWidth / 2, headerY);
-  ctx.fillText('REBATE', cols.rebate + cols.rebateWidth / 2, headerY);
-  ctx.fillText('MIN. DOWNPAYMENT', cols.downpayment + cols.downpaymentWidth / 2, headerY);
+  ctx.fillText(L('OTR PRICE'), cols.otr + cols.otrWidth / 2, headerY);
+  ctx.fillText(L('INSURANCE'), cols.insurance + cols.insuranceWidth / 2, headerY);
+  ctx.fillText(L('REBATE'), cols.rebate + cols.rebateWidth / 2, headerY);
+  ctx.fillText(L('MIN. DOWNPAYMENT'), cols.downpayment + cols.downpaymentWidth / 2, headerY);
   ctx.fillText('EST. MONTHLY FROM*', cols.monthly + cols.monthlyWidth / 2, headerY);
 }
 
@@ -197,7 +205,7 @@ async function drawRow(ctx: CanvasRenderingContext2D, row: BrochureRow, top: num
   let imageDrawn = false;
   if (row.carImageUrl) {
     try {
-      const img = await loadPosterImage(row.carImageUrl);
+      const img = await loadPosterImage(await carImageWithShadow(row.carImageUrl));
       const pad = f(6);
       const boxW = thumbSize.w - pad * 2;
       const boxH = thumbSize.h - pad * 2;
@@ -247,7 +255,7 @@ async function drawRow(ctx: CanvasRenderingContext2D, row: BrochureRow, top: num
   const monthlyX = cols.monthly + cols.monthlyWidth / 2;
   ctx.font = labelFont(f(11), 400);
   ctx.fillStyle = POSTER_COLORS.grayD;
-  ctx.fillText('From', monthlyX, centerY - f(22));
+  ctx.fillText(L('From'), monthlyX, centerY - f(22));
   ctx.font = displayFont(f(22), 700);
   ctx.fillStyle = POSTER_COLORS.acc;
   ctx.fillText(formatPosterCurrency(monthlyFrom), monthlyX, centerY + f(2));
@@ -357,7 +365,7 @@ async function drawFooter(ctx: CanvasRenderingContext2D, data: BrochureData): Pr
   const labelY = footerTop + 34;
   ctx.textBaseline = 'middle';
 
-  drawDocumentsRequired(ctx, notesX, notesWidth, labelY);
+  drawDocumentsRequired(ctx, notesX, notesWidth, labelY, lang);
 
   // Right — the combined consultant + QR card (this template's own styling, unchanged).
   const cardTop = footerTop + 20;
@@ -408,7 +416,7 @@ async function drawFooter(ctx: CanvasRenderingContext2D, data: BrochureData): Pr
   const qrHalfCenterX = dividerX + (cardX + cardWidth - dividerX) / 2;
 
   ctx.font = labelFont(12, 700);
-  const pillLabel = 'SCAN TO WHATSAPP';
+  const pillLabel = L('SCAN TO WHATSAPP');
   const pillTextWidth = measureTrackedText(ctx, pillLabel, 1.2);
   const pillPaddingX = 16;
   const pillHeight = 27;
@@ -440,11 +448,12 @@ async function drawFooter(ctx: CanvasRenderingContext2D, data: BrochureData): Pr
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  const waText = `https://wa.me/${data.advisor.phoneWa}?text=${encodeURIComponent(`Hi, I would like to enquire about the ${data.brand} promotion.`)}`;
+  const waText = `https://wa.me/${data.advisor.phoneWa}?text=${encodeURIComponent(L('Hi, I would like to enquire about the {brand} promotion.', { brand: data.brand }))}`;
   drawQrCode(ctx, waText, qrCardX + qrCardPad, qrCardTop + qrCardPad, qrSize);
 }
 
 export async function renderBrochurePage(canvas: HTMLCanvasElement, data: BrochureData, pageRows: BrochureRow[], pageIndex: number, pageCount: number): Promise<void> {
+  lang = data.lang;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   canvas.width = PAGE_WIDTH;

@@ -1,3 +1,4 @@
+import { TranslatePipe } from './i18n';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -37,14 +38,14 @@ function fmtOrDash(v: string | number | undefined | null): string {
 @Component({
   selector: 'app-customer-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, IconComponent],
+  imports: [CommonModule, RouterLink, IconComponent, TranslatePipe],
   template: `
     <div class="flex flex-col gap-4">
       <!-- Vehicle -->
       <section class="flex flex-col gap-2 rounded-xl bg-muted/50 p-3">
         <div class="flex items-start justify-between gap-3">
           <div class="flex min-w-0 flex-col">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Vehicle</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{{ "Vehicle" | t }}</span>
             <span class="text-base font-bold text-foreground">{{ vehicleTitle(record.brand, modelVariantLabel(record.model, record.variant)) }}</span>
             <span class="text-xs" [ngClass]="colourUnconfirmed ? 'font-semibold text-[var(--warning)]' : 'text-muted-foreground'">
               {{ record.yearMade }} · {{ record.colour }}
@@ -59,7 +60,7 @@ function fmtOrDash(v: string | number | undefined | null): string {
               class="flex shrink-0 items-center gap-1.5 rounded-lg bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
             >
               <app-icon name="refresh-cw" [size]="12" />
-              Change car
+              {{ "Change car" | t }}
             </button>
           }
         </div>
@@ -75,7 +76,7 @@ function fmtOrDash(v: string | number | undefined | null): string {
 
       <!-- Activity History -->
       <section class="flex flex-col gap-2 rounded-xl bg-muted/50 p-3">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Activity</span>
+        <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{{ "Activity" | t }}</span>
         @if (activity().length) {
           <ol class="flex flex-col">
             @for (entry of activity(); track entry.id; let last = $last) {
@@ -92,7 +93,7 @@ function fmtOrDash(v: string | number | undefined | null): string {
             }
           </ol>
         } @else {
-          <p class="text-xs text-muted-foreground">No activity recorded yet.</p>
+          <p class="text-xs text-muted-foreground">{{ "No activity recorded yet." | t }}</p>
         }
       </section>
 
@@ -100,28 +101,28 @@ function fmtOrDash(v: string | number | undefined | null): string {
       <div class="grid grid-cols-2 gap-2">
         <button type="button" (click)="addNote.emit(record)" class="flex items-center justify-center gap-1.5 rounded-lg bg-muted px-3 py-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent">
           <app-icon name="sticky-note" [size]="13" />
-          Add note
+          {{ "Add note" | t }}
         </button>
         @if (record.status !== 'Cancelled') {
           <button type="button" (click)="edit.emit(record)" class="flex items-center justify-center gap-1.5 rounded-lg bg-muted px-3 py-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent">
             <app-icon name="pencil" [size]="13" />
-            Edit details
+            {{ "Edit details" | t }}
           </button>
         }
         @if (record.status === 'Cancelled') {
           <button type="button" (click)="reopen.emit(record)" class="flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground">
             <app-icon name="rotate-ccw" [size]="13" />
-            Reopen
+            {{ "Reopen" | t }}
           </button>
         } @else if (record.status !== 'Delivered') {
           <button type="button" (click)="cancel.emit(record)" class="flex items-center justify-center gap-1.5 rounded-lg bg-[var(--destructive)]/12 px-3 py-2.5 text-xs font-semibold text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)]/20">
             <app-icon name="x-circle" [size]="13" />
-            Cancel deal
+            {{ "Cancel deal" | t }}
           </button>
         }
         <button type="button" (click)="delete.emit(record)" class="flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-[var(--destructive)]/10 hover:text-[var(--destructive)]">
           <app-icon name="trash" [size]="13" />
-          Delete
+          {{ "Delete" | t }}
         </button>
       </div>
     </div>
@@ -130,7 +131,7 @@ function fmtOrDash(v: string | number | undefined | null): string {
       <dl class="flex flex-col gap-1.5">
         @for (f of fields; track f.label) {
           <div class="flex items-center justify-between gap-3 text-xs">
-            <dt class="shrink-0 text-muted-foreground">{{ f.label }}</dt>
+            <dt class="shrink-0 text-muted-foreground">{{ f.label | t }}</dt>
             @if (f.badge) {
               <dd class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium" [ngClass]="f.badge.tone">
                 <span class="size-1.5 rounded-full" [ngClass]="f.badge.dot"></span>

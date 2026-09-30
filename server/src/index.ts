@@ -6,6 +6,7 @@ import { handleBankersRoute } from './routes/bankers';
 import { handleCustomersRoute } from './routes/customers';
 import { handlePublicRoute } from './routes/public';
 import { json } from './http';
+import { handlePhotoRoute, withLinkPreview } from './link-preview';
 import { withSecurityHeaders } from './security-headers';
 
 export interface Env {
@@ -26,11 +27,12 @@ export default {
         return withSecurityHeaders(json({ error: 'Internal server error' }, 500), true);
       }
     }
-    return withSecurityHeaders(await env.ASSETS.fetch(request), false);
+    return withSecurityHeaders(await withLinkPreview(request, await env.ASSETS.fetch(request), env), false);
   },
 } satisfies ExportedHandler<Env>;
 
 async function handleApi(request: Request, env: Env, url: URL): Promise<Response> {
+  if (url.pathname.startsWith('/api/public/photo/')) return (await handlePhotoRoute(request, env, url)) ?? json({ error: 'Not found' }, 404);
   if (url.pathname.startsWith('/api/public/')) return handlePublicRoute(request, env, url);
   if (url.pathname.startsWith('/api/auth/')) return handleAuthRoute(request, env, url);
   if (url.pathname === '/api/settings') return handleSettingsRoute(request, env);

@@ -41,7 +41,9 @@ export class CountUpDirective implements OnChanges, OnDestroy {
       n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping: grouped });
 
     const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / this.countUpDuration);
+      // A frame's timestamp can predate `start` (it marks the frame's beginning), so clamp at 0 too —
+      // a negative t would overshoot wildly through the easing curve.
+      const t = Math.min(1, Math.max(0, (now - start) / this.countUpDuration));
       const eased = 1 - Math.pow(1 - t, 4);
       const value = from + (target - from) * eased;
       this.el.nativeElement.textContent = t < 1 ? before + format(value) + after : text;

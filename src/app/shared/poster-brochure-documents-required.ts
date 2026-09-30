@@ -3,6 +3,7 @@
  *  neither template has to import brochure-specific code from the other. */
 import { POSTER_COLORS, labelFont } from './poster-theme';
 import { fillTrackedText } from './poster-draw-utils';
+import { translate, type Lang } from './i18n-core';
 
 /** Two side-by-side checklists (salaried vs self-employed) confined to `width` starting at `x` —
  *  the requirements every SA needs a customer to bring regardless of which car they're financing,
@@ -10,7 +11,8 @@ import { fillTrackedText } from './poster-draw-utils';
  *  advisor identity block beside it (subtle tint, hairline border, matched height) instead of bare
  *  text floating on white — a checklist reads as a checklist once each item gets its own checkbox
  *  glyph rather than a plain "1. 2. 3." numbering. */
-export function drawDocumentsRequired(ctx: CanvasRenderingContext2D, x: number, width: number, top: number): void {
+export function drawDocumentsRequired(ctx: CanvasRenderingContext2D, x: number, width: number, top: number, lang: Lang = 'en'): void {
+  const L = (en: string) => translate(lang, en);
   const pad = 18;
   const cardTop = top - pad;
   const cardHeight = 335; // matches the advisor/QR card's own height so a side-by-side pair align
@@ -34,7 +36,7 @@ export function drawDocumentsRequired(ctx: CanvasRenderingContext2D, x: number, 
   ctx.fillStyle = POSTER_COLORS.acc;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  fillTrackedText(ctx, 'DOCUMENTS REQUIRED', innerX, contentTop, 1.6);
+  fillTrackedText(ctx, L('DOCUMENTS REQUIRED'), innerX, contentTop, 1.6);
 
   const colGap = 44;
   const colWidth = (innerWidth - colGap) / 2;
@@ -50,13 +52,13 @@ export function drawDocumentsRequired(ctx: CanvasRenderingContext2D, x: number, 
   ctx.lineTo(dividerX, cardTop + cardHeight - pad);
   ctx.stroke();
 
-  const salaried = ['Copy of IC', 'Driving Licence', 'Latest 3 months payslip', 'Latest 3 months bank statement', 'EPF (KWSP) statement'];
-  const selfEmployed = ['Copy of IC', 'Driving Licence', 'Business Registration (SSM)', 'Latest 6 months bank statement'];
+  const salaried = ['Copy of IC', 'Driving Licence', 'Latest 3 months payslip', 'Latest 3 months bank statement', 'EPF (KWSP) statement'].map(L);
+  const selfEmployed = ['Copy of IC', 'Driving Licence', 'Business Registration (SSM)', 'Latest 6 months bank statement'].map(L);
 
   ctx.font = labelFont(15, 700);
   ctx.fillStyle = POSTER_COLORS.gray;
-  ctx.fillText('SALARIED', innerX, listTop);
-  ctx.fillText('SELF-EMPLOYED', col2X, listTop);
+  ctx.fillText(L('SALARIED'), innerX, listTop);
+  ctx.fillText(L('SELF-EMPLOYED'), col2X, listTop);
 
   const checkSize = 17;
   const drawChecklistItem = (itemX: number, y: number, text: string) => {

@@ -1,3 +1,4 @@
+import { I18nService, TranslatePipe } from '../shared/i18n';
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
@@ -178,26 +179,27 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
     CustomerEditModalComponent,
     CustomerNoteModalComponent,
     BrandMarkComponent,
+    TranslatePipe,
   ],
   template: `
     <div class="mx-auto flex max-w-7xl flex-col gap-5 transition-[margin] duration-300" [ngClass]="panelRecord() ? '2xl:mr-[476px]' : ''">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="flex flex-col gap-1">
-          <h2 class="text-balance text-xl font-bold tracking-tight">Customer Manager</h2>
-          <p class="text-pretty text-sm text-muted-foreground">Track every customer from lead to booking to delivery.</p>
+          <h2 class="text-balance text-xl font-bold tracking-tight">{{ "Customer Manager" | t }}</h2>
+          <p class="text-pretty text-sm text-muted-foreground">{{ "Track every customer from lead to booking to delivery." | t }}</p>
         </div>
         <a
           routerLink="/calculator"
-          title="Leads are created by saving a quote in the Calculator"
+          [title]="'Leads are created by saving a quote in the Calculator' | t"
           class="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground"
         >
           <app-icon name="plus" [size]="14" />
-          New lead
+          {{ "New lead" | t }}
         </a>
       </div>
 
       <!-- Pipeline: All · Lead → Booked → In Progress → Delivered · Cancelled -->
-      <div role="tablist" aria-label="Pipeline stage" class="-mx-4 flex items-stretch gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
+      <div role="tablist" [attr.aria-label]="'Pipeline stage' | t" class="-mx-4 flex items-stretch gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
         <div class="flex shrink-0 rounded-xl bg-card p-1">
           <ng-container [ngTemplateOutlet]="stageTab" [ngTemplateOutletContext]="{ $implicit: 'All' }" />
         </div>
@@ -221,7 +223,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             <app-icon name="search" [size]="14" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="search"
-              placeholder="Name, car, phone or IC…"
+              [placeholder]="'Name, car, phone or IC…' | t"
               [ngModel]="nameFilter()"
               (ngModelChange)="nameFilter.set($event); page.set(0)"
               class="h-10 w-full rounded-lg border border-input bg-input pl-9 pr-3 text-sm text-foreground outline-none"
@@ -235,7 +237,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             [ngClass]="filtersOpen() || filterChips().length ? 'bg-accent text-foreground' : 'bg-card text-muted-foreground hover:bg-accent hover:text-foreground'"
           >
             <app-icon name="filter" [size]="13" />
-            Filters
+            {{ 'Filters' | t }}
             @if (filterChips().length) {
               <span class="rounded-md bg-primary/20 px-1.5 text-[11px] font-bold text-primary tabular">{{ filterChips().length }}</span>
             }
@@ -249,7 +251,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             [ngClass]="attentionOnly() ? 'bg-[var(--warning)]/20 text-[var(--warning)]' : 'bg-card text-muted-foreground hover:bg-accent hover:text-foreground'"
           >
             <app-icon name="alert-triangle" [size]="13" />
-            Needs attention
+            {{ "Needs attention" | t }}
             <span class="rounded-md bg-[var(--warning)]/20 px-1.5 text-[11px] font-bold text-[var(--warning)] tabular">{{ attentionCount() }}</span>
           </button>
         </div>
@@ -257,29 +259,29 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
         @if (filtersOpen()) {
           <div class="grid grid-cols-2 gap-3 rounded-xl bg-card p-3 lg:grid-cols-4">
             <div class="flex flex-col gap-1">
-              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Car Brand</span>
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Car Brand" | t }}</span>
               <select
                 [ngModel]="carFilter()"
                 (ngModelChange)="carFilter.set($event); page.set(0)"
                 class="h-9 rounded-md border border-input bg-input px-2.5 text-sm text-foreground outline-none"
               >
-                <option value="All">All Cars</option>
+                <option value="All">{{ "All Cars" | t }}</option>
                 @for (b of brands; track b) { <option [value]="b">{{ b }}</option> }
               </select>
             </div>
             <div class="flex flex-col gap-1">
-              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Source</span>
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Source" | t }}</span>
               <select
                 [ngModel]="sourceFilter()"
                 (ngModelChange)="sourceFilter.set($event); page.set(0)"
                 class="h-9 rounded-md border border-input bg-input px-2.5 text-sm text-foreground outline-none"
               >
-                <option value="All">All Sources</option>
+                <option value="All">{{ "All Sources" | t }}</option>
                 @for (s of sourceTypes(); track s) { <option [value]="s">{{ s }}</option> }
               </select>
             </div>
             <div class="col-span-2 flex flex-col gap-1">
-              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Date Range</span>
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Date Range" | t }}</span>
               <app-date-range-picker
                 [from]="dateFromFilter()"
                 (fromChange)="dateFromFilter.set($event); page.set(0)"
@@ -299,11 +301,11 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                 [attr.aria-label]="'Remove filter ' + chip.label"
                 class="flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-[var(--destructive)]/15"
               >
-                {{ chip.label }}
+                {{ chip.label | t }}
                 <app-icon name="x" [size]="11" class="text-muted-foreground" />
               </button>
             }
-            <button type="button" (click)="clearFilters()" class="px-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">Clear all</button>
+            <button type="button" (click)="clearFilters()" class="px-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">{{ "Clear all" | t }}</button>
           </div>
         }
       </div>
@@ -323,12 +325,12 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                       class="inline-flex items-center gap-1 uppercase transition-colors hover:text-foreground"
                       [ngClass]="[col.align === 'right' ? 'flex-row-reverse' : '', sortKey() === col.key ? 'text-foreground' : '']"
                     >
-                      {{ col.label }}
+                      {{ col.label | t }}
                       <app-icon [name]="sortIcon(col.key)" [size]="13" class="opacity-70" />
                     </button>
                   </th>
                 }
-                <th class="h-10 whitespace-nowrap px-4 text-right align-middle">Actions</th>
+                <th class="h-10 whitespace-nowrap px-4 text-right align-middle">{{ "Actions" | t }}</th>
               </tr>
             </thead>
             <tbody>
@@ -370,7 +372,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                 <div class="grid grid-cols-2 gap-2">
                   @for (col of cardMetaColumns(); track col.key) {
                     <div class="flex min-w-0 flex-col gap-0.5">
-                      <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{{ col.label }}</span>
+                      <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{{ col.label | t }}</span>
                       <ng-container [ngTemplateOutlet]="cell" [ngTemplateOutletContext]="{ $implicit: r, key: col.key }" />
                     </div>
                   }
@@ -388,7 +390,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
         <!-- Pagination -->
         <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
           <div class="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>Rows per page</span>
+            <span>{{ "Rows per page" | t }}</span>
             <select
               [ngModel]="pageSize()"
               (ngModelChange)="setPageSize($event)"
@@ -396,7 +398,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             >
               @for (n of pageSizeOptions; track n) { <option [ngValue]="n">{{ n }}</option> }
             </select>
-            <span class="tabular">Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ filteredSorted().length }}</span>
+            <span class="tabular">{{ 'Showing {from}–{to} of {total}' | t: { from: rangeStart(), to: rangeEnd(), total: filteredSorted().length } }}</span>
           </div>
           <div class="flex items-center gap-1">
             <button
@@ -404,7 +406,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
               (click)="prevPage()"
               [disabled]="currentPage() === 0"
               class="inline-flex size-8 items-center justify-center rounded-md bg-muted transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
-              aria-label="Previous page"
+              [attr.aria-label]="'Previous page' | t"
             >
               <app-icon name="chevron-left" [size]="16" />
             </button>
@@ -414,7 +416,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
               (click)="nextPage()"
               [disabled]="currentPage() >= pageCount() - 1"
               class="inline-flex size-8 items-center justify-center rounded-md bg-muted transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
-              aria-label="Next page"
+              [attr.aria-label]="'Next page' | t"
             >
               <app-icon name="chevron-right" [size]="16" />
             </button>
@@ -436,7 +438,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
         @if (t !== 'All') {
           <span class="size-2 shrink-0 rounded-full" [ngClass]="t === activeTab() ? 'bg-white/80' : statusMeta(t).dot"></span>
         }
-        {{ t }}
+        {{ t | t }}
         <span class="rounded-md px-1.5 text-[11px] font-bold tabular" [ngClass]="t === activeTab() ? 'bg-white/20' : 'bg-muted text-foreground'">{{ countFor(t) }}</span>
       </button>
     </ng-template>
@@ -454,7 +456,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                   @for (a of flags; track a.label) {
                     <span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold" [ngClass]="a.tone">
                       <app-icon name="alert-triangle" [size]="10" />
-                      {{ a.label }}
+                      {{ a.label | t }}
                     </span>
                   }
                 </span>
@@ -476,16 +478,16 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
         @case ('status') {
           <span class="inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="statusMeta(r.status).tone">
             <span class="size-1.5 rounded-full" [ngClass]="statusMeta(r.status).dot"></span>
-            {{ statusMeta(r.status).label }}
+            {{ statusMeta(r.status).label | t }}
           </span>
         }
         @case ('documentStatus') {
           @if (isCash(r)) {
-            <span class="text-sm text-muted-foreground">Cash</span>
+            <span class="text-sm text-muted-foreground">{{ "Cash" | t }}</span>
           } @else {
             <span class="inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="docMeta(r.documentStatus).tone">
               <span class="size-1.5 rounded-full" [ngClass]="docMeta(r.documentStatus).dot"></span>
-              {{ docMeta(r.documentStatus).label }}
+              {{ docMeta(r.documentStatus).label | t }}
             </span>
           }
         }
@@ -508,19 +510,19 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
           target="_blank"
           rel="noopener"
           [title]="'WhatsApp ' + r.phone"
-          aria-label="WhatsApp"
+          [attr.aria-label]="'WhatsApp' | t"
           class="inline-flex size-8 items-center justify-center rounded-lg text-[#25D366] transition-colors hover:bg-[#25D366]/15"
         >
           <app-icon name="message-circle" [size]="15" />
         </a>
-        <a [href]="'tel:' + r.phone" [title]="'Call ' + r.phone" aria-label="Call" class="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+        <a [href]="'tel:' + r.phone" [title]="'Call ' + r.phone" [attr.aria-label]="'Call' | t" class="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
           <app-icon name="phone" [size]="14" />
         </a>
         <button
           type="button"
           (click)="openQuotation(r)"
           [title]="r.pendingRequote ? 'Quotation — re-quote needed' : 'View quotation'"
-          aria-label="View quotation"
+          [attr.aria-label]="'View quotation' | t"
           class="relative inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <app-icon name="file-text" [size]="14" />
@@ -535,7 +537,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             class="flex items-center gap-1 whitespace-nowrap rounded-lg bg-primary/12 px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
             [ngClass]="mobile ? 'ml-auto' : 'ml-1'"
           >
-            {{ step }}
+            {{ step | t }}
             <app-icon name="chevron-right" [size]="13" />
           </button>
         }
@@ -546,7 +548,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
          dims the list; from 2xl the list shifts left and stays usable. Stage/quotation modals
          (z-50) open above it. -->
     @if (panelRecord(); as p) {
-      <button type="button" aria-label="Close customer" class="cm-backdrop fixed inset-0 z-30 hidden bg-black/60 md:block 2xl:hidden" (click)="closePanel()"></button>
+      <button type="button" [attr.aria-label]="'Close customer' | t" class="cm-backdrop fixed inset-0 z-30 hidden bg-black/60 md:block 2xl:hidden" (click)="closePanel()"></button>
       <aside
         role="dialog"
         [attr.aria-label]="p.name"
@@ -560,21 +562,21 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             <span class="flex items-center gap-2 text-xs text-muted-foreground">
               <span class="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium" [ngClass]="statusMeta(p.status).tone">
                 <span class="size-1.5 rounded-full" [ngClass]="statusMeta(p.status).dot"></span>
-                {{ statusMeta(p.status).label }}
+                {{ statusMeta(p.status).label | t }}
               </span>
               @if (panelIndex() >= 0) {
-                <span class="tabular">{{ panelIndex() + 1 }} of {{ filteredSorted().length }}</span>
+                <span class="tabular">{{ '{n} of {total}' | t: { n: panelIndex() + 1, total: filteredSorted().length } }}</span>
               }
             </span>
           </div>
           <div class="flex shrink-0 items-center">
-            <button type="button" (click)="stepPanel(-1)" [disabled]="panelIndex() <= 0" aria-label="Previous customer" title="Previous (Alt+↑)" class="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-30">
+            <button type="button" (click)="stepPanel(-1)" [disabled]="panelIndex() <= 0" [attr.aria-label]="'Previous customer' | t" [title]="'Previous (Alt+↑)' | t" class="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-30">
               <app-icon name="arrow-up" [size]="15" />
             </button>
-            <button type="button" (click)="stepPanel(1)" [disabled]="panelIndex() < 0 || panelIndex() >= filteredSorted().length - 1" aria-label="Next customer" title="Next (Alt+↓)" class="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-30">
+            <button type="button" (click)="stepPanel(1)" [disabled]="panelIndex() < 0 || panelIndex() >= filteredSorted().length - 1" [attr.aria-label]="'Next customer' | t" [title]="'Next (Alt+↓)' | t" class="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-30">
               <app-icon name="arrow-down" [size]="15" />
             </button>
-            <button type="button" (click)="closePanel()" aria-label="Close" title="Close (Esc)" class="ml-1 flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+            <button type="button" (click)="closePanel()" [attr.aria-label]="'Close' | t" [title]="'Close (Esc)' | t" class="ml-1 flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
               <app-icon name="x" [size]="16" />
             </button>
           </div>
@@ -585,11 +587,11 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
           <div class="grid grid-cols-3 gap-2">
             <a [href]="waLink(p.phone)" target="_blank" rel="noopener" class="flex flex-col items-center gap-1 rounded-lg bg-[#25D366]/12 py-2 text-[11px] font-semibold text-[#25D366] transition-colors hover:bg-[#25D366]/20">
               <app-icon name="message-circle" [size]="16" />
-              WhatsApp
+              {{ "WhatsApp" | t }}
             </a>
             <a [href]="'tel:' + p.phone" class="flex flex-col items-center gap-1 rounded-lg bg-muted py-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-accent">
               <app-icon name="phone" [size]="16" />
-              Call
+              {{ "Call" | t }}
             </a>
             <button type="button" (click)="openQuotation(p)" class="relative flex flex-col items-center gap-1 rounded-lg bg-muted py-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-accent">
               <app-icon name="file-text" [size]="16" />
@@ -601,7 +603,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
           </div>
           @if (nextStep(p); as step) {
             <button type="button" (click)="runNextStep(p)" class="flex items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-xs font-semibold text-primary-foreground">
-              {{ step }}
+              {{ step | t }}
               <app-icon name="chevron-right" [size]="14" />
             </button>
           }
@@ -614,9 +616,9 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
               <app-icon name="alert-triangle" [size]="15" class="mt-0.5 shrink-0 text-[var(--warning)]" />
               <div class="flex min-w-0 flex-1 flex-col gap-2">
                 <span class="text-xs text-foreground">
-                  Car changed from <strong>{{ carTitle(pr.from) }}</strong>. The quotation still uses the old car's rebate, rate and insurance.
+                  {{ "Car changed from" | t }} <strong>{{ carTitle(pr.from) }}</strong>{{ ". The quotation still uses the old car's rebate, rate and insurance." | t }}
                 </span>
-                <button type="button" (click)="openQuotation(p)" class="w-fit rounded-lg bg-[var(--warning)] px-3 py-1.5 text-xs font-semibold text-[var(--warning-foreground)]">Re-quote now</button>
+                <button type="button" (click)="openQuotation(p)" class="w-fit rounded-lg bg-[var(--warning)] px-3 py-1.5 text-xs font-semibold text-[var(--warning-foreground)]">{{ "Re-quote now" | t }}</button>
               </div>
             </div>
           }
@@ -644,37 +646,37 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
     <!-- Mark as Booked modal -->
     @if (modal() === 'booked' && activeRecord(); as rec) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
+        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
         <div class="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex items-center gap-3 border-b border-border p-4">
             <span class="text-sm font-semibold">Mark as Booked &middot; {{ rec.name }}</span>
-            <button type="button" (click)="closeModal()" aria-label="Close" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+            <button type="button" (click)="closeModal()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
               <app-icon name="x" [size]="16" />
             </button>
           </div>
           <div class="flex flex-col gap-3 overflow-y-auto p-4">
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              IC No
+              {{ "IC No" | t }}
               <input type="text" [(ngModel)]="bookedForm.icNo" class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
             </label>
 
             <div class="flex items-center gap-2 pt-1">
               <div class="h-px flex-1 bg-border"></div>
-              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Optional</span>
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Optional" | t }}</span>
               <div class="h-px flex-1 bg-border"></div>
             </div>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Address
+              {{ "Address" | t }}
               <input type="text" [(ngModel)]="bookedForm.address" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
             </label>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Email
+              {{ "Email" | t }}
               <input type="email" [(ngModel)]="bookedForm.email" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
             </label>
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
-            <button type="button" (click)="submitBooked(rec.id)" [disabled]="!canSubmitBooked(bookedForm)" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">Save</button>
+            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Cancel" | t }}</button>
+            <button type="button" (click)="submitBooked(rec.id)" [disabled]="!canSubmitBooked(bookedForm)" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">{{ "Save" | t }}</button>
           </div>
         </div>
       </div>
@@ -683,33 +685,33 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
     <!-- Start Progress modal -->
     @if (modal() === 'inprogress' && activeRecord(); as rec) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
+        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
         <div class="relative flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex items-center gap-3 border-b border-border p-4">
             <span class="text-sm font-semibold">Start Progress &middot; {{ rec.name }}</span>
-            <button type="button" (click)="closeModal()" aria-label="Close" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+            <button type="button" (click)="closeModal()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
               <app-icon name="x" [size]="16" />
             </button>
           </div>
           <div class="flex flex-col gap-3 overflow-y-auto p-4">
             <p class="text-[11px] text-muted-foreground">{{ vehicleTitle(rec.brand, rec.model) }} &middot; {{ rec.variant }}</p>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Colour
+              {{ "Colour" | t }}
               <select [(ngModel)]="inProgressColour" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                @if (inProgressColour === TO_BE_CONFIRMED_COLOUR) { <option [value]="TO_BE_CONFIRMED_COLOUR">Select colour…</option> }
+                @if (inProgressColour === TO_BE_CONFIRMED_COLOUR) { <option [value]="TO_BE_CONFIRMED_COLOUR">{{ "Select colour…" | t }}</option> }
                 @for (c of inProgressColourOptions(rec); track c) { <option [value]="c">{{ c }}</option> }
               </select>
             </label>
             @if (inProgressColour === TO_BE_CONFIRMED_COLOUR) {
               <div class="flex items-start gap-2 rounded-lg border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2.5 text-[11px] text-foreground">
                 <app-icon name="alert-triangle" [size]="14" class="mt-0.5 shrink-0 text-[var(--warning)]" />
-                <span>Colour must be confirmed before this car can start progress.</span>
+                <span>{{ "Colour must be confirmed before this car can start progress." | t }}</span>
               </div>
             }
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
-            <button type="button" (click)="submitInProgress(rec.id)" [disabled]="!canSubmitInProgress(inProgressForm, inProgressColour !== TO_BE_CONFIRMED_COLOUR)" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">Save</button>
+            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Cancel" | t }}</button>
+            <button type="button" (click)="submitInProgress(rec.id)" [disabled]="!canSubmitInProgress(inProgressForm, inProgressColour !== TO_BE_CONFIRMED_COLOUR)" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">{{ "Save" | t }}</button>
           </div>
         </div>
       </div>
@@ -718,11 +720,11 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
     <!-- Mark as Delivered modal -->
     @if (modal() === 'delivered' && activeRecord(); as rec) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
+        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
         <div class="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex items-center gap-3 border-b border-border p-4">
             <span class="text-sm font-semibold">Mark as Delivered &middot; {{ rec.name }}</span>
-            <button type="button" (click)="closeModal()" aria-label="Close" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+            <button type="button" (click)="closeModal()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
               <app-icon name="x" [size]="16" />
             </button>
           </div>
@@ -730,7 +732,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             @if (!giftsCompleteFor(rec)) {
               <div class="flex items-start gap-2 rounded-lg border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2.5 text-[11px] text-foreground">
                 <app-icon name="alert-triangle" [size]="14" class="mt-0.5 shrink-0 text-[var(--warning)]" />
-                <span>{{ giftsBlockingText(rec) }} — <a routerLink="/notes" class="font-medium text-primary hover:underline">manage on Cost Breakdown</a>.</span>
+                <span>{{ giftsBlockingText(rec) }} — <a routerLink="/notes" class="font-medium text-primary hover:underline">{{ "manage on Cost Breakdown" | t }}</a>.</span>
               </div>
             }
             @if (rec.colour === TO_BE_CONFIRMED_COLOUR) {
@@ -740,45 +742,45 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
               </div>
             }
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Registration Number
+              {{ "Registration Number" | t }}
               <input type="text" [(ngModel)]="deliveredForm.plateNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
             </label>
 
             <div class="flex items-center gap-2 pt-1">
               <div class="h-px flex-1 bg-border"></div>
-              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Optional</span>
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Optional" | t }}</span>
               <div class="h-px flex-1 bg-border"></div>
             </div>
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Delivery Date
+                {{ "Delivery Date" | t }}
                 <input type="date" [(ngModel)]="deliveredForm.deliveryDate" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring" />
               </label>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Chassis / VIN
+                {{ "Chassis / VIN" | t }}
                 <input type="text" [(ngModel)]="deliveredForm.chassisNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
               </label>
             </div>
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Engine No.
+                {{ "Engine No." | t }}
                 <input type="text" [(ngModel)]="deliveredForm.engineNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
               </label>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Insurance Name
+                {{ "Insurance Name" | t }}
                 <select [(ngModel)]="deliveredForm.insuranceName" class="h-10 w-full rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
                   @for (i of insuranceOptions(); track i) { <option [value]="i">{{ i }}</option> }
                 </select>
               </label>
             </div>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Delivery Notes
+              {{ "Delivery Notes" | t }}
               <textarea rows="2" [(ngModel)]="deliveredForm.deliveryNotes" class="rounded-lg border border-input bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-ring"></textarea>
             </label>
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
-            <button type="button" (click)="submitDelivered(rec.id)" [disabled]="!canSubmitDelivered(deliveredForm, giftsCompleteFor(rec), rec.colour !== TO_BE_CONFIRMED_COLOUR)" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">Save</button>
+            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Cancel" | t }}</button>
+            <button type="button" (click)="submitDelivered(rec.id)" [disabled]="!canSubmitDelivered(deliveredForm, giftsCompleteFor(rec), rec.colour !== TO_BE_CONFIRMED_COLOUR)" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">{{ "Save" | t }}</button>
           </div>
         </div>
       </div>
@@ -787,18 +789,18 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
     <!-- Cancel modal -->
     @if (modal() === 'cancel' && activeRecord(); as rec) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
+        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
         <div class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex items-center gap-3 border-b border-border p-4">
             <span class="text-sm font-semibold">Cancel Booking &middot; {{ rec.name }}</span>
-            <button type="button" (click)="closeModal()" aria-label="Close" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+            <button type="button" (click)="closeModal()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
               <app-icon name="x" [size]="16" />
             </button>
           </div>
           <div class="flex flex-col gap-3 overflow-y-auto p-4">
-            <p class="text-[11px] text-muted-foreground">This cancels <strong class="text-foreground">{{ rec.name }}</strong>'s {{ vehicleTitle(rec.brand, rec.model) }} deal.</p>
+            <p class="text-[11px] text-muted-foreground">{{ "This cancels" | t }} <strong class="text-foreground">{{ rec.name }}</strong>'s {{ vehicleTitle(rec.brand, rec.model) }} {{ "deal." | t }}</p>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Reason
+              {{ "Reason" | t }}
               <select [(ngModel)]="cancelForm.cancelReason" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
                 @for (r of cancelReasons; track r) { <option [value]="r">{{ r }}</option> }
               </select>
@@ -815,14 +817,14 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             </label>
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Back</button>
+            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Back" | t }}</button>
             <button
               type="button"
               (click)="submitCancel(rec.id)"
               [disabled]="!canSubmitCancel(cancelForm)"
               class="rounded-md bg-[var(--destructive)] px-3 py-2 text-xs font-semibold text-[var(--destructive-foreground)] transition-colors hover:opacity-90 disabled:opacity-50"
             >
-              Confirm Cancel
+              {{ "Confirm Cancel" | t }}
             </button>
           </div>
         </div>
@@ -832,38 +834,38 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
     <!-- Change car modal -->
     @if (modal() === 'changecar' && activeRecord(); as rec) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
+        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
         <div class="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex items-center gap-3 border-b border-border p-4">
             <span class="text-sm font-semibold">Change car &middot; {{ rec.name }}</span>
-            <button type="button" (click)="closeModal()" aria-label="Close" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+            <button type="button" (click)="closeModal()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
               <app-icon name="x" [size]="16" />
             </button>
           </div>
           <div class="flex flex-col gap-4 overflow-y-auto p-4">
-            <p class="text-xs text-muted-foreground">Currently <strong class="text-foreground">{{ carTitle(rec) }}</strong></p>
+            <p class="text-xs text-muted-foreground">{{ "Currently" | t }} <strong class="text-foreground">{{ carTitle(rec) }}</strong></p>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Brand
+                {{ "Brand" | t }}
                 <select [ngModel]="changeCarForm.brand" (ngModelChange)="onChangeCarBrand($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none">
                   @for (b of brands; track b) { <option [value]="b">{{ b }}</option> }
                 </select>
               </label>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Model
+                {{ "Model" | t }}
                 <select [ngModel]="changeCarForm.model" (ngModelChange)="onChangeCarModel($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none">
                   @for (m of modelsForBrand(changeCarForm.brand); track m) { <option [value]="m">{{ m }}</option> }
                 </select>
               </label>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Variant
+                {{ "Variant" | t }}
                 <select [ngModel]="changeCarForm.variant" (ngModelChange)="onChangeCarVariant($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none">
                   @for (v of variantsForModel(changeCarForm.brand, changeCarForm.model); track v) { <option [value]="v">{{ v || changeCarForm.model }}</option> }
                 </select>
               </label>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Model year
+                {{ "Model year" | t }}
                 <select [(ngModel)]="changeCarForm.yearMade" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none">
                   @for (y of changeCarYears(); track y) { <option [ngValue]="y">{{ y }}</option> }
                 </select>
@@ -874,7 +876,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
               @let cp = changeCarPreview(rec);
               <div class="flex flex-col divide-y divide-border rounded-lg bg-muted/50 text-xs">
                 <div class="flex items-center justify-between gap-3 px-3 py-2">
-                  <span class="text-muted-foreground">Price</span>
+                  <span class="text-muted-foreground">{{ "Price" | t }}</span>
                   <span class="flex items-center gap-2 tabular">
                     <span class="text-muted-foreground">{{ fmt(cp.oldPrice) }}</span>
                     <app-icon name="chevron-right" [size]="12" class="text-muted-foreground" />
@@ -887,7 +889,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                   </span>
                 </div>
                 <div class="flex items-center justify-between gap-3 px-3 py-2">
-                  <span class="text-muted-foreground">Rebate (this year)</span>
+                  <span class="text-muted-foreground">{{ "Rebate (this year)" | t }}</span>
                   <span class="flex items-center gap-2 tabular">
                     <span class="text-muted-foreground">{{ fmt(cp.oldRebate) }}</span>
                     <app-icon name="chevron-right" [size]="12" class="text-muted-foreground" />
@@ -897,7 +899,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
               </div>
 
               <div class="flex flex-col gap-2">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">What happens</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{{ "What happens" | t }}</span>
                 <ul class="flex flex-col gap-1.5 text-xs text-foreground">
                   <li class="flex items-start gap-2"><app-icon name="info" [size]="13" class="mt-0.5 shrink-0 text-muted-foreground" /> Colour resets to "To be Confirmed" — confirm it again for the new car.</li>
                   @if (rec.quotation) {
@@ -910,7 +912,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                       }
                     </li>
                   }
-                  <li class="flex items-start gap-2"><app-icon name="info" [size]="13" class="mt-0.5 shrink-0 text-muted-foreground" /> The change is recorded in the activity history.</li>
+                  <li class="flex items-start gap-2"><app-icon name="info" [size]="13" class="mt-0.5 shrink-0 text-muted-foreground" /> {{ "The change is recorded in the activity history." | t }}</li>
                 </ul>
               </div>
 
@@ -918,7 +920,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                 <div class="flex flex-col gap-2 rounded-lg bg-[var(--warning)]/10 p-3">
                   <span class="flex items-center gap-1.5 text-xs font-semibold text-[var(--warning)]">
                     <app-icon name="alert-triangle" [size]="13" />
-                    This deal is already {{ rec.status }}
+                    {{ 'This deal is already {status}' | t: { status: (rec.status | t) } }}
                   </span>
                   <ul class="flex list-disc flex-col gap-1 pl-5 text-[11px] text-foreground">
                     @for (w of changeCarWarnings(rec, cp.delta); track w) {
@@ -927,23 +929,23 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                   </ul>
                   <label class="mt-1 flex items-center gap-2 text-xs font-medium text-foreground">
                     <input type="checkbox" [(ngModel)]="changeCarAck" class="size-4 shrink-0 rounded border-input accent-primary" />
-                    I've gone through this with the customer
+                    {{ "I've gone through this with the customer" | t }}
                   </label>
                 </div>
               }
             } @else {
-              <p class="rounded-lg bg-muted/50 px-3 py-2.5 text-xs text-muted-foreground">Pick a different brand, model, variant or year.</p>
+              <p class="rounded-lg bg-muted/50 px-3 py-2.5 text-xs text-muted-foreground">{{ "Pick a different brand, model, variant or year." | t }}</p>
             }
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
+            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Cancel" | t }}</button>
             <button
               type="button"
               (click)="submitChangeCar(rec)"
               [disabled]="!changeCarIsDifferent(rec) || (changeCarNeedsAck(rec) && !changeCarAck)"
               class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
             >
-              Change car
+              {{ "Change car" | t }}
             </button>
           </div>
         </div>
@@ -953,11 +955,11 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
     <!-- Quotation modal -->
     @if (activeQuotationRecord(); as qrec) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeQuotation()"></button>
+        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeQuotation()"></button>
         <div class="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex items-center gap-3 border-b border-border p-4">
             <span class="text-sm font-semibold">Quotation &middot; {{ qrec.name }}</span>
-            <button type="button" (click)="closeQuotation()" aria-label="Close" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+            <button type="button" (click)="closeQuotation()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
               <app-icon name="x" [size]="16" />
             </button>
           </div>
@@ -970,8 +972,8 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                 <div class="flex items-start gap-2 rounded-lg bg-[var(--warning)]/12 px-3 py-2.5 text-[11px] text-foreground">
                   <app-icon name="alert-triangle" [size]="14" class="mt-0.5 shrink-0 text-[var(--warning)]" />
                   <span>
-                    Car changed from <strong>{{ carTitle(pr.from) }}</strong> on {{ formatStageDate(pr.changedAt) }}. These figures still use the old car's rebate, rate and
-                    insurance — re-quote before sending it to the customer.
+                    {{ 'Car changed from {car} on {date}.' | t: { car: carTitle(pr.from), date: formatStageDate(pr.changedAt) } }}
+                    {{ "These figures still use the old car's rebate, rate and insurance — re-quote before sending it to the customer." | t }}
                   </span>
                 </div>
               }
@@ -981,29 +983,29 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                     <app-icon name="tag" [size]="16" />
                   </span>
                   <div class="flex flex-col">
-                    <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Selling Price</span>
+                    <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Selling Price" | t }}</span>
                     <span class="text-2xl font-bold tabular tracking-tight">{{ fmt(qv.allInPrice) }}</span>
                   </div>
                 </div>
                 @if (qv.loanAmount > 0) {
                   <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div class="flex flex-col gap-1 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
-                      <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Downpayment</span>
+                      <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{{ "Downpayment" | t }}</span>
                       <span class="text-sm font-semibold tabular">{{ fmt(qv.downpaymentCash) }}</span>
                     </div>
                     <div class="flex flex-col gap-1 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
-                      <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Loan Amount</span>
+                      <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{{ "Loan Amount" | t }}</span>
                       <span class="text-sm font-semibold tabular">{{ fmt(qv.loanAmount) }}</span>
                     </div>
                   </div>
                 }
                 <div class="flex flex-col divide-y divide-border rounded-lg border border-border text-sm">
                   <div class="flex items-center justify-between px-3 py-2">
-                    <span class="text-muted-foreground">OTR Price</span>
+                    <span class="text-muted-foreground">{{ "OTR Price" | t }}</span>
                     <span class="font-medium tabular">{{ fmt(qv.basePrice) }}</span>
                   </div>
                   <div class="flex items-center justify-between px-3 py-2">
-                    <span class="text-muted-foreground">Rebate</span>
+                    <span class="text-muted-foreground">{{ "Rebate" | t }}</span>
                     <span class="font-medium tabular text-[var(--success)]">&minus; {{ fmt(qv.effectiveRebate) }}</span>
                   </div>
                   <div class="flex items-center justify-between px-3 py-2">
@@ -1014,12 +1016,12 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                 @if (qv.loanAmount > 0) {
                   <div class="overflow-hidden rounded-lg border border-border">
                     <div class="border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
-                      {{ qrec.quotation.interestRate }}% <span class="text-muted-foreground/70">&middot; {{ qv.rateType === 'effective' ? 'EIR' : 'Flat' }}</span>
+                      {{ qrec.quotation.interestRate }}% <span class="text-muted-foreground/70">&middot; {{ qv.rateType === 'effective' ? 'EIR' : ('Flat' | t) }}</span>
                     </div>
                     @for (row of qv.repaymentRows; track row.months) {
                       @if (row.months === qrec.quotation.tenureMonths) {
                         <div class="flex items-center justify-between px-3 py-2 text-sm">
-                          <span class="font-medium">{{ row.label }}</span>
+                          <span class="font-medium">{{ row.label | t }}</span>
                           <span class="font-semibold tabular">{{ fmt(row.monthly) }}/mo</span>
                         </div>
                       }
@@ -1033,12 +1035,12 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                 @if (qrec.pendingRequote) {
                   <button type="button" (click)="startEditQuotation()" class="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
                     <app-icon name="refresh-cw" [size]="13" />
-                    Re-quote now
+                    {{ "Re-quote now" | t }}
                   </button>
                 } @else {
                   <button type="button" (click)="startEditQuotation()" class="flex items-center gap-1.5 rounded-md bg-muted px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent">
                     <app-icon name="pencil" [size]="13" />
-                    Edit
+                    {{ "Edit" | t }}
                   </button>
                 }
               }
@@ -1047,7 +1049,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             <!-- Edit / create mode -->
             <div class="flex flex-col gap-3 overflow-y-auto p-4">
               @if (!qrec.quotation) {
-                <p class="rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">No quotation yet for this customer — fill in the details below to create one.</p>
+                <p class="rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">{{ "No quotation yet for this customer — fill in the details below to create one." | t }}</p>
               }
               <p class="text-sm font-medium">{{ vehicleTitle(qrec.brand, qrec.model) }} &middot; {{ qrec.variant }}</p>
               @if (qrec.pendingRequote; as pr) {
@@ -1055,33 +1057,33 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                   <div class="flex flex-col gap-2 rounded-lg bg-[var(--warning)]/10 p-3">
                     <span class="flex items-center gap-1.5 text-xs font-semibold text-[var(--warning)]">
                       <app-icon name="refresh-cw" [size]="13" />
-                      Re-quoting for the new car
+                      {{ "Re-quoting for the new car" | t }}
                     </span>
                     <p class="text-[11px] text-muted-foreground">
-                      Rebate, rate and insurance now come from the new car. The down payment starts at the customer's agreed amount — change it if you've agreed something else.
+                      {{ "Rebate, rate and insurance now come from the new car. The down payment starts at the customer's agreed amount — change it if you've agreed something else." | t }}
                     </p>
                     <div class="grid grid-cols-[auto_1fr_1fr] items-baseline gap-x-3 gap-y-1.5 text-[11px]">
                       <span></span>
                       <span class="truncate font-semibold text-muted-foreground">Before · {{ carTitle(pr.from) }}</span>
                       <span class="truncate font-semibold text-foreground">Now · {{ carTitle(qrec) }}</span>
 
-                      <span class="text-muted-foreground">Selling price</span>
+                      <span class="text-muted-foreground">{{ "Selling price" | t }}</span>
                       <span class="tabular text-muted-foreground">{{ fmt(pr.allInPrice) }}</span>
                       <span class="font-semibold tabular text-foreground">{{ fmt(qp.allInPrice) }}</span>
 
                       @if (quotationFinancingType !== 'Cash') {
-                        <span class="text-muted-foreground">Down payment</span>
+                        <span class="text-muted-foreground">{{ "Down payment" | t }}</span>
                         <span class="tabular text-muted-foreground">{{ fmt(pr.downpaymentCash) }}</span>
                         <span class="font-semibold tabular text-foreground">
                           {{ fmt(qp.downpaymentCash) }}
                           <span class="font-normal text-muted-foreground">· {{ pctOf(qp.downpaymentCash, qp.allInPrice) }}</span>
                         </span>
 
-                        <span class="text-muted-foreground">Loan amount</span>
+                        <span class="text-muted-foreground">{{ "Loan amount" | t }}</span>
                         <span class="tabular text-muted-foreground">{{ fmt(pr.loanAmount) }}</span>
                         <span class="font-semibold tabular text-foreground">{{ fmt(qp.loanAmount) }}</span>
 
-                        <span class="text-muted-foreground">Monthly</span>
+                        <span class="text-muted-foreground">{{ "Monthly" | t }}</span>
                         <span class="tabular text-muted-foreground">{{ fmt(pr.monthly) }} · {{ pr.tenureMonths / 12 }}y</span>
                         <span class="font-semibold tabular text-foreground">{{ fmt(monthlyFor(qp, quotationForm.tenureMonths)) }} · {{ quotationForm.tenureMonths / 12 }}y</span>
                       }
@@ -1090,27 +1092,27 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                 }
               }
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Financing Type
+                {{ "Financing Type" | t }}
                 <select [ngModel]="quotationFinancingType" (ngModelChange)="onQuotationFinancingTypeChange($event)" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                  @for (f of financingTypeOptions; track f.value) { <option [value]="f.value">{{ f.label }}</option> }
+                  @for (f of financingTypeOptions; track f.value) { <option [value]="f.value">{{ f.label | t }}</option> }
                 </select>
               </label>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Rebate (RM)
+                  {{ "Rebate (RM)" | t }}
                   <input type="number" min="0" step="500" [(ngModel)]="quotationForm.rebate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                 </label>
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  NCD
+                  {{ "NCD" | t }}
                   <select [(ngModel)]="quotationForm.ncd" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                    @for (opt of ncdOptions; track opt.value) { <option [ngValue]="opt.value">{{ opt.label }}</option> }
+                    @for (opt of ncdOptions; track opt.value) { <option [ngValue]="opt.value">{{ opt.label | t }}</option> }
                   </select>
                 </label>
               </div>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 <span class="flex items-center gap-2">
-                  <input type="checkbox" [(ngModel)]="quotationForm.additionalRebateEnabled" aria-label="Include additional rebate" class="size-4 shrink-0 rounded border-input accent-primary" />
-                  Additional Rebate (RM)
+                  <input type="checkbox" [(ngModel)]="quotationForm.additionalRebateEnabled" [attr.aria-label]="'Include additional rebate' | t" class="size-4 shrink-0 rounded border-input accent-primary" />
+                  {{ "Additional Rebate (RM)" | t }}
                 </span>
                 <input
                   type="number"
@@ -1123,26 +1125,26 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
               </label>
               @if (quotationFinancingType !== 'Cash') {
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Rate Type
+                  {{ "Rate Type" | t }}
                   <select [(ngModel)]="quotationForm.rateType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                    <option value="flat">Flat</option>
-                    <option value="effective">EIR</option>
+                    <option value="flat">{{ "Flat" | t }}</option>
+                    <option value="effective">{{ "EIR" | t }}</option>
                   </select>
                 </label>
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    {{ quotationForm.rateType === 'effective' ? 'Effective Rate (%)' : 'Flat Rate (%)' }}
+                    {{ quotationForm.rateType === 'effective' ? ('Effective Rate (%)' | t) : ('Flat Rate (%)' | t) }}
                     <input type="number" min="0" step="0.1" [(ngModel)]="quotationForm.interestRate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                   </label>
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Tenure
+                    {{ "Tenure" | t }}
                     <select [(ngModel)]="quotationForm.tenureMonths" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @for (t of tenureOptions; track t.months) { <option [ngValue]="t.months">{{ t.label }}</option> }
+                      @for (t of tenureOptions; track t.months) { <option [ngValue]="t.months">{{ t.label | t }}</option> }
                     </select>
                   </label>
                 </div>
                 <div class="flex flex-col gap-2">
-                  <span class="text-xs font-medium text-muted-foreground">Downpayment</span>
+                  <span class="text-xs font-medium text-muted-foreground">{{ "Downpayment" | t }}</span>
                   <div class="flex gap-2">
                     <input
                       type="number"
@@ -1167,7 +1169,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                         class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
                         [ngClass]="quotationForm.downpaymentType === 'amount' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
                       >
-                        Amt
+                        {{ "Amt" | t }}
                       </button>
                     </div>
                   </div>
@@ -1177,22 +1179,22 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                 @if (quotationFinancingType === 'Cash') {
                   <div class="rounded-lg bg-muted/40 px-3 py-2.5 text-[11px] text-muted-foreground">
                     <span class="flex flex-col">
-                      Selling Price
+                      {{ "Selling Price" | t }}
                       <strong class="text-sm text-foreground tabular">{{ fmt(qp.allInPrice) }}</strong>
                     </span>
                   </div>
                 } @else {
                   <div class="grid grid-cols-3 gap-3 rounded-lg bg-muted/40 px-3 py-2.5 text-[11px] text-muted-foreground">
                     <span class="flex flex-col">
-                      Selling Price
+                      {{ "Selling Price" | t }}
                       <strong class="text-sm text-foreground tabular">{{ fmt(qp.allInPrice) }}</strong>
                     </span>
                     <span class="flex flex-col">
-                      Downpayment
+                      {{ "Downpayment" | t }}
                       <strong class="text-sm text-foreground tabular">{{ fmt(qp.downpaymentCash) }}</strong>
                     </span>
                     <span class="flex flex-col">
-                      Loan Amount
+                      {{ "Loan Amount" | t }}
                       <strong class="text-sm text-foreground tabular">{{ fmt(qp.loanAmount) }}</strong>
                     </span>
                   </div>
@@ -1200,8 +1202,8 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
               }
             </div>
             <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-              <button type="button" (click)="cancelEditQuotation()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
-              <button type="button" (click)="saveQuotation(qrec.id)" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90">Save</button>
+              <button type="button" (click)="cancelEditQuotation()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Cancel" | t }}</button>
+              <button type="button" (click)="saveQuotation(qrec.id)" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90">{{ "Save" | t }}</button>
             </div>
           }
         </div>
@@ -1211,26 +1213,26 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
     <!-- Delete confirmation -->
     @if (deleteTarget(); as target) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="cancelDelete()"></button>
+        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="cancelDelete()"></button>
         <div class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex flex-col gap-2 p-5">
             <span class="flex items-center gap-2 text-sm font-semibold text-[var(--destructive)]">
               <app-icon name="trash" [size]="15" />
-              Delete customer?
+              {{ "Delete customer?" | t }}
             </span>
             <p class="text-sm text-muted-foreground">
-              This permanently removes <strong class="text-foreground">{{ target.name }}</strong>
+              {{ "This permanently removes" | t }} <strong class="text-foreground">{{ target.name }}</strong>
               ({{ vehicleTitle(target.brand, target.model) }}) and everything recorded for them. This can't be undone.
             </p>
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="cancelDelete()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
+            <button type="button" (click)="cancelDelete()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Cancel" | t }}</button>
             <button
               type="button"
               (click)="confirmDelete()"
               class="rounded-md bg-[var(--destructive)] px-3 py-2 text-xs font-semibold text-[var(--destructive-foreground)] transition-colors hover:opacity-90"
             >
-              Delete
+              {{ "Delete" | t }}
             </button>
           </div>
         </div>
@@ -1240,21 +1242,21 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
     <!-- Reopen confirmation -->
     @if (reopenTarget(); as target) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="cancelReopen()"></button>
+        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="cancelReopen()"></button>
         <div class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex flex-col gap-2 p-5">
             <span class="flex items-center gap-2 text-sm font-semibold">
               <app-icon name="rotate-ccw" [size]="15" />
-              Reopen customer?
+              {{ "Reopen customer?" | t }}
             </span>
             <p class="text-sm text-muted-foreground">
-              This restores <strong class="text-foreground">{{ target.name }}</strong> ({{ vehicleTitle(target.brand, target.model) }}) to
-              <strong class="text-foreground">{{ target.previousStatus }}</strong>. All data captured before cancellation is kept.
+              {{ "This restores" | t }} <strong class="text-foreground">{{ target.name }}</strong> ({{ vehicleTitle(target.brand, target.model) }}) to
+              <strong class="text-foreground">{{ target.previousStatus }}</strong>{{ ". All data captured before cancellation is kept." | t }}
             </p>
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="cancelReopen()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
-            <button type="button" (click)="confirmReopen()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90">Reopen</button>
+            <button type="button" (click)="cancelReopen()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Cancel" | t }}</button>
+            <button type="button" (click)="confirmReopen()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90">{{ "Reopen" | t }}</button>
           </div>
         </div>
       </div>
@@ -1452,10 +1454,10 @@ export class CustomerManagerComponent {
   /** "Today", "3d ago", "2w ago", then the plain date past a month — the exact date is in the tooltip. */
   relativeDate(ts: number): string {
     const d = this.daysSince(ts);
-    if (d <= 0) return 'Today';
-    if (d === 1) return 'Yesterday';
-    if (d < 7) return `${d}d ago`;
-    if (d < 30) return `${Math.floor(d / 7)}w ago`;
+    if (d <= 0) return this.i18n.t('Today');
+    if (d === 1) return this.i18n.t('Yesterday');
+    if (d < 7) return this.i18n.t('{n}d ago', { n: d });
+    if (d < 30) return this.i18n.t('{n}w ago', { n: Math.floor(d / 7) });
     return formatStageDate(ts);
   }
 
@@ -1698,6 +1700,7 @@ export class CustomerManagerComponent {
   }
 
   private settings = inject(SettingsService);
+  private i18n = inject(I18nService);
   modelVariantLabel = modelVariantLabel;
   vehicleTitle = vehicleTitle;
 

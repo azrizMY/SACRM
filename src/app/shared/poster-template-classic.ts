@@ -1,5 +1,6 @@
 import { computePosterLayout } from './poster-layout';
-import { drawPosterSkeleton, drawHeader, drawCarHero, drawColourSwatches, drawPricePanel, drawDataSection, drawFooter } from './poster-renderer';
+import { drawPosterSkeleton, drawHeader, drawPricePanel, drawDataSection, drawFooter } from './poster-renderer';
+import { drawCarHeroWithColours } from './poster-hero-colours';
 import type { PosterTemplate } from './poster-templates';
 
 /** The original full-quotation poster from quote-poster-spec.md — 900x1168 design px, header,
@@ -22,9 +23,8 @@ export const classicTemplate: PosterTemplate = {
     drawPosterSkeleton(ctx, layout);
     await drawHeader(ctx, data);
     if (isStale()) return;
-    await drawCarHero(ctx, layout, data);
+    await drawCarHeroWithColours(ctx, layout, data);
     if (isStale()) return;
-    drawColourSwatches(ctx, layout, data);
     await drawPricePanel(ctx, data);
     if (isStale()) return;
     drawDataSection(ctx, layout, data);

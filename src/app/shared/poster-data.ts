@@ -1,3 +1,5 @@
+import type { Lang } from './i18n-core';
+
 /** Everything the poster canvas needs to draw one quotation — assembled by the Calculator from its
  *  existing signals. Nothing in poster-renderer.ts reads app state directly; it only ever sees
  *  this plain data, so the renderer stays testable and the "no hardcoded figures" rule is
@@ -24,6 +26,8 @@ export type PosterAdvisor = {
 };
 
 export type PosterData = {
+  /** Which language the poster is drawn in — the advisor's poster language, not their UI language. */
+  lang: Lang;
   brand: string;
   modelTitle: string;
   year: number;

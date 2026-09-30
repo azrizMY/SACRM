@@ -468,6 +468,7 @@ export class ProfileComponent {
   async copyCustomerLink() {
     try {
       await navigator.clipboard.writeText(this.customerLinkUrl());
+      this.settingsService.markQuoteShared();
       this.linkCopied.set(true);
       setTimeout(() => this.linkCopied.set(false), 2000);
     } catch {
@@ -478,6 +479,7 @@ export class ProfileComponent {
   async copyBrandOnlyLink() {
     try {
       await navigator.clipboard.writeText(this.brandOnlyLinkUrl());
+      this.settingsService.markQuoteShared();
       this.brandLinkCopied.set(true);
       setTimeout(() => this.brandLinkCopied.set(false), 2000);
     } catch {

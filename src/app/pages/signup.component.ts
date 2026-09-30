@@ -3,17 +3,18 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { IconComponent } from '../shared/icon.component';
+import { AuthLayoutComponent } from '../shared/auth-layout.component';
 import { AuthService } from '../shared/auth.service';
 import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
 
 @Component({
   selector: 'app-signup',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, AuthLayoutComponent],
   template: `
-    <div class="flex min-h-dvh items-center justify-center px-4 py-10 text-foreground">
+    <app-auth-layout>
       <div class="flex w-full max-w-sm flex-col gap-6">
-        <a routerLink="/welcome" class="flex items-center justify-center gap-2.5">
+        <a routerLink="/welcome" class="flex items-center justify-center gap-2.5 lg:hidden">
           <span class="logo-chip flex size-10 items-center justify-center rounded-xl">
             <app-icon name="car" [size]="18" />
           </span>
@@ -23,7 +24,7 @@ import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
           </div>
         </a>
 
-        <div class="flex flex-col gap-5 glass glow-border animate-rise rounded-2xl p-7 text-card-foreground shadow-[0_30px_80px_-30px_color-mix(in_oklch,var(--primary),transparent_60%)]">
+        <div class="flex flex-col gap-5 animate-rise rounded-2xl bg-card p-7 text-card-foreground shadow-xl">
           <div class="flex flex-col gap-1 text-center">
             <h1 class="text-2xl font-bold tracking-tight">Create your account</h1>
             <p class="text-sm text-muted-foreground">Set up your consultant profile in a few seconds.</p>
@@ -105,6 +106,17 @@ import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
               </div>
             </label>
 
+            <label class="flex items-start gap-2.5 text-xs leading-relaxed text-muted-foreground">
+              <input type="checkbox" name="acceptTerms" [(ngModel)]="acceptTerms" class="mt-0.5 size-4 shrink-0 accent-[var(--primary)]" />
+              <span>
+                I agree to the
+                <a routerLink="/terms" target="_blank" class="font-medium text-primary hover:underline">Terms of Use</a>
+                and
+                <a routerLink="/privacy" target="_blank" class="font-medium text-primary hover:underline">Privacy Policy</a>,
+                and I have my customers' consent for any of their details I record.
+              </span>
+            </label>
+
             <button
               type="submit"
               [disabled]="submitting()"
@@ -120,7 +132,7 @@ import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
           <a routerLink="/login" class="font-medium text-primary hover:underline">Log in</a>
         </p>
       </div>
-    </div>
+    </app-auth-layout>
   `,
 })
 export class SignupComponent {
@@ -130,6 +142,7 @@ export class SignupComponent {
   primaryBrand = '';
   password = '';
   confirmPassword = '';
+  acceptTerms = false;
   showPassword = signal(false);
   error = signal<string | null>(null);
   submitting = signal(false);
@@ -164,6 +177,10 @@ export class SignupComponent {
     }
     if (this.password !== this.confirmPassword) {
       this.error.set('Passwords do not match.');
+      return;
+    }
+    if (!this.acceptTerms) {
+      this.error.set('Please agree to the Terms of Use and Privacy Policy to continue.');
       return;
     }
 

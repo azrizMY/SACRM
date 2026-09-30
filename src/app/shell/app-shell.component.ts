@@ -5,6 +5,8 @@ import { filter } from 'rxjs/operators';
 import { SidebarComponent } from './sidebar.component';
 import { TopbarComponent } from './topbar.component';
 import { SettingsService } from '../shared/settings.service';
+import { TranslatePipe } from '../shared/i18n';
+import { InstallBannerComponent } from '../shared/install-banner.component';
 
 const TITLES: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -21,7 +23,7 @@ const TITLES: Record<string, string> = {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, SidebarComponent, TopbarComponent],
+  imports: [CommonModule, RouterOutlet, SidebarComponent, TopbarComponent, TranslatePipe, InstallBannerComponent],
   template: `
     <div class="flex h-dvh w-full overflow-hidden">
       <!-- Desktop sidebar -->
@@ -39,7 +41,7 @@ const TITLES: Record<string, string> = {
         <div class="fixed inset-0 z-50 md:hidden">
           <button
             type="button"
-            aria-label="Close menu"
+            [attr.aria-label]="'Close menu' | t"
             class="absolute inset-0 bg-black/60 backdrop-blur-sm"
             (click)="mobileOpen.set(false)"
           ></button>
@@ -59,6 +61,9 @@ const TITLES: Record<string, string> = {
       <div class="flex min-w-0 flex-1 flex-col">
         <app-topbar [title]="title()" [brand]="titleBrand()" (openMobile)="mobileOpen.set(true)" />
         <main class="route-host flex-1 overflow-y-auto p-4 md:p-6">
+          @if (active() === 'dashboard') {
+            <app-install-banner />
+          }
           <router-outlet />
         </main>
       </div>

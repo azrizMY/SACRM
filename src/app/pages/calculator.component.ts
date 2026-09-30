@@ -13,6 +13,7 @@ import { SettingsService } from '../shared/settings.service';
 import { CUSTOMER_STATUS_META, FINANCING_TYPE_OPTIONS, TO_BE_CONFIRMED_COLOUR, type CustomerRecord, type FinancingType } from '../data/customer-data';
 import { todayStr } from '../shared/date-utils';
 import { DEFAULT_LEAD_SOURCE } from '../data/settings-data';
+import { translate } from '../shared/i18n-core';
 import { brandLogo, toMalaysianWhatsAppNumber } from '../data/dashboard-data';
 import {
   NCD_OPTIONS,
@@ -44,11 +45,12 @@ import { compactMyTemplate } from '../shared/poster-template-my';
 import { promoTemplate, squareTemplate } from '../shared/poster-template-social';
 import type { PosterData } from '../shared/poster-data';
 import type { PosterTemplate, PosterTemplateId } from '../shared/poster-templates';
+import { TranslatePipe } from '../shared/i18n';
 
 @Component({
   selector: 'app-calculator',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent, NumberFieldComponent, InsuranceQuotationEditorComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, NumberFieldComponent, InsuranceQuotationEditorComponent, TranslatePipe],
   template: `
     <div class="mx-auto flex max-w-7xl flex-col gap-6">
       <!-- Mobile Preview/Customize switcher -->
@@ -56,16 +58,16 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
         <!-- Live monthly (same as the customer link), so changes on Customize show without switching to Preview -->
         <div class="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
           @if (isCashPurchase()) {
-            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Selling price</span>
+            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{{ "Selling price" | t }}</span>
             <span class="text-sm font-bold tabular">{{ fmt2(allInPrice()) }}</span>
           } @else {
             <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Monthly · {{ selectedTenureLabel() }}</span>
             <span class="text-sm font-bold tabular" [ngClass]="rateMissing() ? 'text-[var(--warning)]' : 'text-primary'">
-              {{ rateMissing() ? 'Rate needed' : fmt2(selectedTenureMonthly()) }}
+              {{ rateMissing() ? ('Rate needed' | t) : fmt2(selectedTenureMonthly()) }}
             </span>
           }
         </div>
-        <div role="tablist" aria-label="Quote view" class="flex rounded-lg border border-border bg-muted/30 p-1">
+        <div role="tablist" [attr.aria-label]="'Quote view' | t" class="flex rounded-lg border border-border bg-muted/30 p-1">
           <button
             type="button"
             role="tab"
@@ -74,7 +76,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
             class="flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
             [ngClass]="mobileTab() === 'preview' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
           >
-            Preview
+            {{ "Preview" | t }}
           </button>
           <button
             type="button"
@@ -84,7 +86,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
             class="flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
             [ngClass]="mobileTab() === 'customize' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
           >
-            Customize
+            {{ "Customize" | t }}
           </button>
         </div>
       </div>
@@ -98,7 +100,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
           [ngClass]="mobileTab() === 'preview' ? 'flex' : 'hidden'"
         >
           @if (availableTemplates().length > 1) {
-            <div role="radiogroup" aria-label="Poster template" class="flex w-full shrink-0 gap-1.5 overflow-x-auto rounded-xl border border-border bg-muted/40 p-1.5">
+            <div role="radiogroup" [attr.aria-label]="'Poster template' | t" class="flex w-full shrink-0 gap-1.5 overflow-x-auto rounded-xl border border-border bg-muted/40 p-1.5">
               @for (t of availableTemplates(); track t.id) {
                 <button
                   type="button"
@@ -108,7 +110,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                   class="flex-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold text-center transition-colors"
                   [ngClass]="selectedTemplateId() === t.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                 >
-                  {{ t.label }}
+                  {{ t.label | t }}
                 </button>
               }
             </div>
@@ -120,8 +122,8 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               <div class="absolute inset-0 flex items-center justify-center bg-black/55 p-6">
                 <div class="flex max-w-xs flex-col items-center gap-2 rounded-xl bg-card px-5 py-4 text-center shadow-xl">
                   <app-icon name="alert-triangle" [size]="20" class="text-[var(--warning)]" />
-                  <span class="text-sm font-bold">EIR needed</span>
-                  <span class="text-xs text-muted-foreground">Enter the bank's effective rate under Interest Rate to finish this quote.</span>
+                  <span class="text-sm font-bold">{{ "EIR needed" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "Enter the bank's effective rate under Interest Rate to finish this quote." | t }}</span>
                 </div>
               </div>
             }
@@ -131,8 +133,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
             <div class="flex items-start gap-2.5 rounded-lg bg-[var(--warning)]/12 px-4 py-3 text-sm text-foreground">
               <app-icon name="alert-triangle" [size]="16" class="mt-0.5 shrink-0 text-[var(--warning)]" />
               <span class="flex-1">
-                No EIR is set for this car — enter the bank's effective rate under <strong>Interest Rate</strong> before sharing. The monthly figures above aren't
-                real until you do.
+                {{ "No EIR is set for this car — enter the bank's effective rate under" | t }} <strong>{{ "Interest Rate" | t }}</strong> {{ "before sharing. The monthly figures above aren't real until you do." | t }}
               </span>
             </div>
           }
@@ -140,7 +141,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
           @if (posterShareFallbackNotice()) {
             <div class="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/8 px-4 py-2.5 text-sm">
               <app-icon name="download" [size]="14" class="shrink-0" />
-              Your browser can't hand files to WhatsApp directly — quote downloaded. Attach it in WhatsApp Desktop/Web.
+              {{ "Your browser can't hand files to WhatsApp directly — quote downloaded. Attach it in WhatsApp Desktop/Web." | t }}
             </div>
           }
 
@@ -152,7 +153,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
             >
               <app-icon [name]="posterCopied() ? 'check' : 'clipboard-check'" [size]="15" />
-              {{ copyingPoster() ? 'Copying…' : posterCopied() ? 'Copied!' : 'Copy Image' }}
+              {{ copyingPoster() ? ('Copying…' | t) : posterCopied() ? ('Copied!' | t) : ('Copy Image' | t) }}
             </button>
             <button
               type="button"
@@ -161,13 +162,13 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
             >
               <app-icon name="share" [size]="15" />
-              {{ sharingPoster() ? 'Sharing…' : 'Share' }}
+              {{ sharingPoster() ? ('Sharing…' | t) : ('Share' | t) }}
             </button>
           </div>
 
           <p class="flex shrink-0 items-center justify-center gap-1.5 text-center text-[10px] leading-relaxed text-muted-foreground">
             <app-icon name="info" [size]="12" class="shrink-0" />
-            Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here.
+            {{ "Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here." | t }}
           </p>
         </div>
 
@@ -177,7 +178,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
           [ngClass]="mobileTab() === 'customize' ? 'flex' : 'hidden'"
         >
           <div class="flex items-center justify-between">
-            <h3 class="text-base font-semibold leading-none">Customize Quote</h3>
+            <h3 class="text-base font-semibold leading-none">{{ "Customize Quote" | t }}</h3>
             <div class="flex items-center gap-1">
               <button
                 type="button"
@@ -185,7 +186,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                 class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-accent"
               >
                 <app-icon name="plus" [size]="13" />
-                Add Lead
+                {{ "Add Lead" | t }}
               </button>
               <button
                 type="button"
@@ -193,18 +194,18 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                 class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
               >
                 <app-icon name="refresh-cw" [size]="13" />
-                Reset
+                {{ "Reset" | t }}
               </button>
             </div>
           </div>
 
           <!-- Select car -->
           <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Select Car</span>
+            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Select Car" | t }}</span>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div class="flex flex-col gap-2">
-                <label for="brandSelect" class="text-xs font-medium text-muted-foreground">Brand</label>
+                <label for="brandSelect" class="text-xs font-medium text-muted-foreground">{{ "Brand" | t }}</label>
                 <select
                   id="brandSelect"
                   [ngModel]="selectedBrand()"
@@ -218,7 +219,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               </div>
 
               <div class="flex flex-col gap-2">
-                <span class="text-xs font-medium text-muted-foreground">Model</span>
+                <span class="text-xs font-medium text-muted-foreground">{{ "Model" | t }}</span>
                 <div class="relative">
                   <button
                     type="button"
@@ -238,7 +239,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                             (click)="selectModelVariant(group.model, item.variant)"
                             class="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent"
                           >
-                            {{ item.label }}
+                            {{ item.label | t }}
                             @if (group.model === selectedModelName() && item.variant === selectedVariant()) {
                               <app-icon name="check" [size]="14" class="shrink-0 text-foreground" />
                             }
@@ -250,12 +251,12 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                 </div>
               </div>
             </div>
-            <span class="text-[11px] text-muted-foreground">{{ fmt(selectedVehicle().price) }} base price</span>
+            <span class="text-[11px] text-muted-foreground">{{ fmt(selectedVehicle().price) }} {{ "base price" | t }}</span>
 
             @if (availableYears().length > 1) {
               <div class="flex flex-col gap-2">
-                <span class="text-xs font-medium text-muted-foreground">Model Year</span>
-                <div role="radiogroup" aria-label="Model year" class="flex flex-wrap gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
+                <span class="text-xs font-medium text-muted-foreground">{{ "Model Year" | t }}</span>
+                <div role="radiogroup" [attr.aria-label]="'Model year' | t" class="flex flex-wrap gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
                   @for (y of availableYears(); track y) {
                     <button
                       type="button"
@@ -269,18 +270,18 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                     </button>
                   }
                 </div>
-                <span class="text-[11px] text-muted-foreground">This car is in the database under both years — each has its own price and rebate.</span>
+                <span class="text-[11px] text-muted-foreground">{{ "This car is in the database under both years — each has its own price and rebate." | t }}</span>
               </div>
             } @else {
               <span class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <app-icon name="calendar" [size]="12" />
-                Only listed for {{ modelYear() }} in the Car Database.
+                {{ 'Only listed for {year} in the Car Database.' | t: { year: modelYear() } }}
               </span>
             }
 
             @if (colourPickable(); as colours) {
               <div class="flex flex-col gap-2">
-                <label for="colourSelect" class="text-xs font-medium text-muted-foreground">Colour</label>
+                <label for="colourSelect" class="text-xs font-medium text-muted-foreground">{{ "Colour" | t }}</label>
                 <select
                   id="colourSelect"
                   [ngModel]="selectedColour()"
@@ -295,11 +296,11 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
 
           <!-- Price setup -->
           <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Price Setup</span>
+            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Price Setup" | t }}</span>
 
             <div class="flex flex-col gap-2">
               <div class="flex items-center justify-between">
-                <label for="rebateInput" class="text-xs font-medium text-muted-foreground">Rebate</label>
+                <label for="rebateInput" class="text-xs font-medium text-muted-foreground">{{ "Rebate" | t }}</label>
                 <ng-container [ngTemplateOutlet]="sourceBadge" [ngTemplateOutletContext]="{ $implicit: rebateIsManual(), field: 'rebate' }" />
               </div>
               <app-number-field inputId="rebateInput" prefix="RM" [decimals]="0" [value]="rebateInput()" (valueChange)="onRebateChange($event)" />
@@ -307,7 +308,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
 
             <div class="flex flex-col gap-2">
               <div class="flex items-center justify-between">
-                <label for="additionalRebateInput" class="text-xs font-medium text-muted-foreground">Additional Rebate</label>
+                <label for="additionalRebateInput" class="text-xs font-medium text-muted-foreground">{{ "Additional Rebate" | t }}</label>
                 <ng-container
                   [ngTemplateOutlet]="sourceBadge"
                   [ngTemplateOutletContext]="{ $implicit: additionalRebateIsManual() || additionalRebateEnabled() !== autoAdditionalRebateEnabled(), field: 'additionalRebate' }"
@@ -318,7 +319,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                   type="checkbox"
                   [ngModel]="additionalRebateEnabled()"
                   (ngModelChange)="onAdditionalRebateEnabledChange($event)"
-                  aria-label="Include additional rebate"
+                  [attr.aria-label]="'Include additional rebate' | t"
                   class="size-4 shrink-0 rounded border-input accent-primary"
                 />
                 <app-number-field
@@ -344,7 +345,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                 class="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
                 <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Insurance</span>
+                  <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Insurance" | t }}</span>
                   <span class="truncate text-sm font-semibold tabular text-foreground">{{ fmt2(insurance()) }} <span class="font-normal text-muted-foreground">· {{ ncd() }}% NCD</span></span>
                 </span>
                 <app-icon name="chevron-down" [size]="16" [class]="'shrink-0 text-muted-foreground transition-transform duration-200 ' + (insuranceOpen() ? 'rotate-180' : '')" />
@@ -359,14 +360,14 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               class="flex w-fit items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-accent"
             >
               <app-icon name="settings" [size]="12" />
-              Insurance Breakdown
+              {{ "Insurance Breakdown" | t }}
             </button>
 
             <div class="flex flex-col gap-2">
               <label for="ncdSelect" class="text-xs font-medium text-muted-foreground">
                 <span class="inline-flex items-center gap-1">
                   <app-icon name="percent" [size]="12" />
-                  NCD
+                  {{ "NCD" | t }}
                 </span>
               </label>
               <select
@@ -376,7 +377,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                 class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
               >
                 @for (opt of ncdOptions; track opt.value) {
-                  <option [value]="opt.value">{{ opt.label }}</option>
+                  <option [value]="opt.value">{{ opt.label | t }}</option>
                 }
               </select>
             </div>
@@ -394,11 +395,11 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                 class="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
                 <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Interest Rate</span>
+                  <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Interest Rate" | t }}</span>
                   @if (rateMissing()) {
-                    <span class="text-sm font-semibold text-[var(--warning)]">EIR needed</span>
+                    <span class="text-sm font-semibold text-[var(--warning)]">{{ "EIR needed" | t }}</span>
                   } @else {
-                    <span class="text-sm font-semibold tabular text-foreground">{{ interestRate() }}% <span class="font-normal text-muted-foreground">· {{ rateType() === 'flat' ? 'Flat' : 'EIR' }}</span></span>
+                    <span class="text-sm font-semibold tabular text-foreground">{{ interestRate() }}% <span class="font-normal text-muted-foreground">· {{ rateType() === 'flat' ? ('Flat' | t) : 'EIR' }}</span></span>
                   }
                 </span>
                 <app-icon name="chevron-down" [size]="16" [class]="'shrink-0 text-muted-foreground transition-transform duration-200 ' + (rateExpanded() ? 'rotate-180' : '')" />
@@ -408,8 +409,8 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
 
             @if (rateExpanded()) {
             <div class="flex flex-col gap-2">
-              <span class="text-xs font-medium text-muted-foreground">Rate Type</span>
-              <div role="radiogroup" aria-label="Rate Type" class="flex gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
+              <span class="text-xs font-medium text-muted-foreground">{{ "Rate Type" | t }}</span>
+              <div role="radiogroup" [attr.aria-label]="'Rate Type' | t" class="flex gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
                 <button
                   type="button"
                   role="radio"
@@ -418,7 +419,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                   class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
                   [ngClass]="rateType() === 'flat' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                 >
-                  Flat
+                  {{ "Flat" | t }}
                 </button>
                 <button
                   type="button"
@@ -428,13 +429,13 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                   class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
                   [ngClass]="rateType() === 'effective' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                 >
-                  EIR
+                  {{ "EIR" | t }}
                 </button>
               </div>
             </div>
 
             <div class="flex flex-col gap-2">
-              <label for="interestRateInput" class="text-xs font-medium text-muted-foreground">{{ rateType() === 'flat' ? 'Flat rate' : 'Effective rate (EIR)' }}</label>
+              <label for="interestRateInput" class="text-xs font-medium text-muted-foreground">{{ rateType() === 'flat' ? ('Flat rate' | t) : ('Effective rate (EIR)' | t) }}</label>
               <app-number-field
                 inputId="interestRateInput"
                 suffix="%"
@@ -445,7 +446,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               />
               @if (rateMissing()) {
                 <span class="text-[11px] text-[var(--warning)]">
-                  This car has no EIR and there's no default EIR — type the bank's rate here, or set a default EIR in Price Settings.
+                  {{ "This car has no EIR and there's no default EIR — type the bank's rate here, or set a default EIR in Price Settings." | t }}
                 </span>
               }
             </div>
@@ -454,11 +455,11 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
 
           <!-- Loan setup -->
           <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Loan Setup</span>
+            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Loan Setup" | t }}</span>
 
             <div class="flex flex-col gap-2">
-              <span class="text-xs font-medium text-muted-foreground">Downpayment</span>
-              <div role="group" aria-label="Quick downpayment presets" class="grid grid-cols-2 gap-1.5">
+              <span class="text-xs font-medium text-muted-foreground">{{ "Downpayment" | t }}</span>
+              <div role="group" [attr.aria-label]="'Quick downpayment presets' | t" class="grid grid-cols-2 gap-1.5">
                 <button
                   type="button"
                   (click)="applyDownpaymentPreset('tenPercent')"
@@ -473,7 +474,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                   class="rounded-lg border px-2 py-2 text-xs font-semibold transition-colors"
                   [ngClass]="isDownpaymentPreset('fullLoan') ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                 >
-                  {{ minDownpayment() > 0 ? 'Minimum' : 'Full Loan' }}
+                  {{ minDownpayment() > 0 ? ('Minimum' | t) : ('Full Loan' | t) }}
                 </button>
               </div>
               <div class="flex gap-2">
@@ -501,7 +502,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                     class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
                     [ngClass]="downpaymentType() === 'amount' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
                   >
-                    Amt
+                    {{ "Amt" | t }}
                   </button>
                 </div>
               </div>
@@ -509,18 +510,18 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                 @if (downpaymentRaisedToMin()) {
                   <div class="flex items-start gap-2 rounded-lg bg-[var(--warning)]/12 px-3 py-2 text-[11px] text-foreground">
                     <app-icon name="alert-triangle" [size]="13" class="mt-px shrink-0 text-[var(--warning)]" />
-                    <span>This car needs a <strong>{{ fmt(minDownpayment()) }}</strong> minimum downpayment (rebate counts towards it) — raised to meet it.</span>
+                    <span>{{ "This car needs a" | t }} <strong>{{ fmt(minDownpayment()) }}</strong> {{ "minimum downpayment (rebate counts towards it) — raised to meet it." | t }}</span>
                   </div>
                 } @else {
-                  <span class="text-[11px] text-muted-foreground">Minimum downpayment for this car: {{ fmt(minDownpayment()) }} before rebate</span>
+                  <span class="text-[11px] text-muted-foreground">Minimum downpayment for this car: {{ fmt(minDownpayment()) }} {{ "before rebate" | t }}</span>
                 }
               }
               @if (downpaymentRebateNote(); as n) {
                 <div class="flex flex-col gap-0.5 rounded-lg bg-[var(--success)]/10 px-3 py-2 text-[11px] text-foreground">
                   @if (n.covered) {
-                    <span><strong>Rebates cover the {{ n.pct }}% down payment.</strong> Customer pays {{ fmt2(n.after) }} (loan rounding only).</span>
+                    <span><strong>{{ 'Rebates cover the {pct}% down payment.' | t: { pct: n.pct } }}</strong> {{ 'Customer pays {amount} (loan rounding only).' | t: { amount: fmt2(n.after) } }}</span>
                   } @else {
-                    <span>{{ n.pct }}% is {{ fmt(n.before) }} — rebates of {{ fmt(n.rebate) }} bring it down to <strong>{{ fmt2(n.after) }}</strong>.</span>
+                    <span>{{ n.pct }}% is {{ fmt(n.before) }} — rebates of {{ fmt(n.rebate) }} {{ "bring it down to" | t }} <strong>{{ fmt2(n.after) }}</strong>.</span>
                   }
                 </div>
               } @else {
@@ -536,12 +537,12 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
 
             <div class="flex items-center gap-3">
               <div class="h-px flex-1 bg-border"></div>
-              <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">or</span>
+              <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "or" | t }}</span>
               <div class="h-px flex-1 bg-border"></div>
             </div>
 
             <div class="flex flex-col gap-2">
-              <label for="loanAmountInput" class="text-xs font-medium text-muted-foreground">Loan Amount</label>
+              <label for="loanAmountInput" class="text-xs font-medium text-muted-foreground">{{ "Loan Amount" | t }}</label>
               <app-number-field
                 inputId="loanAmountInput"
                 prefix="RM"
@@ -553,18 +554,18 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               @if (loanCapNote(); as note) {
                 <span class="text-[11px] font-medium text-[var(--warning)]">{{ note }}</span>
               } @else {
-                <span class="text-[11px] text-muted-foreground">Rounds down to the nearest RM100 once you finish typing — any remainder goes to the downpayment.</span>
+                <span class="text-[11px] text-muted-foreground">{{ "Rounds down to the nearest RM100 once you finish typing — any remainder goes to the downpayment." | t }}</span>
               }
             </div>
 
             <div class="flex items-center gap-3">
               <div class="h-px flex-1 bg-border"></div>
-              <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">or</span>
+              <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "or" | t }}</span>
               <div class="h-px flex-1 bg-border"></div>
             </div>
 
             <div class="flex flex-col gap-2">
-              <label for="monthlyInstallmentInput" class="text-xs font-medium text-muted-foreground">Monthly Installment</label>
+              <label for="monthlyInstallmentInput" class="text-xs font-medium text-muted-foreground">{{ "Monthly Installment" | t }}</label>
               <app-number-field
                 inputId="monthlyInstallmentInput"
                 prefix="RM"
@@ -575,21 +576,21 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               @if (monthlyCapNote(); as note) {
                 <span class="text-[11px] font-medium text-[var(--warning)]">{{ note }}</span>
               } @else {
-                <span class="text-[11px] text-muted-foreground">Targets the {{ monthlyInstallmentTenureLabel() }} tenure and works backwards to the loan amount and deposit.</span>
+                <span class="text-[11px] text-muted-foreground">{{ 'Targets the {tenure} tenure and works backwards to the loan amount and deposit.' | t: { tenure: (monthlyInstallmentTenureLabel() | t) } }}</span>
               }
             </div>
           </div>
 
           <!-- Tenure -->
           <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quotation Summary</span>
+            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Quotation Summary" | t }}</span>
 
             <div class="flex flex-col gap-2">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-medium text-muted-foreground">Tenure Selection</span>
+                <span class="text-xs font-medium text-muted-foreground">{{ "Tenure Selection" | t }}</span>
                 <span class="text-xs font-semibold tabular text-foreground">{{ posterTenureSummary() }}</span>
               </div>
-              <div role="group" aria-label="Repayment table tenures (years)" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
+              <div role="group" [attr.aria-label]="'Repayment table tenures (years)' | t" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
                 @for (y of posterYearOptions; track y) {
                   <button
                     type="button"
@@ -602,11 +603,11 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                   </button>
                 }
               </div>
-              <span class="text-[11px] text-muted-foreground">Pick 3 tenures to show in the repayment table above.</span>
+              <span class="text-[11px] text-muted-foreground">{{ "Pick 3 tenures to show in the repayment table above." | t }}</span>
             </div>
 
             <div class="flex flex-col gap-2">
-              <label for="customTenureMonthsInput" class="text-xs font-medium text-muted-foreground">Custom Tenure (Months)</label>
+              <label for="customTenureMonthsInput" class="text-xs font-medium text-muted-foreground">{{ "Custom Tenure (Months)" | t }}</label>
               <input
                 id="customTenureMonthsInput"
                 type="number"
@@ -617,7 +618,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
                 (ngModelChange)="onCustomTenureInput($event)"
                 class="h-10 w-full rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular outline-none transition-colors focus:border-ring"
               />
-              <span class="text-[11px] text-muted-foreground">Type any month count to use as the chosen tenure — this replaces the repayment table above with just this one, until you pick a tenure button again.</span>
+              <span class="text-[11px] text-muted-foreground">{{ "Type any month count to use as the chosen tenure — this replaces the repayment table above with just this one, until you pick a tenure button again." | t }}</span>
             </div>
           </div>
         </div>
@@ -630,25 +631,25 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
         <button
           type="button"
           (click)="resetField(field)"
-          title="Back to the default value"
+          [title]="'Back to the default value' | t"
           class="flex shrink-0 items-center gap-1 rounded-md bg-[var(--warning)]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--warning)] transition-colors hover:bg-[var(--warning)]/25"
         >
-          Manual
+          {{ "Manual" | t }}
           <app-icon name="rotate-ccw" [size]="10" />
         </button>
       } @else {
-        <span class="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">Default</span>
+        <span class="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{{ "Default" | t }}</span>
       }
     </ng-template>
 
     <!-- Add Lead modal -->
     @if (leadModalOpen()) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeLeadModal()"></button>
+        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeLeadModal()"></button>
         <div class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex items-center gap-3 border-b border-border p-4">
-            <span class="text-sm font-semibold">Add Lead</span>
-            <button type="button" (click)="closeLeadModal()" aria-label="Close" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+            <span class="text-sm font-semibold">{{ "Add Lead" | t }}</span>
+            <button type="button" (click)="closeLeadModal()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
               <app-icon name="x" [size]="16" />
             </button>
           </div>
@@ -657,62 +658,62 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               {{ vehicleTitle(selectedVehicle().brand, selectedVehicle().model) }} &middot; {{ fmt(downpaymentCash()) }} downpayment &middot; {{ ncd() }}% NCD
             </p>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Name
+              {{ "Name" | t }}
               <input type="text" [(ngModel)]="leadName" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
             </label>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Phone No
+              {{ "Phone No" | t }}
               <input type="tel" [(ngModel)]="leadPhone" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
             </label>
             @if (existingLeadForPhone(); as dup) {
               <div class="flex items-start gap-2 rounded-lg border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2.5 text-[11px] text-foreground">
                 <app-icon name="alert-triangle" [size]="14" class="mt-0.5 shrink-0 text-[var(--warning)]" />
                 <span>
-                  This number is already saved as <strong class="text-foreground">{{ dup.name }}</strong> ({{ statusMeta[dup.status].label }}) —
-                  <a [routerLink]="['/leads']" [queryParams]="{ customer: dup.id }" (click)="closeLeadModal()" class="font-medium text-primary hover:underline">open them in Customer Manager</a>
-                  instead of saving a new lead here.
+                  {{ "This number is already saved as" | t }} <strong class="text-foreground">{{ dup.name }}</strong> ({{ statusMeta[dup.status].label | t }}) —
+                  <a [routerLink]="['/leads']" [queryParams]="{ customer: dup.id }" (click)="closeLeadModal()" class="font-medium text-primary hover:underline">{{ "open them in Customer Manager" | t }}</a>
+                  {{ "instead of saving a new lead here." | t }}
                 </span>
               </div>
             }
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Source Type
+              {{ "Source Type" | t }}
               <select [(ngModel)]="leadSource" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
                 @for (s of sourceTypes(); track s) { <option [value]="s">{{ s }}</option> }
               </select>
             </label>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Financing Type
+              {{ "Financing Type" | t }}
               <select [(ngModel)]="leadFinancingType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                @for (f of financingTypeOptions; track f.value) { <option [value]="f.value">{{ f.label }}</option> }
+                @for (f of financingTypeOptions; track f.value) { <option [value]="f.value">{{ f.label | t }}</option> }
               </select>
             </label>
             @if (leadFinancingType !== 'Cash') {
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Tenure
+                {{ "Tenure" | t }}
                 <select
                   [ngModel]="highlightedTenure()"
                   (ngModelChange)="selectRepaymentTenure($event)"
                   class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring"
                 >
-                  @for (t of tenureOptions; track t.months) { <option [ngValue]="t.months">{{ t.label }} &middot; {{ fmt2(monthlyForTenure(t.months)) }}/mo</option> }
+                  @for (t of tenureOptions; track t.months) { <option [ngValue]="t.months">{{ t.label | t }} &middot; {{ fmt2(monthlyForTenure(t.months)) }}/mo</option> }
                 </select>
               </label>
             }
             @if (leadSaved()) {
               <span class="flex items-center gap-1.5 text-[11px] font-medium text-[var(--success)]">
                 <app-icon name="check" [size]="12" />
-                Lead saved
+                {{ "Lead saved" | t }}
               </span>
             }
             @if (whatsAppImageCopied()) {
               <span class="flex items-center gap-1.5 text-[11px] font-medium text-[var(--success)]">
                 <app-icon name="check" [size]="12" />
-                Quote image copied — paste it (Ctrl/Cmd+V) into the WhatsApp chat
+                {{ "Quote image copied — paste it (Ctrl/Cmd+V) into the WhatsApp chat" | t }}
               </span>
             }
           </div>
           <div class="flex flex-wrap items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="closeLeadModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Close</button>
+            <button type="button" (click)="closeLeadModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Close" | t }}</button>
             <button
               type="button"
               (click)="submitLead()"
@@ -720,7 +721,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               class="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
             >
               <app-icon name="plus" [size]="13" />
-              Save Lead
+              {{ "Save Lead" | t }}
             </button>
             <button
               type="button"
@@ -730,7 +731,7 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
               class="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
             >
               <app-icon name="message-circle" [size]="13" />
-              {{ sendingWhatsApp() ? 'Copying image…' : 'Save & WhatsApp' }}
+              {{ sendingWhatsApp() ? ('Copying image…' | t) : ('Save & WhatsApp' | t) }}
             </button>
           </div>
         </div>
@@ -740,14 +741,14 @@ import type { PosterTemplate, PosterTemplateId } from '../shared/poster-template
     <!-- Insurance Breakdown modal -->
     @if (insuranceBreakdownOpen()) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeInsuranceBreakdown()"></button>
+        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeInsuranceBreakdown()"></button>
         <div class="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex items-center gap-3 border-b border-border p-4">
             <div class="flex flex-col">
-              <span class="text-sm font-semibold">Insurance Breakdown</span>
+              <span class="text-sm font-semibold">{{ "Insurance Breakdown" | t }}</span>
               <span class="text-[11px] text-muted-foreground">{{ vehicleTitle(selectedVehicle().brand, modelVariantLabel(selectedVehicle().model, selectedVehicle().variant)) }}</span>
             </div>
-            <button type="button" (click)="closeInsuranceBreakdown()" aria-label="Close" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+            <button type="button" (click)="closeInsuranceBreakdown()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
               <app-icon name="x" [size]="16" />
             </button>
           </div>
@@ -1357,11 +1358,13 @@ export class CalculatorComponent implements AfterViewInit {
   private buildPosterData(): PosterData {
     const vehicle = this.selectedVehicle();
     const advisorProfile = this.advisor.profile();
+    const lang = this.settingsService.settings().salesDefaults.posterLanguage ?? 'en';
     return {
+      lang,
       brand: vehicle.brand,
       modelTitle: modelVariantLabel(vehicle.model, vehicle.variant),
       year: this.modelYear(),
-      dateStr: this.quoteDate(),
+      dateStr: new Date().toLocaleDateString(lang === 'ms' ? 'ms-MY' : 'en-MY', { day: '2-digit', month: 'short', year: 'numeric' }),
       logoUrl: this.brandLogoUrl(),
       carImageUrl: vehicle.photoUrl ?? null,
       colours: vehicle.colours ?? [],
@@ -1386,10 +1389,10 @@ export class CalculatorComponent implements AfterViewInit {
       rebate: this.effectiveRebate(),
       totalAmountDue: this.allInPrice(),
 
-      rateLabel: `${this.interestRate()}% ${this.rateType() === 'flat' ? 'FLAT' : 'EIR'}`,
+      rateLabel: `${this.interestRate()}% ${this.rateType() === 'flat' ? translate(lang, 'FLAT') : 'EIR'}`,
       interestRatePct: this.interestRate(),
       tenureRows: this.repaymentRows().map((row) => ({
-        label: row.label,
+        label: translate(lang, row.label),
         months: row.months,
         monthly: row.monthly,
         isLowest: row.months === Math.max(...this.repaymentRows().map((r) => r.months)),
@@ -1584,6 +1587,7 @@ export class CalculatorComponent implements AfterViewInit {
   async copyPosterImage() {
     if (this.copyingPoster()) return;
     this.copyingPoster.set(true);
+    this.settingsService.markQuoteShared();
     try {
       if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
         // Passing the still-pending blob promise (rather than awaiting it first) is what Chrome/Edge
@@ -1621,6 +1625,7 @@ export class CalculatorComponent implements AfterViewInit {
   async sharePosterImage() {
     if (this.sharingPoster()) return;
     this.sharingPoster.set(true);
+    this.settingsService.markQuoteShared();
     try {
       const blob = await this.renderPosterPngBlob();
       const file = new File([blob], this.posterFileName(), { type: 'image/png' });

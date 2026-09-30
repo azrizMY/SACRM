@@ -34,6 +34,12 @@ export class VehicleCatalogService {
     return Array.from(new Set(VEHICLES.map((v) => v.brand)));
   });
 
+  /** Whether this account has edited any variant's pricing (the Dashboard's setup checklist). */
+  hasPriceEdits = computed(() => {
+    this.version();
+    return this.overridesById.size > 0;
+  });
+
   /** Fetches the signed-in account's saved price/rate/year overrides and applies them onto the
    *  hardcoded catalog — called once per login/session-restore by AuthService, never directly by
    *  components. */

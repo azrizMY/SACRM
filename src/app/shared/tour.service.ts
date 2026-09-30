@@ -11,6 +11,9 @@ export type TourStep = {
   skipIfMissing?: boolean;
   /** Overrides "Got it" on the last step. */
   doneLabel?: string;
+  /** Button labels in another language — the overlay lives at the app root, so a page speaking a
+   *  different language from the app (the customer link) passes its own. */
+  labels?: { next: string; back: string; skip: string };
 };
 
 type ActiveTour = { id: string; scope: string; steps: TourStep[] };

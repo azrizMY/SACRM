@@ -1,3 +1,4 @@
+import { TranslatePipe } from './i18n';
 import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnInit, Output, ViewChild, inject } from '@angular/core';
 import { SettingsService, withCurrent } from './settings.service';
 import { CommonModule } from '@angular/common';
@@ -21,14 +22,14 @@ import {
 @Component({
   selector: 'app-customer-edit-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, TranslatePipe],
   template: `
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="close.emit()"></button>
+      <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="close.emit()"></button>
       <div class="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
         <div class="flex items-center gap-3 border-b border-border p-4">
           <span class="text-sm font-semibold">Edit Customer &middot; {{ record.name }}</span>
-          <button type="button" (click)="close.emit()" aria-label="Close" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+          <button type="button" (click)="close.emit()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
             <app-icon name="x" [size]="16" />
           </button>
         </div>
@@ -36,48 +37,48 @@ import {
         <div class="flex flex-col gap-5 overflow-y-auto p-4">
           <!-- Customer -->
           <fieldset class="flex flex-col gap-3">
-            <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Customer</legend>
+            <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Customer" | t }}</legend>
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Name
+                {{ "Name" | t }}
                 <input type="text" [(ngModel)]="form.name" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
               </label>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Phone
+                {{ "Phone" | t }}
                 <input type="tel" [(ngModel)]="form.phone" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
               </label>
             </div>
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Lead Source
+                {{ "Lead Source" | t }}
                 <select [(ngModel)]="form.sourceType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
                   @for (s of sourceOptions(); track s) { <option [value]="s">{{ s }}</option> }
                 </select>
               </label>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Financing Type
+                {{ "Financing Type" | t }}
                 <select [(ngModel)]="form.financingType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                  @for (f of financingTypeOptions; track f.value) { <option [value]="f.value">{{ f.label }}</option> }
+                  @for (f of financingTypeOptions; track f.value) { <option [value]="f.value">{{ f.label | t }}</option> }
                 </select>
               </label>
             </div>
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                IC No
+                {{ "IC No" | t }}
                 <input type="text" [(ngModel)]="form.icNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
               </label>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Driving Licence No
+                {{ "Driving Licence No" | t }}
                 <input type="text" [(ngModel)]="form.drivingLicenceNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
               </label>
             </div>
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Address
+                {{ "Address" | t }}
                 <input type="text" [(ngModel)]="form.address" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
               </label>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Email
+                {{ "Email" | t }}
                 <input type="email" [(ngModel)]="form.email" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
               </label>
             </div>
@@ -85,12 +86,12 @@ import {
 
           <!-- Vehicle -->
           <fieldset class="flex flex-col gap-3">
-            <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Vehicle</legend>
+            <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Vehicle" | t }}</legend>
             <!-- The car itself is changed only through "Change car" (customer panel), which flags the
                  quotation for re-quote and logs the swap — never silently from here. -->
             <div class="flex flex-col gap-0.5 rounded-lg bg-muted/50 px-3 py-2.5">
               <span class="text-sm font-semibold text-foreground">{{ vehicleTitle(record.brand, modelVariantLabel(record.model, record.variant)) }} · {{ record.yearMade }}</span>
-              <span class="text-[11px] text-muted-foreground">To switch to a different car, use <strong class="text-foreground">Change car</strong> in the customer panel.</span>
+              <span class="text-[11px] text-muted-foreground">{{ "To switch to a different car, use" | t }} <strong class="text-foreground">{{ "Change car" | t }}</strong> {{ "in the customer panel." | t }}</span>
             </div>
             <label
               #colourField
@@ -98,11 +99,11 @@ import {
             >
               Colour @if (showColourRequired) { <span class="text-[var(--destructive)]">*</span> }
               <select [(ngModel)]="form.colour" class="h-10 w-full rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                @if (showColourRequired && !form.colour) { <option value="">Select colour…</option> }
+                @if (showColourRequired && !form.colour) { <option value="">{{ "Select colour…" | t }}</option> }
                 @for (c of colourOptionsForForm; track c) { <option [value]="c">{{ c }}</option> }
               </select>
               @if (showColourRequired) {
-                <span class="text-[10px] text-muted-foreground">Colour must be confirmed before this deal can continue.</span>
+                <span class="text-[10px] text-muted-foreground">{{ "Colour must be confirmed before this deal can continue." | t }}</span>
               }
             </label>
           </fieldset>
@@ -110,18 +111,18 @@ import {
           <!-- Payment -->
           @if (showBooking) {
             <fieldset class="flex flex-col gap-3">
-              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Payment</legend>
+              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Payment" | t }}</legend>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 @if (!isCashInForm) {
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Down Payment (RM)
+                    {{ "Down Payment (RM)" | t }}
                     <input type="number" min="0" step="500" [(ngModel)]="form.downpayment" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                   </label>
                 }
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  NCD (%)
+                  {{ "NCD (%)" | t }}
                   <select [(ngModel)]="form.ncd" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                    @for (n of ncdOptions; track n.value) { <option [ngValue]="n.value">{{ n.label }}</option> }
+                    @for (n of ncdOptions; track n.value) { <option [ngValue]="n.value">{{ n.label | t }}</option> }
                   </select>
                 </label>
               </div>
@@ -129,7 +130,7 @@ import {
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Document Status
                   @if (isCashInForm) {
-                    <span class="flex h-10 items-center rounded-lg border border-input bg-input px-3 text-sm text-muted-foreground">Cash</span>
+                    <span class="flex h-10 items-center rounded-lg border border-input bg-input px-3 text-sm text-muted-foreground">{{ "Cash" | t }}</span>
                   } @else {
                     <select [(ngModel)]="form.documentStatus" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
                       @for (d of documentStatusOptions; track d) { <option [value]="d">{{ docLabel(d) }}</option> }
@@ -143,25 +144,25 @@ import {
           <!-- Trade-in -->
           @if (showTradeIn) {
             <fieldset class="flex flex-col gap-3">
-              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Trade-in</legend>
+              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Trade-in" | t }}</legend>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Trade-in Status
+                  {{ "Trade-in Status" | t }}
                   <select [(ngModel)]="form.tradeInStatus" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
                     @for (t of tradeInOptions; track t) { <option [value]="t">{{ t }}</option> }
                   </select>
                 </label>
                 @if (form.tradeInStatus === 'Confirmed') {
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Agreed Value (RM)
+                    {{ "Agreed Value (RM)" | t }}
                     <input type="number" min="0" step="500" [(ngModel)]="form.tradeInValue" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                   </label>
                 }
               </div>
               @if (form.tradeInStatus === 'Confirmed') {
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Trade-in Vehicle
-                  <input type="text" placeholder="e.g. Toyota Vios 2018" [(ngModel)]="form.tradeInVehicle" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
+                  {{ "Trade-in Vehicle" | t }}
+                  <input type="text" [placeholder]="'e.g. Toyota Vios 2018' | t" [(ngModel)]="form.tradeInVehicle" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                 </label>
               }
             </fieldset>
@@ -170,30 +171,30 @@ import {
           <!-- Financing -->
           @if (showFinancing) {
             <fieldset class="flex flex-col gap-3">
-              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Financing</legend>
+              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Financing" | t }}</legend>
               @if (form.financingType === 'Loan') {
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Bank Panel
+                    {{ "Bank Panel" | t }}
                     <select [(ngModel)]="form.bankPanel" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @if (!form.bankPanel) { <option value="">Select bank…</option> }
+                      @if (!form.bankPanel) { <option value="">{{ "Select bank…" | t }}</option> }
                       @for (b of bankOptions(); track b) { <option [value]="b">{{ b }}</option> }
                     </select>
                   </label>
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Loan Amount (RM)
+                    {{ "Loan Amount (RM)" | t }}
                     <input type="number" min="0" step="500" [(ngModel)]="form.loanAmount" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                   </label>
                 </div>
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Tenure
+                    {{ "Tenure" | t }}
                     <select [(ngModel)]="form.loanTenureMonths" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @for (t of tenureOptions; track t.months) { <option [ngValue]="t.months">{{ t.label }}</option> }
+                      @for (t of tenureOptions; track t.months) { <option [ngValue]="t.months">{{ t.label | t }}</option> }
                     </select>
                   </label>
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Interest Rate (%)
+                    {{ "Interest Rate (%)" | t }}
                     <input type="number" min="0" step="0.1" [(ngModel)]="form.loanInterestRate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                   </label>
                 </div>
@@ -202,7 +203,7 @@ import {
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   Document Status
                   @if (isCashInForm) {
-                    <span class="flex h-10 items-center rounded-lg border border-input bg-input px-3 text-sm text-muted-foreground">Cash</span>
+                    <span class="flex h-10 items-center rounded-lg border border-input bg-input px-3 text-sm text-muted-foreground">{{ "Cash" | t }}</span>
                   } @else {
                     <select [(ngModel)]="form.documentStatus" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
                       @for (d of documentStatusOptions; track d) { <option [value]="d">{{ docLabel(d) }}</option> }
@@ -216,35 +217,35 @@ import {
           <!-- Delivery -->
           @if (showDelivery) {
             <fieldset class="flex flex-col gap-3">
-              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Delivery</legend>
+              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Delivery" | t }}</legend>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Insurance <span class="text-muted-foreground/70">(optional)</span>
+                  {{ "Insurance" | t }} <span class="text-muted-foreground/70">{{ "(optional)" | t }}</span>
                   <select [(ngModel)]="form.insuranceName" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
                     @for (i of insuranceOptions(); track i) { <option [value]="i">{{ i }}</option> }
                   </select>
                 </label>
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Registration Number
+                  {{ "Registration Number" | t }}
                   <input type="text" [(ngModel)]="form.plateNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                 </label>
               </div>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Chassis / VIN
+                  {{ "Chassis / VIN" | t }}
                   <input type="text" [(ngModel)]="form.chassisNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                 </label>
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Engine No.
+                  {{ "Engine No." | t }}
                   <input type="text" [(ngModel)]="form.engineNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
                 </label>
               </div>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Delivery Date
+                {{ "Delivery Date" | t }}
                 <input type="date" [(ngModel)]="form.deliveryDate" class="h-10 w-full rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring" />
               </label>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Delivery Notes
+                {{ "Delivery Notes" | t }}
                 <textarea rows="2" [(ngModel)]="form.deliveryNotes" class="rounded-lg border border-input bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-ring"></textarea>
               </label>
             </fieldset>
@@ -253,15 +254,15 @@ import {
           <!-- Cancellation -->
           @if (showCancellation) {
             <fieldset class="flex flex-col gap-3">
-              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Cancellation</legend>
+              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Cancellation" | t }}</legend>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Reason
+                {{ "Reason" | t }}
                 <select [(ngModel)]="form.cancelReason" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
                   @for (r of cancelReasons; track r) { <option [value]="r">{{ r }}</option> }
                 </select>
               </label>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                Cancellation Notes
+                {{ "Cancellation Notes" | t }}
                 <textarea rows="2" [(ngModel)]="form.cancelNotes" class="rounded-lg border border-input bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-ring"></textarea>
               </label>
             </fieldset>
@@ -269,8 +270,8 @@ import {
         </div>
 
         <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-          <button type="button" (click)="close.emit()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
-          <button type="button" (click)="submit()" [disabled]="!canSave" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">Save Changes</button>
+          <button type="button" (click)="close.emit()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Cancel" | t }}</button>
+          <button type="button" (click)="submit()" [disabled]="!canSave" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">{{ "Save Changes" | t }}</button>
         </div>
       </div>
     </div>

@@ -14,11 +14,17 @@
  *  other measurement below — this template's own content, not shared with the classic one — is the
  *  original 1024-wide design scaled down by the same 900/1024 factor, so proportions stay intact. */
 import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
+import { carImageWithShadow } from './car-shadow';
 import { loadPosterImage } from './poster-images';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
 import { fillPolygon, fillTrackedText, wrapPosterText } from './poster-draw-utils';
 import { formatMalaysianPhone } from '../data/dashboard-data';
 import type { PosterData } from './poster-data';
+import { translate, type Lang, type Params } from './i18n-core';
+
+/** Poster text in the advisor's chosen poster language (Settings → Language). */
+const T = (data: { lang?: Lang }, en: string, params?: Params) => translate(data.lang ?? 'en', en, params);
+
 import type { PosterTemplate } from './poster-templates';
 
 const WIDTH = 900;
@@ -85,7 +91,7 @@ async function drawWhiteTop(ctx: CanvasRenderingContext2D, data: PosterData): Pr
   ctx.font = labelFont(9.5, 700);
   ctx.fillStyle = POSTER_COLORS.gray;
   ctx.textBaseline = 'middle';
-  fillTrackedText(ctx, 'MONTHLY PAYMENT ESTIMATE', M + 16, 48, 2.8);
+  fillTrackedText(ctx, T(data, 'MONTHLY PAYMENT ESTIMATE'), M + 16, 48, 2.8);
 
   // Model/variant headline sits below the eyebrow, mirroring the classic template's own vertical
   // order (eyebrow first, headline second) rather than the reverse.
@@ -107,14 +113,14 @@ async function drawCarHero(ctx: CanvasRenderingContext2D, data: PosterData): Pro
   const boxHeight = 316;
   const boxBottom = WHITE_HEIGHT - 9;
   try {
-    const img = await loadPosterImage(data.carImageUrl);
+    const img = await loadPosterImage(await carImageWithShadow(data.carImageUrl));
     const scale = Math.min(boxWidth / img.naturalWidth, boxHeight / img.naturalHeight);
     const drawWidth = img.naturalWidth * scale;
     const drawHeight = img.naturalHeight * scale;
     const drawX = (WIDTH - drawWidth) / 2;
     const drawY = boxBottom - drawHeight;
     ctx.save();
-    ctx.filter = 'drop-shadow(0px 14px 12px rgba(0,0,0,0.22))';
+    // No drop-shadow here: the car image already carries its own ground shadow (see car-shadow.ts).
     ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
     ctx.restore();
   } catch {
@@ -167,7 +173,7 @@ function drawPriceBlock(ctx: CanvasRenderingContext2D, data: PosterData, top: nu
   ctx.font = displayFont(26, 700);
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.textAlign = 'center';
-  ctx.fillText('per month', centerX, perMonthBaseline);
+  ctx.fillText(T(data, 'per month'), centerX, perMonthBaseline);
 
   const captionY = perMonthBaseline + 40;
   if (lowest) {
@@ -175,7 +181,7 @@ function drawPriceBlock(ctx: CanvasRenderingContext2D, data: PosterData, top: nu
     ctx.font = labelFont(12, 700);
     ctx.fillStyle = POSTER_COLORS.grayD;
     ctx.textBaseline = 'middle';
-    const caption = `ESTIMATE OVER ${years} YEARS`;
+    const caption = T(data, 'ESTIMATE OVER {years} YEARS', { years });
     const captionWidth = ctx.measureText(caption).width;
     const lineGap = 14;
     ctx.fillText(caption, centerX, captionY);
@@ -198,9 +204,9 @@ function drawStatsRow(ctx: CanvasRenderingContext2D, data: PosterData, top: numb
   ctx.fillRect(M, top, WIDTH - 2 * M, 1);
 
   const columns = [
-    { label: 'OTR PRICE', value: formatCurrencyCompact(data.otrPrice).replace('.00', '') },
-    { label: 'DOWNPAYMENT', value: formatCurrencyCompact(data.downpayment) },
-    { label: 'INTEREST RATE', value: `${data.interestRatePct}%` },
+    { label: T(data, 'OTR PRICE'), value: formatCurrencyCompact(data.otrPrice).replace('.00', '') },
+    { label: T(data, 'DOWNPAYMENT'), value: formatCurrencyCompact(data.downpayment) },
+    { label: T(data, 'INTEREST RATE'), value: `${data.interestRatePct}%` },
   ];
   const colWidth = (WIDTH - 2 * M) / 3;
   const labelY = top + 35;
@@ -254,9 +260,9 @@ function drawTenureTable(ctx: CanvasRenderingContext2D, data: PosterData, top: n
   ctx.fillStyle = POSTER_COLORS.panelGray;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
-  ctx.fillText('TENURE', M + 25, top + headerHeight / 2);
+  ctx.fillText(T(data, 'TENURE'), M + 25, top + headerHeight / 2);
   ctx.textAlign = 'right';
-  ctx.fillText('MONTHLY', WIDTH - M - 25, top + headerHeight / 2);
+  ctx.fillText(T(data, 'MONTHLY'), WIDTH - M - 25, top + headerHeight / 2);
 
   data.tenureRows.forEach((row, i) => {
     const rowTop = top + headerHeight + i * rowHeight;
@@ -272,7 +278,7 @@ function drawTenureTable(ctx: CanvasRenderingContext2D, data: PosterData, top: n
     ctx.font = labelFont(15, 700);
     ctx.fillStyle = '#ECECF0';
     ctx.textAlign = 'left';
-    ctx.fillText(`${years} Yrs`, M + 25, centerY);
+    ctx.fillText(T(data, `${years} Yrs`), M + 25, centerY);
 
     ctx.font = displayFont(21, 700);
     ctx.fillStyle = POSTER_COLORS.acc;
@@ -398,7 +404,7 @@ function drawCtaBar(ctx: CanvasRenderingContext2D, data: PosterData, top: number
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText('WhatsApp Me Now', iconX + iconSize + 16, centerY);
+  ctx.fillText(T(data, 'WhatsApp Me Now'), iconX + iconSize + 16, centerY);
 
   ctx.font = displayFont(20, 700);
   ctx.fillStyle = POSTER_COLORS.paper;

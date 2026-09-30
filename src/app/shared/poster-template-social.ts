@@ -6,11 +6,17 @@
  *  Both consume the same PosterData as the other templates and share one headline figure
  *  (see heroFigure): the lowest monthly instalment for a loan, the all-in price for a cash deal. */
 import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
+import { carImageWithShadow } from './car-shadow';
 import { loadPosterImage } from './poster-images';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
 import { fillPolygon, fillTrackedText, measureTrackedText } from './poster-draw-utils';
 import { formatMalaysianPhone } from '../data/dashboard-data';
 import type { PosterData } from './poster-data';
+import { translate, type Lang, type Params } from './i18n-core';
+
+/** Poster text in the advisor's chosen poster language (Settings → Language). */
+const T = (data: { lang?: Lang }, en: string, params?: Params) => translate(data.lang ?? 'en', en, params);
+
 import type { PosterTemplate } from './poster-templates';
 
 const W = 540;
@@ -24,14 +30,14 @@ type HeroFigure = { label: string; amount: string; perMonth: boolean; caption: s
 function heroFigure(data: PosterData): HeroFigure {
   const lowest = data.tenureRows.find((r) => r.isLowest) ?? data.tenureRows[0];
   if (data.isCashPurchase || !lowest) {
-    return { label: 'CASH PRICE', amount: Math.round(data.totalAmountDue).toLocaleString('en-MY'), perMonth: false, caption: 'INCL. INSURANCE' };
+    return { label: T(data, 'CASH PRICE'), amount: Math.round(data.totalAmountDue).toLocaleString('en-MY'), perMonth: false, caption: T(data, 'INCL. INSURANCE') };
   }
   const years = Math.round(lowest.months / 12);
   return {
-    label: 'MONTHLY FROM',
+    label: T(data, 'MONTHLY FROM'),
     amount: Math.floor(lowest.monthly).toLocaleString('en-MY'),
     perMonth: true,
-    caption: `${years} YEARS · ${data.rateLabel}`,
+    caption: T(data, '{years} YEARS · {rate}', { years, rate: data.rateLabel }),
   };
 }
 
@@ -128,7 +134,7 @@ async function drawLogoChip(ctx: CanvasRenderingContext2D, data: PosterData, x: 
 }
 
 /** The car photo, fitted inside a box and sat on its bottom edge. `onDark` adds a soft spotlight
- *  and floor shadow — car cut-outs otherwise sink into a dark background. */
+ *  behind it so it doesn't sink into a dark background; its ground shadow comes with the image. */
 async function drawCar(ctx: CanvasRenderingContext2D, data: PosterData, cx: number, bottom: number, boxW: number, boxH: number, onDark: boolean): Promise<void> {
   if (onDark) {
     // Filled over the whole canvas so the gradient fades out on its own, with no hard edges.
@@ -140,26 +146,12 @@ async function drawCar(ctx: CanvasRenderingContext2D, data: PosterData, cx: numb
   }
   if (!data.carImageUrl) return;
   try {
-    const img = await loadPosterImage(data.carImageUrl);
+    const img = await loadPosterImage(await carImageWithShadow(data.carImageUrl));
     const s = Math.min(boxW / img.naturalWidth, boxH / img.naturalHeight);
     const w = img.naturalWidth * s;
     const h = img.naturalHeight * s;
-    if (onDark) {
-      // A lit floor under the car. Catalog photos are cut out onto white, so their soft white base
-      // would otherwise read as a smear on dark; this turns it into a pool of light instead.
-      ctx.save();
-      ctx.translate(cx, bottom - h * 0.06);
-      ctx.scale(1, 0.13);
-      const floor = ctx.createRadialGradient(0, 0, 0, 0, 0, w * 0.5);
-      floor.addColorStop(0, 'rgba(255,255,255,0.6)');
-      floor.addColorStop(0.45, 'rgba(255,255,255,0.22)');
-      floor.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = floor;
-      ctx.fillRect(-w, -w, w * 2, w * 2);
-      ctx.restore();
-    }
     ctx.save();
-    ctx.filter = onDark ? 'none' : 'drop-shadow(0px 10px 9px rgba(0,0,0,0.22))';
+    // No drop-shadow: the car image already carries its own ground shadow (see car-shadow.ts).
     ctx.drawImage(img, cx - w / 2, bottom - h, w, h);
     ctx.restore();
   } catch {
@@ -226,7 +218,7 @@ async function drawWhatsAppBar(ctx: CanvasRenderingContext2D, data: PosterData, 
   ctx.fillText(data.advisor.name, textX, cy - h * 0.16, textMax);
   ctx.font = labelFont(Math.round(h * 0.2), 700);
   ctx.fillStyle = 'rgba(255,255,255,0.88)';
-  ctx.fillText(`WhatsApp ${formatMalaysianPhone(data.advisor.phoneDisplay)}`, textX, cy + h * 0.19, textMax);
+  ctx.fillText(T(data, 'WhatsApp {phone}', { phone: formatMalaysianPhone(data.advisor.phoneDisplay) }), textX, cy + h * 0.19, textMax);
 
   drawWhatsAppIcon(ctx, x + w - 16 - iconSize, cy - iconSize / 2, iconSize, POSTER_COLORS.waGreen);
 }
@@ -236,7 +228,7 @@ function drawDisclaimer(ctx: CanvasRenderingContext2D, data: PosterData, cx: num
   ctx.fillStyle = color;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`Estimate as of ${data.dateStr} · Terms & conditions apply`, cx, y);
+  ctx.fillText(T(data, 'Estimate as of {date} · Terms & conditions apply', { date: data.dateStr }), cx, y);
 }
 
 function darkBackground(ctx: CanvasRenderingContext2D, height: number): void {
@@ -254,7 +246,7 @@ const SQUARE_SPLIT = 352;
 
 export const squareTemplate: PosterTemplate = {
   id: 'square',
-  label: 'Square',
+  label: 'Compact',
   aspect: 'square',
   async render(canvas, data, scale, isStale) {
     const ctx = setupCanvas(canvas, SQUARE_H, scale);
@@ -322,7 +314,7 @@ export const squareTemplate: PosterTemplate = {
     if (hero.perMonth && amountW < leftMax - 30) {
       ctx.font = displayFont(18, 700);
       ctx.fillStyle = POSTER_COLORS.grayD;
-      ctx.fillText('/mth', M + amountW + 6, 444);
+      ctx.fillText(T(data, '/mth'), M + amountW + 6, 444);
     }
     ctx.font = labelFont(10, 700);
     ctx.fillStyle = POSTER_COLORS.grayD;
@@ -356,7 +348,7 @@ export const squareTemplate: PosterTemplate = {
     ctx.font = labelFont(9, 400);
     ctx.fillStyle = POSTER_COLORS.panelGrayD;
     ctx.textAlign = 'left';
-    ctx.fillText(`Estimate as of ${data.dateStr} · T&C apply`, M, 516);
+    ctx.fillText(T(data, 'Estimate as of {date} · T&C apply', { date: data.dateStr }), M, 516);
   },
 };
 
@@ -366,7 +358,7 @@ const PROMO_H = 675;
 
 export const promoTemplate: PosterTemplate = {
   id: 'promo',
-  label: 'Promo',
+  label: 'Rebate Deal',
   aspect: 'promo',
   /** Its headline is the rebate — there's nothing to promote without one. */
   isAvailable: (data) => data.rebate > 0,
@@ -405,7 +397,7 @@ export const promoTemplate: PosterTemplate = {
     ctx.font = labelFont(10.5, 700);
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.textBaseline = 'middle';
-    const yearLabel = `${data.year} MODEL`;
+    const yearLabel = T(data, '{year} MODEL', { year: data.year });
     fillTrackedText(ctx, yearLabel, W - M - measureTrackedText(ctx, yearLabel, 2.4), 45, 2.4);
 
     ctx.font = displayFont(36, 700);
@@ -422,7 +414,7 @@ export const promoTemplate: PosterTemplate = {
     ctx.font = labelFont(11, 700);
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.textBaseline = 'middle';
-    fillTrackedText(ctx, `REBATE · ${data.modelTitle.toUpperCase()}`, M, 244, 1.8);
+    fillTrackedText(ctx, T(data, 'REBATE · {model}', { model: data.modelTitle.toUpperCase() }), M, 244, 1.8);
 
     await drawCar(ctx, data, W / 2, 478, 470, 200, true);
     if (isStale()) return;
@@ -443,7 +435,7 @@ export const promoTemplate: PosterTemplate = {
       ctx.fillStyle = POSTER_COLORS.grayD;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText('/month', W / 2 - 26 + amountW / 2 + 6, 562);
+      ctx.fillText(T(data, '/month'), W / 2 - 26 + amountW / 2 + 6, 562);
     }
 
     await drawWhatsAppBar(ctx, data, M, 586, W - 2 * M, 56);

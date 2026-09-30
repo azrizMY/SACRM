@@ -1,45 +1,34 @@
 import { Routes } from '@angular/router';
-import { AccountSettingsComponent } from './pages/account-settings.component';
-import { BankersComponent } from './pages/bankers.component';
-import { CalculatorComponent } from './pages/calculator.component';
-import { CostBreakdownComponent } from './pages/cost-breakdown.component';
-import { CustomerManagerComponent } from './pages/customer-manager.component';
-import { DashboardPageComponent } from './pages/dashboard-page.component';
-import { ForgotPasswordComponent } from './pages/forgot-password.component';
-import { LandingComponent } from './pages/landing.component';
-import { LoginComponent } from './pages/login.component';
-import { MyCarsComponent } from './pages/my-cars.component';
-import { PriceSettingsComponent } from './pages/price-settings.component';
-import { ProfileComponent } from './pages/profile.component';
-import { PublicQuoteComponent } from './pages/public-quote.component';
-import { ResetPasswordComponent } from './pages/reset-password.component';
-import { SignupComponent } from './pages/signup.component';
 import { authGuard, guestGuard } from './shared/auth.guard';
-import { AppShellComponent } from './shell/app-shell.component';
 
+// Every page is lazy-loaded so a visitor only downloads the screen they open — the landing page,
+// login and the customer quote link stay light instead of shipping the calculator, poster
+// renderers and charts up front. The service worker still prefetches every chunk once installed.
 export const routes: Routes = [
-  { path: 'welcome', component: LandingComponent },
-  { path: 'login', component: LoginComponent, canActivate: [guestGuard] },
-  { path: 'signup', component: SignupComponent, canActivate: [guestGuard] },
-  { path: 'forgot-password', component: ForgotPasswordComponent, canActivate: [guestGuard] },
-  { path: 'reset-password', component: ResetPasswordComponent, canActivate: [guestGuard] },
-  { path: 'quote/:token', component: PublicQuoteComponent },
-  { path: 'quote/:token/brand', component: PublicQuoteComponent, data: { singleBrand: true } },
+  { path: 'welcome', loadComponent: () => import('./pages/landing.component').then((m) => m.LandingComponent) },
+  { path: 'login', loadComponent: () => import('./pages/login.component').then((m) => m.LoginComponent), canActivate: [guestGuard] },
+  { path: 'signup', loadComponent: () => import('./pages/signup.component').then((m) => m.SignupComponent), canActivate: [guestGuard] },
+  { path: 'forgot-password', loadComponent: () => import('./pages/forgot-password.component').then((m) => m.ForgotPasswordComponent), canActivate: [guestGuard] },
+  { path: 'reset-password', loadComponent: () => import('./pages/reset-password.component').then((m) => m.ResetPasswordComponent), canActivate: [guestGuard] },
+  { path: 'privacy', loadComponent: () => import('./pages/legal-page.component').then((m) => m.LegalPageComponent), data: { doc: 'privacy' } },
+  { path: 'terms', loadComponent: () => import('./pages/legal-page.component').then((m) => m.LegalPageComponent), data: { doc: 'terms' } },
+  { path: 'quote/:token',loadComponent: () => import('./pages/public-quote.component').then((m) => m.PublicQuoteComponent) },
+  { path: 'quote/:token/brand', loadComponent: () => import('./pages/public-quote.component').then((m) => m.PublicQuoteComponent), data: { singleBrand: true } },
   {
     path: '',
-    component: AppShellComponent,
+    loadComponent: () => import('./shell/app-shell.component').then((m) => m.AppShellComponent),
     canActivate: [authGuard],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
-      { path: 'dashboard', component: DashboardPageComponent, data: { id: 'dashboard' } },
-      { path: 'calculator', component: CalculatorComponent, data: { id: 'calculator' } },
-      { path: 'cars', component: MyCarsComponent, data: { id: 'cars' } },
-      { path: 'price-settings', component: PriceSettingsComponent, data: { id: 'price-settings' } },
-      { path: 'leads', component: CustomerManagerComponent, data: { id: 'leads' } },
-      { path: 'bankers', component: BankersComponent, data: { id: 'bankers' } },
-      { path: 'notes', component: CostBreakdownComponent, data: { id: 'notes' } },
-      { path: 'profile', component: ProfileComponent, data: { id: 'profile' } },
-      { path: 'settings', component: AccountSettingsComponent, data: { id: 'settings' } },
+      { path: 'dashboard', loadComponent: () => import('./pages/dashboard-page.component').then((m) => m.DashboardPageComponent), data: { id: 'dashboard' } },
+      { path: 'calculator', loadComponent: () => import('./pages/calculator.component').then((m) => m.CalculatorComponent), data: { id: 'calculator' } },
+      { path: 'cars', loadComponent: () => import('./pages/my-cars.component').then((m) => m.MyCarsComponent), data: { id: 'cars' } },
+      { path: 'price-settings', loadComponent: () => import('./pages/price-settings.component').then((m) => m.PriceSettingsComponent), data: { id: 'price-settings' } },
+      { path: 'leads', loadComponent: () => import('./pages/customer-manager.component').then((m) => m.CustomerManagerComponent), data: { id: 'leads' } },
+      { path: 'bankers', loadComponent: () => import('./pages/bankers.component').then((m) => m.BankersComponent), data: { id: 'bankers' } },
+      { path: 'notes', loadComponent: () => import('./pages/cost-breakdown.component').then((m) => m.CostBreakdownComponent), data: { id: 'notes' } },
+      { path: 'profile', loadComponent: () => import('./pages/profile.component').then((m) => m.ProfileComponent), data: { id: 'profile' } },
+      { path: 'settings', loadComponent: () => import('./pages/account-settings.component').then((m) => m.AccountSettingsComponent), data: { id: 'settings' } },
       { path: '**', redirectTo: 'dashboard' },
     ],
   },

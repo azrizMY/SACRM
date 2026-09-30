@@ -6,6 +6,7 @@ import {
   type AppSettings,
   type DashboardTarget,
   type NotificationPrefs,
+  type Onboarding,
   type SalesDefaults,
 } from '../data/settings-data';
 import { BANK_OPTIONS, INSURANCE_OPTIONS, SOURCE_TYPES } from '../data/customer-data';
@@ -28,6 +29,7 @@ function mergeSettings(saved: Partial<AppSettings> | null): AppSettings {
     notifications: { ...DEFAULT_SETTINGS.notifications, ...saved?.notifications },
     dashboardTarget: { ...DEFAULT_SETTINGS.dashboardTarget, ...saved?.dashboardTarget },
     vehicleInsurance: { ...DEFAULT_SETTINGS.vehicleInsurance, ...saved?.vehicleInsurance },
+    onboarding: { ...DEFAULT_SETTINGS.onboarding, ...saved?.onboarding },
   };
 }
 
@@ -78,6 +80,17 @@ export class SettingsService {
     this.persist({ ...this.settings(), dashboardTarget: { ...this.settings().dashboardTarget, ...patch } });
   }
 
+  updateOnboarding(patch: Partial<Onboarding>) {
+    const current = this.settings().onboarding;
+    if (Object.entries(patch).every(([k, v]) => current[k as keyof Onboarding] === v)) return; // skip no-op saves
+    this.persist({ ...this.settings(), onboarding: { ...current, ...patch } });
+  }
+
+  /** Ticks "Send your first quote" on the Dashboard checklist. */
+  markQuoteShared() {
+    this.updateOnboarding({ quoteShared: true });
+  }
+
   /** The saved itemized insurance quotation for this car, or a sensible starting point derived
    *  from its own catalog figures when the SA hasn't customized one yet. */
   getVehicleInsurance(vehicle: Vehicle, fallbackBasicPremium: number): InsuranceQuotationDetails {
@@ -92,7 +105,8 @@ export class SettingsService {
   }
 
   resetToDefaults() {
-    this.persist(DEFAULT_SETTINGS);
+    // Checklist progress isn't a preference, so resetting preferences keeps it.
+    this.persist({ ...DEFAULT_SETTINGS, onboarding: this.settings().onboarding });
   }
 
   /** Updates the signal immediately (so the UI never waits on the network) and saves in the

@@ -1,6 +1,7 @@
 import { Component, ElementRef, HostListener, NgZone, OnDestroy, OnInit, ViewChild, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from './icon.component';
+import { TranslatePipe } from './i18n';
 import { TourService, findTourTarget } from './tour.service';
 
 type Box = { top: number; left: number; width: number; height: number };
@@ -10,7 +11,7 @@ type Box = { top: number; left: number; width: number; height: number };
 @Component({
   selector: 'app-tour-overlay',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [CommonModule, IconComponent, TranslatePipe],
   template: `
     @if (tour.step(); as step) {
       <div class="fixed inset-0 z-[100]" (click)="$event.stopPropagation()">
@@ -57,9 +58,9 @@ type Box = { top: number; left: number; width: number; height: number };
             </div>
             <div class="flex items-center gap-2">
               @if (tour.index() > 0) {
-                <button type="button" (click)="tour.back()" class="rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">Back</button>
+                <button type="button" (click)="tour.back()" class="rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">{{ step.labels?.back ?? ("Back" | t) }}</button>
               } @else {
-                <button type="button" (click)="tour.finish()" class="rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">Skip</button>
+                <button type="button" (click)="tour.finish()" class="rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">{{ step.labels?.skip ?? ("Skip" | t) }}</button>
               }
               <button
                 #primary
@@ -67,7 +68,7 @@ type Box = { top: number; left: number; width: number; height: number };
                 (click)="tour.next()"
                 class="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                {{ tour.isLast() ? (step.doneLabel ?? 'Got it') : 'Next' }}
+                {{ tour.isLast() ? (step.doneLabel ?? ('Got it' | t)) : (step.labels?.next ?? ('Next' | t)) }}
               </button>
             </div>
           </div>

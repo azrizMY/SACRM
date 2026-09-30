@@ -1,9 +1,10 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { NumberFieldComponent } from '../shared/number-field.component';
 import { ChipListEditorComponent } from '../shared/chip-list-editor.component';
+import { TranslatePipe, type Lang } from '../shared/i18n';
 import { Router } from '@angular/router';
 import { IconComponent, type IconName } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
@@ -20,18 +21,18 @@ type NavItem = { id: string; label: string; icon: IconName };
 @Component({
   selector: 'app-account-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent, NumberFieldComponent, ChipListEditorComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, NumberFieldComponent, ChipListEditorComponent, TranslatePipe],
   template: `
     <div class="mx-auto flex max-w-6xl flex-col gap-6">
       <div class="flex flex-col gap-1">
-        <h2 class="text-balance text-xl font-bold tracking-tight">Settings</h2>
-        <p class="text-pretty text-sm text-muted-foreground">Quote preferences, notifications, and account data.</p>
+        <h2 class="text-balance text-xl font-bold tracking-tight">{{ "Settings" | t }}</h2>
+        <p class="text-pretty text-sm text-muted-foreground">{{ "Quote preferences, notifications, and account data." | t }}</p>
       </div>
 
       <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-10">
         <!-- Section nav -->
         <nav
-          aria-label="Settings sections"
+          [attr.aria-label]="'Settings sections' | t"
           class="flex shrink-0 flex-row gap-1 overflow-x-auto pb-1 lg:sticky lg:top-4 lg:w-52 lg:flex-col lg:overflow-visible lg:pb-0"
         >
           @for (item of navItems; track item.id) {
@@ -46,7 +47,7 @@ type NavItem = { id: string; label: string; icon: IconName };
                 <span class="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-primary"></span>
               }
               <app-icon [name]="item.icon" [size]="15" />
-              {{ item.label }}
+              {{ item.label | t }}
             </button>
           }
         </nav>
@@ -56,8 +57,8 @@ type NavItem = { id: string; label: string; icon: IconName };
           <!-- Quote Preferences -->
           <section id="defaults" data-section class="flex scroll-mt-20 flex-col gap-4">
             <div class="flex flex-col gap-0.5">
-              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quote Preferences</h3>
-              <p class="text-xs text-muted-foreground">What every new quote starts with — change these any time.</p>
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Quote Preferences" | t }}</h3>
+              <p class="text-xs text-muted-foreground">{{ "What every new quote starts with — change these any time." | t }}</p>
             </div>
 
             <!-- Starting values — one row per setting, matching the Notifications list below -->
@@ -67,16 +68,16 @@ type NavItem = { id: string; label: string; icon: IconName };
                   <app-icon name="wallet" [size]="18" />
                 </span>
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">Starting Values</span>
-                  <span class="text-xs text-muted-foreground">Applied every time you open the Calculator for a new quote.</span>
+                  <span class="text-sm font-semibold leading-none">{{ "Starting Values" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "Applied every time you open the Calculator for a new quote." | t }}</span>
                 </div>
               </div>
 
               <div class="flex flex-col divide-y divide-border border-t border-border px-5">
                 <div class="flex items-center justify-between gap-4 py-4">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Downpayment</span>
-                    <span class="text-xs text-muted-foreground">Starting percentage on a new quote.</span>
+                    <span class="text-sm font-medium">{{ "Downpayment" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Starting percentage on a new quote." | t }}</span>
                   </div>
                   <app-number-field
                     class="w-24 shrink-0"
@@ -91,26 +92,26 @@ type NavItem = { id: string; label: string; icon: IconName };
 
                 <div class="flex items-center justify-between gap-4 py-4">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">NCD</span>
-                    <span class="text-xs text-muted-foreground">No-claims discount applied by default. Rate and basic premium are set per car in Price Settings.</span>
+                    <span class="text-sm font-medium">{{ "NCD" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "No-claims discount applied by default. Rate and basic premium are set per car in Price Settings." | t }}</span>
                   </div>
                   <select
                     [(ngModel)]="salesForm.ncd"
                     class="h-9 shrink-0 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring"
                   >
-                    @for (opt of ncdOptions; track opt.value) { <option [ngValue]="opt.value">{{ opt.label }}</option> }
+                    @for (opt of ncdOptions; track opt.value) { <option [ngValue]="opt.value">{{ opt.label | t }}</option> }
                   </select>
                 </div>
 
                 <div class="flex items-center justify-between gap-4 py-4">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Additional Rebate</span>
-                    <span class="text-xs text-muted-foreground">Tick Additional Rebate by default on new quotes and offer sheets, for cars that have one. You can still untick it per quote.</span>
+                    <span class="text-sm font-medium">{{ "Additional Rebate" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Tick Additional Rebate by default on new quotes and offer sheets, for cars that have one. You can still untick it per quote." | t }}</span>
                   </div>
                   <button
                     type="button"
                     role="switch"
-                    aria-label="Tick Additional Rebate by default"
+                    [attr.aria-label]="'Tick Additional Rebate by default' | t"
                     [attr.aria-checked]="salesForm.additionalRebateByDefault ?? true"
                     (click)="salesForm.additionalRebateByDefault = !(salesForm.additionalRebateByDefault ?? true)"
                     class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
@@ -125,10 +126,10 @@ type NavItem = { id: string; label: string; icon: IconName };
 
                 <div class="flex items-center justify-between gap-4 py-4">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Rate Type</span>
-                    <span class="text-xs text-muted-foreground">Flat or EIR — which one a new quote opens on.</span>
+                    <span class="text-sm font-medium">{{ "Rate Type" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Flat or EIR — which one a new quote opens on." | t }}</span>
                   </div>
-                  <div role="radiogroup" aria-label="Rate Type" class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
+                  <div role="radiogroup" [attr.aria-label]="'Rate Type' | t" class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
                     <button
                       type="button"
                       role="radio"
@@ -137,7 +138,7 @@ type NavItem = { id: string; label: string; icon: IconName };
                       class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
                       [ngClass]="salesForm.defaultRateType === 'flat' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                     >
-                      Flat
+                      {{ "Flat" | t }}
                     </button>
                     <button
                       type="button"
@@ -147,34 +148,34 @@ type NavItem = { id: string; label: string; icon: IconName };
                       class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
                       [ngClass]="salesForm.defaultRateType === 'effective' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                     >
-                      EIR
+                      {{ "EIR" | t }}
                     </button>
                   </div>
                 </div>
 
                 <div class="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Default Rates</span>
-                    <span class="max-w-md text-xs text-muted-foreground">Used by every car without its own rate — a car's own rate is set in <a routerLink="/price-settings" class="font-medium text-primary hover:underline">Price Settings</a>. Leave EIR empty to be asked for the bank's rate.</span>
+                    <span class="text-sm font-medium">{{ "Default Rates" | t }}</span>
+                    <span class="max-w-md text-xs text-muted-foreground">{{ "Used by every car without its own rate — a car's own rate is set in" | t }} <a routerLink="/price-settings" class="font-medium text-primary hover:underline">{{ "Price Settings" | t }}</a>{{ ". Leave EIR empty to be asked for the bank's rate." | t }}</span>
                   </div>
                   <div class="flex shrink-0 items-end gap-2">
                     <label class="flex flex-col gap-1 text-[11px] font-medium text-muted-foreground">
-                      Flat
+                      {{ "Flat" | t }}
                       <app-number-field class="w-24" suffix="%" ariaLabel="Default flat rate" [decimals]="2" [value]="salesForm.interestRate" (valueChange)="salesForm.interestRate = clampRate($event) ?? salesForm.interestRate" />
                     </label>
                     <label class="flex flex-col gap-1 text-[11px] font-medium text-muted-foreground">
-                      EIR
-                      <app-number-field class="w-24" suffix="%" ariaLabel="Default EIR" placeholder="Not set" [decimals]="2" [value]="salesForm.effectiveRate ?? null" (valueChange)="salesForm.effectiveRate = clampRate($event) ?? undefined" />
+                      {{ "EIR" | t }}
+                      <app-number-field class="w-24" suffix="%" ariaLabel="Default EIR" [placeholder]="'Not set' | t" [decimals]="2" [value]="salesForm.effectiveRate ?? null" (valueChange)="salesForm.effectiveRate = clampRate($event) ?? undefined" />
                     </label>
                   </div>
                 </div>
 
                 <div class="flex flex-col gap-3 py-4">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Repayment Table Years</span>
-                    <span class="text-xs text-muted-foreground">Pick 3 tenures — which years the Calculator's repayment table opens on.</span>
+                    <span class="text-sm font-medium">{{ "Repayment Table Years" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Pick 3 tenures — which years the Calculator's repayment table opens on." | t }}</span>
                   </div>
-                  <div role="group" aria-label="Repayment table tenures (years)" class="flex flex-wrap gap-1.5">
+                  <div role="group" [attr.aria-label]="'Repayment table tenures (years)' | t" class="flex flex-wrap gap-1.5">
                     @for (y of posterYearOptions; track y) {
                       <button
                         type="button"
@@ -196,12 +197,12 @@ type NavItem = { id: string; label: string; icon: IconName };
                   (click)="saveQuoteDefaults()"
                   class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                 >
-                  Save Changes
+                  {{ "Save Changes" | t }}
                 </button>
                 @if (savedFlash()) {
                   <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]">
                     <app-icon name="check" [size]="13" />
-                    Saved
+                    {{ "Saved" | t }}
                   </span>
                 }
               </div>
@@ -214,29 +215,29 @@ type NavItem = { id: string; label: string; icon: IconName };
                   <app-icon name="users" [size]="18" />
                 </span>
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">New Leads</span>
-                  <span class="text-xs text-muted-foreground">Where your leads come from, and when a quiet lead gets flagged.</span>
+                  <span class="text-sm font-semibold leading-none">{{ "New Leads" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "Where your leads come from, and when a quiet lead gets flagged." | t }}</span>
                 </div>
               </div>
               <div class="flex flex-col divide-y divide-border border-t border-border px-5">
                 <div class="flex flex-col gap-3 py-4">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Lead Sources</span>
-                    <span class="text-xs text-muted-foreground">The choices in every Lead Source dropdown. Tap one to make it the default for new leads. Removing a source never changes existing customers.</span>
+                    <span class="text-sm font-medium">{{ "Lead Sources" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "The choices in every Lead Source dropdown. Tap one to make it the default for new leads. Removing a source never changes existing customers." | t }}</span>
                   </div>
                   <app-chip-list-editor
                     [(items)]="leadSourcesForm"
                     [selectable]="true"
                     [(defaultItem)]="salesForm.leadSource"
-                    placeholder="e.g. Roadshow – Mid Valley"
+                    [placeholder]="'e.g. Roadshow – Mid Valley' | t"
                     addLabel="New lead source"
                   />
-                  @if (listError === 'leads') { <p class="text-xs text-[var(--destructive)]">Keep at least one source.</p> }
+                  @if (listError === 'leads') { <p class="text-xs text-[var(--destructive)]">{{ "Keep at least one source." | t }}</p> }
                 </div>
                 <div class="flex items-center justify-between gap-4 py-4">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Follow-up Reminder</span>
-                    <span class="text-xs text-muted-foreground">Flag a lead in Customer Manager after this many days without an update.</span>
+                    <span class="text-sm font-medium">{{ "Follow-up Reminder" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Flag a lead in Customer Manager after this many days without an update." | t }}</span>
                   </div>
                   <app-number-field
                     class="w-28 shrink-0"
@@ -250,9 +251,9 @@ type NavItem = { id: string; label: string; icon: IconName };
                 </div>
               </div>
               <div class="flex items-center gap-2 border-t border-border px-5 py-4">
-                <button type="button" (click)="saveLeadSettings()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Save Changes</button>
+                <button type="button" (click)="saveLeadSettings()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">{{ "Save Changes" | t }}</button>
                 @if (savedFlashFor() === 'leads') {
-                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]"><app-icon name="check" [size]="13" /> Saved</span>
+                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]"><app-icon name="check" [size]="13" /> {{ "Saved" | t }}</span>
                 }
               </div>
             </div>
@@ -264,32 +265,32 @@ type NavItem = { id: string; label: string; icon: IconName };
                   <app-icon name="landmark" [size]="18" />
                 </span>
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">Banks & Insurance</span>
-                  <span class="text-xs text-muted-foreground">Only the banks and insurers you actually work with — these are the choices in every dropdown.</span>
+                  <span class="text-sm font-semibold leading-none">{{ "Banks & Insurance" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "Only the banks and insurers you actually work with — these are the choices in every dropdown." | t }}</span>
                 </div>
               </div>
               <div class="flex flex-col divide-y divide-border border-t border-border px-5">
                 <div class="flex flex-col gap-3 py-4">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Banks</span>
-                    <span class="text-xs text-muted-foreground">Used for a customer's Bank Panel and for your Bankers list. Removing a bank never changes existing customers or bankers.</span>
+                    <span class="text-sm font-medium">{{ "Banks" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Used for a customer's Bank Panel and for your Bankers list. Removing a bank never changes existing customers or bankers." | t }}</span>
                   </div>
-                  <app-chip-list-editor [(items)]="banksForm" placeholder="e.g. Bank Muamalat" addLabel="New bank" />
-                  @if (listError === 'banks') { <p class="text-xs text-[var(--destructive)]">Keep at least one bank.</p> }
+                  <app-chip-list-editor [(items)]="banksForm" [placeholder]="'e.g. Bank Muamalat' | t" addLabel="New bank" />
+                  @if (listError === 'banks') { <p class="text-xs text-[var(--destructive)]">{{ "Keep at least one bank." | t }}</p> }
                 </div>
                 <div class="flex flex-col gap-3 py-4">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Insurance Companies</span>
+                    <span class="text-sm font-medium">{{ "Insurance Companies" | t }}</span>
                     <span class="text-xs text-muted-foreground">Used when recording a delivery. "Unspecified" is always available.</span>
                   </div>
-                  <app-chip-list-editor [(items)]="insurersForm" placeholder="e.g. Takaful Ikhlas" addLabel="New insurance company" />
+                  <app-chip-list-editor [(items)]="insurersForm" [placeholder]="'e.g. Takaful Ikhlas' | t" addLabel="New insurance company" />
                 </div>
               </div>
               <div class="flex items-center gap-2 border-t border-border px-5 py-4">
-                <button type="button" (click)="saveBankLists()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Save Changes</button>
-                <button type="button" (click)="resetBankLists()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">Restore defaults</button>
+                <button type="button" (click)="saveBankLists()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">{{ "Save Changes" | t }}</button>
+                <button type="button" (click)="resetBankLists()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">{{ "Restore defaults" | t }}</button>
                 @if (savedFlashFor() === 'banks') {
-                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]"><app-icon name="check" [size]="13" /> Saved</span>
+                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]"><app-icon name="check" [size]="13" /> {{ "Saved" | t }}</span>
                 }
               </div>
             </div>
@@ -301,8 +302,8 @@ type NavItem = { id: string; label: string; icon: IconName };
                   <app-icon name="wallet" [size]="18" />
                 </span>
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">Cost Quick-Buttons</span>
-                  <span class="text-xs text-muted-foreground">The one-tap cost items on Cost Breakdown, with your own prices.</span>
+                  <span class="text-sm font-semibold leading-none">{{ "Cost Quick-Buttons" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "The one-tap cost items on Cost Breakdown, with your own prices." | t }}</span>
                 </div>
               </div>
               <div class="flex flex-col gap-2 border-t border-border px-5 py-4 [&>*]:max-w-2xl">
@@ -311,33 +312,33 @@ type NavItem = { id: string; label: string; icon: IconName };
                     <input
                       type="text"
                       [(ngModel)]="preset.label"
-                      placeholder="Item, e.g. Tinted"
+                      [placeholder]="'Item, e.g. Tinted' | t"
                       [attr.aria-label]="'Cost item ' + (i + 1)"
                       class="h-9 min-w-0 flex-1 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none"
                     />
                     <app-number-field class="w-32 shrink-0" prefix="RM" [decimals]="0" ariaLabel="Price" [value]="preset.amount" (valueChange)="preset.amount = $event ?? 0" />
-                    <button type="button" (click)="removeCostPreset(i)" aria-label="Remove item" class="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--destructive)]/10 hover:text-[var(--destructive)]">
+                    <button type="button" (click)="removeCostPreset(i)" [attr.aria-label]="'Remove item' | t" class="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--destructive)]/10 hover:text-[var(--destructive)]">
                       <app-icon name="trash" [size]="14" />
                     </button>
                   </div>
                 } @empty {
-                  <p class="text-xs text-muted-foreground">No quick-buttons — add one below.</p>
+                  <p class="text-xs text-muted-foreground">{{ "No quick-buttons — add one below." | t }}</p>
                 }
                 <div class="flex flex-wrap items-center gap-2 pt-1">
                   <button type="button" (click)="addCostPreset()" class="flex items-center gap-1 rounded-lg bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent">
                     <app-icon name="plus" [size]="12" />
-                    Add item
+                    {{ "Add item" | t }}
                   </button>
                   <button type="button" (click)="resetCostPresets()" class="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
                     <app-icon name="rotate-ccw" [size]="12" />
-                    Restore defaults
+                    {{ "Restore defaults" | t }}
                   </button>
                 </div>
               </div>
               <div class="flex items-center gap-2 border-t border-border px-5 py-4">
-                <button type="button" (click)="saveCostPresets()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Save Changes</button>
+                <button type="button" (click)="saveCostPresets()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">{{ "Save Changes" | t }}</button>
                 @if (savedFlashFor() === 'costs') {
-                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]"><app-icon name="check" [size]="13" /> Saved</span>
+                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]"><app-icon name="check" [size]="13" /> {{ "Saved" | t }}</span>
                 }
               </div>
             </div>
@@ -349,10 +350,9 @@ type NavItem = { id: string; label: string; icon: IconName };
                   <app-icon name="star" [size]="18" />
                 </span>
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">Primary Brand</span>
+                  <span class="text-sm font-semibold leading-none">{{ "Primary Brand" | t }}</span>
                   <span class="text-xs text-muted-foreground">
-                    Drives the Dashboard's Monthly Target, the Calculator's starting car, the new-lead starting car in Customer
-                    Manager, and the brand filter on Brochures.
+                    {{ "Drives the Dashboard's Monthly Target, the Calculator's starting car, the new-lead starting car in Customer Manager, and the brand filter on Brochures." | t }}
                   </span>
                 </div>
               </div>
@@ -360,7 +360,7 @@ type NavItem = { id: string; label: string; icon: IconName };
               <div class="flex flex-col divide-y divide-border border-t border-border px-5">
                 <div class="flex items-center justify-between gap-4 py-4">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Brand</span>
+                    <span class="text-sm font-medium">{{ "Brand" | t }}</span>
                     <span class="text-xs text-muted-foreground">Customer Manager and Cost Breakdown keep their own "All" filter, so existing customers stay visible.</span>
                   </div>
                   <select
@@ -373,12 +373,12 @@ type NavItem = { id: string; label: string; icon: IconName };
 
                 <div class="flex items-center justify-between gap-4 py-4">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Monthly Target</span>
-                    <span class="text-xs text-muted-foreground">Units target shown on the Dashboard.</span>
+                    <span class="text-sm font-medium">{{ "Monthly Target" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Units target shown on the Dashboard." | t }}</span>
                   </div>
                   <app-number-field
                     class="w-24 shrink-0"
-                    suffix="units"
+                    [suffix]="'units' | t"
                     ariaLabel="Monthly target"
                     [decimals]="0"
                     [grouping]="false"
@@ -394,12 +394,12 @@ type NavItem = { id: string; label: string; icon: IconName };
                   (click)="saveDefaultBrand()"
                   class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                 >
-                  Save Changes
+                  {{ "Save Changes" | t }}
                 </button>
                 @if (brandSavedFlash()) {
                   <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]">
                     <app-icon name="check" [size]="13" />
-                    Saved
+                    {{ "Saved" | t }}
                   </span>
                 }
               </div>
@@ -407,10 +407,81 @@ type NavItem = { id: string; label: string; icon: IconName };
           </section>
 
           <!-- Notifications -->
+          <!-- Language — the app's screens and what customers see are chosen separately -->
+          <section id="language" data-section class="flex scroll-mt-20 flex-col gap-4">
+            <div class="flex flex-col gap-0.5">
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ 'Language' | t }}</h3>
+              <p class="text-xs text-muted-foreground">{{ 'Choose the language for the app and, separately, for what your customers see.' | t }}</p>
+            </div>
+            <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+              <div class="flex flex-col divide-y divide-border px-5">
+                <div class="flex flex-wrap items-center justify-between gap-4 py-4">
+                  <div class="flex min-w-0 flex-col">
+                    <span class="text-sm font-medium">{{ 'App language' | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ 'Menus, buttons and screens you see in the app.' | t }}</span>
+                  </div>
+                  <div role="radiogroup" [attr.aria-label]="'App language' | t" class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
+                      <button
+                        type="button"
+                        role="radio"
+                        [attr.aria-checked]="uiLanguage() === 'en'"
+                        (click)="setLanguage('uiLanguage', 'en')"
+                        class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+                        [ngClass]="uiLanguage() === 'en' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                      >
+                        {{ "English" | t }}
+                      </button>
+                      <button
+                        type="button"
+                        role="radio"
+                        [attr.aria-checked]="uiLanguage() === 'ms'"
+                        (click)="setLanguage('uiLanguage', 'ms')"
+                        class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+                        [ngClass]="uiLanguage() === 'ms' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                      >
+                        {{ "Bahasa Melayu" | t }}
+                      </button>
+                  </div>
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-4 py-4">
+                  <div class="flex min-w-0 flex-col">
+                    <span class="text-sm font-medium">{{ 'Poster language' | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ 'Quote posters, offer sheets and the customer link your customers see.' | t }}</span>
+                  </div>
+                  <div role="radiogroup" [attr.aria-label]="'Poster language' | t" class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
+                      <button
+                        type="button"
+                        role="radio"
+                        [attr.aria-checked]="posterLanguage() === 'en'"
+                        (click)="setLanguage('posterLanguage', 'en')"
+                        class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+                        [ngClass]="posterLanguage() === 'en' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                      >
+                        {{ "English" | t }}
+                      </button>
+                      <button
+                        type="button"
+                        role="radio"
+                        [attr.aria-checked]="posterLanguage() === 'ms'"
+                        (click)="setLanguage('posterLanguage', 'ms')"
+                        class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+                        [ngClass]="posterLanguage() === 'ms' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                      >
+                        {{ "Bahasa Melayu" | t }}
+                      </button>
+                  </div>
+                </div>
+              </div>
+              @if (uiLanguage() === 'ms') {
+                <p class="border-t border-border px-5 py-3 text-[11px] text-muted-foreground">{{ 'Some pages are still being translated and will show in English for now.' | t }}</p>
+              }
+            </div>
+          </section>
+
           <section id="notifications" data-section class="flex scroll-mt-20 flex-col gap-4">
             <div class="flex flex-col gap-0.5">
-              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notifications</h3>
-              <p class="text-xs text-muted-foreground">Choose what you want to be kept in the loop about.</p>
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Notifications" | t }}</h3>
+              <p class="text-xs text-muted-foreground">{{ "Choose what you want to be kept in the loop about." | t }}</p>
             </div>
 
             <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
@@ -419,16 +490,16 @@ type NavItem = { id: string; label: string; icon: IconName };
                   <app-icon name="bell" [size]="18" />
                 </span>
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">Notification Preferences</span>
-                  <span class="text-xs text-muted-foreground">New leads, bookings, and weekly performance summaries.</span>
+                  <span class="text-sm font-semibold leading-none">{{ "Notification Preferences" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "New leads, bookings, and weekly performance summaries." | t }}</span>
                 </div>
               </div>
 
               <div class="flex flex-col divide-y divide-border border-t border-border px-5">
                 <div class="flex items-center justify-between gap-4 py-3">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">New lead alerts</span>
-                    <span class="text-xs text-muted-foreground">When a lead is added from the Calculator or Customer Manager.</span>
+                    <span class="text-sm font-medium">{{ "New lead alerts" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "When a lead is added from the Calculator or Customer Manager." | t }}</span>
                   </div>
                   <button
                     type="button"
@@ -447,8 +518,8 @@ type NavItem = { id: string; label: string; icon: IconName };
 
                 <div class="flex items-center justify-between gap-4 py-3">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Booking reminders</span>
-                    <span class="text-xs text-muted-foreground">Documents pending or a booking about to go stale.</span>
+                    <span class="text-sm font-medium">{{ "Booking reminders" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Documents pending or a booking about to go stale." | t }}</span>
                   </div>
                   <button
                     type="button"
@@ -467,8 +538,8 @@ type NavItem = { id: string; label: string; icon: IconName };
 
                 <div class="flex items-center justify-between gap-4 py-3">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Weekly performance summary</span>
-                    <span class="text-xs text-muted-foreground">Leads, bookings, deliveries, and commission for the week.</span>
+                    <span class="text-sm font-medium">{{ "Weekly performance summary" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Leads, bookings, deliveries, and commission for the week." | t }}</span>
                   </div>
                   <button
                     type="button"
@@ -491,8 +562,8 @@ type NavItem = { id: string; label: string; icon: IconName };
           <!-- Data & privacy -->
           <section id="data" data-section class="flex scroll-mt-20 flex-col gap-4">
             <div class="flex flex-col gap-0.5">
-              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Data &amp; Privacy</h3>
-              <p class="text-xs text-muted-foreground">Your data is saved to your account — export a copy any time.</p>
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Data & Privacy" | t }}</h3>
+              <p class="text-xs text-muted-foreground">{{ "Your data is saved to your account — export a copy any time." | t }}</p>
             </div>
 
             <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
@@ -501,16 +572,16 @@ type NavItem = { id: string; label: string; icon: IconName };
                   <app-icon name="file-text" [size]="18" />
                 </span>
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">Data Management</span>
-                  <span class="text-xs text-muted-foreground">Back up, reset, or demo with sample data.</span>
+                  <span class="text-sm font-semibold leading-none">{{ "Data Management" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "Back up, reset, or demo with sample data." | t }}</span>
                 </div>
               </div>
 
               <div class="flex flex-col divide-y divide-border border-t border-border px-5">
                 <div class="flex items-center justify-between gap-4 py-3.5">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Export all data</span>
-                    <span class="text-xs text-muted-foreground">Download your profile, settings, and customers as a JSON file.</span>
+                    <span class="text-sm font-medium">{{ "Export all data" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Download your profile, settings, and customers as a JSON file." | t }}</span>
                   </div>
                   <button
                     type="button"
@@ -518,14 +589,14 @@ type NavItem = { id: string; label: string; icon: IconName };
                     class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
                   >
                     <app-icon name="download" [size]="13" />
-                    Export
+                    {{ "Export" | t }}
                   </button>
                 </div>
 
                 <div class="flex items-center justify-between gap-4 py-3.5">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Reset preferences</span>
-                    <span class="text-xs text-muted-foreground">Puts Quote Preferences and Notifications back to their factory settings.</span>
+                    <span class="text-sm font-medium">{{ "Reset preferences" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Puts Quote Preferences and Notifications back to their factory settings." | t }}</span>
                   </div>
                   <button
                     type="button"
@@ -533,20 +604,20 @@ type NavItem = { id: string; label: string; icon: IconName };
                     class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
                   >
                     <app-icon name="refresh-cw" [size]="13" />
-                    Reset
+                    {{ "Reset" | t }}
                   </button>
                 </div>
 
                 <div class="flex items-center justify-between gap-4 py-3.5">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">Load sample deals</span>
-                    <span class="text-xs text-muted-foreground">Adds 30 example leads, bookings, and deliveries — handy for a demo.</span>
+                    <span class="text-sm font-medium">{{ "Load sample deals" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Adds 30 example leads, bookings, and deliveries — handy for a demo." | t }}</span>
                   </div>
                   <div class="flex shrink-0 items-center gap-2">
                     @if (seedFlash()) {
                       <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]">
                         <app-icon name="check" [size]="13" />
-                        Added
+                        {{ "Added" | t }}
                       </span>
                     }
                     <button
@@ -556,7 +627,7 @@ type NavItem = { id: string; label: string; icon: IconName };
                       class="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
                     >
                       <app-icon name="sparkles" [size]="13" />
-                      {{ seeding() ? 'Loading…' : 'Load' }}
+                      {{ seeding() ? ('Loading…' | t) : ('Load' | t) }}
                     </button>
                   </div>
                 </div>
@@ -570,19 +641,19 @@ type NavItem = { id: string; label: string; icon: IconName };
                   <app-icon name="alert-triangle" [size]="18" />
                 </span>
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none text-[var(--destructive)]">Danger Zone</span>
-                  <span class="text-xs text-muted-foreground">Permanently deletes every lead, booking, and delivery record.</span>
+                  <span class="text-sm font-semibold leading-none text-[var(--destructive)]">{{ "Danger Zone" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "Permanently deletes every lead, booking, and delivery record." | t }}</span>
                 </div>
               </div>
               <div class="flex flex-col gap-3 border-t border-[var(--destructive)]/30 px-5 py-4">
-                <p class="text-xs text-muted-foreground">Uploaded car brochures and your profile are not affected.</p>
+                <p class="text-xs text-muted-foreground">{{ "Uploaded car brochures and your profile are not affected." | t }}</p>
                 <button
                   type="button"
                   (click)="requestClearData()"
                   class="flex w-fit items-center gap-1.5 rounded-md bg-[var(--destructive)] px-3 py-2 text-xs font-semibold text-[var(--destructive-foreground)] transition-colors hover:opacity-90"
                 >
                   <app-icon name="trash" [size]="13" />
-                  Clear all customer data
+                  {{ "Clear all customer data" | t }}
                 </button>
               </div>
             </div>
@@ -591,8 +662,8 @@ type NavItem = { id: string; label: string; icon: IconName };
           <!-- Account & Security -->
           <section id="security" data-section class="flex scroll-mt-20 flex-col gap-4">
             <div class="flex flex-col gap-0.5">
-              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Account &amp; Security</h3>
-              <p class="text-xs text-muted-foreground">Your password and account.</p>
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Account & Security" | t }}</h3>
+              <p class="text-xs text-muted-foreground">{{ "Your password and account." | t }}</p>
             </div>
 
             <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
@@ -601,14 +672,14 @@ type NavItem = { id: string; label: string; icon: IconName };
                   <app-icon name="lock" [size]="18" />
                 </span>
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">Change Password</span>
-                  <span class="text-xs text-muted-foreground">Needs your current password.</span>
+                  <span class="text-sm font-semibold leading-none">{{ "Change Password" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "Needs your current password." | t }}</span>
                 </div>
               </div>
 
               <div class="flex flex-col gap-3 border-t border-border px-5 py-5">
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Current Password
+                  {{ "Current Password" | t }}
                   <input
                     type="password"
                     autocomplete="current-password"
@@ -618,17 +689,17 @@ type NavItem = { id: string; label: string; icon: IconName };
                 </label>
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    New Password
+                    {{ "New Password" | t }}
                     <input
                       type="password"
                       autocomplete="new-password"
                       [(ngModel)]="passwordForm.next"
-                      placeholder="At least 8 characters"
+                      [placeholder]="'At least 8 characters' | t"
                       class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
                     />
                   </label>
                   <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    Confirm New Password
+                    {{ "Confirm New Password" | t }}
                     <input
                       type="password"
                       autocomplete="new-password"
@@ -649,12 +720,12 @@ type NavItem = { id: string; label: string; icon: IconName };
                   (click)="changePassword()"
                   class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
                 >
-                  {{ changingPassword() ? 'Saving…' : 'Change Password' }}
+                  {{ changingPassword() ? ('Saving…' | t) : ('Change Password' | t) }}
                 </button>
                 @if (passwordSavedFlash()) {
                   <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]">
                     <app-icon name="check" [size]="13" />
-                    Password changed
+                    {{ "Password changed" | t }}
                   </span>
                 }
               </div>
@@ -667,14 +738,13 @@ type NavItem = { id: string; label: string; icon: IconName };
                   <app-icon name="alert-triangle" [size]="18" />
                 </span>
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none text-[var(--destructive)]">Delete Account</span>
-                  <span class="text-xs text-muted-foreground">Permanently removes your account and all of its data. This can't be undone.</span>
+                  <span class="text-sm font-semibold leading-none text-[var(--destructive)]">{{ "Delete Account" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "Permanently removes your account and all of its data. This can't be undone." | t }}</span>
                 </div>
               </div>
               <div class="flex flex-col gap-3 border-t border-[var(--destructive)]/30 px-5 py-4">
                 <p class="text-xs text-muted-foreground">
-                  Deletes your profile, settings, customers, bankers, and pricing changes. You'll be signed out straight away.
-                  Export your data first (Data &amp; Privacy above) if you want to keep a copy.
+                  {{ "Deletes your profile, settings, customers, bankers, and pricing changes. You'll be signed out straight away. Export your data first (Data & Privacy above) if you want to keep a copy." | t }}
                 </p>
                 <button
                   type="button"
@@ -682,7 +752,7 @@ type NavItem = { id: string; label: string; icon: IconName };
                   class="flex w-fit items-center gap-1.5 rounded-md bg-[var(--destructive)] px-3 py-2 text-xs font-semibold text-[var(--destructive-foreground)] transition-colors hover:opacity-90"
                 >
                   <app-icon name="trash" [size]="13" />
-                  Delete my account
+                  {{ "Delete my account" | t }}
                 </button>
               </div>
             </div>
@@ -694,20 +764,19 @@ type NavItem = { id: string; label: string; icon: IconName };
     <!-- Delete account confirmation -->
     @if (confirmingDelete()) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="confirmingDelete.set(false)"></button>
+        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="confirmingDelete.set(false)"></button>
         <div class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex flex-col gap-3 p-5">
             <span class="flex items-center gap-2 text-sm font-semibold text-[var(--destructive)]">
               <app-icon name="trash" [size]="15" />
-              Delete your account?
+              {{ "Delete your account?" | t }}
             </span>
             <p class="text-sm text-muted-foreground">
-              Everything tied to <span class="font-medium text-foreground">{{ auth.currentUser()?.email }}</span> is erased permanently, including
-              all {{ customers.records().length }} customer record{{ customers.records().length === 1 ? '' : 's' }}. This can't be undone.
+              {{ 'Everything tied to {email} is erased permanently, including all {n} customer records. This can\'t be undone.' | t: { email: auth.currentUser()?.email ?? '', n: customers.records().length } }}
             </p>
             <div class="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
               <span class="text-xs text-muted-foreground">
-                <span class="font-medium text-foreground">Recommended:</span> download a copy of your data first — it can't be recovered afterwards.
+                <span class="font-medium text-foreground">{{ "Recommended:" | t }}</span> {{ "download a copy of your data first — it can't be recovered afterwards." | t }}
               </span>
               <button
                 type="button"
@@ -715,11 +784,11 @@ type NavItem = { id: string; label: string; icon: IconName };
                 class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
               >
                 <app-icon name="download" [size]="13" />
-                Export
+                {{ "Export" | t }}
               </button>
             </div>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Your password
+              {{ "Your password" | t }}
               <input
                 type="password"
                 autocomplete="current-password"
@@ -728,7 +797,7 @@ type NavItem = { id: string; label: string; icon: IconName };
               />
             </label>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Type DELETE to confirm
+              {{ "Type DELETE to confirm" | t }}
               <input
                 type="text"
                 autocomplete="off"
@@ -741,14 +810,14 @@ type NavItem = { id: string; label: string; icon: IconName };
             }
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="confirmingDelete.set(false)" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
+            <button type="button" (click)="confirmingDelete.set(false)" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Cancel" | t }}</button>
             <button
               type="button"
               [disabled]="deleteConfirmText !== 'DELETE' || deletingAccount()"
               (click)="deleteAccount()"
               class="rounded-md bg-[var(--destructive)] px-3 py-2 text-xs font-semibold text-[var(--destructive-foreground)] transition-colors hover:opacity-90 disabled:opacity-50"
             >
-              {{ deletingAccount() ? 'Deleting…' : 'Delete account' }}
+              {{ deletingAccount() ? ('Deleting…' | t) : ('Delete account' | t) }}
             </button>
           </div>
         </div>
@@ -758,26 +827,25 @@ type NavItem = { id: string; label: string; icon: IconName };
     <!-- Clear data confirmation -->
     @if (confirmingClear()) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="confirmingClear.set(false)"></button>
+        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="confirmingClear.set(false)"></button>
         <div class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex flex-col gap-2 p-5">
             <span class="flex items-center gap-2 text-sm font-semibold text-[var(--destructive)]">
               <app-icon name="trash" [size]="15" />
-              Clear all customer data?
+              {{ "Clear all customer data?" | t }}
             </span>
             <p class="text-sm text-muted-foreground">
-              This permanently removes all {{ customers.records().length }} customer record{{ customers.records().length === 1 ? '' : 's' }} —
-              leads, bookings, and deliveries. This can't be undone.
+              {{ 'This permanently removes all {n} customer records — leads, bookings, and deliveries. This can\'t be undone.' | t: { n: customers.records().length } }}
             </p>
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="confirmingClear.set(false)" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
+            <button type="button" (click)="confirmingClear.set(false)" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Cancel" | t }}</button>
             <button
               type="button"
               (click)="confirmClearData()"
               class="rounded-md bg-[var(--destructive)] px-3 py-2 text-xs font-semibold text-[var(--destructive-foreground)] transition-colors hover:opacity-90"
             >
-              Clear data
+              {{ "Clear data" | t }}
             </button>
           </div>
         </div>
@@ -787,18 +855,18 @@ type NavItem = { id: string; label: string; icon: IconName };
     <!-- Export password confirmation -->
     @if (confirmingExport()) {
       <div class="fixed inset-0 z-[60] flex items-center justify-center p-4">
-        <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="confirmingExport.set(false)"></button>
+        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="confirmingExport.set(false)"></button>
         <div class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex flex-col gap-3 p-5">
             <span class="flex items-center gap-2 text-sm font-semibold">
               <app-icon name="lock" [size]="15" />
-              Confirm your password
+              {{ "Confirm your password" | t }}
             </span>
-            <p class="text-sm text-muted-foreground">Your export includes your profile, settings, and every customer record, so we need your password first.</p>
+            <p class="text-sm text-muted-foreground">{{ "Your export includes your profile, settings, and every customer record, so we need your password first." | t }}</p>
             <input
               type="password"
               autocomplete="current-password"
-              placeholder="Password"
+              [placeholder]="'Password' | t"
               [(ngModel)]="exportPassword"
               (keydown.enter)="confirmExport()"
               class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
@@ -808,14 +876,14 @@ type NavItem = { id: string; label: string; icon: IconName };
             }
           </div>
           <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="confirmingExport.set(false)" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
+            <button type="button" (click)="confirmingExport.set(false)" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Cancel" | t }}</button>
             <button
               type="button"
               [disabled]="verifyingExport()"
               (click)="confirmExport()"
               class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
             >
-              {{ verifyingExport() ? 'Checking…' : 'Export data' }}
+              {{ verifyingExport() ? ('Checking…' | t) : ('Export data' | t) }}
             </button>
           </div>
         </div>
@@ -832,8 +900,18 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
     return Math.min(100, Math.max(0, Math.round(v ?? 0)));
   }
 
+  uiLanguage = computed<Lang>(() => this.settingsService.settings().salesDefaults.uiLanguage ?? 'en');
+  posterLanguage = computed<Lang>(() => this.settingsService.settings().salesDefaults.posterLanguage ?? 'en');
+
+  /** Saves straight away — a language switch should take effect the moment it's tapped. */
+  setLanguage(field: 'uiLanguage' | 'posterLanguage', lang: Lang) {
+    this.settingsService.updateSalesDefaults({ [field]: lang });
+    this.salesForm[field] = lang;
+  }
+
   navItems: NavItem[] = [
     { id: 'defaults', label: 'Quote Preferences', icon: 'wallet' },
+    { id: 'language', label: 'Language', icon: 'languages' },
     { id: 'notifications', label: 'Notifications', icon: 'bell' },
     { id: 'data', label: 'Data & Privacy', icon: 'file-text' },
     { id: 'security', label: 'Account & Security', icon: 'lock' },

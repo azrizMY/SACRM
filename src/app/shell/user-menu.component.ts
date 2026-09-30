@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { IconComponent } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { AuthService } from '../shared/auth.service';
+import { InstallService } from '../shared/install.service';
 
 @Component({
   selector: 'app-user-menu',
@@ -35,6 +36,12 @@ import { AuthService } from '../shared/auth.service';
             <app-icon name="settings" [size]="16" />
             Settings
           </button>
+          @if (install.available()) {
+            <button type="button" (click)="installApp()" class="flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-sm text-foreground transition-colors hover:bg-accent">
+              <app-icon name="download" [size]="16" />
+              Install app
+            </button>
+          }
           <div class="my-1 h-px bg-border"></div>
           <button type="button" (click)="logout()" class="flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-sm text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)]/10">
             <app-icon name="log-out" [size]="16" />
@@ -56,6 +63,7 @@ export class UserMenuComponent {
     private router: Router,
     public advisor: AdvisorService,
     private auth: AuthService,
+    public install: InstallService,
   ) {}
 
   goTo(path: string) {
@@ -79,6 +87,17 @@ export class UserMenuComponent {
           ? 'left-1/2 -translate-x-1/2'
           : 'right-0';
     return `${vertical} ${horizontal}`;
+  }
+
+  /** Chrome/Android: the real install dialog. iOS: back to the dashboard banner, which shows the steps. */
+  installApp() {
+    this.open = false;
+    if (this.install.canPrompt()) {
+      this.install.install();
+      return;
+    }
+    this.install.reopenBanner();
+    this.router.navigateByUrl('/dashboard');
   }
 
   toggle(event: MouseEvent) {

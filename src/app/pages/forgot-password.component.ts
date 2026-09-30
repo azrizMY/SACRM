@@ -3,17 +3,18 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../shared/icon.component';
+import { AuthLayoutComponent } from '../shared/auth-layout.component';
 import { AuthService } from '../shared/auth.service';
 import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
 
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, AuthLayoutComponent],
   template: `
-    <div class="flex min-h-dvh items-center justify-center px-4 py-10 text-foreground">
+    <app-auth-layout>
       <div class="flex w-full max-w-sm flex-col gap-6">
-        <a routerLink="/welcome" class="flex items-center justify-center gap-2.5">
+        <a routerLink="/welcome" class="flex items-center justify-center gap-2.5 lg:hidden">
           <span class="logo-chip flex size-10 items-center justify-center rounded-xl">
             <app-icon name="car" [size]="18" />
           </span>
@@ -23,7 +24,7 @@ import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
           </div>
         </a>
 
-        <div class="flex flex-col gap-5 glass glow-border animate-rise rounded-2xl p-7 text-card-foreground shadow-[0_30px_80px_-30px_color-mix(in_oklch,var(--primary),transparent_60%)]">
+        <div class="flex flex-col gap-5 animate-rise rounded-2xl bg-card p-7 text-card-foreground shadow-xl">
           <div class="flex flex-col gap-1 text-center">
             <h1 class="text-2xl font-bold tracking-tight">Reset your password</h1>
             <p class="text-sm text-muted-foreground">Enter your email and the primary brand on your account, then choose a new password.</p>
@@ -119,7 +120,7 @@ import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
           <a routerLink="/login" class="font-medium text-primary hover:underline">Log in</a>
         </p>
       </div>
-    </div>
+    </app-auth-layout>
   `,
 })
 export class ForgotPasswordComponent {

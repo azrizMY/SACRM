@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../shared/auth.service';
 import { CountUpDirective } from '../shared/count-up.directive';
 import { IconComponent, type IconName } from '../shared/icon.component';
+import { LandingDemoComponent } from './landing-demo.component';
 
 type Feature = { icon: IconName; title: string; blurb: string; points?: string[]; span: string };
 
@@ -84,7 +85,7 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
 @Component({
   selector: 'app-landing',
   standalone: true,
-  imports: [RouterLink, IconComponent, CountUpDirective],
+  imports: [RouterLink, IconComponent, CountUpDirective, LandingDemoComponent],
   template: `
     <div class="flex min-h-dvh flex-col overflow-x-hidden text-foreground">
       <!-- Nav -->
@@ -210,6 +211,16 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
               </div>
             </div>
           </div>
+        </section>
+
+        <!-- Live demo -->
+        <section id="demo" class="w-full max-w-5xl scroll-mt-20 px-4 pt-16 sm:px-6 sm:pt-24">
+          <div class="reveal mx-auto mb-12 flex max-w-2xl flex-col items-center gap-3 text-center">
+            <span class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">See it in action</span>
+            <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-5xl">A full quote in under a minute</h2>
+            <p class="text-pretty text-muted-foreground">Pick the car, set the loan, and send it. The monthly instalment updates as you go.</p>
+          </div>
+          <app-landing-demo />
         </section>
 
         <!-- Features -->
@@ -398,6 +409,8 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
               <a routerLink="/login" class="transition-colors hover:text-foreground">Log In</a>
               <a routerLink="/signup" class="transition-colors hover:text-foreground">Create Account</a>
             }
+            <a routerLink="/privacy" class="transition-colors hover:text-foreground">Privacy</a>
+            <a routerLink="/terms" class="transition-colors hover:text-foreground">Terms</a>
           </span>
         </div>
       </footer>
@@ -478,6 +491,7 @@ export class LandingComponent {
   primaryCta = computed(() => (this.signedIn() ? { link: '/dashboard', label: 'Go to your dashboard' } : { link: '/signup', label: 'Create your free account' }));
 
   navLinks = [
+    { id: 'demo', label: 'Demo' },
     { id: 'features', label: 'Features' },
     { id: 'how', label: 'How it works' },
     { id: 'faq', label: 'FAQ' },

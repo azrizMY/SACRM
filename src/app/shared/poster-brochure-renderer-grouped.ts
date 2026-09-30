@@ -14,6 +14,13 @@ import { formatMalaysianPhone } from '../data/dashboard-data';
 import { drawHeader, drawAdvisorAvatar, drawQrCode } from './poster-brochure-renderer-simple';
 import { drawDocumentsRequired } from './poster-brochure-documents-required';
 import type { BrochureData, BrochureRow } from './poster-brochure-data';
+import { translate, type Lang, type Params } from './i18n-core';
+
+/** The page being drawn's language — set at the top of each page render, so helpers that only get
+ *  the canvas (header bar, rows, documents list) don't each need it threaded through. */
+let lang: Lang = 'en';
+const L = (en: string, params?: Params) => translate(lang, en, params);
+
 
 export const PAGE_WIDTH = 1748;
 export const PAGE_HEIGHT = 2480;
@@ -147,13 +154,13 @@ function drawGroupHeader(ctx: CanvasRenderingContext2D, cols: Columns, group: Gr
   ctx.font = labelFont(f(10), 700);
   ctx.textAlign = 'center';
   const headerLabel = (text: string, x: number, colWidth: number) => fillTrackedText(ctx, text, x + colWidth / 2 - measureTrackedText(ctx, text, 1) / 2, centerY, 1);
-  headerLabel('OTR PRICE', cols.otr, cols.dataColWidth);
-  headerLabel('INSURANCE', cols.insurance, cols.dataColWidth);
-  headerLabel('DOWNPAYMENT', cols.downpayment, cols.dataColWidth);
-  headerLabel('LOAN', cols.loan, cols.dataColWidth);
-  headerLabel(`${tenureYears[0]} YEARS`, cols.tenure1, cols.dataColWidth);
-  headerLabel(`${tenureYears[1]} YEARS`, cols.tenure2, cols.dataColWidth);
-  headerLabel(`${tenureYears[2]} YEARS`, cols.tenure3, cols.dataColWidth);
+  headerLabel(L('OTR PRICE'), cols.otr, cols.dataColWidth);
+  headerLabel(L('INSURANCE'), cols.insurance, cols.dataColWidth);
+  headerLabel(L('DOWNPAYMENT'), cols.downpayment, cols.dataColWidth);
+  headerLabel(L('LOAN'), cols.loan, cols.dataColWidth);
+  headerLabel(L(`${tenureYears[0]} YEARS`), cols.tenure1, cols.dataColWidth);
+  headerLabel(L(`${tenureYears[1]} YEARS`), cols.tenure2, cols.dataColWidth);
+  headerLabel(L(`${tenureYears[2]} YEARS`), cols.tenure3, cols.dataColWidth);
 }
 
 function drawGroupRow(ctx: CanvasRenderingContext2D, cols: Columns, row: BrochureRow, top: number, rowHeight: number, scale: number, isLastInGroup: boolean): void {
@@ -254,7 +261,7 @@ async function drawAdvisorBlock(ctx: CanvasRenderingContext2D, data: BrochureDat
   const qrHalfCenterX = dividerX + (x + width - dividerX) / 2;
 
   ctx.font = labelFont(12, 700);
-  const pillLabel = 'SCAN TO WHATSAPP';
+  const pillLabel = L('SCAN TO WHATSAPP');
   const pillTextWidth = measureTrackedText(ctx, pillLabel, 1.2);
   const pillPaddingX = 16;
   const pillWidth = pillTextWidth + pillPaddingX * 2;
@@ -282,7 +289,7 @@ async function drawAdvisorBlock(ctx: CanvasRenderingContext2D, data: BrochureDat
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  const waText = `https://wa.me/${data.advisor.phoneWa}?text=${encodeURIComponent(`Hi, I would like to enquire about the ${data.brand} promotion.`)}`;
+  const waText = `https://wa.me/${data.advisor.phoneWa}?text=${encodeURIComponent(L('Hi, I would like to enquire about the {brand} promotion.', { brand: data.brand }))}`;
   drawQrCode(ctx, waText, qrCardX + qrCardPad, qrCardTop + qrCardPad, qrSize);
 }
 
@@ -300,11 +307,12 @@ async function drawFooter(ctx: CanvasRenderingContext2D, data: BrochureData): Pr
   const advisorX = documentsX + documentsWidth + gap;
 
   const contentTop = footerTop + 34;
-  drawDocumentsRequired(ctx, documentsX, documentsWidth, contentTop);
+  drawDocumentsRequired(ctx, documentsX, documentsWidth, contentTop, lang);
   await drawAdvisorBlock(ctx, data, advisorX, advisorWidth, contentTop);
 }
 
 export async function renderGroupedPage(canvas: HTMLCanvasElement, data: BrochureData, pageRows: BrochureRow[], pageIndex: number, pageCount: number): Promise<void> {
+  lang = data.lang;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   canvas.width = PAGE_WIDTH;
@@ -314,7 +322,7 @@ export async function renderGroupedPage(canvas: HTMLCanvasElement, data: Brochur
 
   ctx.fillStyle = POSTER_COLORS.paper;
   ctx.fillRect(0, 0, PAGE_WIDTH, PAGE_HEIGHT);
-  await drawHeader(ctx, data, pageIndex, pageCount, 'FINANCING PRICE LIST', HEADER_HEIGHT);
+  await drawHeader(ctx, data, pageIndex, pageCount, L('FINANCING PRICE LIST'), HEADER_HEIGHT);
 
   const cols = computeColumns();
   // Always exactly 3 columns, mirroring whichever years are toggled on in Offer Sheet Settings —

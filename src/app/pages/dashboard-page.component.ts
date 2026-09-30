@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { KpiCardsComponent } from '../dashboard/kpi-cards.component';
+import { SetupChecklistComponent } from '../dashboard/setup-checklist.component';
 import { SalesTrendChartComponent } from '../dashboard/sales-trend-chart.component';
 import { UnitsSoldChartComponent } from '../dashboard/units-sold-chart.component';
 import { ModelPerformanceChartComponent } from '../dashboard/model-performance-chart.component';
@@ -12,6 +13,7 @@ import { RecentLeadsComponent } from '../dashboard/recent-leads.component';
   selector: 'app-dashboard-page',
   standalone: true,
   imports: [
+    SetupChecklistComponent,
     KpiCardsComponent,
     SalesTrendChartComponent,
     UnitsSoldChartComponent,
@@ -23,6 +25,7 @@ import { RecentLeadsComponent } from '../dashboard/recent-leads.component';
   ],
   template: `
     <div class="mx-auto flex max-w-7xl flex-col gap-6">
+      <app-setup-checklist />
       <app-kpi-cards />
 
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">

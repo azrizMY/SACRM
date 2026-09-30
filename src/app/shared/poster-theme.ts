@@ -57,9 +57,29 @@ export function labelFont(px: number, weight: 400 | 700 = 400): string {
  *  ready to paint — drawing to canvas before this resolves silently falls back to a system font
  *  for that first frame, with no error, so every draw must await this first. */
 export function posterFontsReady(): Promise<void> {
-  return Promise.all([
-    document.fonts.load(displayFont(16, 700)),
-    document.fonts.load(labelFont(14, 400)),
-    document.fonts.load(labelFont(14, 700)),
-  ]).then(() => undefined);
+  return loadPosterFontCss().then(() =>
+    Promise.all([
+      document.fonts.load(displayFont(16, 700)),
+      document.fonts.load(labelFont(14, 400)),
+      document.fonts.load(labelFont(14, 700)),
+    ]).then(() => undefined),
+  );
+}
+
+const POSTER_FONT_CSS = 'https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@700&family=Inter:wght@400;700&display=swap';
+let posterFontCss: Promise<void> | null = null;
+
+/** Only posters use these fonts, so their stylesheet is added on first use rather than in
+ *  index.html, where it would hold up the first paint of every page. A failed load (offline)
+ *  resolves anyway — the draw then falls back to the system font like before. */
+function loadPosterFontCss(): Promise<void> {
+  posterFontCss ??= new Promise<void>((resolve) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = POSTER_FONT_CSS;
+    link.onload = () => resolve();
+    link.onerror = () => resolve();
+    document.head.appendChild(link);
+  });
+  return posterFontCss;
 }

@@ -1,3 +1,4 @@
+import { CarShadowPipe } from '../shared/car-shadow';
 import { AfterViewInit, Component, computed, effect, ElementRef, inject, OnDestroy, signal, TemplateRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -6,6 +7,7 @@ import { IconComponent } from '../shared/icon.component';
 import { brandLogo, brandStyle } from '../data/dashboard-data';
 import { AdvisorService } from '../shared/advisor.service';
 import { SettingsService } from '../shared/settings.service';
+import { translate } from '../shared/i18n-core';
 import type { SalesDefaults } from '../data/settings-data';
 import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
 import { TopbarExtraService } from '../shared/topbar-extra.service';
@@ -38,7 +40,7 @@ type OfferTab = 'preview' | 'settings';
 @Component({
   selector: 'app-my-cars',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, CarShadowPipe],
   template: `
     <div class="mx-auto flex max-w-7xl flex-col gap-5 pb-16">
 
@@ -99,7 +101,7 @@ type OfferTab = 'preview' | 'settings';
                 <div class="relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-gradient-to-b from-white to-[oklch(0.9_0.005_280)]">
                   @if (v.photoUrl) {
                     <img
-                      [src]="v.photoUrl"
+                      [src]="v.photoUrl | carShadow"
                       [alt]="modelVariantLabel(v.model, v.variant)"
                       loading="lazy"
                       class="h-full w-full object-contain p-2.5 transition-transform duration-500 group-hover:scale-105"
@@ -579,7 +581,13 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
   tenureYearOptions = Array.from({ length: 9 }, (_, i) => i + 1);
 
   offerBrand = signal(this.initialBrandFilter);
-  offerTitle = signal(`${new Date().toLocaleDateString('en-MY', { month: 'long', year: 'numeric' })} Offers`);
+  private readonly posterLang = this.settingsService.settings().salesDefaults.posterLanguage ?? 'en';
+  /** Defaults to e.g. "September 2026 Offers" / "Tawaran September 2026" in the poster language. */
+  offerTitle = signal(
+    translate(this.posterLang, '{month} Offers', {
+      month: new Date().toLocaleDateString(this.posterLang === 'ms' ? 'ms-MY' : 'en-MY', { month: 'long', year: 'numeric' }),
+    }),
+  );
   /** Exactly 3 tenure years, each getting its own monthly-instalment column on the offer sheet. */
   offerTenureYears = signal<number[]>([5, 7, 9]);
   offerIncludeAdditionalRebate = signal(this.settingsService.settings().salesDefaults.additionalRebateByDefault ?? true);
@@ -695,6 +703,7 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
     const brand = this.offerBrand();
     const advisorProfile = this.advisor.profile();
     return {
+      lang: this.posterLang,
       brand,
       logoUrl: brandLogo(brand),
       title: this.offerTitle(),

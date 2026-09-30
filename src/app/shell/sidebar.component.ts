@@ -5,6 +5,7 @@ import { IconComponent, IconName } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { CustomerService } from '../shared/customer.service';
 import { UserMenuComponent } from './user-menu.component';
+import { TranslatePipe } from '../shared/i18n';
 
 type NavItem = { id: string; label: string; icon: IconName };
 
@@ -21,7 +22,7 @@ const NAV: NavItem[] = [
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterLink, IconComponent, UserMenuComponent],
+  imports: [CommonModule, RouterLink, IconComponent, UserMenuComponent, TranslatePipe],
   template: `
     <aside
       class="glass flex h-full flex-col border-r border-sidebar-border text-sidebar-foreground transition-[width] duration-300 ease-[var(--ease-out-expo)]"
@@ -30,7 +31,7 @@ const NAV: NavItem[] = [
       <!-- Brand -->
       <a
         routerLink="/welcome"
-        title="Redline home"
+        [title]="'Redline home' | t"
         class="flex h-16 items-center gap-2.5 border-b border-sidebar-border transition-opacity hover:opacity-85"
         [ngClass]="collapsed ? 'justify-center px-0' : 'px-4'"
       >
@@ -39,8 +40,8 @@ const NAV: NavItem[] = [
         </span>
         @if (!collapsed) {
           <div class="flex min-w-0 flex-col leading-tight">
-            <span class="truncate text-sm font-bold tracking-tight">Redline</span>
-            <span class="truncate text-[11px] text-muted-foreground">Dealership CRM</span>
+            <span class="truncate text-sm font-bold tracking-tight">{{ "Redline" | t }}</span>
+            <span class="truncate text-[11px] text-muted-foreground">{{ "Dealership CRM" | t }}</span>
           </div>
         }
       </a>
@@ -55,7 +56,7 @@ const NAV: NavItem[] = [
           [ngClass]="collapsed ? 'size-9 justify-center p-0' : 'w-full px-2 py-1.5'"
         >
           <app-icon [name]="variant === 'mobile' ? 'x' : 'panel-left'" [size]="16" />
-          @if (!collapsed) {<span>{{ variant === 'mobile' ? 'Close menu' : 'Collapse' }}</span>}
+          @if (!collapsed) {<span>{{ variant === 'mobile' ? ('Close menu' | t) : ('Collapse' | t) }}</span>}
         </button>
       </div>
 
@@ -86,7 +87,7 @@ const NAV: NavItem[] = [
                   [class]="'shrink-0 transition-transform duration-200 group-hover:scale-110 ' + (item.id === active ? 'text-foreground' : '')"
                 />
                 @if (!collapsed) {
-                  <span class="truncate">{{ item.label }}</span>
+                  <span class="truncate">{{ item.label | t }}</span>
                 }
                 @if (!collapsed && badgeFor(item.id); as count) {
                   <span class="logo-chip ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular">

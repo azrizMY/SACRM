@@ -1,9 +1,11 @@
+import { CarShadowPipe } from '../shared/car-shadow';
 import { Component, ElementRef, HostListener, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IconComponent, type IconName } from '../shared/icon.component';
 import { BrandIconComponent } from '../shared/brand-icon.component';
+import { I18nService, TranslatePipe, translate } from '../shared/i18n';
 import { hasShowroom, showroomMapsHref, showroomWazeHref, socialEntries } from '../data/social-data';
 import { TourService, type TourStep } from '../shared/tour.service';
 import { fetchPublicQuote, type PublicQuoteBundle } from '../shared/public-quote-api';
@@ -45,7 +47,9 @@ type PageSection = 'quote' | 'profile' | 'cars';
 @Component({
   selector: 'app-public-quote',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, BrandIconComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, BrandIconComponent, TranslatePipe, CarShadowPipe],
+  // Its own instance, pinned to the advisor's poster language rather than any UI language.
+  providers: [I18nService],
   template: `
     @if (loading()) {
       <div class="flex min-h-screen items-center justify-center">
@@ -54,8 +58,8 @@ type PageSection = 'quote' | 'profile' | 'cars';
     } @else if (notFound()) {
       <div class="flex min-h-screen flex-col items-center justify-center gap-2 p-6 text-center">
         <app-icon name="x-circle" [size]="28" class="text-muted-foreground" />
-        <h1 class="text-lg font-semibold">This link isn't valid</h1>
-        <p class="max-w-xs text-sm text-muted-foreground">Please check the link your sales advisor sent you, or ask them to resend it.</p>
+        <h1 class="text-lg font-semibold">{{ "This link isn't valid" | t }}</h1>
+        <p class="max-w-xs text-sm text-muted-foreground">{{ "Please check the link your sales advisor sent you, or ask them to resend it." | t }}</p>
       </div>
     } @else {
       <!-- Desktop side menu (mobile/tablet use the bottom tab bar) -->
@@ -73,7 +77,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
             }
           </div>
         </div>
-        <nav role="tablist" aria-label="Page sections" aria-orientation="vertical" class="flex flex-col gap-1">
+        <nav role="tablist" [attr.aria-label]="'Page sections' | t" aria-orientation="vertical" class="flex flex-col gap-1">
           @for (t of sections; track t.id) {
             <button
               type="button"
@@ -87,7 +91,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                 <span class="absolute inset-y-2 -left-4 w-[3px] rounded-r-full bg-primary"></span>
               }
               <app-icon [name]="t.icon" [size]="18" />
-              {{ t.label }}
+              {{ t.label | t }}
             </button>
           }
         </nav>
@@ -102,14 +106,14 @@ type PageSection = 'quote' | 'profile' | 'cars';
         <div class="sticky top-0 z-10 -mx-4 -mt-4 flex flex-col gap-2 border-b border-border bg-background px-4 pb-2 pt-4 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 xl:hidden">
           <div class="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
             @if (isCashPurchase()) {
-              <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Selling price</span>
+              <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{{ "Selling price" | t }}</span>
               <span class="text-sm font-bold tabular">{{ fmt2(allInPrice()) }}</span>
             } @else {
-              <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Monthly · {{ tenureYears() }} yrs</span>
+              <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Monthly · {{ tenureYears() }} {{ "yrs" | t }}</span>
               <span class="text-sm font-bold tabular text-primary">{{ fmt2(monthlyInstalment()) }}</span>
             }
           </div>
-          <div role="tablist" aria-label="Quote view" class="flex rounded-lg border border-border bg-muted/30 p-1">
+          <div role="tablist" [attr.aria-label]="'Quote view' | t" class="flex rounded-lg border border-border bg-muted/30 p-1">
             <button
               type="button"
               role="tab"
@@ -118,7 +122,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
               class="flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
               [ngClass]="mobileTab() === 'preview' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
             >
-              Preview
+              {{ "Preview" | t }}
             </button>
             <button
               type="button"
@@ -128,7 +132,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
               class="flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
               [ngClass]="mobileTab() === 'customize' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
             >
-              Customize
+              {{ "Customize" | t }}
             </button>
           </div>
         </div>
@@ -150,12 +154,12 @@ type PageSection = 'quote' | 'profile' | 'cars';
                 class="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 xl:hidden"
               >
                 <app-icon name="message-circle" [size]="16" />
-                WhatsApp Me Here
+                {{ "WhatsApp Me Here" | t }}
               </button>
             }
             <p class="shrink-0 text-balance text-center text-[10px] leading-relaxed text-muted-foreground">
               <app-icon name="info" [size]="12" class="mr-1 inline-block align-[-2px]" />
-              Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here.
+              {{ "Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here." | t }}
             </p>
 
             <!-- Phones/tablets: Follow Me below the disclaimer (desktop shows it in the Customize column) -->
@@ -164,8 +168,8 @@ type PageSection = 'quote' | 'profile' | 'cars';
             @if (socials().length) {
               <div class="flex shrink-0 items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-card-foreground xl:hidden">
                 <span class="flex min-w-0 flex-1 flex-col">
-                  <span class="text-xs font-bold">Follow Me</span>
-                  <span class="truncate text-[11px] text-muted-foreground">Latest promos &amp; new arrivals</span>
+                  <span class="text-xs font-bold">{{ "Follow Me" | t }}</span>
+                  <span class="truncate text-[11px] text-muted-foreground">{{ "Latest promos & new arrivals" | t }}</span>
                 </span>
                 @for (s of socials(); track s.id) {
                   <a
@@ -187,7 +191,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
           <ng-template #followMe>
             @if (socials().length) {
               <section class="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 text-card-foreground">
-                <span class="text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Follow Me</span>
+                <span class="text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Follow Me" | t }}</span>
                 <div class="flex flex-wrap justify-center gap-x-1 gap-y-3">
                   @for (s of socials(); track s.id) {
                     <a
@@ -198,7 +202,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                       class="group flex w-16 flex-col items-center gap-1 rounded-xl p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <app-brand-icon [name]="s.id" [size]="42" [tile]="true" class="transition-transform group-hover:scale-105 group-active:scale-95" />
-                      <span class="w-full truncate text-center text-[10px] font-medium text-muted-foreground group-hover:text-foreground">{{ s.label }}</span>
+                      <span class="w-full truncate text-center text-[10px] font-medium text-muted-foreground group-hover:text-foreground">{{ s.label | t }}</span>
                     </a>
                   }
                 </div>
@@ -212,7 +216,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
             [ngClass]="mobileTab() === 'customize' ? 'flex' : 'hidden'"
           >
             <div class="flex items-center justify-between">
-              <h3 class="shrink-0 whitespace-nowrap text-base font-semibold leading-none">Customize Quote</h3>
+              <h3 class="shrink-0 whitespace-nowrap text-base font-semibold leading-none">{{ "Customize Quote" | t }}</h3>
               <div class="flex items-center gap-1">
                 @if (bundle()!.advisor.phoneWa) {
                   <button
@@ -222,14 +226,14 @@ type PageSection = 'quote' | 'profile' | 'cars';
                     class="hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-accent xl:flex"
                   >
                     <app-icon name="message-circle" [size]="13" />
-                    WhatsApp Me Here
+                    {{ "WhatsApp Me Here" | t }}
                   </button>
                 }
                 <button
                   type="button"
                   (click)="startTour()"
-                  aria-label="How this page works"
-                  title="How this page works"
+                  [attr.aria-label]="'How this page works' | t"
+                  [title]="'How this page works' | t"
                   class="flex shrink-0 items-center rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
                   <app-icon name="info" [size]="15" />
@@ -240,7 +244,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                   class="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
                   <app-icon name="refresh-cw" [size]="13" />
-                  Reset
+                  {{ "Reset" | t }}
                 </button>
               </div>
             </div>
@@ -249,12 +253,12 @@ type PageSection = 'quote' | 'profile' | 'cars';
               <div class="flex flex-col gap-4">
               <!-- Select car -->
               <div data-tour="quote-car" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-                <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Select Car</span>
+                <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Select Car" | t }}</span>
 
               <div class="grid grid-cols-1 gap-3" [ngClass]="singleBrandMode ? '' : 'sm:grid-cols-2'">
                 @if (!singleBrandMode) {
                   <div class="flex flex-col gap-2">
-                    <label for="brandSelect" class="text-xs font-medium text-muted-foreground">Brand</label>
+                    <label for="brandSelect" class="text-xs font-medium text-muted-foreground">{{ "Brand" | t }}</label>
                     <select
                       id="brandSelect"
                       [ngModel]="selectedBrand()"
@@ -269,7 +273,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                 }
 
                 <div class="flex flex-col gap-2">
-                  <span class="text-xs font-medium text-muted-foreground">Model</span>
+                  <span class="text-xs font-medium text-muted-foreground">{{ "Model" | t }}</span>
                   <div class="relative">
                     <button
                       type="button"
@@ -289,7 +293,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                               (click)="selectModelVariant(group.model, item.variant)"
                               class="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent"
                             >
-                              {{ item.label }}
+                              {{ item.label | t }}
                               @if (group.model === selectedModelName() && item.variant === selectedVariant()) {
                                 <app-icon name="check" [size]="14" class="shrink-0 text-foreground" />
                               }
@@ -301,12 +305,12 @@ type PageSection = 'quote' | 'profile' | 'cars';
                   </div>
                 </div>
               </div>
-              <span class="text-[11px] text-muted-foreground">{{ fmt(selectedVehicle().price) }} base price</span>
+              <span class="text-[11px] text-muted-foreground">{{ fmt(selectedVehicle().price) }} {{ "base price" | t }}</span>
 
               @if (availableYears().length > 1) {
                 <div class="flex flex-col gap-2">
-                  <span class="text-xs font-medium text-muted-foreground">Model Year</span>
-                  <div role="radiogroup" aria-label="Model year" class="flex flex-wrap gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
+                  <span class="text-xs font-medium text-muted-foreground">{{ "Model Year" | t }}</span>
+                  <div role="radiogroup" [attr.aria-label]="'Model year' | t" class="flex flex-wrap gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
                     @for (y of availableYears(); track y) {
                       <button
                         type="button"
@@ -325,14 +329,14 @@ type PageSection = 'quote' | 'profile' | 'cars';
 
               @if (selectedVehicle().colours; as colours) {
                 <div class="flex flex-col gap-2">
-                  <label for="colourSelect" class="text-xs font-medium text-muted-foreground">Colour</label>
+                  <label for="colourSelect" class="text-xs font-medium text-muted-foreground">{{ "Colour" | t }}</label>
                   <select
                     id="colourSelect"
                     [ngModel]="selectedColour()"
                     (ngModelChange)="selectedColour.set($event)"
                     class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
                   >
-                    <option [ngValue]="null">Not Confirmed</option>
+                    <option [ngValue]="null">{{ "Not Confirmed" | t }}</option>
                     @for (c of colours; track c) { <option [ngValue]="c">{{ colourOptionLabel(c) }}</option> }
                   </select>
                 </div>
@@ -341,12 +345,12 @@ type PageSection = 'quote' | 'profile' | 'cars';
 
             <!-- Price setup -->
             <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Price Setup</span>
+              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Price Setup" | t }}</span>
 
               <div class="flex flex-col gap-2">
-                <span class="text-xs font-medium text-muted-foreground">Rebate (RM)</span>
+                <span class="text-xs font-medium text-muted-foreground">{{ "Rebate (RM)" | t }}</span>
                 <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 opacity-80">
-                  <span class="text-sm font-medium text-muted-foreground">RM</span>
+                  <span class="text-sm font-medium text-muted-foreground">{{ "RM" | t }}</span>
                   <span class="text-sm font-medium tabular">{{ rebateInput() }}</span>
                 </div>
               </div>
@@ -355,14 +359,14 @@ type PageSection = 'quote' | 'profile' | 'cars';
             <!-- Insurance -->
             <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Insurance</span>
+                <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Insurance" | t }}</span>
                 <button
                   type="button"
                   (click)="openInsuranceBreakdown()"
                   class="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-accent"
                 >
                   <app-icon name="settings" [size]="12" />
-                  Insurance Breakdown
+                  {{ "Insurance Breakdown" | t }}
                 </button>
               </div>
 
@@ -370,7 +374,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                 <label for="ncdSelect" class="text-xs font-medium text-muted-foreground">
                   <span class="inline-flex items-center gap-1">
                     <app-icon name="percent" [size]="12" />
-                    NCD
+                    {{ "NCD" | t }}
                   </span>
                 </label>
                 <select
@@ -380,13 +384,13 @@ type PageSection = 'quote' | 'profile' | 'cars';
                   class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
                 >
                   @for (opt of ncdOptions; track opt.value) {
-                    <option [value]="opt.value">{{ opt.label }}</option>
+                    <option [value]="opt.value">{{ opt.label | t }}</option>
                   }
                 </select>
               </div>
 
               <div class="flex flex-col gap-1 rounded-lg bg-muted/40 px-3 py-2.5 text-[11px] text-muted-foreground">
-                <span>Total Insurance Cost</span>
+                <span>{{ "Total Insurance Cost" | t }}</span>
                 <span class="text-sm font-semibold tabular text-foreground">{{ fmt2(insurance()) }}</span>
               </div>
             </div>
@@ -400,24 +404,24 @@ type PageSection = 'quote' | 'profile' | 'cars';
               <div class="flex flex-col gap-4">
             <!-- Interest Rate -->
             <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Interest Rate</span>
+              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Interest Rate" | t }}</span>
 
               <div class="flex flex-col gap-2">
-                <span class="text-xs font-medium text-muted-foreground">Interest Rate</span>
+                <span class="text-xs font-medium text-muted-foreground">{{ "Interest Rate" | t }}</span>
                 <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 opacity-80">
                   <span class="text-sm font-medium tabular">{{ interestRate() }}%</span>
-                  <span class="text-xs text-muted-foreground">{{ rateType() === 'flat' ? 'Flat' : 'EIR' }}</span>
+                  <span class="text-xs text-muted-foreground">{{ rateType() === 'flat' ? ('Flat' | t) : 'EIR' }}</span>
                 </div>
               </div>
             </div>
 
             <!-- Loan setup -->
             <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Loan Setup</span>
+              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Loan Setup" | t }}</span>
 
               <div class="flex flex-col gap-2">
-                <span class="text-xs font-medium text-muted-foreground">Downpayment</span>
-                <div data-tour="quote-downpayment" role="group" aria-label="Quick downpayment presets" class="grid grid-cols-2 gap-1.5">
+                <span class="text-xs font-medium text-muted-foreground">{{ "Downpayment" | t }}</span>
+                <div data-tour="quote-downpayment" role="group" [attr.aria-label]="'Quick downpayment presets' | t" class="grid grid-cols-2 gap-1.5">
                   <button
                     type="button"
                     (click)="applyDownpaymentPreset('tenPercent')"
@@ -432,7 +436,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                     class="rounded-lg border px-2 py-2 text-xs font-semibold transition-colors"
                     [ngClass]="isDownpaymentPreset('fullLoan') ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                   >
-                    {{ minDownpayment() > 0 ? 'Minimum' : 'Full Loan' }}
+                    {{ minDownpayment() > 0 ? ('Minimum' | t) : ('Full Loan' | t) }}
                   </button>
                 </div>
                 <div class="flex gap-2">
@@ -462,7 +466,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                       class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
                       [ngClass]="downpaymentType() === 'amount' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
                     >
-                      Amt
+                      {{ "Amt" | t }}
                     </button>
                   </div>
                 </div>
@@ -470,24 +474,24 @@ type PageSection = 'quote' | 'profile' | 'cars';
                   @if (downpaymentRaisedToMin()) {
                     <div class="flex items-start gap-2 rounded-lg bg-[var(--warning)]/12 px-3 py-2 text-[11px] text-foreground">
                       <app-icon name="alert-triangle" [size]="13" class="mt-px shrink-0 text-[var(--warning)]" />
-                      <span>This car needs a <strong>{{ fmt(minDownpayment()) }}</strong> minimum downpayment (rebate counts towards it) — raised to meet it.</span>
+                      <span>{{ "This car needs a" | t }} <strong>{{ fmt(minDownpayment()) }}</strong> {{ "minimum downpayment (rebate counts towards it) — raised to meet it." | t }}</span>
                     </div>
                   } @else {
-                    <span class="text-[11px] text-muted-foreground">Minimum downpayment for this car: {{ fmt(minDownpayment()) }} before rebate</span>
+                    <span class="text-[11px] text-muted-foreground">Minimum downpayment for this car: {{ fmt(minDownpayment()) }} {{ "before rebate" | t }}</span>
                   }
                 }
               </div>
 
               <div class="flex items-center gap-3">
                 <div class="h-px flex-1 bg-border"></div>
-                <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">or</span>
+                <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "or" | t }}</span>
                 <div class="h-px flex-1 bg-border"></div>
               </div>
 
               <div class="flex flex-col gap-2">
-                <label for="loanAmountInput" class="text-xs font-medium text-muted-foreground">Loan Amount (RM)</label>
+                <label for="loanAmountInput" class="text-xs font-medium text-muted-foreground">{{ "Loan Amount (RM)" | t }}</label>
                 <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 focus-within:border-ring">
-                  <span class="text-sm font-medium text-muted-foreground">RM</span>
+                  <span class="text-sm font-medium text-muted-foreground">{{ "RM" | t }}</span>
                   <input
                     id="loanAmountInput"
                     type="number"
@@ -501,19 +505,19 @@ type PageSection = 'quote' | 'profile' | 'cars';
                     class="w-full bg-transparent text-sm font-medium tabular outline-none"
                   />
                 </div>
-                <span class="text-[11px] text-muted-foreground">Rounds down to the nearest RM100 once you finish typing — any remainder goes to the downpayment.</span>
+                <span class="text-[11px] text-muted-foreground">{{ "Rounds down to the nearest RM100 once you finish typing — any remainder goes to the downpayment." | t }}</span>
               </div>
 
               <div class="flex items-center gap-3">
                 <div class="h-px flex-1 bg-border"></div>
-                <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">or</span>
+                <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "or" | t }}</span>
                 <div class="h-px flex-1 bg-border"></div>
               </div>
 
               <div class="flex flex-col gap-2">
-                <label for="monthlyInstallmentInput" class="text-xs font-medium text-muted-foreground">Monthly Installment (RM)</label>
+                <label for="monthlyInstallmentInput" class="text-xs font-medium text-muted-foreground">{{ "Monthly Installment (RM)" | t }}</label>
                 <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 focus-within:border-ring">
-                  <span class="text-sm font-medium text-muted-foreground">RM</span>
+                  <span class="text-sm font-medium text-muted-foreground">{{ "RM" | t }}</span>
                   <input
                     id="monthlyInstallmentInput"
                     type="number"
@@ -527,19 +531,19 @@ type PageSection = 'quote' | 'profile' | 'cars';
                     class="w-full bg-transparent text-sm font-medium tabular outline-none"
                   />
                 </div>
-                <span class="text-[11px] text-muted-foreground">Targets the {{ tenureYears() }} Yrs tenure and works backwards to the loan amount and deposit.</span>
+                <span class="text-[11px] text-muted-foreground">{{ 'Targets the {tenure} tenure and works backwards to the loan amount and deposit.' | t: { tenure: (tenureYears() + ' Yrs' | t) } }}</span>
               </div>
             </div>
 
             <!-- Tenure -->
             <div data-tour="quote-tenure" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tenure</span>
+              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Tenure" | t }}</span>
               <div class="flex flex-col gap-2">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-medium text-muted-foreground">Tenure Selection</span>
-                  <span class="text-xs font-semibold tabular text-foreground">{{ tenureYears() }} Yrs</span>
+                  <span class="text-xs font-medium text-muted-foreground">{{ "Tenure Selection" | t }}</span>
+                  <span class="text-xs font-semibold tabular text-foreground">{{ tenureYears() }} {{ "Yrs" | t }}</span>
                 </div>
-                <div role="radiogroup" aria-label="Tenure (years)" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
+                <div role="radiogroup" [attr.aria-label]="'Tenure (years)' | t" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
                   @for (y of tenureYearOptions; track y) {
                     <button
                       type="button"
@@ -553,7 +557,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                     </button>
                   }
                 </div>
-                <span class="text-[11px] text-muted-foreground">Pick one tenure — this is what your monthly payment above is based on.</span>
+                <span class="text-[11px] text-muted-foreground">{{ "Pick one tenure — this is what your monthly payment above is based on." | t }}</span>
               </div>
             </div>
               </div>
@@ -596,7 +600,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                       class="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
                     >
                       <app-icon name="phone" [size]="16" />
-                      Call
+                      {{ "Call" | t }}
                     </a>
                   }
                   @if (profileWhatsAppHref(); as href) {
@@ -607,7 +611,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                       class="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-3 text-sm font-semibold text-white shadow-sm transition-[filter] hover:brightness-95"
                     >
                       <app-brand-icon name="whatsapp" [size]="16" />
-                      WhatsApp
+                      {{ "WhatsApp" | t }}
                     </a>
                   }
                 </div>
@@ -623,8 +627,8 @@ type PageSection = 'quote' | 'profile' | 'cars';
                   <app-icon name="map-pin" [size]="18" />
                 </span>
                 <div class="flex min-w-0 flex-col gap-1">
-                  <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Visit the Showroom</span>
-                  <span class="text-sm font-semibold">{{ s.name || 'Showroom' }}</span>
+                  <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Visit the Showroom" | t }}</span>
+                  <span class="text-sm font-semibold">{{ s.name || ('Showroom' | t) }}</span>
                   @if (s.address; as address) {
                     <p class="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{{ address }}</p>
                   }
@@ -639,7 +643,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                     class="flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 text-sm font-medium transition-colors hover:bg-accent"
                   >
                     <app-brand-icon name="googlemaps" [size]="16" class="text-[#4285F4]" />
-                    Google Maps
+                    {{ "Google Maps" | t }}
                   </a>
                 }
                 @if (showroomWazeHref(); as href) {
@@ -650,7 +654,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                     class="flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 text-sm font-medium transition-colors hover:bg-accent"
                   >
                     <app-brand-icon name="waze" [size]="16" class="text-[#33CCFF]" />
-                    Waze
+                    {{ "Waze" | t }}
                   </a>
                 }
               </div>
@@ -660,7 +664,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
           <!-- Social media -->
           @if (socials().length) {
             <section class="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm">
-              <span class="text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Follow Me</span>
+              <span class="text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Follow Me" | t }}</span>
               <div class="flex flex-wrap justify-center gap-x-2 gap-y-4">
                 @for (s of socials(); track s.id) {
                   <a
@@ -671,7 +675,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                     class="group flex w-[4.5rem] flex-col items-center gap-1.5 rounded-xl p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <app-brand-icon [name]="s.id" [size]="52" [tile]="true" class="transition-transform group-hover:scale-105 group-active:scale-95" />
-                    <span class="w-full truncate text-center text-[11px] font-medium text-muted-foreground group-hover:text-foreground">{{ s.label }}</span>
+                    <span class="w-full truncate text-center text-[11px] font-medium text-muted-foreground group-hover:text-foreground">{{ s.label | t }}</span>
                   </a>
                 }
               </div>
@@ -688,8 +692,8 @@ type PageSection = 'quote' | 'profile' | 'cars';
                 <app-icon name="car" [size]="18" />
               </span>
               <span class="flex flex-col gap-0.5">
-                <span class="text-sm font-semibold">Browse cars &amp; brochures</span>
-                <span class="text-xs text-muted-foreground">See every model and open its brochure.</span>
+                <span class="text-sm font-semibold">{{ "Browse cars & brochures" | t }}</span>
+                <span class="text-xs text-muted-foreground">{{ "See every model and open its brochure." | t }}</span>
               </span>
             </span>
             <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground" />
@@ -705,26 +709,30 @@ type PageSection = 'quote' | 'profile' | 'cars';
                 <app-icon name="calculator" [size]="18" />
               </span>
               <span class="flex flex-col gap-0.5">
-                <span class="text-sm font-semibold">Build your own quote</span>
-                <span class="text-xs text-muted-foreground">See your monthly instalment in under a minute.</span>
+                <span class="text-sm font-semibold">{{ "Build your own quote" | t }}</span>
+                <span class="text-xs text-muted-foreground">{{ "See your monthly instalment in under a minute." | t }}</span>
               </span>
             </span>
             <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground" />
           </button>
+
+          <a routerLink="/privacy" [queryParams]="{ lang: pageLang() }" target="_blank" class="self-center py-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
+            {{ "Privacy Policy" | t }}
+          </a>
         </div>
       }
 
-      <!-- Cars: the SA's lineup with brochures, grouped by model. View + quote only — no Share here,
+      <!-- Cars:the SA's lineup with brochures, grouped by model. View + quote only — no Share here,
            since this page is the customer's, not the SA's. -->
       @if (section() === 'cars') {
         <div class="mx-auto flex w-full max-w-7xl flex-col gap-5 p-4 pb-28 md:p-6 md:pb-28 xl:py-8">
           <div class="flex flex-col gap-1">
-            <h1 class="text-xl font-bold tracking-tight">Cars &amp; brochures</h1>
-            <p class="text-sm text-muted-foreground">Browse the lineup, open a brochure, or get a quote for any car.</p>
+            <h1 class="text-xl font-bold tracking-tight">{{ "Cars & brochures" | t }}</h1>
+            <p class="text-sm text-muted-foreground">{{ "Browse the lineup, open a brochure, or get a quote for any car." | t }}</p>
           </div>
 
           @if (carsBrands().length > 1) {
-            <div role="tablist" aria-label="Brand" class="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-0.5 md:mx-0 md:flex-wrap md:px-0">
+            <div role="tablist" [attr.aria-label]="'Brand' | t" class="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-0.5 md:mx-0 md:flex-wrap md:px-0">
               @for (b of carsBrands(); track b) {
                 <button
                   type="button"
@@ -754,20 +762,20 @@ type PageSection = 'quote' | 'profile' | 'cars';
                   <article class="w-[44%] shrink-0 snap-start sm:w-[30%] lg:w-[220px] flex flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
                     <div class="relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-gradient-to-b from-white to-[oklch(0.9_0.005_280)]">
                       @if (v.photoUrl) {
-                        <img [src]="v.photoUrl" [alt]="modelVariantLabel(v.model, v.variant)" loading="lazy" class="h-full w-full object-contain p-2.5" />
+                        <img [src]="v.photoUrl | carShadow" [alt]="modelVariantLabel(v.model, v.variant)" loading="lazy" class="h-full w-full object-contain p-2.5" />
                       } @else {
                         <app-icon name="car" [size]="28" class="text-muted-foreground" />
                       }
                       @if (browseRebate(v) > 0) {
                         <span class="absolute right-2 top-2 rounded-md bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground shadow">
-                          Rebate {{ fmt(browseRebate(v)) }}
+                          {{ 'Rebate {amount}' | t: { amount: fmt(browseRebate(v)) } }}
                         </span>
                       }
                     </div>
                     <div class="flex flex-1 flex-col gap-2.5 p-3">
                       <div class="flex min-w-0 flex-col gap-1">
                         <span class="truncate text-sm font-bold">{{ variantText(v.variant) || v.model }}</span>
-                        <span class="text-xs text-muted-foreground"><span class="font-semibold text-foreground tabular">{{ fmt(v.price) }}</span> OTR</span>
+                        <span class="text-xs text-muted-foreground"><span class="font-semibold text-foreground tabular">{{ fmt(v.price) }}</span> {{ "OTR" | t }}</span>
                       </div>
                       <div class="mt-auto flex gap-2">
                         @if (v.brochureUrl) {
@@ -778,7 +786,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                             class="flex flex-1 items-center justify-center gap-1 rounded-lg bg-muted py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
                           >
                             <app-icon name="file-text" [size]="13" />
-                            Brochure
+                            {{ "Brochure" | t }}
                           </a>
                         }
                         <button
@@ -787,7 +795,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
                           class="flex flex-1 items-center justify-center gap-1 rounded-lg bg-primary/12 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
                         >
                           <app-icon name="calculator" [size]="13" />
-                          Quote
+                          {{ "Quote" | t }}
                         </button>
                       </div>
                     </div>
@@ -802,7 +810,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
 
       <!-- Mobile/tablet bottom tab bar -->
       <nav
-        aria-label="Page sections"
+        [attr.aria-label]="'Page sections' | t"
         class="glass fixed inset-x-0 bottom-0 z-40 border-t border-border pb-[env(safe-area-inset-bottom)] xl:hidden"
       >
         <div role="tablist" class="mx-auto flex max-w-md">
@@ -818,7 +826,7 @@ type PageSection = 'quote' | 'profile' | 'cars';
               <span class="flex h-8 w-14 items-center justify-center rounded-full transition-all duration-300" [ngClass]="section() === t.id ? 'logo-chip scale-105' : ''">
                 <app-icon [name]="t.icon" [size]="20" />
               </span>
-              {{ t.label }}
+              {{ t.label | t }}
             </button>
           }
         </div>
@@ -826,28 +834,28 @@ type PageSection = 'quote' | 'profile' | 'cars';
 
       @if (insuranceBreakdownOpen()) {
         <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeInsuranceBreakdown()"></button>
+          <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeInsuranceBreakdown()"></button>
           <div class="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
             <div class="flex items-center gap-3 border-b border-border p-4">
               <div class="flex flex-col">
-                <span class="text-sm font-semibold">Insurance Breakdown</span>
+                <span class="text-sm font-semibold">{{ "Insurance Breakdown" | t }}</span>
                 <span class="text-[11px] text-muted-foreground">{{ vehicleTitle(selectedVehicle().brand, modelVariantLabel(selectedVehicle().model, selectedVehicle().variant)) }}</span>
               </div>
-              <button type="button" (click)="closeInsuranceBreakdown()" aria-label="Close" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+              <button type="button" (click)="closeInsuranceBreakdown()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
                 <app-icon name="x" [size]="16" />
               </button>
             </div>
             <div class="flex flex-col gap-3 overflow-y-auto p-4">
-              <p class="text-[11px] text-muted-foreground">View only — set by your advisor.</p>
+              <p class="text-[11px] text-muted-foreground">{{ "View only — set by your advisor." | t }}</p>
               <div class="overflow-hidden rounded-lg border border-border text-xs">
                 <div class="flex items-center justify-between bg-muted/40 px-3 py-1.5 font-semibold">
-                  <span>Premium Pricing</span>
-                  <span>RM</span>
+                  <span>{{ "Premium Pricing" | t }}</span>
+                  <span>{{ "RM" | t }}</span>
                 </div>
                 @if (insuranceBreakdown().mode === 'flat') {
                   <div class="flex flex-col divide-y divide-border/60">
                     <div class="flex items-center justify-between px-3 py-1.5">
-                      <span class="text-muted-foreground">Insurance Price</span>
+                      <span class="text-muted-foreground">{{ "Insurance Price" | t }}</span>
                       <span class="tabular">{{ (insuranceBreakdown().flatPrice ?? 0).toFixed(2) }}</span>
                     </div>
                     <div class="flex items-center justify-between px-3 py-1.5">
@@ -858,11 +866,11 @@ type PageSection = 'quote' | 'profile' | 'cars';
                 } @else {
                   <div class="flex flex-col divide-y divide-border/60">
                     <div class="flex items-center justify-between px-3 py-1.5">
-                      <span class="text-muted-foreground">Basic Premium</span>
+                      <span class="text-muted-foreground">{{ "Basic Premium" | t }}</span>
                       <span class="tabular">{{ insuranceBreakdown().basicPremium.toFixed(2) }}</span>
                     </div>
                     <div class="flex items-center justify-between px-3 py-1.5">
-                      <span class="text-muted-foreground">Premium All Rider</span>
+                      <span class="text-muted-foreground">{{ "Premium All Rider" | t }}</span>
                       <span class="tabular">{{ insuranceBreakdown().premiumAllRider.toFixed(2) }}</span>
                     </div>
                     <div class="flex items-center justify-between px-3 py-1.5">
@@ -871,23 +879,23 @@ type PageSection = 'quote' | 'profile' | 'cars';
                     </div>
                   </div>
                   @if (insuranceDetails().additionalCoverages.length > 0) {
-                    <div class="bg-muted/40 px-3 py-1.5 font-semibold">+Additional Coverages</div>
+                    <div class="bg-muted/40 px-3 py-1.5 font-semibold">{{ "+Additional Coverages" | t }}</div>
                     <div class="flex flex-col divide-y divide-border/60">
                       @for (item of insuranceDetails().additionalCoverages; track $index) {
                         <div class="flex items-center justify-between px-3 py-1.5">
-                          <span class="text-muted-foreground">{{ item.label || 'Untitled coverage' }}</span>
+                          <span class="text-muted-foreground">{{ item.label || ('Untitled coverage' | t) }}</span>
                           <span class="tabular">{{ item.amount.toFixed(2) }}</span>
                         </div>
                       }
                     </div>
                   }
                   <div class="flex items-center justify-between bg-muted/40 px-3 py-1.5 font-semibold">
-                    <span>Gross Premium</span>
+                    <span>{{ "Gross Premium" | t }}</span>
                     <span class="tabular">{{ insuranceBreakdown().grossPremium.toFixed(2) }}</span>
                   </div>
                   <div class="flex flex-col divide-y divide-border/60">
                     <div class="flex items-center justify-between px-3 py-1.5">
-                      <span class="text-muted-foreground">+Stamp Duty</span>
+                      <span class="text-muted-foreground">{{ "+Stamp Duty" | t }}</span>
                       <span class="tabular">{{ insuranceBreakdown().stampDuty.toFixed(2) }}</span>
                     </div>
                     <div class="flex items-center justify-between px-3 py-1.5">
@@ -895,13 +903,13 @@ type PageSection = 'quote' | 'profile' | 'cars';
                       <span class="tabular">{{ insuranceBreakdown().serviceTaxAmount.toFixed(2) }}</span>
                     </div>
                     <div class="flex items-center justify-between px-3 py-1.5">
-                      <span class="text-muted-foreground">+EPR</span>
+                      <span class="text-muted-foreground">{{ "+EPR" | t }}</span>
                       <span class="tabular">{{ insuranceBreakdown().epr.toFixed(2) }}</span>
                     </div>
                   </div>
                 }
                 <div class="flex items-center justify-between bg-primary/10 px-3 py-2">
-                  <span class="font-semibold text-primary">Total Due <span class="font-normal text-muted-foreground">(Rounded: {{ fmt(insuranceBreakdown().totalRounded) }})</span></span>
+                  <span class="font-semibold text-primary">{{ "Total Due" | t }} <span class="font-normal text-muted-foreground">(Rounded: {{ fmt(insuranceBreakdown().totalRounded) }})</span></span>
                   <span class="font-bold tabular text-primary">{{ insuranceBreakdown().totalDue.toFixed(2) }}</span>
                 </div>
               </div>
@@ -1321,6 +1329,10 @@ export class PublicQuoteComponent implements OnInit {
   private drawGeneration = 0;
   private static readonly PREVIEW_SCALE = 2;
 
+  private i18n = inject(I18nService);
+  /** The page's language (the advisor's poster language), passed on to the Privacy Policy link. */
+  pageLang = computed(() => this.i18n.lang());
+
   constructor(private host: ElementRef) {
     // Redraws whenever anything the poster depends on changes — including `bundle`/`vehicles`
     // flipping from empty to populated once ngOnInit's fetch resolves. Unlike the Calculator (whose
@@ -1347,6 +1359,7 @@ export class PublicQuoteComponent implements OnInit {
     }
     try {
       const bundle = await fetchPublicQuote(this.token);
+      this.i18n.use(bundle.salesDefaults.posterLanguage ?? 'en');
       this.bundle.set(bundle);
       const vehicles = DEFAULT_VEHICLES.map((v) => ({ ...v, years: v.years.map((y) => ({ ...y })) }));
       for (const v of vehicles) {
@@ -1388,51 +1401,54 @@ export class PublicQuoteComponent implements OnInit {
     };
     const steps: TourStep[] = [
       {
-        title: 'Build your own quote',
-        body: 'Change the car, downpayment and repayment period, and your quote updates instantly. This quick guide takes under a minute.',
+        title: this.i18n.t('Build your own quote'),
+        body: this.i18n.t('Change the car, downpayment and repayment period, and your quote updates instantly. This quick guide takes under a minute.'),
         before: showPreview,
       },
       {
         target: 'quote-preview',
-        title: 'Your live quote',
-        body: 'This is your quote. It updates as you change anything in the Customize tab.',
+        title: this.i18n.t('Your live quote'),
+        body: this.i18n.t('This is your quote. It updates as you change anything in the Customize tab.'),
         before: showPreview,
       },
       {
         target: 'quote-car',
-        title: 'Pick your car',
-        body: 'Choose the brand, model and colour you are interested in.',
+        title: this.i18n.t('Pick your car'),
+        body: this.i18n.t('Choose the brand, model and colour you are interested in.'),
         before: showCustomize,
       },
       {
         target: 'quote-downpayment',
-        title: 'Set your downpayment',
-        body: 'Tap 10% or Full Loan for a quick setup, or type your own amount.',
+        title: this.i18n.t('Set your downpayment'),
+        body: this.i18n.t('Tap 10% or Full Loan for a quick setup, or type your own amount.'),
         before: showCustomize,
       },
       {
         target: 'quote-tenure',
-        title: 'Choose how long to pay',
-        body: 'Pick the number of years. Your monthly instalment updates straight away.',
+        title: this.i18n.t('Choose how long to pay'),
+        body: this.i18n.t('Pick the number of years. Your monthly instalment updates straight away.'),
         before: showCustomize,
       },
       {
         target: 'quote-whatsapp',
-        title: `Send it to ${advisor}`,
-        body: `Happy with the numbers? Tap "WhatsApp Me Here" to send this exact quote to ${advisor}, who will confirm the final figures with you.`,
+        title: this.i18n.t('Send it to {advisor}', { advisor }),
+        body: this.i18n.t('Happy with the numbers? Tap "WhatsApp Me Here" to send this exact quote to {advisor}, who will confirm the final figures with you.', { advisor }),
         before: showPreview,
         skipIfMissing: true,
-        doneLabel: 'Got it',
+        doneLabel: this.i18n.t('Got it'),
       },
     ];
-    return this.tour.start('quote', steps);
+    const labels = { next: this.i18n.t('Next'), back: this.i18n.t('Back'), skip: this.i18n.t('Skip') };
+    return this.tour.start('quote', steps.map((s) => ({ ...s, labels })));
   }
 
   private buildPosterData(): PosterData {
     const vehicle = this.selectedVehicle();
     const advisor = this.bundle()!.advisor;
     const monthly = this.monthlyInstalment();
+    const lang = this.i18n.lang();
     return {
+      lang,
       brand: vehicle.brand,
       modelTitle: modelVariantLabel(vehicle.model, vehicle.variant),
       year: this.modelYear(),
@@ -1459,7 +1475,7 @@ export class PublicQuoteComponent implements OnInit {
       insurance: this.insurance(),
       rebate: this.effectiveRebate(),
       totalAmountDue: this.allInPrice(),
-      rateLabel: `${this.interestRate()}% ${this.rateType() === 'flat' ? 'FLAT' : 'EIR'}`,
+      rateLabel: `${this.interestRate()}% ${this.rateType() === 'flat' ? translate(lang, 'FLAT') : 'EIR'}`,
       interestRatePct: this.interestRate(),
       tenureRows: [{ label: `${this.tenureYears()} Yrs`, months: this.tenureMonths(), monthly, isLowest: true }],
     };

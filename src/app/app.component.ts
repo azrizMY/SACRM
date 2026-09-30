@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { InstallService } from './shared/install.service';
 import { TourOverlayComponent } from './shared/tour-overlay.component';
 
 @Component({
@@ -11,4 +12,7 @@ import { TourOverlayComponent } from './shared/tour-overlay.component';
     <app-tour-overlay />
   `,
 })
-export class AppComponent {}
+export class AppComponent {
+  // Created at startup so it catches the browser's one-off beforeinstallprompt event.
+  private install = inject(InstallService);
+}

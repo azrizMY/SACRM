@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from './icon.component';
+import { TranslatePipe } from './i18n';
 
 /** An editable list of names shown as chips — add by typing, remove with ×. Used by Settings for
  *  the account's own dropdown choices (lead sources, banks, insurers). With `defaultItem` bound,
@@ -9,7 +10,7 @@ import { IconComponent } from './icon.component';
 @Component({
   selector: 'app-chip-list-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, TranslatePipe],
   template: `
     <div class="flex flex-col gap-3">
       <div class="flex flex-wrap gap-2">
@@ -28,7 +29,7 @@ import { IconComponent } from './icon.component';
               >
                 @if (isDefault(item)) { <app-icon name="star" [size]="12" class="text-primary" /> }
                 {{ item }}
-                @if (isDefault(item)) { <span class="text-[10px] font-semibold uppercase tracking-wide text-primary">Default</span> }
+                @if (isDefault(item)) { <span class="text-[10px] font-semibold uppercase tracking-wide text-primary">{{ "Default" | t }}</span> }
               </button>
             } @else {
               <span class="py-1.5 pl-3">{{ item }}</span>
@@ -38,7 +39,7 @@ import { IconComponent } from './icon.component';
             </button>
           </span>
         } @empty {
-          <span class="text-xs text-muted-foreground">Nothing on the list — add one below.</span>
+          <span class="text-xs text-muted-foreground">{{ "Nothing on the list — add one below." | t }}</span>
         }
       </div>
       <div class="flex max-w-md items-center gap-2">
@@ -52,7 +53,7 @@ import { IconComponent } from './icon.component';
         />
         <button type="button" (click)="add()" [disabled]="!draft.trim()" class="flex h-9 shrink-0 items-center gap-1 rounded-lg bg-muted px-3 text-xs font-semibold text-foreground hover:bg-accent disabled:opacity-50">
           <app-icon name="plus" [size]="12" />
-          Add
+          {{ "Add" | t }}
         </button>
       </div>
       @if (error) { <p class="text-xs text-[var(--destructive)]">{{ error }}</p> }
