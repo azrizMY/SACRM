@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { AppUpdateService } from './shared/app-update.service';
 import { InstallService } from './shared/install.service';
 import { TourOverlayComponent } from './shared/tour-overlay.component';
 
@@ -15,4 +16,6 @@ import { TourOverlayComponent } from './shared/tour-overlay.component';
 export class AppComponent {
   // Created at startup so it catches the browser's one-off beforeinstallprompt event.
   private install = inject(InstallService);
+  // Moves the installed app onto a new deploy at the next safe moment (see AppUpdateService).
+  private updates = inject(AppUpdateService);
 }

@@ -8,6 +8,7 @@
     "build": "ng build && node scripts/build-worker.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "test:once": "node scripts/test.mjs",
     "preview": "npm run build && wrangler pages dev dist/redline/browser"
   },
   "private": true,
