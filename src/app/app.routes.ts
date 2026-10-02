@@ -22,6 +22,7 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       { path: 'dashboard', loadComponent: () => import('./pages/dashboard-page.component').then((m) => m.DashboardPageComponent), data: { id: 'dashboard' } },
       { path: 'calculator', loadComponent: () => import('./pages/calculator.component').then((m) => m.CalculatorComponent), data: { id: 'calculator' } },
+      { path: 'compare', loadComponent: () => import('./pages/compare.component').then((m) => m.CompareComponent), data: { id: 'compare' } },
       { path: 'cars', loadComponent: () => import('./pages/my-cars.component').then((m) => m.MyCarsComponent), data: { id: 'cars' } },
       { path: 'price-settings', loadComponent: () => import('./pages/price-settings.component').then((m) => m.PriceSettingsComponent), data: { id: 'price-settings' } },
       { path: 'leads', loadComponent: () => import('./pages/customer-manager.component').then((m) => m.CustomerManagerComponent), data: { id: 'leads' } },

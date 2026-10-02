@@ -11,6 +11,7 @@ import { InstallBannerComponent } from '../shared/install-banner.component';
 const TITLES: Record<string, string> = {
   dashboard: 'Dashboard',
   calculator: 'Calculator',
+  compare: 'Compare Cars',
   cars: 'Catalog',
   'price-settings': 'Price Settings',
   leads: 'Customer Manager',

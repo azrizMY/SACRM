@@ -6,6 +6,9 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IconComponent, type IconName } from '../shared/icon.component';
 import { BrandIconComponent } from '../shared/brand-icon.component';
 import { I18nService, TranslatePipe, translate } from '../shared/i18n';
+import { CompareTableComponent, type CompareColumn } from '../shared/compare-table.component';
+import { quoteForComparison, type ComparePricing, type CompareSetup } from '../data/compare-data';
+import { DEFAULT_SETTINGS } from '../data/settings-data';
 import { hasShowroom, showroomMapsHref, showroomWazeHref, socialEntries } from '../data/social-data';
 import { TourService, type TourStep } from '../shared/tour.service';
 import { fetchPublicQuote, type PublicQuoteBundle } from '../shared/public-quote-api';
@@ -42,12 +45,12 @@ import {
  *  year buttons, just single-select here instead of "pick 3 for a comparison table". */
 const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
 
-type PageSection = 'quote' | 'profile' | 'cars';
+type PageSection = 'quote' | 'profile' | 'compare' | 'cars';
 
 @Component({
   selector: 'app-public-quote',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent, BrandIconComponent, TranslatePipe, CarShadowPipe],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, BrandIconComponent, TranslatePipe, CarShadowPipe, CompareTableComponent],
   // Its own instance, pinned to the advisor's poster language rather than any UI language.
   providers: [I18nService],
   template: `
@@ -253,7 +256,13 @@ type PageSection = 'quote' | 'profile' | 'cars';
               <div class="flex flex-col gap-4">
               <!-- Select car -->
               <div data-tour="quote-car" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-                <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Select Car" | t }}</span>
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Select Car" | t }}</span>
+                  <button type="button" (click)="openCompare()" class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10">
+                    <app-icon name="table" [size]="13" />
+                    {{ "Compare with other cars" | t }}
+                  </button>
+                </div>
 
               <div class="grid grid-cols-1 gap-3" [ngClass]="singleBrandMode ? '' : 'sm:grid-cols-2'">
                 @if (!singleBrandMode) {
@@ -722,6 +731,105 @@ type PageSection = 'quote' | 'profile' | 'cars';
         </div>
       }
 
+      <!-- Compare: up to 3 of the SA's cars side by side, on the same loan as this customer's quote
+           (downpayment, tenure and NCD are the Quote tab's own, so the two stay in step). -->
+      @if (section() === 'compare') {
+        <div class="mx-auto flex w-full max-w-5xl flex-col p-4 pb-28 md:p-6 md:pb-28 xl:py-8">
+          <div class="flex flex-col gap-1 pb-5">
+            <h1 class="text-xl font-bold tracking-tight">{{ "Compare cars" | t }}</h1>
+            <p class="text-sm text-muted-foreground">{{ "Choose up to 3 cars. Every car is quoted on the same loan." | t }}</p>
+          </div>
+
+          <section class="rounded-2xl bg-card p-4 text-card-foreground sm:p-5">
+            <span class="mb-4 block text-sm font-semibold">{{ "Same loan for every car" | t }}</span>
+            <div class="grid grid-cols-2 gap-x-4 gap-y-4 lg:grid-cols-3">
+              <div class="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
+                <span class="text-xs text-muted-foreground">{{ "Downpayment" | t }}</span>
+                <div class="flex gap-2">
+                  <div class="flex shrink-0 rounded-full bg-muted/50 p-0.5 text-xs font-semibold">
+                    @for (k of compareDpKinds; track k.id) {
+                      <button type="button" (click)="setCompareDownpaymentType(k.id)" class="rounded-full px-3 py-1.5 transition-colors" [ngClass]="downpaymentType() === k.id ? 'bg-foreground text-background' : 'text-muted-foreground'">
+                        {{ k.label }}
+                      </button>
+                    }
+                  </div>
+                  <input
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    [ngModel]="downpaymentValue()"
+                    (ngModelChange)="downpaymentValue.set(Math.max(0, +$event || 0))"
+                    [attr.aria-label]="'Downpayment' | t"
+                    class="h-9 w-full min-w-0 rounded-full border border-input bg-input px-4 text-sm tabular text-foreground outline-none focus:border-ring"
+                  />
+                </div>
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label for="compareTenure" class="text-xs text-muted-foreground">{{ "Tenure" | t }}</label>
+                <div class="relative">
+                  <select
+                    id="compareTenure"
+                    [ngModel]="tenureYears()"
+                    (ngModelChange)="tenureYears.set(+$event)"
+                    class="h-9 w-full appearance-none rounded-full border border-input bg-input pl-3 pr-8 text-xs text-foreground outline-none focus:border-ring sm:pl-4 sm:text-sm"
+                  >
+                    @for (y of compareTenureYears; track y) {
+                      <option [ngValue]="y">{{ y }} {{ (y === 1 ? "year" : "years") | t }}</option>
+                    }
+                  </select>
+                  <app-icon name="chevron-down" [size]="14" class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                </div>
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label for="compareNcd" class="text-xs text-muted-foreground">NCD</label>
+                <div class="relative">
+                  <select
+                    id="compareNcd"
+                    [ngModel]="ncd()"
+                    (ngModelChange)="ncd.set(+$event)"
+                    class="h-9 w-full appearance-none rounded-full border border-input bg-input pl-3 pr-8 text-xs text-foreground outline-none focus:border-ring sm:pl-4 sm:text-sm"
+                  >
+                    @for (o of ncdOptions; track o.value) {
+                      <option [ngValue]="o.value">{{ o.label | t }}</option>
+                    }
+                  </select>
+                  <app-icon name="chevron-down" [size]="14" class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <app-compare-table
+            [columns]="compareColumns()"
+            [carGroups]="compareCarGroups()"
+            [setup]="compareSetup()"
+            actionLabel="Get this quote"
+            quoteBadge="Current quote"
+            stickyClass="top-0 -mx-4 mt-6 px-4 md:-mx-6 md:px-6"
+            (chooseCar)="chooseCompareCar($event.column, $event.vehicleId)"
+            (remove)="removeCompareCar($event)"
+            (setYear)="setCompareYear($event.index, $event.year)"
+            (action)="quoteCompared($event)"
+          />
+
+          @if (compareColumns().length > 0) {
+            <div class="mt-12 flex flex-col items-center gap-3 text-center">
+              @if (bundle()!.advisor.phoneWa) {
+                <button
+                  type="button"
+                  (click)="whatsAppComparison()"
+                  class="flex items-center justify-center gap-2 rounded-full bg-[var(--success)] px-6 py-3 text-sm font-semibold text-[var(--success-foreground)] transition-transform active:scale-95"
+                >
+                  <app-icon name="message-circle" [size]="16" />
+                  {{ "WhatsApp me about these cars" | t }}
+                </button>
+              }
+              <p class="max-w-md text-pretty text-[11px] text-muted-foreground">{{ "Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here." | t }}</p>
+            </div>
+          }
+        </div>
+      }
+
       <!-- Cars:the SA's lineup with brochures, grouped by model. View + quote only — no Share here,
            since this page is the customer's, not the SA's. -->
       @if (section() === 'cars') {
@@ -937,9 +1045,10 @@ export class PublicQuoteComponent implements OnInit {
   mobileTab = signal<'preview' | 'customize'>('preview');
 
   sections: { id: PageSection; label: string; icon: IconName }[] = [
-    // Quote is the page's main feature, so it always sits in the middle of the tab bar.
+    // Quote is the page's main feature, so it sits right after Profile; Compare leads on from it.
     { id: 'profile', label: 'Profile', icon: 'user' },
     { id: 'quote', label: 'Quote', icon: 'calculator' },
+    { id: 'compare', label: 'Compare', icon: 'table' },
     { id: 'cars', label: 'Cars', icon: 'car' },
   ];
 
@@ -993,6 +1102,10 @@ export class PublicQuoteComponent implements OnInit {
 
   selectSection(id: PageSection) {
     const changed = this.section() !== id;
+    if (id === 'compare' && this.compareSlots().length === 0) {
+      const v = this.selectedVehicle();
+      this.compareSlots.set([{ vehicleId: v.id, year: this.modelYear() }]);
+    }
     this.section.set(id);
     window.scrollTo({ top: 0, behavior: changed ? 'instant' : 'smooth' });
     // First visit to the Quote tab on this device gets the walkthrough.
@@ -1512,6 +1625,129 @@ export class PublicQuoteComponent implements OnInit {
     const phone = this.bundle()!.advisor.phoneWa.replace(/[^0-9]/g, '');
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
   }
+
+  // ---------- Compare ----------
+
+  readonly Math = Math;
+  readonly compareTenureYears = TENURE_YEAR_OPTIONS;
+  readonly compareDpKinds = [
+    { id: 'percent' as const, label: '%' },
+    { id: 'amount' as const, label: 'RM' },
+  ];
+  /** The cars in the Compare section's columns (vehicle id + model year), at most 3. */
+  private compareSlots = signal<{ vehicleId: string; year: number }[]>([]);
+
+  /** Same loan as this customer's quote — the Quote tab's own downpayment, tenure and NCD — on
+   *  the advisor's default rate type (a car with no EIR anywhere falls back to flat, as on Quote). */
+  compareSetup = computed<CompareSetup>(() => ({
+    downpaymentType: this.downpaymentType(),
+    downpaymentValue: this.downpaymentValue(),
+    tenureMonths: this.tenureMonths(),
+    rateType: this.bundle()?.salesDefaults.defaultRateType ?? 'flat',
+    ncd: this.ncd(),
+  }));
+
+  /** Only the brands this link shows (just the Primary Brand on the single-brand link). */
+  compareCarGroups = computed(() =>
+    this.carsBrands().map((brand) => ({ brand, vehicles: this.vehicles().filter((v) => v.brand === brand) })),
+  );
+
+  compareColumns = computed<CompareColumn[]>(() => {
+    const bundle = this.bundle();
+    if (!bundle) return [];
+    const setup = this.compareSetup();
+    const pricing: ComparePricing = {
+      defaults: { ...DEFAULT_SETTINGS.salesDefaults, interestRate: this.rateDefaults().interestRate, effectiveRate: this.rateDefaults().effectiveRate },
+      insuranceFor: (v) => {
+        const saved = bundle.vehicleInsurance[v.id];
+        return saved ? { ...saved, epr: saved.epr ?? DEFAULT_EPR } : defaultInsuranceQuotation(v, v.basicPremium ?? basicPremiumDefault(v.price, this.insuranceRatePct()));
+      },
+      // Customer-facing: the base rebate only, never the additional rebate — that's an extra only
+      // the advisor grants by hand (same rule as the Quote tab).
+      includeAdditionalRebate: false,
+      flatWhenNoEir: true,
+    };
+    const current = this.selectedVehicle();
+    return this.compareSlots().flatMap((slot, index) => {
+      const vehicle = this.vehicles().find((v) => v.id === slot.vehicleId);
+      if (!vehicle) return [];
+      return [
+        {
+          index,
+          vehicle,
+          year: slot.year,
+          years: vehicle.years.map((y) => y.year).sort((a, b) => b - a),
+          fromQuote: vehicle.id === current.id && slot.year === this.modelYear(),
+          quote: quoteForComparison(vehicle, slot.year, setup, pricing),
+        },
+      ];
+    });
+  });
+
+  private newestYear(v: Vehicle): number {
+    return Math.max(...v.years.map((y) => y.year));
+  }
+
+  /** From the Quote tab: the car being quoted becomes the first column (other picks stay). */
+  openCompare() {
+    const v = this.selectedVehicle();
+    const others = this.compareSlots().filter((s) => s.vehicleId !== v.id);
+    this.compareSlots.set([{ vehicleId: v.id, year: this.modelYear() }, ...others].slice(0, 3));
+    this.selectSection('compare');
+  }
+
+  chooseCompareCar(column: number, vehicleId: string | null) {
+    const list = this.compareSlots();
+    if (vehicleId === null) return this.removeCompareCar(column);
+    const v = this.vehicles().find((x) => x.id === vehicleId);
+    if (!v || list.some((s, i) => s.vehicleId === vehicleId && i !== column)) return;
+    const slot = { vehicleId, year: this.newestYear(v) };
+    this.compareSlots.set(column < list.length ? list.map((s, i) => (i === column ? slot : s)) : [...list, slot].slice(0, 3));
+  }
+
+  removeCompareCar(index: number) {
+    this.compareSlots.update((list) => list.filter((_, i) => i !== index));
+  }
+
+  setCompareYear(index: number, year: number) {
+    this.compareSlots.update((list) => list.map((s, i) => (i === index ? { ...s, year } : s)));
+  }
+
+  /** "Get this quote" — back to the Quote tab on that car and model year. */
+  quoteCompared(c: CompareColumn) {
+    this.selectedBrand.set(c.vehicle.brand);
+    this.selectModelVariant(c.vehicle.model, c.vehicle.variant);
+    if (c.years.includes(c.year)) this.modelYear.set(c.year);
+    this.selectSection('quote');
+  }
+
+  setCompareDownpaymentType(type: DownpaymentType) {
+    if (type === this.downpaymentType()) return;
+    this.downpaymentType.set(type);
+    this.downpaymentValue.set(type === 'percent' ? (this.bundle()?.salesDefaults.downpaymentPct ?? 10) : 10_000);
+  }
+
+  /** Sends the advisor the cars being compared, with each one's monthly, as a WhatsApp message. */
+  whatsAppComparison() {
+    const s = this.compareSetup();
+    const dp = s.downpaymentType === 'percent' ? `${s.downpaymentValue}%` : this.fmt(s.downpaymentValue);
+    const lines = [
+      `Hi ${this.bundle()!.advisor.name}, I'm comparing these cars:`,
+      '',
+      ...this.compareColumns().map((c) => {
+        const name = vehicleTitle(c.vehicle.brand, modelVariantLabel(c.vehicle.model, c.vehicle.variant));
+        const monthly = c.quote.monthly === null ? 'rate needed' : c.quote.monthly === 0 ? 'cash' : `${this.fmt2(c.quote.monthly)}/month`;
+        return `- ${name} (${c.year}): ${monthly}`;
+      }),
+      '',
+      `Based on ${dp} downpayment, ${s.tenureMonths / 12} years, ${s.ncd}% NCD.`,
+      '',
+      'Which one would you recommend?',
+    ];
+    const phone = this.bundle()!.advisor.phoneWa.replace(/[^0-9]/g, '');
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
+  }
+
 
   /** Resets every quote setting (NCD, downpayment, tenure) back to this link's own starting
    *  defaults — leaves the selected car untouched, same as the Calculator's own Reset. Rebate,

@@ -3,7 +3,8 @@
 import { AfterViewInit, Component, computed, effect, ElementRef, HostListener, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { CompareService } from '../shared/compare.service';
 import { IconComponent } from '../shared/icon.component';
 import { InsuranceQuotationEditorComponent } from '../shared/insurance-quotation-editor.component';
 import { NumberFieldComponent } from '../shared/number-field.component';
@@ -201,7 +202,13 @@ import { TranslatePipe } from '../shared/i18n';
 
           <!-- Select car -->
           <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Select Car" | t }}</span>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Select Car" | t }}</span>
+              <button type="button" (click)="compareWithOthers()" class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10">
+                <app-icon name="table" [size]="13" />
+                {{ "Compare with other cars" | t }}
+              </button>
+            </div>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div class="flex flex-col gap-2">
@@ -794,6 +801,35 @@ export class CalculatorComponent implements AfterViewInit {
   brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
 
   private settingsService = inject(SettingsService);
+  private compare = inject(CompareService);
+  private router = inject(Router);
+
+  /** Opens the Compare page with this car as the first column, carrying this quote's own rebate,
+   *  insurance and rate (plus its loan setup) so its figures match what the customer was just told. */
+  compareWithOthers() {
+    const v = this.selectedVehicle();
+    this.compare.startFromQuote(
+      {
+        vehicleId: v.id,
+        year: this.modelYear(),
+        overrides: {
+          rebate: this.rebateInput(),
+          additionalRebate: this.additionalRebateValue(),
+          insuranceDetails: this.insuranceDetails(),
+          rate: this.rateMissing() ? undefined : { type: this.rateType(), value: this.interestRate() },
+        },
+      },
+      {
+        downpaymentType: this.downpaymentType(),
+        downpaymentValue: this.downpaymentValue(),
+        tenureMonths: this.highlightedTenure(),
+        rateType: this.rateType(),
+        ncd: this.ncd(),
+        includeAdditionalRebate: this.additionalRebateEnabled(),
+      },
+    );
+    this.router.navigateByUrl('/compare');
+  }
 
   selectedBrand = signal(this.preferredVehicle().brand);
   selectedModelName = signal(this.preferredVehicle().model);
@@ -1316,6 +1352,16 @@ export class CalculatorComponent implements AfterViewInit {
     public advisor: AdvisorService,
     private host: ElementRef,
   ) {
+    // "Open in Calculator" from the Compare page — start on that car instead of the primary brand's.
+    const fromCompare = this.compare.takeCalculatorCar();
+    const handed = fromCompare && VEHICLES.find((v) => v.id === fromCompare.vehicleId);
+    if (handed) {
+      this.selectedBrand.set(handed.brand);
+      this.selectedModelName.set(handed.model);
+      this.onVariantChange(handed.variant);
+      if (handed.years.some((y) => y.year === fromCompare.year)) this.modelYear.set(fromCompare.year);
+    }
+
     posterFontsReady().then(() => this.fontsReady.set(true));
 
     // Redraws the poster canvas whenever the data behind it, or the chosen template, changes.
