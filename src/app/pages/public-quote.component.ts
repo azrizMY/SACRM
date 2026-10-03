@@ -26,6 +26,7 @@ import {
   computeQuotationTotals,
   minDownpaymentCash,
   defaultRateFor,
+  downpaymentDisplay,
   formatRM,
   loanForMonthlyPayment,
   modelVariantLabel,
@@ -1327,8 +1328,11 @@ export class PublicQuoteComponent implements OnInit {
       downpaymentType: this.downpaymentType(),
       downpaymentValue: this.downpaymentValue(),
       minDownpaymentCash: this.minDownpayment(),
+      loanRounding: this.loanRounding(),
     }),
   );
+  /** The advisor's Loan Rounding setting, so the customer's loan matches the advisor's own quote. */
+  loanRounding = computed(() => this.bundle()?.salesDefaults.loanRounding ?? 'down');
   /** This variant's minimum downpayment (set by the advisor in Price Settings), before rebate; 0 = none. */
   minDownpayment = computed(() => minDownpaymentCash(this.selectedVehicle().minDownpayment, this.basePrice()));
   /** Cash still needed to meet the minimum once the rebate is counted towards it. */
@@ -1343,6 +1347,7 @@ export class PublicQuoteComponent implements OnInit {
       loanBasisInsuranceAmount: this.loanBasisInsurance(),
       downpaymentType: this.downpaymentType(),
       downpaymentValue: this.downpaymentValue(),
+      loanRounding: this.loanRounding(),
     });
     return unclamped.downpaymentCash < this.totals().downpaymentCash;
   });
@@ -1614,7 +1619,7 @@ export class PublicQuoteComponent implements OnInit {
       // @if (selectedVehicle().colours; ...) guard. "Not confirmed yet" (rather than omitting the
       // line) since the advisor still needs to know a colour is expected, just not picked.
       ...(vehicle.colours ? [`- Colour: ${this.selectedColour() ?? 'Not confirmed yet'}`] : []),
-      `- Downpayment: ${this.fmt2(this.downpaymentCash())}`,
+      `- ${downpaymentDisplay(this.downpaymentCash()).label}: ${this.fmt2(downpaymentDisplay(this.downpaymentCash()).amount)}`,
       `- Loan Amount: ${this.fmt2(this.loanAmount())}`,
       `- Rebate: ${this.fmt(this.rebateInput())}`,
       `- Insurance (${this.ncd()}% NCD): ${this.fmt2(this.insurance())}`,
@@ -1657,7 +1662,12 @@ export class PublicQuoteComponent implements OnInit {
     if (!bundle) return [];
     const setup = this.compareSetup();
     const pricing: ComparePricing = {
-      defaults: { ...DEFAULT_SETTINGS.salesDefaults, interestRate: this.rateDefaults().interestRate, effectiveRate: this.rateDefaults().effectiveRate },
+      defaults: {
+        ...DEFAULT_SETTINGS.salesDefaults,
+        interestRate: this.rateDefaults().interestRate,
+        effectiveRate: this.rateDefaults().effectiveRate,
+        loanRounding: this.loanRounding(),
+      },
       insuranceFor: (v) => {
         const saved = bundle.vehicleInsurance[v.id];
         return saved ? { ...saved, epr: saved.epr ?? DEFAULT_EPR } : defaultInsuranceQuotation(v, v.basicPremium ?? basicPremiumDefault(v.price, this.insuranceRatePct()));

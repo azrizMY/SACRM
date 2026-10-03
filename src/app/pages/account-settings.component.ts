@@ -10,11 +10,11 @@ import { IconComponent, type IconName } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { AuthService } from '../shared/auth.service';
 import { CustomerService } from '../shared/customer.service';
-import { SettingsService, UNSPECIFIED_INSURER } from '../shared/settings.service';
-import { BANK_OPTIONS, INSURANCE_OPTIONS } from '../data/customer-data';
+import { SettingsService } from '../shared/settings.service';
+import { BANK_OPTIONS } from '../data/customer-data';
 import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
 import { NCD_OPTIONS } from '../data/calculator-data';
-import { DEFAULT_COST_PRESETS, DEFAULT_LEAD_SOURCE, DEFAULT_STALE_LEAD_DAYS, type CostPreset, type DashboardTarget, type SalesDefaults } from '../data/settings-data';
+import { DEFAULT_COST_PRESETS, DEFAULT_GIFT_PRESETS, DEFAULT_LEAD_SOURCE, DEFAULT_STALE_LEAD_DAYS, type CostPreset, type DashboardTarget, type SalesDefaults } from '../data/settings-data';
 
 type NavItem = { id: string; label: string; icon: IconName };
 
@@ -120,6 +120,48 @@ type NavItem = { id: string; label: string; icon: IconName };
                     <span
                       class="inline-block size-4 transform rounded-full bg-white shadow transition-transform"
                       [ngClass]="(salesForm.additionalRebateByDefault ?? true) ? 'translate-x-6' : 'translate-x-1'"
+                    ></span>
+                  </button>
+                </div>
+
+                <div class="flex items-center justify-between gap-4 py-4">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">{{ "Loan Rounding" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Loans are rounded to RM100. Round down adds the leftover to the downpayment; round up raises the loan and gives the excess back as cash back." | t }}</span>
+                  </div>
+                  <div role="radiogroup" [attr.aria-label]="'Loan Rounding' | t" class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
+                    @for (opt of loanRoundingOptions; track opt.id) {
+                      <button
+                        type="button"
+                        role="radio"
+                        [attr.aria-checked]="(salesForm.loanRounding ?? 'down') === opt.id"
+                        (click)="salesForm.loanRounding = opt.id"
+                        class="whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+                        [ngClass]="(salesForm.loanRounding ?? 'down') === opt.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                      >
+                        {{ opt.label | t }}
+                      </button>
+                    }
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between gap-4 py-4">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">{{ "Allow cash back" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Show “Give rebate as cash back” in the Calculator. Turn on only if your dealer pays rebates out as cash." | t }}</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    [attr.aria-label]="'Allow cash back' | t"
+                    [attr.aria-checked]="salesForm.allowCashback ?? false"
+                    (click)="salesForm.allowCashback = !(salesForm.allowCashback ?? false)"
+                    class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
+                    [ngClass]="(salesForm.allowCashback ?? false) ? 'bg-primary' : 'bg-muted'"
+                  >
+                    <span
+                      class="inline-block size-4 transform rounded-full bg-white shadow transition-transform"
+                      [ngClass]="(salesForm.allowCashback ?? false) ? 'translate-x-6' : 'translate-x-1'"
                     ></span>
                   </button>
                 </div>
@@ -258,38 +300,73 @@ type NavItem = { id: string; label: string; icon: IconName };
               </div>
             </div>
 
-            <!-- Banks & insurance -->
+            <!-- Banks -->
             <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
               <div class="flex items-center gap-3 px-5 py-4">
                 <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <app-icon name="landmark" [size]="18" />
                 </span>
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">{{ "Banks & Insurance" | t }}</span>
-                  <span class="text-xs text-muted-foreground">{{ "Only the banks and insurers you actually work with — these are the choices in every dropdown." | t }}</span>
+                  <span class="text-sm font-semibold leading-none">{{ "Banks" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "The banks in your Bankers list. Removing a bank never changes existing bankers." | t }}</span>
                 </div>
               </div>
-              <div class="flex flex-col divide-y divide-border border-t border-border px-5">
-                <div class="flex flex-col gap-3 py-4">
-                  <div class="flex flex-col">
-                    <span class="text-sm font-medium">{{ "Banks" | t }}</span>
-                    <span class="text-xs text-muted-foreground">{{ "Used for a customer's Bank Panel and for your Bankers list. Removing a bank never changes existing customers or bankers." | t }}</span>
-                  </div>
-                  <app-chip-list-editor [(items)]="banksForm" [placeholder]="'e.g. Bank Muamalat' | t" addLabel="New bank" />
-                  @if (listError === 'banks') { <p class="text-xs text-[var(--destructive)]">{{ "Keep at least one bank." | t }}</p> }
-                </div>
-                <div class="flex flex-col gap-3 py-4">
-                  <div class="flex flex-col">
-                    <span class="text-sm font-medium">{{ "Insurance Companies" | t }}</span>
-                    <span class="text-xs text-muted-foreground">Used when recording a delivery. "Unspecified" is always available.</span>
-                  </div>
-                  <app-chip-list-editor [(items)]="insurersForm" [placeholder]="'e.g. Takaful Ikhlas' | t" addLabel="New insurance company" />
-                </div>
+              <div class="flex flex-col gap-3 border-t border-border px-5 py-4">
+                <app-chip-list-editor [(items)]="banksForm" [placeholder]="'e.g. Bank Muamalat' | t" addLabel="New bank" />
+                @if (listError === 'banks') { <p class="text-xs text-[var(--destructive)]">{{ "Keep at least one bank." | t }}</p> }
               </div>
               <div class="flex items-center gap-2 border-t border-border px-5 py-4">
                 <button type="button" (click)="saveBankLists()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">{{ "Save Changes" | t }}</button>
                 <button type="button" (click)="resetBankLists()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">{{ "Restore defaults" | t }}</button>
                 @if (savedFlashFor() === 'banks') {
+                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]"><app-icon name="check" [size]="13" /> {{ "Saved" | t }}</span>
+                }
+              </div>
+            </div>
+
+            <!-- Gift quick-buttons -->
+            <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+              <div class="flex items-center gap-3 px-5 py-4">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <app-icon name="gift" [size]="18" />
+                </span>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-sm font-semibold leading-none">{{ "Gift Quick-Buttons" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "Gifts you usually promise, with their usual price — one tap adds one to a deal." | t }}</span>
+                </div>
+              </div>
+              <div class="flex flex-col gap-2 border-t border-border px-5 py-4 [&>*]:max-w-2xl">
+                @for (preset of giftPresetsForm; track $index; let i = $index) {
+                  <div class="flex items-center gap-2">
+                    <input
+                      type="text"
+                      [(ngModel)]="preset.label"
+                      [placeholder]="'Item, e.g. Tinted' | t"
+                      [attr.aria-label]="'Gift ' + (i + 1)"
+                      class="h-9 min-w-0 flex-1 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none"
+                    />
+                    <app-number-field class="w-32 shrink-0" prefix="RM" [decimals]="0" ariaLabel="Price" [value]="preset.amount" (valueChange)="preset.amount = $event ?? 0" />
+                    <button type="button" (click)="removeGiftPreset(i)" [attr.aria-label]="'Remove item' | t" class="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--destructive)]/10 hover:text-[var(--destructive)]">
+                      <app-icon name="trash" [size]="14" />
+                    </button>
+                  </div>
+                } @empty {
+                  <p class="text-xs text-muted-foreground">{{ "No quick-buttons — add one below." | t }}</p>
+                }
+                <div class="flex flex-wrap items-center gap-2 pt-1">
+                  <button type="button" (click)="addGiftPreset()" class="flex items-center gap-1 rounded-lg bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent">
+                    <app-icon name="plus" [size]="12" />
+                    {{ "Add item" | t }}
+                  </button>
+                  <button type="button" (click)="resetGiftPresets()" class="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
+                    <app-icon name="rotate-ccw" [size]="12" />
+                    {{ "Restore defaults" | t }}
+                  </button>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 border-t border-border px-5 py-4">
+                <button type="button" (click)="saveGiftPresets()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">{{ "Save Changes" | t }}</button>
+                @if (savedFlashFor() === 'gifts') {
                   <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]"><app-icon name="check" [size]="13" /> {{ "Saved" | t }}</span>
                 }
               </div>
@@ -302,8 +379,8 @@ type NavItem = { id: string; label: string; icon: IconName };
                   <app-icon name="wallet" [size]="18" />
                 </span>
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">{{ "Cost Quick-Buttons" | t }}</span>
-                  <span class="text-xs text-muted-foreground">{{ "The one-tap cost items on Cost Breakdown, with your own prices." | t }}</span>
+                  <span class="text-sm font-semibold leading-none">{{ "Extra-Cost Quick-Buttons" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "Costs the customer never sees (petrol, loader, referral fee) — one tap logs one." | t }}</span>
                 </div>
               </div>
               <div class="flex flex-col gap-2 border-t border-border px-5 py-4 [&>*]:max-w-2xl">
@@ -312,7 +389,7 @@ type NavItem = { id: string; label: string; icon: IconName };
                     <input
                       type="text"
                       [(ngModel)]="preset.label"
-                      [placeholder]="'Item, e.g. Tinted' | t"
+                      [placeholder]="'Item, e.g. Petrol' | t"
                       [attr.aria-label]="'Cost item ' + (i + 1)"
                       class="h-9 min-w-0 flex-1 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none"
                     />
@@ -361,7 +438,7 @@ type NavItem = { id: string; label: string; icon: IconName };
                 <div class="flex items-center justify-between gap-4 py-4">
                   <div class="flex flex-col">
                     <span class="text-sm font-medium">{{ "Brand" | t }}</span>
-                    <span class="text-xs text-muted-foreground">Customer Manager and Cost Breakdown keep their own "All" filter, so existing customers stay visible.</span>
+                    <span class="text-xs text-muted-foreground">Customer Manager and Earnings keep their own "All" filter, so existing customers stay visible.</span>
                   </div>
                   <select
                     [(ngModel)]="dashboardForm.brand"
@@ -491,7 +568,7 @@ type NavItem = { id: string; label: string; icon: IconName };
                 </span>
                 <div class="flex flex-col gap-0.5">
                   <span class="text-sm font-semibold leading-none">{{ "Notification Preferences" | t }}</span>
-                  <span class="text-xs text-muted-foreground">{{ "New leads, bookings, and weekly performance summaries." | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "New leads and weekly performance summaries." | t }}</span>
                 </div>
               </div>
 
@@ -518,28 +595,8 @@ type NavItem = { id: string; label: string; icon: IconName };
 
                 <div class="flex items-center justify-between gap-4 py-3">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">{{ "Booking reminders" | t }}</span>
-                    <span class="text-xs text-muted-foreground">{{ "Documents pending or a booking about to go stale." | t }}</span>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    [attr.aria-checked]="notifications().bookingReminders"
-                    (click)="toggleNotification('bookingReminders')"
-                    class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
-                    [ngClass]="notifications().bookingReminders ? 'bg-primary' : 'bg-muted'"
-                  >
-                    <span
-                      class="inline-block size-4 transform rounded-full bg-white shadow transition-transform"
-                      [ngClass]="notifications().bookingReminders ? 'translate-x-6' : 'translate-x-1'"
-                    ></span>
-                  </button>
-                </div>
-
-                <div class="flex items-center justify-between gap-4 py-3">
-                  <div class="flex flex-col">
                     <span class="text-sm font-medium">{{ "Weekly performance summary" | t }}</span>
-                    <span class="text-xs text-muted-foreground">{{ "Leads, bookings, deliveries, and commission for the week." | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Leads, won and lost deals, and commission for the week." | t }}</span>
                   </div>
                   <button
                     type="button"
@@ -611,7 +668,7 @@ type NavItem = { id: string; label: string; icon: IconName };
                 <div class="flex items-center justify-between gap-4 py-3.5">
                   <div class="flex flex-col">
                     <span class="text-sm font-medium">{{ "Load sample deals" | t }}</span>
-                    <span class="text-xs text-muted-foreground">{{ "Adds 30 example leads, bookings, and deliveries — handy for a demo." | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Adds 34 example leads, won and lost deals — handy for a demo." | t }}</span>
                   </div>
                   <div class="flex shrink-0 items-center gap-2">
                     @if (seedFlash()) {
@@ -642,7 +699,7 @@ type NavItem = { id: string; label: string; icon: IconName };
                 </span>
                 <div class="flex flex-col gap-0.5">
                   <span class="text-sm font-semibold leading-none text-[var(--destructive)]">{{ "Danger Zone" | t }}</span>
-                  <span class="text-xs text-muted-foreground">{{ "Permanently deletes every lead, booking, and delivery record." | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "Permanently deletes every customer record." | t }}</span>
                 </div>
               </div>
               <div class="flex flex-col gap-3 border-t border-[var(--destructive)]/30 px-5 py-4">
@@ -892,6 +949,11 @@ type NavItem = { id: string; label: string; icon: IconName };
   `,
 })
 export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
+  readonly loanRoundingOptions: { id: 'down' | 'up'; label: string }[] = [
+    { id: 'down', label: 'Round down' },
+    { id: 'up', label: 'Round up' },
+  ];
+
   ncdOptions = NCD_OPTIONS;
   Math = Math;
 
@@ -986,9 +1048,9 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
     this.salesForm = { ...this.settingsService.settings().salesDefaults };
     this.leadSourcesForm = [...this.settingsService.leadSources()];
     this.banksForm = [...this.settingsService.banks()];
-    this.insurersForm = [...this.settingsService.insurers()];
     this.salesForm.leadSource ??= this.leadSourcesForm[0] ?? DEFAULT_LEAD_SOURCE;
     this.costPresetsForm = (this.settingsService.settings().salesDefaults.costPresets ?? DEFAULT_COST_PRESETS).map((c) => ({ ...c }));
+    this.giftPresetsForm = (this.settingsService.settings().salesDefaults.giftPresets ?? DEFAULT_GIFT_PRESETS).map((c) => ({ ...c }));
     this.dashboardForm = { ...this.settingsService.settings().dashboardTarget };
   }
 
@@ -1044,7 +1106,6 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
   /** Working copies of the account's dropdown lists — saved only on each card's Save Changes. */
   leadSourcesForm: string[] = [];
   banksForm: string[] = [];
-  insurersForm: string[] = [];
   /** Which card's list was left empty on save. */
   listError: 'leads' | 'banks' | null = null;
 
@@ -1065,21 +1126,42 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
     }
     this.listError = null;
     const banks = [...this.banksForm];
-    const insurers = this.insurersForm.filter((i) => i !== UNSPECIFIED_INSURER);
-    this.settingsService.updateSalesDefaults({ banks, insurers });
+    this.settingsService.updateSalesDefaults({ banks });
     this.salesForm.banks = banks;
-    this.salesForm.insurers = insurers;
     this.flash('banks');
   }
 
   resetBankLists() {
     this.banksForm = [...BANK_OPTIONS];
-    this.insurersForm = INSURANCE_OPTIONS.filter((i) => i !== UNSPECIFIED_INSURER);
     this.listError = null;
   }
   defaultStaleDays = DEFAULT_STALE_LEAD_DAYS;
 
-  /** Working copy of Cost Breakdown's quick-buttons — saved only on Save Changes. */
+  /** Working copy of the gift quick-buttons — saved only on Save Changes. */
+  giftPresetsForm: CostPreset[] = [];
+
+  addGiftPreset() {
+    this.giftPresetsForm = [...this.giftPresetsForm, { label: '', amount: 0 }];
+  }
+
+  removeGiftPreset(i: number) {
+    this.giftPresetsForm = this.giftPresetsForm.filter((_, idx) => idx !== i);
+  }
+
+  resetGiftPresets() {
+    this.giftPresetsForm = DEFAULT_GIFT_PRESETS.map((c) => ({ ...c }));
+  }
+
+  saveGiftPresets() {
+    // Blank rows are dropped; a gift may have no usual price (0), unlike a cost.
+    const presets = this.giftPresetsForm.map((c) => ({ label: c.label.trim(), amount: c.amount })).filter((c) => c.label);
+    this.giftPresetsForm = presets.map((c) => ({ ...c }));
+    this.settingsService.updateSalesDefaults({ giftPresets: presets });
+    this.salesForm.giftPresets = presets;
+    this.flash('gifts');
+  }
+
+  /** Working copy of the extra-cost quick-buttons — saved only on Save Changes. */
   costPresetsForm: CostPreset[] = [];
 
   addCostPreset() {
@@ -1128,7 +1210,7 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  toggleNotification(key: 'newLeadAlerts' | 'bookingReminders' | 'weeklySummary') {
+  toggleNotification(key: 'newLeadAlerts' | 'weeklySummary') {
     this.settingsService.updateNotifications({ [key]: !this.notifications()[key] });
   }
 

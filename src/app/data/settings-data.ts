@@ -1,4 +1,4 @@
-import type { InsuranceQuotationDetails, RateType } from './calculator-data';
+import type { InsuranceQuotationDetails, LoanRounding, RateType } from './calculator-data';
 import type { Lang } from '../shared/i18n-core';
 
 export type SalesDefaults = {
@@ -20,36 +20,45 @@ export type SalesDefaults = {
   /** Whether a new quote starts with Additional Rebate ticked (for cars that have one). Optional —
    *  absent means ticked, the original behaviour. */
   additionalRebateByDefault?: boolean;
+  /** Which way every quote rounds the loan to RM100 — see LoanRounding. Optional; absent = down. */
+  loanRounding?: LoanRounding;
+  /** Show "Give rebate as cash back" in the Calculator. Optional; absent = off — only for dealers
+   *  that pay rebates out as cash. */
+  allowCashback?: boolean;
   /** Which 3 tenure years (of 1-9) the Calculator's repayment table starts on for every new quote. */
   defaultTenureYears: number[];
   /** The choices in every Lead Source dropdown (e.g. "Roadshow – Mid Valley"). Optional so settings
    *  saved before this existed still load; readers fall back to SOURCE_TYPES. */
   leadSources?: string[];
-  /** The account's bank panel and insurer choices — only the ones this advisor actually works
-   *  with. Optional; readers fall back to BANK_OPTIONS / INSURANCE_OPTIONS. */
+  /** The account's bank panel choices — only the ones this advisor actually works with.
+   *  Optional; readers fall back to BANK_OPTIONS. */
   banks?: string[];
-  insurers?: string[];
   /** Which of `leadSources` the Calculator's Add Lead form starts on. */
   leadSource?: string;
   /** A lead with no activity for this many days gets Customer Manager's "No update" flag. */
   staleLeadDays?: number;
-  /** Cost Breakdown's quick-add buttons (e.g. Tinted RM 350). */
+  /** One-tap extra costs (e.g. Petrol RM 50). */
   costPresets?: CostPreset[];
+  /** One-tap free gifts with their usual price (e.g. Tinted RM 350). */
+  giftPresets?: CostPreset[];
 };
 
 export type CostPreset = { label: string; amount: number };
 
 export const DEFAULT_LEAD_SOURCE = 'Walk-in';
 export const DEFAULT_STALE_LEAD_DAYS = 7;
-export const DEFAULT_COST_PRESETS: CostPreset[] = [
+export const DEFAULT_GIFT_PRESETS: CostPreset[] = [
   { label: 'Tinted', amount: 350 },
   { label: 'Dashcam', amount: 250 },
   { label: 'Carpet', amount: 150 },
+  { label: 'Coating', amount: 400 },
   { label: 'Perfume', amount: 30 },
   { label: 'Phone Holder', amount: 40 },
+];
+export const DEFAULT_COST_PRESETS: CostPreset[] = [
   { label: 'Petrol', amount: 50 },
-  { label: 'Coating', amount: 400 },
   { label: 'Loader', amount: 100 },
+  { label: 'Referral fee', amount: 200 },
 ];
 
 /** Per-vehicle itemized insurance quotation overrides, keyed by Vehicle.id — edited from Account
@@ -59,7 +68,6 @@ export type VehicleInsuranceOverrides = Record<string, InsuranceQuotationDetails
 
 export type NotificationPrefs = {
   newLeadAlerts: boolean;
-  bookingReminders: boolean;
   weeklySummary: boolean;
 };
 
@@ -88,7 +96,7 @@ export type AppSettings = {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   salesDefaults: { interestRate: 2.5, downpaymentPct: 10, ncd: 0, basicPremiumRatePct: 3.27, defaultRateType: 'flat', defaultTenureYears: [9, 7, 5] },
-  notifications: { newLeadAlerts: true, bookingReminders: true, weeklySummary: false },
+  notifications: { newLeadAlerts: true, weeklySummary: false },
   dashboardTarget: { brand: 'Chery', target: 4 },
   vehicleInsurance: {},
   onboarding: {},

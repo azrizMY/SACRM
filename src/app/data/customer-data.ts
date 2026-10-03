@@ -1,16 +1,14 @@
-import type { DownpaymentType, InsuranceQuotationDetails, RateType } from './calculator-data';
+import type { DownpaymentType, InsuranceQuotationDetails, LoanRounding, RateType } from './calculator-data';
+import { toLocalDateStr } from '../shared/date-utils';
 
-export type CustomerStatus = 'Lead' | 'Booked' | 'In Progress' | 'Delivered' | 'Cancelled';
-export type DocumentStatus = 'NO' | 'SUBMITTED' | 'APPROVE';
+export type CustomerStatus = 'Lead' | 'Won' | 'Lost';
 
-export const CUSTOMER_STATUSES: CustomerStatus[] = ['Lead', 'Booked', 'In Progress', 'Delivered', 'Cancelled'];
+export const CUSTOMER_STATUSES: CustomerStatus[] = ['Lead', 'Won', 'Lost'];
 
 export const CUSTOMER_STATUS_META: Record<CustomerStatus, { label: string; tone: string; dot: string }> = {
   Lead: { label: 'Lead', tone: 'bg-[var(--chart-4)]/15 text-[var(--chart-4)]', dot: 'bg-[var(--chart-4)]' },
-  Booked: { label: 'Booked', tone: 'bg-[var(--warning)]/14 text-[var(--warning)]', dot: 'bg-[var(--warning)]' },
-  'In Progress': { label: 'In Progress', tone: 'bg-[oklch(0.65_0.19_300)]/14 text-[oklch(0.65_0.19_300)]', dot: 'bg-[oklch(0.65_0.19_300)]' },
-  Delivered: { label: 'Delivered', tone: 'bg-[var(--success)]/12 text-[var(--success)]', dot: 'bg-[var(--success)]' },
-  Cancelled: { label: 'Cancelled', tone: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground' },
+  Won: { label: 'Won', tone: 'bg-[var(--success)]/12 text-[var(--success)]', dot: 'bg-[var(--success)]' },
+  Lost: { label: 'Lost', tone: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground' },
 };
 
 export const SOURCE_TYPES = [
@@ -24,15 +22,9 @@ export const SOURCE_TYPES = [
   'Other',
 ];
 
-export const DOCUMENT_STATUS_OPTIONS: DocumentStatus[] = ['NO', 'SUBMITTED', 'APPROVE'];
-
-export const DOCUMENT_STATUS_META: Record<DocumentStatus, { label: string; tone: string; dot: string }> = {
-  NO: { label: 'Not Submitted', tone: 'bg-[var(--destructive)]/12 text-[var(--destructive)]', dot: 'bg-[var(--destructive)]' },
-  SUBMITTED: { label: 'Submitted', tone: 'bg-[var(--warning)]/14 text-[var(--warning)]', dot: 'bg-[var(--warning)]' },
-  APPROVE: { label: 'Approved', tone: 'bg-[var(--success)]/12 text-[var(--success)]', dot: 'bg-[var(--success)]' },
-};
-
-export const TRADE_IN_OPTIONS = ['No Trade-in', 'Pending Evaluation', 'Confirmed'];
+/** Placeholder on every free-text note box — the record no longer stores ID numbers, so notes
+ *  mustn't become a back door for them. */
+export const NO_ID_NOTES_HINT = "Don't enter IC, plate or chassis numbers here.";
 
 /** Replaces the old 6-item list — same const name/import sites, richer taxonomy. */
 export const CANCEL_REASON_OPTIONS = [
@@ -52,12 +44,11 @@ export const CANCEL_REASON_OPTIONS = [
 ];
 
 /** "To be Confirmed" is a real, storable value — selected by default at Lead creation, since the
- *  customer often hasn't picked a colour yet. It must be resolved to a real colour before Delivered. */
+ *  customer often hasn't picked a colour yet. It must be resolved to a real colour before Won. */
 export const TO_BE_CONFIRMED_COLOUR = 'To be Confirmed';
 export const COLOUR_OPTIONS = [TO_BE_CONFIRMED_COLOUR, 'White', 'Black', 'Silver', 'Grey', 'Red', 'Blue'];
 
 export const BANK_OPTIONS = ['Maybank', 'CIMB Bank', 'Public Bank', 'RHB Bank', 'Hong Leong Bank', 'AmBank', 'Affin Bank', 'Bank Islam', 'Bank Rakyat', 'BSN'];
-export const INSURANCE_OPTIONS = ['Unspecified', 'Etiqa', 'Allianz', 'Tokio Marine', 'Zurich Malaysia', 'Great Eastern General', 'MSIG', 'Berjaya Sompo'];
 
 // ---------- Financing ----------
 
@@ -67,11 +58,85 @@ export const FINANCING_TYPE_OPTIONS: { value: FinancingType; label: string }[] =
   { value: 'Cash', label: 'Cash' },
 ];
 
-// ---------- Free gifts (owned by Cost Breakdown; Customer Manager only reads a summary) ----------
+// ---------- Gifts & costs ----------
+//
+// Two different things, kept apart:
+//  • Free gifts — what the SA promised the customer. A promise costs nothing yet; `estimate` is its
+//    usual price (the deal's gift budget). Once sorted out it's `done`, and `cost` is what it
+//    really cost (defaults to the estimate; 0 when the dealer supplied it).
+//  • Extra costs (costItems) — money out that the customer never hears about: petrol, a loader,
+//    a referral fee, an extra discount from the SA's own pocket.
 
-export type FreeGiftItem = { id: string; name: string; done: boolean };
+export type FreeGiftItem = { id: string; name: string; done: boolean; estimate?: number; cost?: number };
 
-// ---------- Cost spent (owned by Cost Breakdown — itemised spend that offsets commission) ----------
+/** What the promised gifts should roughly cost, from their estimates; null when none are priced. */
+export function giftBudget(r: CustomerRecord): number | null {
+  const priced = (r.freeGifts ?? []).filter((g) => g.estimate != null);
+  return priced.length ? priced.reduce((sum, g) => sum + (g.estimate ?? 0), 0) : null;
+}
+
+/** Money already out on gifts that are done. */
+export function giftsSpent(r: CustomerRecord): number {
+  return (r.freeGifts ?? []).filter((g) => g.done).reduce((sum, g) => sum + (g.cost ?? 0), 0);
+}
+
+/** Estimated cost of gifts promised but not done yet — money still to go out. */
+export function giftsStillToDo(r: CustomerRecord): number {
+  return (r.freeGifts ?? []).filter((g) => !g.done).reduce((sum, g) => sum + (g.estimate ?? 0), 0);
+}
+
+/** Extra costs only — what's in costItems. */
+export function hiddenCosts(r: CustomerRecord): number {
+  return (r.costItems ?? []).reduce((sum, c) => sum + c.amount, 0);
+}
+
+export type GiftBudgetReport = {
+  /** Sum of every gift's estimate. */
+  budget: number;
+  /** What the done gifts really cost. */
+  actual: number;
+  /** Actual minus estimate over the done gifts that have both — positive is over budget. Gifts
+   *  not done yet don't count, so a half-done deal isn't "under" just because it's unpaid. */
+  variance: number;
+  /** Estimates of gifts not done yet. */
+  remaining: number;
+  /** Extra costs — outside the gift budget. */
+  hidden: number;
+};
+
+/** Budget vs actual for a deal's gifts — null when no gift has an estimate. */
+export function giftBudgetReport(r: CustomerRecord): GiftBudgetReport | null {
+  const budget = giftBudget(r);
+  if (budget == null) return null;
+  let variance = 0;
+  for (const g of r.freeGifts ?? []) {
+    if (g.done && g.estimate != null && g.cost != null) variance += g.cost - g.estimate;
+  }
+  return { budget, actual: giftsSpent(r), variance, remaining: giftsStillToDo(r), hidden: hiddenCosts(r) };
+}
+
+const sameName = (x: string, y: string) => x.trim().toLowerCase() === y.trim().toLowerCase();
+
+/** Records from before gifts held their own cost logged it as an extra cost under the gift's name.
+ *  Move it onto the gift (marking it done) so nothing is counted twice; applied on load. */
+export function withGiftCosts(r: CustomerRecord): CustomerRecord {
+  const gifts = r.freeGifts ?? [];
+  const costs = r.costItems ?? [];
+  if (!gifts.length || !costs.length || gifts.every((g) => g.cost != null)) return r;
+  let moved = false;
+  const remaining = [...costs];
+  const freeGifts = gifts.map((g) => {
+    if (g.cost != null) return g;
+    const matches = remaining.filter((c) => sameName(c.label, g.name));
+    if (!matches.length) return g;
+    moved = true;
+    for (const m of matches) remaining.splice(remaining.indexOf(m), 1);
+    return { ...g, done: true, cost: matches.reduce((sum, c) => sum + c.amount, 0) };
+  });
+  return moved ? { ...r, freeGifts, costItems: remaining } : r;
+}
+
+// ---------- Extra costs — itemised money out that offsets commission ----------
 
 export type CostItem = { id: string; label: string; amount: number };
 
@@ -89,55 +154,35 @@ export type CustomerRecord = {
   colour: string; // defaults to TO_BE_CONFIRMED_COLOUR — always populated, never blank
   sourceType: string;
   date: string;
-  downpayment?: number;
-  ncd?: number;
 
-  // Captured at Lead creation, defaulting to Loan — the SA's best guess at how the customer will
-  // pay. Stays editable at every stage; the In Progress gate collects the loan/cash specifics
-  // that back it up but doesn't ask for this choice again.
+  // Cash or hire purchase — part of the quote, set at Lead creation and in the quotation editor.
   financingType?: FinancingType;
 
-  // Early capture of contact/ID details, ahead of the Booked gate that requires icNo.
-  icNo?: string;
-  address?: string;
-  email?: string;
-  drivingLicenceNo?: string;
+  // A Lead that has booked and is waiting for the car — an optional one-tap marker, not a stage.
+  // It quiets the "no update" reminder, since waiting for stock isn't the SA going quiet.
+  booked?: boolean;
 
-  // Captured when moved to Booked
-  documentStatus?: DocumentStatus;
+  // Deliberately no identity fields (IC, address, email, licence, plate, chassis, engine) and no
+  // separate post-approval loan or trade-in details — the quotation is the only financial record.
+  // Keeping customer data to contact details plus the quote limits what a leak could expose under
+  // the PDPA. The server strips the old fields on save (server/src/routes/customers.ts);
+  // migration 0009 removed them from existing rows.
+
+  // Free-text notes
   remark?: string; // free-text customer notes — only ever set via Add Note, surfaced through Activity History
 
-  // Captured when moved to In Progress (financing confirmation)
-  bankPanel?: string; // final agreed bank (post-LOU) — the customer's confirmed financing bank
-  loanAmount?: number;
-  loanTenureMonths?: number;
-  loanInterestRate?: number;
-
-  // Trade-in — agreed during In Progress onward. Recorded only; never affects any calculation.
-  tradeInStatus?: string;
-  tradeInVehicle?: string;
-  tradeInValue?: number;
-
-  // Arrive over days/weeks while In Progress; required only at the Delivered gate
-  insuranceName?: string;
-  plateNo?: string; // Registration Number
-  deliveryDate?: string;
-  chassisNo?: string; // Chassis / VIN
-  engineNo?: string;
-  deliveryNotes?: string;
-
-  // Commission — set later via Cost Breakdown, never prompted at the Delivered transition.
+  // Commission — entered once the dealer pays (customer panel or Earnings), never prompted when marked Won.
   commission?: number;
 
-  // Free gifts checklist — owned and edited on Cost Breakdown; Customer Manager only reads it.
+  // Free gifts promised to the customer — see FreeGiftItem.
   freeGifts?: FreeGiftItem[];
 
-  // Itemised cost spent on this deal — owned and edited on Cost Breakdown; offsets commission in dealProfit().
+  // Extra costs — money out the customer never hears about; offsets commission in dealProfit().
   costItems?: CostItem[];
 
-  // Captured when moved to Cancelled
+  // Captured when marked Lost (field names predate the Cancelled → Lost rename)
   cancelReason?: string;
-  cancelNotes?: string; // required only when cancelReason === 'Other'
+  cancelNotes?: string;
   previousStatus?: CustomerStatus; // captured automatically — never user-input; also the Reopen target
 
   // Activity History — auto-recorded, newest-last (render reversed). The sole source of truth
@@ -192,13 +237,19 @@ export type QuotationDetails = {
    *  what this specific customer was already quoted. Falls back to the car database when absent
    *  (quotations saved before this existed). */
   insuranceDetails?: InsuranceQuotationDetails;
+  /** The loan rounding this quote was made with — frozen like the insurance above, so changing the
+   *  setting later never moves a customer's already-quoted loan. Absent = down (older quotes). */
+  loanRounding?: LoanRounding;
+  /** Part of the rebate paid back to the customer in cash instead of off the price ("Give rebate
+   *  as cash back" in the Calculator). Absent/0 = the whole rebate is a discount. */
+  cashbackAmount?: number;
 };
 
 export type DealOutcome = 'Won' | 'Lost';
 
-/** Sum of every cost item logged against a deal — spend the SA keyed in via "Add Cost Spent". */
+/** Everything already spent on a deal: gifts that are done plus extra costs. */
 export function totalCostSpent(r: CustomerRecord): number {
-  return (r.costItems ?? []).reduce((sum, c) => sum + c.amount, 0);
+  return giftsSpent(r) + hiddenCosts(r);
 }
 
 /** Net profit for a deal is commission minus everything spent on it — positive is a Won deal, negative is Lost. */
@@ -229,7 +280,22 @@ export function freeGiftsLabel(r: CustomerRecord): string {
   return s.done === s.total ? 'All completed' : `${s.done} / ${s.total} completed`;
 }
 
-// ---------- Cash-vs-loan display rule (drives the Documents panel/column) ----------
+// ---------- Retired stages ----------
+
+/** The pipeline used to be Lead → Booked → In Progress → Delivered (or Cancelled); it's now just
+ *  Lead → Won (or Lost) — a booked car still counts as a Lead until it's delivered, which is when
+ *  it's Won. Migration 0009 converts stored records, but anything still carrying an
+ *  old stage (e.g. a database the migration hasn't reached yet) is converted on load, so nothing
+ *  ever looks up a stage that no longer exists. */
+const RETIRED_STAGES: Record<string, CustomerStatus> = { Booked: 'Lead', 'In Progress': 'Lead', Delivered: 'Won', Cancelled: 'Lost' };
+
+export function withCurrentStages(r: CustomerRecord): CustomerRecord {
+  const status = RETIRED_STAGES[r.status] ?? r.status;
+  const previousStatus = r.previousStatus && (RETIRED_STAGES[r.previousStatus] ?? r.previousStatus);
+  return status === r.status && previousStatus === r.previousStatus ? r : { ...r, status, previousStatus };
+}
+
+// ---------- Cash vs loan ----------
 
 export function isCashDeal(r: CustomerRecord): boolean {
   return r.financingType === 'Cash';
@@ -239,24 +305,43 @@ export function isCashDeal(r: CustomerRecord): boolean {
 
 export const STAGE_DATE_HEADER: Record<CustomerStatus, string> = {
   Lead: 'Lead Since',
-  Booked: 'Booked On',
-  'In Progress': 'In Progress Since',
-  Delivered: 'Delivered On',
-  Cancelled: 'Cancelled On',
+  Won: 'Won On',
+  Lost: 'Lost On',
+};
+
+/** Activity-log markers for when a record entered each stage, newest wording first. Records from
+ *  before the stage rename only have the old wording, where a deal was won on delivery. */
+const STAGE_MARKERS: Record<Exclude<CustomerStatus, 'Lead'>, string[]> = {
+  Won: ['→ Won', '→ Delivered'],
+  Lost: ['→ Lost', '→ Cancelled'],
 };
 
 /** Timestamp the record most recently entered `stage`, read from the activity log (reopen included
  *  since its entry also ends in "→ <stage>"). Lead has no explicit transition entry — it's creation. */
 export function stageEnteredAt(r: CustomerRecord, stage: CustomerStatus): number {
   if (stage === 'Lead') return r.createdAt;
-  const marker = `→ ${stage}`; // matches "...changed: X → Booked" and "...(reason)" suffixes alike
-  const matches = (r.activity ?? []).filter((e) => e.message.includes(marker));
-  return matches.length ? matches[matches.length - 1].date : r.updatedAt;
+  for (const marker of STAGE_MARKERS[stage]) {
+    // matches "...changed: X → Won" and "...(reason)" suffixes alike
+    const matches = (r.activity ?? []).filter((e) => e.message.includes(marker));
+    if (matches.length) return matches[matches.length - 1].date;
+  }
+  return r.updatedAt;
+}
+
+/** Whether the activity log shows the record ever reached `stage` (Lead always counts — it's creation). */
+export function hasEnteredStage(r: CustomerRecord, stage: CustomerStatus): boolean {
+  if (stage === 'Lead') return true;
+  return STAGE_MARKERS[stage].some((marker) => (r.activity ?? []).some((e) => e.message.includes(marker)));
 }
 
 /** The date/stage pair for whatever stage the record is in right now — used by the "All" tab. */
 export function currentStageEnteredAt(r: CustomerRecord): number {
   return stageEnteredAt(r, r.status);
+}
+
+/** The day a won deal counts as a sale (YYYY-MM-DD) — what the dashboard and Cost Breakdown file it under. */
+export function wonDate(r: CustomerRecord): string {
+  return toLocalDateStr(new Date(stageEnteredAt(r, 'Won')));
 }
 
 export function formatStageDate(ts: number): string {
@@ -265,24 +350,10 @@ export function formatStageDate(ts: number): string {
 
 // ---------- Gate validation ----------
 
-/** This isn't an official CRM — only a deliberately small set of fields is ever required per
- *  stage (see each function below). Everything else (address, email, delivery paperwork, cancel
- *  reason, ...) is optional so the advisor can advance a record with whatever info they actually
- *  have on hand. */
-export function canSubmitBooked(input: BookedInput): boolean {
-  return !!input.icNo.trim();
-}
-
-export function canSubmitInProgress(_input: InProgressInput, colourResolved: boolean): boolean {
+/** This isn't an official CRM — nothing is required to move a record along except a confirmed
+ *  colour when it's marked Won. */
+export function canSubmitWon(colourResolved: boolean): boolean {
   return colourResolved;
-}
-
-export function canSubmitDelivered(input: DeliveredInput, _giftsComplete: boolean, _colourResolved: boolean): boolean {
-  return !!input.plateNo.trim();
-}
-
-export function canSubmitCancel(_input: CancelledInput): boolean {
-  return true;
 }
 
 export type NewLeadInput = {
@@ -299,40 +370,11 @@ export type NewLeadInput = {
   financingType: FinancingType;
 };
 
-export type BookedInput = {
-  icNo: string;
-  address: string;
-  email: string;
-  downpayment?: number;
-  ncd?: number;
+export type WonInput = {
+  colour: string;
 };
 
-export type InProgressInput = {
-  financingType: FinancingType;
-  bankPanel?: string;
-  // Not user-edited directly — derived from loanAmount (see onInProgressLoanAmountChange), same
-  // relationship as the Calculator/Add Lead form.
-  downpayment?: number;
-  loanAmount?: number;
-  loanTenureMonths?: number;
-  rateType?: RateType;
-  loanInterestRate?: number;
-};
-
-export type DeliveredInput = {
-  insuranceName: string;
-  plateNo: string;
-  deliveryDate: string;
-  chassisNo: string;
-  engineNo: string;
-  deliveryNotes?: string;
-};
-
-export type CostingInput = {
-  commission: number;
-};
-
-export type CancelledInput = {
+export type LostInput = {
   cancelReason: string;
   cancelNotes?: string;
 };

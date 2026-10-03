@@ -8,6 +8,7 @@ import {
   computeQuotationTotals,
   defaultInsuranceQuotation,
   defaultRateFor,
+  downpaymentDisplay,
   loanForMonthlyPayment,
   minDownpaymentCash,
   monthlyEffective,
@@ -155,6 +156,7 @@ describe('quotation totals (downpayment and loan)', () => {
       totalAmountDue: 102_000,
       downpaymentCash: 10_200, // 10% of 102,000
       loanAmount: 91_800,
+      cashback: 0,
     });
   });
 
@@ -206,6 +208,87 @@ describe('quotation totals (downpayment and loan)', () => {
     expect(t.loanAmount).toBe(99_000);
   });
 
+  it('round down (default): 0% downpayment still leaves the sub-RM100 leftover as downpayment', () => {
+    const t = computeQuotationTotals({ ...base, basePrice: 38_990, insuranceAmount: 1481.21, downpaymentValue: 0 });
+    expect(t.totalAmountDue).toBe(40_471.21);
+    expect(t.loanAmount).toBe(40_400);
+    expect(t.downpaymentCash).toBe(71.21);
+  });
+
+  it('round up: the loan goes up to the next RM100, the excess comes back as cash back', () => {
+    // The Chery O5 poster: selling price 109,689.18 at 0% downpayment.
+    const o5 = computeQuotationTotals({ ...base, basePrice: 116_800, effectiveRebate: 11_000, insuranceAmount: 3889.18, downpaymentValue: 0, loanRounding: 'up' });
+    expect(o5.totalAmountDue).toBe(109_689.18);
+    expect(o5.loanAmount).toBe(109_700);
+    expect(o5.downpaymentCash).toBe(-10.82); // cash back
+    const zero = computeQuotationTotals({ ...base, basePrice: 38_990, insuranceAmount: 1481.21, downpaymentValue: 0, loanRounding: 'up' });
+    expect(zero.loanAmount).toBe(40_500);
+    expect(zero.downpaymentCash).toBe(-28.79);
+    // 10% of 40,471.21 is 4,047.12 → 36,424.09 left, rounded up to 36,500.
+    const ten = computeQuotationTotals({ ...base, basePrice: 38_990, insuranceAmount: 1481.21, downpaymentValue: 10, loanRounding: 'up' });
+    expect(ten.loanAmount).toBe(36_500);
+    expect(ten.downpaymentCash).toBe(3971.21);
+    // A typed cash downpayment rounds the same way.
+    const typed = computeQuotationTotals({ ...base, downpaymentType: 'amount', downpaymentValue: 20_050, loanRounding: 'up' });
+    expect(typed.loanAmount).toBe(82_000); // 81,950 → 82,000
+    expect(typed.downpaymentCash).toBe(20_000);
+  });
+
+  it('a negative downpayment is shown as Cash Back with a positive amount', () => {
+    expect(downpaymentDisplay(-10.82)).toEqual({ label: 'Cash Back', amount: 10.82, isCashBack: true });
+    expect(downpaymentDisplay(4071.21)).toEqual({ label: 'Downpayment', amount: 4071.21, isCashBack: false });
+    expect(downpaymentDisplay(0).label).toBe('Downpayment');
+  });
+
+  it('round up never takes the downpayment below a minimum downpayment (no cash back then)', () => {
+    const t = computeQuotationTotals({ ...base, downpaymentValue: 0, effectiveRebate: 3000, minDownpaymentCash: 10_050, loanRounding: 'up' });
+    expect(t.downpaymentCash).toBeGreaterThanOrEqual(10_050 - 3000);
+    expect(t.loanAmount % 100).toBe(0);
+  });
+
+  describe('rebate as cash back', () => {
+    // The Chery O5: OTR 116,800 + insurance 3,889.18, total rebate 11,000.
+    const o5: QuotationTotalsInput = { ...base, basePrice: 116_800, effectiveRebate: 11_000, insuranceAmount: 3889.18, downpaymentValue: 0, cashbackAmount: 11_000 };
+
+    it('all of it: sizes the loan on OTR + insurance and pays the whole rebate back', () => {
+      const t = computeQuotationTotals(o5);
+      expect(t.totalAmountDue).toBe(120_689.18);
+      expect(t.loanAmount).toBe(120_600);
+      expect(t.downpaymentCash).toBe(89.18);
+      expect(t.cashback).toBe(11_000);
+    });
+
+    it('the OTR + insurance limit wins over rounding up', () => {
+      const t = computeQuotationTotals({ ...o5, loanRounding: 'up' });
+      expect(t.loanAmount).toBe(120_600); // 120,700 would exceed 120,689.18
+      expect(t.downpaymentCash).toBe(89.18);
+    });
+
+    it('a downpayment is worked out on the full price, with no help from the rebate', () => {
+      const t = computeQuotationTotals({ ...o5, downpaymentValue: 10 });
+      expect(t.downpaymentCash).toBe(12_089.18); // 10% of 120,689.18 → loan 108,600
+      expect(t.loanAmount).toBe(108_600);
+      expect(t.cashback).toBe(11_000);
+    });
+
+    it('part of it: RM3,000 back, the other RM8,000 stays a discount', () => {
+      const t = computeQuotationTotals({ ...o5, cashbackAmount: 3000 });
+      expect(t.totalAmountDue).toBe(112_689.18); // 120,689.18 − 8,000 discount
+      expect(t.loanAmount).toBe(112_600);
+      expect(t.downpaymentCash).toBe(89.18);
+      expect(t.cashback).toBe(3000);
+    });
+
+    it('can never exceed the total rebate', () => {
+      expect(computeQuotationTotals({ ...o5, cashbackAmount: 50_000 }).cashback).toBe(11_000);
+    });
+
+    it('never applies unless an amount is set', () => {
+      expect(computeQuotationTotals({ ...o5, cashbackAmount: 0 }).cashback).toBe(0);
+      expect(computeQuotationTotals({ ...o5, cashbackAmount: undefined }).totalAmountDue).toBe(109_689.18);
+    });
+  });
+
   it('always: loan is a whole RM100, never negative, and loan + downpayment = amount due', () => {
     const cases: QuotationTotalsInput[] = [];
     for (const basePrice of [41_500, 98_800, 128_888.88, 208_800])
@@ -223,6 +306,11 @@ describe('quotation totals (downpayment and loan)', () => {
     for (const c of cases) {
       const t = computeQuotationTotals(c);
       expect(t.loanAmount % 100).withContext(JSON.stringify(c)).toBe(0);
+      const up = computeQuotationTotals({ ...c, loanRounding: 'up' });
+      expect(up.loanAmount % 100).withContext(JSON.stringify(c)).toBe(0);
+      expect(up.loanAmount).toBeGreaterThanOrEqual(t.loanAmount);
+      expect(up.downpaymentCash).toBeGreaterThan(-100); // cash back is always under RM100
+      expect(roundCents(up.loanAmount + up.downpaymentCash)).withContext(JSON.stringify(c)).toBe(up.totalAmountDue);
       expect(t.loanAmount).toBeGreaterThanOrEqual(0);
       expect(t.downpaymentCash).toBeGreaterThanOrEqual(0);
       expect(roundCents(t.loanAmount + t.downpaymentCash)).withContext(JSON.stringify(c)).toBe(t.totalAmountDue);

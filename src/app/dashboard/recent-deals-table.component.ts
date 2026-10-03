@@ -2,7 +2,7 @@ import { Component, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { CustomerService } from '../shared/customer.service';
-import { dealProfit, type CustomerRecord } from '../data/customer-data';
+import { dealProfit, wonDate, type CustomerRecord } from '../data/customer-data';
 import { formatRM } from '../data/calculator-data';
 import { BrandMarkComponent } from '../shared/brand-mark.component';
 import { IconComponent, IconName } from '../shared/icon.component';
@@ -29,7 +29,7 @@ function toRow(r: CustomerRecord): Row {
     brand: r.brand,
     profit: dealProfit(r),
     pending: r.commission == null,
-    date: r.deliveryDate ?? r.date,
+    date: wonDate(r),
   };
 }
 
@@ -41,7 +41,7 @@ function toRow(r: CustomerRecord): Row {
     <div class="flex flex-col gap-6 animate-rise rounded-xl border border-border bg-card py-6 text-card-foreground transition-colors duration-300 hover:border-primary/30">
       <div class="flex flex-col gap-1 px-6">
         <h3 class="font-semibold leading-none">Recent deals</h3>
-        <p class="text-sm text-muted-foreground">Delivered deals and the profit each one earned</p>
+        <p class="text-sm text-muted-foreground">Won deals and the profit each one earned</p>
       </div>
 
       <div>
@@ -101,7 +101,7 @@ function toRow(r: CustomerRecord): Row {
               } @empty {
                 <tr>
                   <td colspan="4" class="p-8 text-center text-sm text-muted-foreground">
-                    No delivered deals yet — they'll show up here once Customer Manager marks one as Delivered.
+                    No won deals yet — they'll show up here once Customer Manager marks one as Won.
                   </td>
                 </tr>
               }
@@ -149,7 +149,7 @@ export class RecentDealsTableComponent {
 
   constructor(private customers: CustomerService) {}
 
-  allRows = computed(() => this.customers.delivered().map(toRow));
+  allRows = computed(() => this.customers.won().map(toRow));
   total = computed(() => this.allRows().length);
 
   sorted = computed(() => {

@@ -104,6 +104,7 @@ async function getPublicQuoteBundle(env: Env, token: string): Promise<Response> 
     ncd: settingsData.salesDefaults?.ncd ?? 0,
     basicPremiumRatePct: settingsData.salesDefaults?.basicPremiumRatePct ?? 3.6,
     posterLanguage: settingsData.salesDefaults?.posterLanguage === 'ms' ? 'ms' : 'en',
+    loanRounding: settingsData.salesDefaults?.loanRounding === 'up' ? 'up' : 'down',
   };
   const vehicleInsurance = settingsData.vehicleInsurance ?? {};
   // Only the brand name, not the SA's sales target number — that figure is internal, the brand

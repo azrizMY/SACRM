@@ -6,13 +6,13 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IconComponent, type IconName } from '../shared/icon.component';
 import { DateRangePickerComponent } from '../shared/date-range-picker.component';
-import { CustomerDetailComponent } from '../shared/customer-detail.component';
+import { CustomerDetailComponent, type QuoteSummary } from '../shared/customer-detail.component';
 import { CustomerEditModalComponent } from '../shared/customer-edit-modal.component';
 import { CustomerNoteModalComponent } from '../shared/customer-note-modal.component';
 import { CustomerService } from '../shared/customer.service';
-import { SettingsService, UNSPECIFIED_INSURER, withCurrent } from '../shared/settings.service';
+import { SettingsService } from '../shared/settings.service';
 import { DEFAULT_STALE_LEAD_DAYS } from '../data/settings-data';
-import {
+import { downpaymentDisplay,
   DEFAULT_INSURANCE_RATE_PCT,
   MODEL_YEARS,
   NCD_OPTIONS,
@@ -35,98 +35,75 @@ import {
   type Vehicle,
 } from '../data/calculator-data';
 import { BrandMarkComponent } from '../shared/brand-mark.component';
-import { todayStr } from '../shared/date-utils';
 import { celebrate } from '../shared/celebrate';
+import { ToastService } from '../shared/toast.service';
 import { toMalaysianWhatsAppNumber } from '../data/dashboard-data';
 import {
   CANCEL_REASON_OPTIONS,
   COLOUR_OPTIONS,
   CUSTOMER_STATUS_META,
-  DOCUMENT_STATUS_META,
-  DOCUMENT_STATUS_OPTIONS,
   FINANCING_TYPE_OPTIONS,
   STAGE_DATE_HEADER,
   TO_BE_CONFIRMED_COLOUR,
-  canSubmitBooked,
-  canSubmitCancel,
-  canSubmitDelivered,
-  canSubmitInProgress,
+  NO_ID_NOTES_HINT,
+  canSubmitWon,
   currentStageEnteredAt,
+  dealProfit,
   formatStageDate,
   freeGiftsComplete,
   freeGiftsSummary,
   isCashDeal,
-  type BookedInput,
-  type CancelledInput,
   type CarSpec,
   type CustomerRecord,
   type CustomerStatus,
-  type DeliveredInput,
-  type DocumentStatus,
   type EditCustomerInput,
   type FinancingType,
-  type InProgressInput,
   type PendingRequote,
   type QuotationDetails,
 } from '../data/customer-data';
 
-type Tab = 'All' | 'Lead' | 'Booked' | 'In Progress' | 'Delivered' | 'Cancelled';
-type ModalKind = 'booked' | 'inprogress' | 'delivered' | 'cancel' | 'edit' | 'note' | 'changecar' | null;
-/** 'stageDate' is a synthetic column — every tab's "date" column is the derived stage-entry
- *  date (see stageEnteredAt), never a raw stored field, so it isn't a real CustomerRecord key. */
-type SortKey = keyof CustomerRecord | 'stageDate';
+type Tab = 'All' | 'Lead' | 'Won' | 'Lost';
+type ModalKind = 'won' | 'lost' | 'edit' | 'note' | 'changecar' | null;
+/** Synthetic columns: 'stageDate' is the derived stage-entry date (see stageEnteredAt) and
+ *  'quote' is what the saved quotation works out to — neither is a stored CustomerRecord field. */
+type SortKey = keyof CustomerRecord | 'stageDate' | 'quote';
 type SortDir = 'asc' | 'desc';
-type Column = { key: SortKey; label: string; align?: 'right' };
+type Column = { key: SortKey; label: string; align?: 'right'; sortable?: false };
 
+// Each stage shows what matters at that stage: the quote for a Lead, the money for a Won deal,
+// the reason for a Lost one.
 const ALL_COLUMNS: Column[] = [
   { key: 'name', label: 'Customer' },
   { key: 'brand', label: 'Car' },
   { key: 'status', label: 'Status' },
-  { key: 'sourceType', label: 'Source' },
-  { key: 'stageDate', label: 'Last Updated', align: 'right' },
+  { key: 'updatedAt', label: 'Last activity', align: 'right' },
 ];
 const LEAD_COLUMNS: Column[] = [
   { key: 'name', label: 'Customer' },
   { key: 'brand', label: 'Car' },
-  { key: 'sourceType', label: 'Source' },
-  { key: 'stageDate', label: STAGE_DATE_HEADER['Lead'], align: 'right' },
-];
-const BOOKED_COLUMNS: Column[] = [
-  { key: 'name', label: 'Customer' },
-  { key: 'brand', label: 'Car' },
-  { key: 'icNo', label: 'IC No' },
+  { key: 'quote', label: 'Quote', sortable: false },
   { key: 'sourceType', label: 'Lead Source' },
-  { key: 'documentStatus', label: 'Documents' },
-  { key: 'stageDate', label: STAGE_DATE_HEADER['Booked'], align: 'right' },
+  { key: 'updatedAt', label: 'Last activity', align: 'right' },
 ];
-const INPROGRESS_COLUMNS: Column[] = [
+const WON_COLUMNS: Column[] = [
   { key: 'name', label: 'Customer' },
   { key: 'brand', label: 'Car' },
-  { key: 'icNo', label: 'IC No' },
-  { key: 'documentStatus', label: 'Documents' },
-  { key: 'tradeInStatus', label: 'Trade-in' },
-  { key: 'stageDate', label: STAGE_DATE_HEADER['In Progress'], align: 'right' },
+  { key: 'commission', label: 'Profit', align: 'right' },
+  { key: 'stageDate', label: STAGE_DATE_HEADER['Won'], align: 'right' },
 ];
-const DELIVERED_COLUMNS: Column[] = [
+const LOST_COLUMNS: Column[] = [
   { key: 'name', label: 'Customer' },
   { key: 'brand', label: 'Car' },
-  { key: 'bankPanel', label: 'Bank' },
-  { key: 'insuranceName', label: 'Insurance' },
-  { key: 'plateNo', label: 'Registration No' },
-  { key: 'stageDate', label: STAGE_DATE_HEADER['Delivered'], align: 'right' },
-];
-const CANCELLED_COLUMNS: Column[] = [
-  { key: 'name', label: 'Customer' },
-  { key: 'brand', label: 'Car' },
-  { key: 'sourceType', label: 'Source' },
   { key: 'cancelReason', label: 'Reason' },
-  { key: 'stageDate', label: STAGE_DATE_HEADER['Cancelled'], align: 'right' },
+  { key: 'stageDate', label: STAGE_DATE_HEADER['Lost'], align: 'right' },
 ];
 
 const PAGE_SIZE_OPTIONS = [10, 20, 30];
 
 function sortValueFor(r: CustomerRecord, key: SortKey): string | number {
   if (key === 'stageDate') return currentStageEnteredAt(r);
+  if (key === 'commission') return r.commission == null ? Number.NEGATIVE_INFINITY : dealProfit(r);
+  if (key === 'quote') return 0;
   const v = r[key as keyof CustomerRecord];
   return typeof v === 'number' ? v : String(v ?? '');
 }
@@ -141,10 +118,8 @@ function compareRecords(a: CustomerRecord, b: CustomerRecord, key: SortKey, dir:
 const COLUMNS_BY_TAB: Record<Tab, Column[]> = {
   All: ALL_COLUMNS,
   Lead: LEAD_COLUMNS,
-  Booked: BOOKED_COLUMNS,
-  'In Progress': INPROGRESS_COLUMNS,
-  Delivered: DELIVERED_COLUMNS,
-  Cancelled: CANCELLED_COLUMNS,
+  Won: WON_COLUMNS,
+  Lost: LOST_COLUMNS,
 };
 
 const TD = 'whitespace-nowrap p-4 align-middle';
@@ -153,17 +128,29 @@ const TD_R = 'whitespace-nowrap p-4 text-right align-middle';
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** A lead with no activity for this many days is flagged as going stale. */
 const WARN_TONE = 'bg-[var(--warning)]/14 text-[var(--warning)]';
-const DANGER_TONE = 'bg-[var(--destructive)]/12 text-[var(--destructive)]';
 
 /** Something about a record the SA should act on — `label` is the short row chip, `detail` the
  *  sentence shown in the customer panel. */
 type Attention = { label: string; detail: string; tone: string };
 
-/** The button label for moving a record to its next pipeline stage, if it has one. */
-const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
-  Lead: 'Book',
-  Booked: 'Start progress',
-  'In Progress': 'Deliver',
+type TodoId = 'followup' | 'requote' | 'booked' | 'gifts' | 'commission';
+
+/** The to-do chips above the list — each one is a question the SA would otherwise have to hunt for. */
+const TODOS: { id: TodoId; label: string; icon: IconName; tab: Tab; activeTone: string }[] = [
+  { id: 'followup', label: 'Follow up', icon: 'bell', tab: 'Lead', activeTone: 'bg-[var(--warning)]/20 text-[var(--warning)]' },
+  { id: 'requote', label: 'Re-quote', icon: 'refresh-cw', tab: 'Lead', activeTone: 'bg-[var(--warning)]/20 text-[var(--warning)]' },
+  { id: 'booked', label: 'Booked, waiting for car', icon: 'calendar', tab: 'Lead', activeTone: 'bg-[oklch(0.7_0.17_300)]/20 text-[oklch(0.7_0.17_300)]' },
+  { id: 'gifts', label: 'Gifts to sort out', icon: 'gift', tab: 'All', activeTone: 'bg-[var(--warning)]/20 text-[var(--warning)]' },
+  { id: 'commission', label: 'Add commission', icon: 'wallet', tab: 'Won', activeTone: 'bg-[var(--success)]/20 text-[var(--success)]' },
+];
+
+const TODO_MATCH: Record<TodoId, (r: CustomerRecord, cm: { isStale(r: CustomerRecord): boolean }) => boolean> = {
+  followup: (r, cm) => cm.isStale(r),
+  requote: (r) => r.status === 'Lead' && !!r.pendingRequote,
+  booked: (r) => r.status === 'Lead' && !!r.booked,
+  // Promised gifts still to sort out on a deal that's going ahead (booked or won).
+  gifts: (r) => (r.status === 'Won' || (r.status === 'Lead' && !!r.booked)) && !freeGiftsComplete(r),
+  commission: (r) => r.status === 'Won' && r.commission == null,
 };
 
 @Component({
@@ -182,48 +169,73 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
     TranslatePipe,
   ],
   template: `
-    <div class="mx-auto flex max-w-7xl flex-col gap-5 transition-[margin] duration-300" [ngClass]="panelRecord() ? '2xl:mr-[476px]' : ''">
-      <div class="flex flex-wrap items-start justify-between gap-3">
-        <div class="flex flex-col gap-1">
+    <div class="mx-auto flex max-w-7xl flex-col gap-4 transition-[margin] duration-300" [ngClass]="panelRecord() ? '2xl:mr-[476px]' : ''">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex min-w-0 flex-col gap-1">
           <h2 class="text-balance text-xl font-bold tracking-tight">{{ "Customer Manager" | t }}</h2>
-          <p class="text-pretty text-sm text-muted-foreground">{{ "Track every customer from lead to booking to delivery." | t }}</p>
+          <p class="text-pretty text-sm text-muted-foreground">{{ "Your leads, won and lost deals — tap a customer to do everything in one place." | t }}</p>
         </div>
         <a
           routerLink="/calculator"
           [title]="'Leads are created by saving a quote in the Calculator' | t"
-          class="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground"
+          class="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground"
         >
           <app-icon name="plus" [size]="14" />
           {{ "New lead" | t }}
         </a>
       </div>
 
-      <!-- Pipeline: All · Lead → Booked → In Progress → Delivered · Cancelled -->
-      <div role="tablist" [attr.aria-label]="'Pipeline stage' | t" class="-mx-4 flex items-stretch gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
-        <div class="flex shrink-0 rounded-xl bg-card p-1">
-          <ng-container [ngTemplateOutlet]="stageTab" [ngTemplateOutletContext]="{ $implicit: 'All' }" />
-        </div>
-        <div class="flex shrink-0 items-center rounded-xl bg-card p-1">
-          @for (s of pipelineStages; track s; let last = $last) {
-            <ng-container [ngTemplateOutlet]="stageTab" [ngTemplateOutletContext]="{ $implicit: s }" />
-            @if (!last) {
-              <app-icon name="chevron-right" [size]="14" class="mx-0.5 shrink-0 text-muted-foreground/40" />
+      <!-- Stages -->
+      <div role="tablist" [attr.aria-label]="'Pipeline stage' | t" class="flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl bg-card p-1">
+        @for (t of tabs; track t) {
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="t === activeTab()"
+            (click)="selectTab(t)"
+            class="flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
+            [ngClass]="t === activeTab() ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
+          >
+            @if (t !== 'All') {
+              <span class="size-2 shrink-0 rounded-full" [ngClass]="t === activeTab() ? 'bg-white/80' : statusMeta(t).dot"></span>
             }
-          }
-        </div>
-        <div class="flex shrink-0 rounded-xl bg-card p-1">
-          <ng-container [ngTemplateOutlet]="stageTab" [ngTemplateOutletContext]="{ $implicit: 'Cancelled' }" />
-        </div>
+            {{ tabLabel(t) | t }}
+            <span class="rounded-md px-1.5 text-[11px] font-bold tabular" [ngClass]="t === activeTab() ? 'bg-white/20' : 'bg-muted text-foreground'">{{ countFor(t) }}</span>
+          </button>
+        }
       </div>
 
-      <!-- Search, filters, needs-attention -->
+      <!-- To do: what needs a tap right now — one tap shows just those customers -->
+      @if (todos().length) {
+        <div class="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-0">
+          <span class="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "To do" | t }}</span>
+          @for (td of todos(); track td.id) {
+            <button
+              type="button"
+              (click)="toggleFocus(td.id)"
+              [attr.aria-pressed]="focus() === td.id"
+              class="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
+              [ngClass]="focus() === td.id ? td.activeTone : 'bg-card text-foreground hover:bg-accent'"
+            >
+              <app-icon [name]="td.icon" [size]="13" />
+              {{ td.label | t }}
+              <span class="rounded-md bg-black/15 px-1.5 text-[11px] font-bold tabular">{{ td.count }}</span>
+            </button>
+          }
+          @if (focus()) {
+            <button type="button" (click)="focus.set(null)" class="shrink-0 whitespace-nowrap px-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">{{ "Show all" | t }}</button>
+          }
+        </div>
+      }
+
+      <!-- Search + filters -->
       <div class="flex flex-col gap-2">
         <div class="flex flex-wrap items-center gap-2">
           <div class="relative min-w-0 flex-1 basis-56 sm:max-w-sm">
             <app-icon name="search" [size]="14" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="search"
-              [placeholder]="'Name, car, phone or IC…' | t"
+              [placeholder]="'Name, car or phone…' | t"
               [ngModel]="nameFilter()"
               (ngModelChange)="nameFilter.set($event); page.set(0)"
               class="h-10 w-full rounded-lg border border-input bg-input pl-9 pr-3 text-sm text-foreground outline-none"
@@ -233,7 +245,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             type="button"
             (click)="filtersOpen.set(!filtersOpen())"
             [attr.aria-expanded]="filtersOpen()"
-            class="flex h-10 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors"
+            class="flex h-10 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-xs font-semibold transition-colors"
             [ngClass]="filtersOpen() || filterChips().length ? 'bg-accent text-foreground' : 'bg-card text-muted-foreground hover:bg-accent hover:text-foreground'"
           >
             <app-icon name="filter" [size]="13" />
@@ -241,18 +253,6 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             @if (filterChips().length) {
               <span class="rounded-md bg-primary/20 px-1.5 text-[11px] font-bold text-primary tabular">{{ filterChips().length }}</span>
             }
-          </button>
-          <button
-            type="button"
-            (click)="attentionOnly.set(!attentionOnly()); page.set(0)"
-            [attr.aria-pressed]="attentionOnly()"
-            [disabled]="!attentionOnly() && attentionCount() === 0"
-            class="flex h-10 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors disabled:opacity-40"
-            [ngClass]="attentionOnly() ? 'bg-[var(--warning)]/20 text-[var(--warning)]' : 'bg-card text-muted-foreground hover:bg-accent hover:text-foreground'"
-          >
-            <app-icon name="alert-triangle" [size]="13" />
-            {{ "Needs attention" | t }}
-            <span class="rounded-md bg-[var(--warning)]/20 px-1.5 text-[11px] font-bold text-[var(--warning)] tabular">{{ attentionCount() }}</span>
           </button>
         </div>
 
@@ -270,7 +270,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
               </select>
             </div>
             <div class="flex flex-col gap-1">
-              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Source" | t }}</span>
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Lead Source" | t }}</span>
               <select
                 [ngModel]="sourceFilter()"
                 (ngModelChange)="sourceFilter.set($event); page.set(0)"
@@ -318,19 +318,23 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             <thead>
               <tr class="border-b border-border">
                 @for (col of columns(); track col.key) {
-                  <th class="h-10 whitespace-nowrap px-4 align-middle" [ngClass]="col.align === 'right' ? 'text-right' : 'text-left'">
-                    <button
-                      type="button"
-                      (click)="toggleSort(col.key)"
-                      class="inline-flex items-center gap-1 uppercase transition-colors hover:text-foreground"
-                      [ngClass]="[col.align === 'right' ? 'flex-row-reverse' : '', sortKey() === col.key ? 'text-foreground' : '']"
-                    >
-                      {{ col.label | t }}
-                      <app-icon [name]="sortIcon(col.key)" [size]="13" class="opacity-70" />
-                    </button>
+                  <th class="h-10 whitespace-nowrap px-4 align-middle text-[11px] font-semibold text-muted-foreground" [ngClass]="col.align === 'right' ? 'text-right' : 'text-left'">
+                    @if (col.sortable === false) {
+                      <span class="uppercase">{{ col.label | t }}</span>
+                    } @else {
+                      <button
+                        type="button"
+                        (click)="toggleSort(col.key)"
+                        class="inline-flex items-center gap-1 uppercase transition-colors hover:text-foreground"
+                        [ngClass]="[col.align === 'right' ? 'flex-row-reverse' : '', sortKey() === col.key ? 'text-foreground' : '']"
+                      >
+                        {{ col.label | t }}
+                        <app-icon [name]="sortIcon(col.key)" [size]="13" class="opacity-70" />
+                      </button>
+                    }
                   </th>
                 }
-                <th class="h-10 whitespace-nowrap px-4 text-right align-middle">{{ "Actions" | t }}</th>
+                <th class="h-10 px-4"></th>
               </tr>
             </thead>
             <tbody>
@@ -352,7 +356,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                 </tr>
               } @empty {
                 <tr class="hover:bg-transparent">
-                  <td [attr.colspan]="columns().length + 1" class="p-10 text-center text-sm text-muted-foreground">{{ emptyMessageForActiveTab() }}</td>
+                  <td [attr.colspan]="columns().length + 1" class="p-10 text-center text-sm text-muted-foreground">{{ emptyMessageForActiveTab() | t }}</td>
                 </tr>
               }
             </tbody>
@@ -366,82 +370,60 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
               <div role="button" tabindex="0" (click)="openPanel(r.id)" (keydown.enter)="openPanel(r.id)" class="flex cursor-pointer flex-col gap-2 px-4 pb-2 pt-3.5">
                 <div class="flex items-start justify-between gap-2">
                   <ng-container [ngTemplateOutlet]="cell" [ngTemplateOutletContext]="{ $implicit: r, key: 'name' }" />
-                  <app-icon name="chevron-right" [size]="16" class="mt-0.5 shrink-0 text-muted-foreground" />
+                  <span class="shrink-0 text-right">
+                    <ng-container [ngTemplateOutlet]="cell" [ngTemplateOutletContext]="{ $implicit: r, key: headlineKey() }" />
+                  </span>
                 </div>
                 <ng-container [ngTemplateOutlet]="cell" [ngTemplateOutletContext]="{ $implicit: r, key: 'brand' }" />
-                <div class="grid grid-cols-2 gap-2">
-                  @for (col of cardMetaColumns(); track col.key) {
-                    <div class="flex min-w-0 flex-col gap-0.5">
-                      <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{{ col.label | t }}</span>
-                      <ng-container [ngTemplateOutlet]="cell" [ngTemplateOutletContext]="{ $implicit: r, key: col.key }" />
-                    </div>
-                  }
-                </div>
               </div>
               <div class="px-4 pb-3">
                 <ng-container [ngTemplateOutlet]="rowActions" [ngTemplateOutletContext]="{ $implicit: r, mobile: true }" />
               </div>
             </div>
           } @empty {
-            <p class="p-10 text-center text-sm text-muted-foreground">{{ emptyMessageForActiveTab() }}</p>
+            <p class="p-10 text-center text-sm text-muted-foreground">{{ emptyMessageForActiveTab() | t }}</p>
           }
         </div>
 
         <!-- Pagination -->
-        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
-          <div class="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>{{ "Rows per page" | t }}</span>
-            <select
-              [ngModel]="pageSize()"
-              (ngModelChange)="setPageSize($event)"
-              class="h-8 rounded-md border border-input bg-input px-2 text-xs text-foreground outline-none"
-            >
-              @for (n of pageSizeOptions; track n) { <option [ngValue]="n">{{ n }}</option> }
-            </select>
-            <span class="tabular">{{ 'Showing {from}–{to} of {total}' | t: { from: rangeStart(), to: rangeEnd(), total: filteredSorted().length } }}</span>
+        @if (pageCount() > 1 || filteredSorted().length > pageSizeOptions[0]) {
+          <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+            <div class="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>{{ "Rows per page" | t }}</span>
+              <select
+                [ngModel]="pageSize()"
+                (ngModelChange)="setPageSize($event)"
+                class="h-8 rounded-md border border-input bg-input px-2 text-xs text-foreground outline-none"
+              >
+                @for (n of pageSizeOptions; track n) { <option [ngValue]="n">{{ n }}</option> }
+              </select>
+              <span class="tabular">{{ 'Showing {from}–{to} of {total}' | t: { from: rangeStart(), to: rangeEnd(), total: filteredSorted().length } }}</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                (click)="prevPage()"
+                [disabled]="currentPage() === 0"
+                class="inline-flex size-8 items-center justify-center rounded-md bg-muted transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
+                [attr.aria-label]="'Previous page' | t"
+              >
+                <app-icon name="chevron-left" [size]="16" />
+              </button>
+              <span class="px-2 text-xs text-muted-foreground tabular">{{ currentPage() + 1 }} / {{ pageCount() }}</span>
+              <button
+                type="button"
+                (click)="nextPage()"
+                [disabled]="currentPage() >= pageCount() - 1"
+                class="inline-flex size-8 items-center justify-center rounded-md bg-muted transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
+                [attr.aria-label]="'Next page' | t"
+              >
+                <app-icon name="chevron-right" [size]="16" />
+              </button>
+            </div>
           </div>
-          <div class="flex items-center gap-1">
-            <button
-              type="button"
-              (click)="prevPage()"
-              [disabled]="currentPage() === 0"
-              class="inline-flex size-8 items-center justify-center rounded-md bg-muted transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
-              [attr.aria-label]="'Previous page' | t"
-            >
-              <app-icon name="chevron-left" [size]="16" />
-            </button>
-            <span class="px-2 text-xs text-muted-foreground tabular">{{ currentPage() + 1 }} / {{ pageCount() }}</span>
-            <button
-              type="button"
-              (click)="nextPage()"
-              [disabled]="currentPage() >= pageCount() - 1"
-              class="inline-flex size-8 items-center justify-center rounded-md bg-muted transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
-              [attr.aria-label]="'Next page' | t"
-            >
-              <app-icon name="chevron-right" [size]="16" />
-            </button>
-          </div>
-        </div>
+        }
       </div>
     </div>
-
-    <!-- One pipeline tab -->
-    <ng-template #stageTab let-t>
-      <button
-        type="button"
-        role="tab"
-        [attr.aria-selected]="t === activeTab()"
-        (click)="selectTab(t)"
-        class="flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
-        [ngClass]="t === activeTab() ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
-      >
-        @if (t !== 'All') {
-          <span class="size-2 shrink-0 rounded-full" [ngClass]="t === activeTab() ? 'bg-white/80' : statusMeta(t).dot"></span>
-        }
-        {{ t | t }}
-        <span class="rounded-md px-1.5 text-[11px] font-bold tabular" [ngClass]="t === activeTab() ? 'bg-white/20' : 'bg-muted text-foreground'">{{ countFor(t) }}</span>
-      </button>
-    </ng-template>
 
     <!-- One cell of a customer row (shared by the table and the phone cards) -->
     <ng-template #cell let-r let-key="key">
@@ -450,6 +432,14 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
           <div class="flex min-w-0 flex-col gap-1">
             <span class="truncate font-semibold">{{ r.name }}</span>
             <span class="text-xs text-muted-foreground tabular">{{ r.phone }}</span>
+            @if (r.booked && r.status === 'Lead') {
+              <span class="flex flex-wrap gap-1">
+                <span class="inline-flex items-center gap-1 rounded-md bg-[oklch(0.7_0.17_300)]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[oklch(0.7_0.17_300)]">
+                  <app-icon name="calendar" [size]="10" />
+                  {{ "Booked" | t }}
+                </span>
+              </span>
+            }
             @if (attention(r); as flags) {
               @if (flags.length) {
                 <span class="flex flex-wrap gap-1">
@@ -469,8 +459,8 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             <app-brand-mark [brand]="r.brand" />
             <div class="flex min-w-0 flex-col">
               <span class="truncate text-sm">{{ modelVariantLabel(r.model, r.variant) }}</span>
-              <span class="text-xs text-muted-foreground">
-                {{ r.yearMade }}@if (r.colour !== TO_BE_CONFIRMED_COLOUR) { · {{ r.colour }} }
+              <span class="text-xs" [ngClass]="r.colour === TO_BE_CONFIRMED_COLOUR ? 'text-muted-foreground/70' : 'text-muted-foreground'">
+                {{ r.yearMade }} · {{ r.colour === TO_BE_CONFIRMED_COLOUR ? ('Colour TBC' | t) : r.colour }}
               </span>
             </div>
           </div>
@@ -481,18 +471,33 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             {{ statusMeta(r.status).label | t }}
           </span>
         }
-        @case ('documentStatus') {
-          @if (isCash(r)) {
-            <span class="text-sm text-muted-foreground">{{ "Cash" | t }}</span>
-          } @else {
-            <span class="inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="docMeta(r.documentStatus).tone">
-              <span class="size-1.5 rounded-full" [ngClass]="docMeta(r.documentStatus).dot"></span>
-              {{ docMeta(r.documentStatus).label | t }}
+        @case ('quote') {
+          @if (quoteLine(r); as q) {
+            <span class="flex flex-col">
+              <span class="text-sm font-semibold tabular">{{ q.main }}</span>
+              <span class="text-[11px] text-muted-foreground">{{ q.sub | t }}</span>
             </span>
+          } @else {
+            <span class="text-xs text-muted-foreground">{{ "Not quoted" | t }}</span>
           }
         }
+        @case ('commission') {
+          @if (r.commission != null) {
+            <span class="flex flex-col items-end">
+              <span class="text-sm font-semibold tabular" [ngClass]="profitOf(r) >= 0 ? 'text-[var(--success)]' : 'text-[var(--destructive)]'">{{ signed(profitOf(r)) }}</span>
+              <span class="text-[11px] text-muted-foreground tabular">{{ fmt(r.commission) }} {{ "commission" | t }}</span>
+            </span>
+          } @else {
+            <span class="rounded-md bg-[var(--warning)]/14 px-1.5 py-0.5 text-[11px] font-semibold text-[var(--warning)]">{{ "Commission pending" | t }}</span>
+          }
+        }
+        @case ('updatedAt') {
+          <span class="text-xs tabular" [ngClass]="isStale(r) ? 'font-semibold text-[var(--warning)]' : 'text-muted-foreground'" [title]="formatDate(r.updatedAt)">
+            {{ relativeDate(r.updatedAt) }}
+          </span>
+        }
         @case ('stageDate') {
-          <span class="text-xs tabular" [ngClass]="isStale(r) ? 'font-semibold text-[var(--warning)]' : 'text-muted-foreground'" [title]="stageDateText(r)">
+          <span class="text-xs tabular text-muted-foreground" [title]="stageDateText(r)">
             {{ relativeDate(currentStageTs(r)) }}
           </span>
         }
@@ -502,7 +507,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
       }
     </ng-template>
 
-    <!-- Row actions: contact, quotation, next pipeline step -->
+    <!-- Row actions: contact, then the one thing to do next -->
     <ng-template #rowActions let-r let-mobile="mobile">
       <div class="flex items-center gap-1" [ngClass]="mobile ? '' : 'justify-end'" (click)="$event.stopPropagation()">
         <a
@@ -530,15 +535,25 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             <span class="absolute right-1 top-1 size-2 rounded-full bg-[var(--warning)]"></span>
           }
         </button>
-        @if (nextStep(r); as step) {
+        @if (r.status === 'Lead') {
           <button
             type="button"
-            (click)="runNextStep(r)"
-            class="flex items-center gap-1 whitespace-nowrap rounded-lg bg-primary/12 px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+            (click)="quickWon(r)"
+            class="flex items-center gap-1 whitespace-nowrap rounded-lg bg-[var(--success)]/12 px-2.5 py-1.5 text-xs font-semibold text-[var(--success)] transition-colors hover:bg-[var(--success)]/20"
             [ngClass]="mobile ? 'ml-auto' : 'ml-1'"
           >
-            {{ step | t }}
-            <app-icon name="chevron-right" [size]="13" />
+            <app-icon name="check" [size]="13" />
+            {{ "Won" | t }}
+          </button>
+        } @else if (r.status === 'Won' && r.commission == null) {
+          <button
+            type="button"
+            (click)="openPanel(r.id, true)"
+            class="flex items-center gap-1 whitespace-nowrap rounded-lg bg-[var(--warning)]/14 px-2.5 py-1.5 text-xs font-semibold text-[var(--warning)] transition-colors hover:bg-[var(--warning)]/20"
+            [ngClass]="mobile ? 'ml-auto' : 'ml-1'"
+          >
+            <app-icon name="wallet" [size]="13" />
+            {{ "Add commission" | t }}
           </button>
         }
       </div>
@@ -564,6 +579,9 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                 <span class="size-1.5 rounded-full" [ngClass]="statusMeta(p.status).dot"></span>
                 {{ statusMeta(p.status).label | t }}
               </span>
+              @if (p.booked && p.status === 'Lead') {
+                <span class="rounded-md bg-[oklch(0.7_0.17_300)]/15 px-1.5 py-0.5 text-[11px] font-medium text-[oklch(0.7_0.17_300)]">{{ "Booked" | t }}</span>
+              }
               @if (panelIndex() >= 0) {
                 <span class="tabular">{{ '{n} of {total}' | t: { n: panelIndex() + 1, total: filteredSorted().length } }}</span>
               }
@@ -582,7 +600,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
           </div>
         </div>
 
-        <!-- Quick actions -->
+        <!-- Contact + the stage action, always in reach at the top -->
         <div class="flex flex-col gap-2 border-b border-border p-3">
           <div class="grid grid-cols-3 gap-2">
             <a [href]="waLink(p.phone)" target="_blank" rel="noopener" class="flex flex-col items-center gap-1 rounded-lg bg-[#25D366]/12 py-2 text-[11px] font-semibold text-[#25D366] transition-colors hover:bg-[#25D366]/20">
@@ -595,17 +613,85 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             </a>
             <button type="button" (click)="openQuotation(p)" class="relative flex flex-col items-center gap-1 rounded-lg bg-muted py-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-accent">
               <app-icon name="file-text" [size]="16" />
-              Quotation
+              {{ "Quotation" | t }}
               @if (p.pendingRequote) {
                 <span class="absolute right-2 top-2 size-2 rounded-full bg-[var(--warning)]"></span>
               }
             </button>
           </div>
-          @if (nextStep(p); as step) {
-            <button type="button" (click)="runNextStep(p)" class="flex items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-xs font-semibold text-primary-foreground">
-              {{ step | t }}
-              <app-icon name="chevron-right" [size]="14" />
-            </button>
+
+          @switch (p.status) {
+            @case ('Lead') {
+              <button type="button" (click)="quickWon(p)" class="flex items-center justify-center gap-1.5 rounded-lg bg-[var(--success)] py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90">
+                <app-icon name="check" [size]="15" />
+                {{ "Mark as Won" | t }}
+              </button>
+              <div class="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  (click)="toggleBooked(p)"
+                  [attr.aria-pressed]="!!p.booked"
+                  class="flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-colors"
+                  [ngClass]="p.booked ? 'bg-[oklch(0.7_0.17_300)]/15 text-[oklch(0.7_0.17_300)]' : 'bg-muted text-foreground hover:bg-accent'"
+                >
+                  <app-icon [name]="p.booked ? 'check' : 'calendar'" [size]="13" />
+                  {{ (p.booked ? 'Booked' : 'Mark booked') | t }}
+                </button>
+                <button type="button" (click)="openLost(p)" class="flex items-center justify-center gap-1.5 rounded-lg bg-muted py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-[var(--destructive)]/12 hover:text-[var(--destructive)]">
+                  <app-icon name="x-circle" [size]="13" />
+                  {{ "Lost" | t }}
+                </button>
+              </div>
+            }
+            @case ('Won') {
+              <!-- Commission: the one thing left to enter once a deal is won -->
+              <div class="flex flex-col gap-2 rounded-lg p-3" [ngClass]="p.commission == null ? 'bg-[var(--warning)]/10' : 'bg-muted/60'">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-xs font-semibold">{{ "Commission" | t }}</span>
+                  @if (p.commission != null) {
+                    <span class="text-xs text-muted-foreground">
+                      {{ "Net profit" | t }}
+                      <strong class="tabular" [ngClass]="profitOf(p) >= 0 ? 'text-[var(--success)]' : 'text-[var(--destructive)]'">{{ signed(profitOf(p)) }}</strong>
+                    </span>
+                  } @else {
+                    <span class="text-[11px] font-medium text-[var(--warning)]">{{ "Add it when the dealer pays" | t }}</span>
+                  }
+                </div>
+                <div class="flex gap-2">
+                  <div class="relative min-w-0 flex-1">
+                    <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">RM</span>
+                    <input
+                      id="panel-commission"
+                      type="number"
+                      inputmode="decimal"
+                      step="100"
+                      [placeholder]="'e.g. 1500' | t"
+                      [ngModel]="commissionDraft()"
+                      (ngModelChange)="commissionDraft.set($event)"
+                      (keydown.enter)="saveCommission(p)"
+                      class="h-10 w-full rounded-lg border border-input bg-input pl-10 pr-3 text-sm tabular text-foreground outline-none focus:border-ring"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    (click)="saveCommission(p)"
+                    [disabled]="!commissionChanged(p)"
+                    class="rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground disabled:opacity-40"
+                  >
+                    {{ "Save" | t }}
+                  </button>
+                </div>
+              </div>
+            }
+            @case ('Lost') {
+              <div class="flex items-center gap-2">
+                <span class="min-w-0 flex-1 truncate text-xs text-muted-foreground">{{ "Lost" | t }} · {{ p.cancelReason || '—' }}</span>
+                <button type="button" (click)="reopen(p)" class="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
+                  <app-icon name="rotate-ccw" [size]="13" />
+                  {{ "Reopen" | t }}
+                </button>
+              </div>
+            }
           }
         </div>
 
@@ -626,206 +712,75 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             @if (a.label !== 'Re-quote needed') {
               <div class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium" [ngClass]="a.tone">
                 <app-icon name="alert-triangle" [size]="13" class="shrink-0" />
-                {{ a.detail }}
+                {{ a.detail | t }}
               </div>
             }
           }
           <app-customer-detail
             [record]="p"
+            [quote]="panelQuote(p)"
             (edit)="onEdit($event)"
             (addNote)="onAddNote($event)"
             (changeCar)="openChangeCar($event)"
-            (cancel)="openCancel($event)"
-            (reopen)="requestReopen($event)"
             (delete)="requestDelete($event)"
           />
         </div>
       </aside>
     }
 
-    <!-- Mark as Booked modal -->
-    @if (modal() === 'booked' && activeRecord(); as rec) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
-        <div class="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-          <div class="flex items-center gap-3 border-b border-border p-4">
-            <span class="text-sm font-semibold">Mark as Booked &middot; {{ rec.name }}</span>
-            <button type="button" (click)="closeModal()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-              <app-icon name="x" [size]="16" />
-            </button>
-          </div>
-          <div class="flex flex-col gap-3 overflow-y-auto p-4">
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              {{ "IC No" | t }}
-              <input type="text" [(ngModel)]="bookedForm.icNo" class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-            </label>
-
-            <div class="flex items-center gap-2 pt-1">
-              <div class="h-px flex-1 bg-border"></div>
-              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Optional" | t }}</span>
-              <div class="h-px flex-1 bg-border"></div>
-            </div>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              {{ "Address" | t }}
-              <input type="text" [(ngModel)]="bookedForm.address" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-            </label>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              {{ "Email" | t }}
-              <input type="email" [(ngModel)]="bookedForm.email" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-            </label>
-          </div>
-          <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Cancel" | t }}</button>
-            <button type="button" (click)="submitBooked(rec.id)" [disabled]="!canSubmitBooked(bookedForm)" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">{{ "Save" | t }}</button>
-          </div>
-        </div>
-      </div>
-    }
-
-    <!-- Start Progress modal -->
-    @if (modal() === 'inprogress' && activeRecord(); as rec) {
+    <!-- Mark as Won — only shown when the colour still needs confirming -->
+    @if (modal() === 'won' && activeRecord(); as rec) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
         <div class="relative flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex items-center gap-3 border-b border-border p-4">
-            <span class="text-sm font-semibold">Start Progress &middot; {{ rec.name }}</span>
+            <span class="text-sm font-semibold">{{ "Which colour did they take?" | t }}</span>
             <button type="button" (click)="closeModal()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
               <app-icon name="x" [size]="16" />
             </button>
           </div>
           <div class="flex flex-col gap-3 overflow-y-auto p-4">
-            <p class="text-[11px] text-muted-foreground">{{ vehicleTitle(rec.brand, rec.model) }} &middot; {{ rec.variant }}</p>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              {{ "Colour" | t }}
-              <select [(ngModel)]="inProgressColour" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                @if (inProgressColour === TO_BE_CONFIRMED_COLOUR) { <option [value]="TO_BE_CONFIRMED_COLOUR">{{ "Select colour…" | t }}</option> }
-                @for (c of inProgressColourOptions(rec); track c) { <option [value]="c">{{ c }}</option> }
-              </select>
-            </label>
-            @if (inProgressColour === TO_BE_CONFIRMED_COLOUR) {
-              <div class="flex items-start gap-2 rounded-lg border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2.5 text-[11px] text-foreground">
-                <app-icon name="alert-triangle" [size]="14" class="mt-0.5 shrink-0 text-[var(--warning)]" />
-                <span>{{ "Colour must be confirmed before this car can start progress." | t }}</span>
-              </div>
-            }
-          </div>
-          <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Cancel" | t }}</button>
-            <button type="button" (click)="submitInProgress(rec.id)" [disabled]="!canSubmitInProgress(inProgressForm, inProgressColour !== TO_BE_CONFIRMED_COLOUR)" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">{{ "Save" | t }}</button>
+            <p class="text-xs text-muted-foreground">{{ rec.name }} · {{ vehicleTitle(rec.brand, rec.model) }} {{ rec.variant }}</p>
+            <!-- One tap picks the colour and marks the deal Won -->
+            <div class="grid grid-cols-2 gap-2">
+              @for (c of wonColourOptions(rec); track c) {
+                <button type="button" (click)="submitWon(rec, c)" class="rounded-lg bg-muted px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-[var(--success)]/15 hover:text-[var(--success)]">
+                  {{ c }}
+                </button>
+              }
+            </div>
           </div>
         </div>
       </div>
     }
 
-    <!-- Mark as Delivered modal -->
-    @if (modal() === 'delivered' && activeRecord(); as rec) {
+    <!-- Mark as Lost — one tap on a reason; the note is optional -->
+    @if (modal() === 'lost' && activeRecord(); as rec) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
-        <div class="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+        <div class="relative flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div class="flex items-center gap-3 border-b border-border p-4">
-            <span class="text-sm font-semibold">Mark as Delivered &middot; {{ rec.name }}</span>
+            <span class="text-sm font-semibold">{{ "Why was it lost?" | t }}</span>
             <button type="button" (click)="closeModal()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
               <app-icon name="x" [size]="16" />
             </button>
           </div>
           <div class="flex flex-col gap-3 overflow-y-auto p-4">
-            @if (!giftsCompleteFor(rec)) {
-              <div class="flex items-start gap-2 rounded-lg border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2.5 text-[11px] text-foreground">
-                <app-icon name="alert-triangle" [size]="14" class="mt-0.5 shrink-0 text-[var(--warning)]" />
-                <span>{{ giftsBlockingText(rec) }} — <a routerLink="/notes" class="font-medium text-primary hover:underline">{{ "manage on Cost Breakdown" | t }}</a>.</span>
-              </div>
-            }
-            @if (rec.colour === TO_BE_CONFIRMED_COLOUR) {
-              <div class="flex items-start gap-2 rounded-lg border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2.5 text-[11px] text-foreground">
-                <app-icon name="alert-triangle" [size]="14" class="mt-0.5 shrink-0 text-[var(--warning)]" />
-                <span>Colour is still "To be Confirmed" — update it to the actual colour via Edit before this car can be marked Delivered.</span>
-              </div>
-            }
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              {{ "Registration Number" | t }}
-              <input type="text" [(ngModel)]="deliveredForm.plateNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-            </label>
-
-            <div class="flex items-center gap-2 pt-1">
-              <div class="h-px flex-1 bg-border"></div>
-              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Optional" | t }}</span>
-              <div class="h-px flex-1 bg-border"></div>
+            <p class="text-xs text-muted-foreground">{{ rec.name }} · {{ vehicleTitle(rec.brand, rec.model) }} {{ rec.variant }}</p>
+            <input
+              type="text"
+              [placeholder]="'Note (optional) — type it before picking a reason' | t"
+              [ngModel]="lostNote()"
+              (ngModelChange)="lostNote.set($event)"
+              class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
+            />
+            <div class="flex flex-wrap gap-2">
+              @for (reason of cancelReasons; track reason) {
+                <button type="button" (click)="submitLost(rec, reason)" class="rounded-full bg-muted px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-[var(--destructive)]/15 hover:text-[var(--destructive)]">
+                  {{ reason }}
+                </button>
+              }
             </div>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                {{ "Delivery Date" | t }}
-                <input type="date" [(ngModel)]="deliveredForm.deliveryDate" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                {{ "Chassis / VIN" | t }}
-                <input type="text" [(ngModel)]="deliveredForm.chassisNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
-            </div>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                {{ "Engine No." | t }}
-                <input type="text" [(ngModel)]="deliveredForm.engineNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                {{ "Insurance Name" | t }}
-                <select [(ngModel)]="deliveredForm.insuranceName" class="h-10 w-full rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                  @for (i of insuranceOptions(); track i) { <option [value]="i">{{ i }}</option> }
-                </select>
-              </label>
-            </div>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              {{ "Delivery Notes" | t }}
-              <textarea rows="2" [(ngModel)]="deliveredForm.deliveryNotes" class="rounded-lg border border-input bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-ring"></textarea>
-            </label>
-          </div>
-          <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Cancel" | t }}</button>
-            <button type="button" (click)="submitDelivered(rec.id)" [disabled]="!canSubmitDelivered(deliveredForm, giftsCompleteFor(rec), rec.colour !== TO_BE_CONFIRMED_COLOUR)" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">{{ "Save" | t }}</button>
-          </div>
-        </div>
-      </div>
-    }
-
-    <!-- Cancel modal -->
-    @if (modal() === 'cancel' && activeRecord(); as rec) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeModal()"></button>
-        <div class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-          <div class="flex items-center gap-3 border-b border-border p-4">
-            <span class="text-sm font-semibold">Cancel Booking &middot; {{ rec.name }}</span>
-            <button type="button" (click)="closeModal()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-              <app-icon name="x" [size]="16" />
-            </button>
-          </div>
-          <div class="flex flex-col gap-3 overflow-y-auto p-4">
-            <p class="text-[11px] text-muted-foreground">{{ "This cancels" | t }} <strong class="text-foreground">{{ rec.name }}</strong>'s {{ vehicleTitle(rec.brand, rec.model) }} {{ "deal." | t }}</p>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              {{ "Reason" | t }}
-              <select [(ngModel)]="cancelForm.cancelReason" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                @for (r of cancelReasons; track r) { <option [value]="r">{{ r }}</option> }
-              </select>
-            </label>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Cancellation Notes @if (cancelForm.cancelReason === 'Other') { <span class="text-[var(--destructive)]">*</span> }
-              <textarea
-                rows="2"
-                [(ngModel)]="cancelForm.cancelNotes"
-                placeholder="Details required when reason is 'Other'"
-                class="rounded-lg border bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-ring"
-                [ngClass]="canSubmitCancel(cancelForm) ? 'border-input' : 'border-[var(--destructive)]'"
-              ></textarea>
-            </label>
-          </div>
-          <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="closeModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Back" | t }}</button>
-            <button
-              type="button"
-              (click)="submitCancel(rec.id)"
-              [disabled]="!canSubmitCancel(cancelForm)"
-              class="rounded-md bg-[var(--destructive)] px-3 py-2 text-xs font-semibold text-[var(--destructive-foreground)] transition-colors hover:opacity-90 disabled:opacity-50"
-            >
-              {{ "Confirm Cancel" | t }}
-            </button>
           </div>
         </div>
       </div>
@@ -915,24 +870,6 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                   <li class="flex items-start gap-2"><app-icon name="info" [size]="13" class="mt-0.5 shrink-0 text-muted-foreground" /> {{ "The change is recorded in the activity history." | t }}</li>
                 </ul>
               </div>
-
-              @if (changeCarNeedsAck(rec)) {
-                <div class="flex flex-col gap-2 rounded-lg bg-[var(--warning)]/10 p-3">
-                  <span class="flex items-center gap-1.5 text-xs font-semibold text-[var(--warning)]">
-                    <app-icon name="alert-triangle" [size]="13" />
-                    {{ 'This deal is already {status}' | t: { status: (rec.status | t) } }}
-                  </span>
-                  <ul class="flex list-disc flex-col gap-1 pl-5 text-[11px] text-foreground">
-                    @for (w of changeCarWarnings(rec, cp.delta); track w) {
-                      <li>{{ w }}</li>
-                    }
-                  </ul>
-                  <label class="mt-1 flex items-center gap-2 text-xs font-medium text-foreground">
-                    <input type="checkbox" [(ngModel)]="changeCarAck" class="size-4 shrink-0 rounded border-input accent-primary" />
-                    {{ "I've gone through this with the customer" | t }}
-                  </label>
-                </div>
-              }
             } @else {
               <p class="rounded-lg bg-muted/50 px-3 py-2.5 text-xs text-muted-foreground">{{ "Pick a different brand, model, variant or year." | t }}</p>
             }
@@ -942,7 +879,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
             <button
               type="button"
               (click)="submitChangeCar(rec)"
-              [disabled]="!changeCarIsDifferent(rec) || (changeCarNeedsAck(rec) && !changeCarAck)"
+              [disabled]="!changeCarIsDifferent(rec)"
               class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
             >
               {{ "Change car" | t }}
@@ -990,8 +927,8 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                 @if (qv.loanAmount > 0) {
                   <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div class="flex flex-col gap-1 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
-                      <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{{ "Downpayment" | t }}</span>
-                      <span class="text-sm font-semibold tabular">{{ fmt(qv.downpaymentCash) }}</span>
+                      <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{{ dpDisplay(qv.downpaymentCash).label | t }}</span>
+                      <span class="text-sm font-semibold tabular">{{ fmt(dpDisplay(qv.downpaymentCash).amount) }}</span>
                     </div>
                     <div class="flex flex-col gap-1 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
                       <span class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{{ "Loan Amount" | t }}</span>
@@ -1006,8 +943,14 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                   </div>
                   <div class="flex items-center justify-between px-3 py-2">
                     <span class="text-muted-foreground">{{ "Rebate" | t }}</span>
-                    <span class="font-medium tabular text-[var(--success)]">&minus; {{ fmt(qv.effectiveRebate) }}</span>
+                    <span class="font-medium tabular text-[var(--success)]">&minus; {{ fmt(qv.effectiveRebate - qv.cashback) }}</span>
                   </div>
+                  @if (qv.cashback > 0) {
+                    <div class="flex items-center justify-between px-3 py-2">
+                      <span class="text-muted-foreground">{{ "Cash back to customer" | t }}</span>
+                      <span class="font-medium tabular text-[var(--success)]">{{ fmt(qv.cashback) }}</span>
+                    </div>
+                  }
                   <div class="flex items-center justify-between px-3 py-2">
                     <span class="text-muted-foreground">Insurance ({{ qrec.quotation.ncd }}% NCD)</span>
                     <span class="font-medium tabular">+ {{ fmt(qv.insuranceAmount) }}</span>
@@ -1031,7 +974,7 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
               }
             </div>
             <div class="flex flex-wrap items-center justify-end gap-2 border-t border-border p-4">
-              @if (qrec.status !== 'Delivered') {
+              @if (qrec.status !== 'Won') {
                 @if (qrec.pendingRequote) {
                   <button type="button" (click)="startEditQuotation()" class="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
                     <app-icon name="refresh-cw" [size]="13" />
@@ -1123,6 +1066,20 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                   class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </label>
+              @if (quotationFinancingType !== 'Cash' && (cashbackAllowed() || (quotationForm.cashbackAmount ?? 0) > 0)) {
+                <!-- Part of the rebate paid to the customer in cash instead of off the price -->
+                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                  {{ "Cash back from rebate (RM)" | t }}
+                  <input
+                    type="number"
+                    min="0"
+                    step="500"
+                    [(ngModel)]="quotationForm.cashbackAmount"
+                    class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
+                  />
+                  <span class="text-[10px] font-normal text-muted-foreground">{{ "0 = the whole rebate comes off the price" | t }}</span>
+                </label>
+              }
               @if (quotationFinancingType !== 'Cash') {
                 <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                   {{ "Rate Type" | t }}
@@ -1190,8 +1147,8 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
                       <strong class="text-sm text-foreground tabular">{{ fmt(qp.allInPrice) }}</strong>
                     </span>
                     <span class="flex flex-col">
-                      {{ "Downpayment" | t }}
-                      <strong class="text-sm text-foreground tabular">{{ fmt(qp.downpaymentCash) }}</strong>
+                      {{ dpDisplay(qp.downpaymentCash).label | t }}
+                      <strong class="text-sm text-foreground tabular">{{ fmt(dpDisplay(qp.downpaymentCash).amount) }}</strong>
                     </span>
                     <span class="flex flex-col">
                       {{ "Loan Amount" | t }}
@@ -1239,29 +1196,6 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
       </div>
     }
 
-    <!-- Reopen confirmation -->
-    @if (reopenTarget(); as target) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="cancelReopen()"></button>
-        <div class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-          <div class="flex flex-col gap-2 p-5">
-            <span class="flex items-center gap-2 text-sm font-semibold">
-              <app-icon name="rotate-ccw" [size]="15" />
-              {{ "Reopen customer?" | t }}
-            </span>
-            <p class="text-sm text-muted-foreground">
-              {{ "This restores" | t }} <strong class="text-foreground">{{ target.name }}</strong> ({{ vehicleTitle(target.brand, target.model) }}) to
-              <strong class="text-foreground">{{ target.previousStatus }}</strong>{{ ". All data captured before cancellation is kept." | t }}
-            </p>
-          </div>
-          <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="cancelReopen()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Cancel" | t }}</button>
-            <button type="button" (click)="confirmReopen()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90">{{ "Reopen" | t }}</button>
-          </div>
-        </div>
-      </div>
-    }
-
     <!-- Edit Customer modal -->
     @if (modal() === 'edit' && activeRecord(); as rec) {
       <app-customer-edit-modal [record]="rec" (save)="submitEdit(rec.id, $event)" (close)="closeModal()" />
@@ -1274,9 +1208,13 @@ const NEXT_STEP: Partial<Record<CustomerStatus, string>> = {
   `,
 })
 export class CustomerManagerComponent {
-  /** The connected Lead → Delivered steps; All and Cancelled sit either side of them. */
-  pipelineStages: Tab[] = ['Lead', 'Booked', 'In Progress', 'Delivered'];
-  activeTab = signal<Tab>('All');
+  /** A negative downpayment (loan rounded up) is shown as Cash Back. */
+  dpDisplay = downpaymentDisplay;
+
+  /** Leads first — that's where the work is. All sits last for the odd look across everything. */
+  tabs: Tab[] = ['Lead', 'Won', 'Lost', 'All'];
+  activeTab = signal<Tab>('Lead');
+  tabLabel = (t: Tab) => (t === 'Lead' ? 'Leads' : t);
 
   TD = TD;
   TD_R = TD_R;
@@ -1289,12 +1227,8 @@ export class CustomerManagerComponent {
     const used = this.customers.records().map((r) => r.sourceType).filter((s): s is string => !!s);
     return [...new Set([...this.settings.leadSources(), ...used])];
   });
-  documentStatusOptions = DOCUMENT_STATUS_OPTIONS;
   TO_BE_CONFIRMED_COLOUR = TO_BE_CONFIRMED_COLOUR;
-
-  insuranceOptions(): string[] {
-    return withCurrent(this.settings.insuranceOptions(), this.deliveredForm?.insuranceName);
-  }
+  noIdNotesHint = NO_ID_NOTES_HINT;
   cancelReasons = CANCEL_REASON_OPTIONS;
   ncdOptions = NCD_OPTIONS;
   tenureOptions = TENURE_OPTIONS;
@@ -1309,13 +1243,9 @@ export class CustomerManagerComponent {
   // still show without a trailing ".00".
   fmt = (v: number) => `RM ${v.toLocaleString('en-MY', { maximumFractionDigits: 2 })}`;
   round = Math.round;
-  docMeta = (s?: DocumentStatus) => DOCUMENT_STATUS_META[s ?? 'NO'] ?? DOCUMENT_STATUS_META.NO;
-  statusMeta = (s: CustomerStatus) => CUSTOMER_STATUS_META[s];
+  statusMeta = (s: CustomerStatus) => CUSTOMER_STATUS_META[s] ?? CUSTOMER_STATUS_META.Lead;
   isCash = isCashDeal;
-  canSubmitBooked = canSubmitBooked;
-  canSubmitInProgress = canSubmitInProgress;
-  canSubmitDelivered = canSubmitDelivered;
-  canSubmitCancel = canSubmitCancel;
+  canSubmitWon = canSubmitWon;
   stageDateText = (r: CustomerRecord) => formatStageDate(currentStageEnteredAt(r));
 
   waLink(phone: string): string {
@@ -1328,14 +1258,12 @@ export class CustomerManagerComponent {
     return this.columns().filter((c) => c.key !== 'name' && c.key !== 'brand');
   }
 
-  /** Plain-text value for a mobile card field; 'status'/'documentStatus' are rendered as badges
+  /** Plain-text value for a mobile card field; 'status' is rendered as a badge
    *  in the template instead of through this. */
   cardFieldValue(r: CustomerRecord, key: SortKey): string {
     switch (key) {
       case 'stageDate':
         return this.stageDateText(r);
-      case 'tradeInStatus':
-        return r.tradeInStatus || 'No Trade-in';
       case 'cancelReason':
         return r.cancelReason || '—';
       default: {
@@ -1349,14 +1277,10 @@ export class CustomerManagerComponent {
     switch (this.activeTab()) {
       case 'Lead':
         return 'No leads match.';
-      case 'Booked':
-        return 'No bookings match.';
-      case 'In Progress':
-        return 'Nothing in progress.';
-      case 'Delivered':
-        return 'No deliveries match.';
-      case 'Cancelled':
-        return 'No cancelled deals.';
+      case 'Won':
+        return 'No won deals yet.';
+      case 'Lost':
+        return 'No lost deals.';
       default:
         return 'No customers match.';
     }
@@ -1372,12 +1296,6 @@ export class CustomerManagerComponent {
     return `${s.total - s.done} of ${s.total} free gift item(s) still outstanding`;
   }
 
-  /** In Progress row marker: every other Delivered-gate field is filled but gifts aren't — flags
-   *  a deal that's otherwise ready so the SA knows exactly what's blocking it. */
-  readyExceptGifts(r: CustomerRecord): boolean {
-    return !!r.plateNo && !!r.chassisNo && !!r.engineNo && !!r.insuranceName && !!r.deliveryDate && !freeGiftsComplete(r);
-  }
-
   // ---------- Customer panel ----------
 
   panelId = signal<string | null>(null);
@@ -1386,8 +1304,11 @@ export class CustomerManagerComponent {
    *  record no longer matches the list (e.g. a filter hides it), which disables stepping. */
   panelIndex = computed(() => this.filteredSorted().findIndex((r) => r.id === this.panelId()));
 
-  openPanel(id: string) {
+  /** `focusCommission` — from a Won row's "Add commission": open straight onto the commission field. */
+  openPanel(id: string, focusCommission = false) {
     this.panelId.set(id);
+    this.commissionDraft.set(this.customers.records().find((r) => r.id === id)?.commission ?? null);
+    if (focusCommission) setTimeout(() => document.getElementById('panel-commission')?.focus(), 50);
   }
 
   closePanel() {
@@ -1397,7 +1318,7 @@ export class CustomerManagerComponent {
   stepPanel(delta: number) {
     const target = this.filteredSorted()[this.panelIndex() + delta];
     if (!target) return;
-    this.panelId.set(target.id);
+    this.openPanel(target.id);
     // Keep the list's page in step so the highlighted row stays visible behind the panel.
     const index = this.panelIndex();
     if (index >= 0) this.page.set(Math.floor(index / this.pageSize()));
@@ -1407,7 +1328,7 @@ export class CustomerManagerComponent {
    *  top of it, so Esc never closes the panel from underneath a form. */
   @HostListener('document:keydown', ['$event'])
   onKeydown(e: KeyboardEvent) {
-    if (!this.panelId() || this.modal() || this.quotationModalId() || this.deleteTargetId() || this.reopenTargetId()) return;
+    if (!this.panelId() || this.modal() || this.quotationModalId() || this.deleteTargetId()) return;
     if (e.key === 'Escape') {
       this.closePanel();
     } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
@@ -1433,16 +1354,6 @@ export class CustomerManagerComponent {
 
   // ---------- Row status: next step, staleness, needs-attention ----------
 
-  nextStep(r: CustomerRecord): string | null {
-    return NEXT_STEP[r.status] ?? null;
-  }
-
-  runNextStep(r: CustomerRecord) {
-    if (r.status === 'Lead') this.openBooked(r);
-    else if (r.status === 'Booked') this.openInProgress(r);
-    else if (r.status === 'In Progress') this.openDelivered(r);
-  }
-
   private daysSince(ts: number): number {
     return Math.floor((Date.now() - ts) / DAY_MS);
   }
@@ -1463,7 +1374,8 @@ export class CustomerManagerComponent {
 
   isStale(r: CustomerRecord): boolean {
     const days = this.settings.settings().salesDefaults.staleLeadDays ?? DEFAULT_STALE_LEAD_DAYS;
-    return r.status === 'Lead' && this.daysSince(r.updatedAt) >= days;
+    // A booked customer waiting for stock isn't going cold — no follow-up nag for them.
+    return r.status === 'Lead' && !r.booked && this.daysSince(r.updatedAt) >= days;
   }
 
   /** Everything worth flagging on a record, built only from data it already has. */
@@ -1476,26 +1388,15 @@ export class CustomerManagerComponent {
       const d = this.daysSince(r.updatedAt);
       out.push({ label: `No update in ${d}d`, detail: `No activity for ${d} days — time to follow up.`, tone: WARN_TONE });
     }
-    if (r.status === 'Booked' && !isCashDeal(r) && (r.documentStatus ?? 'NO') === 'NO') {
-      out.push({ label: 'Docs not submitted', detail: "Loan documents haven't been submitted to the bank yet.", tone: DANGER_TONE });
-    }
-    if (r.status === 'In Progress' && r.colour === TO_BE_CONFIRMED_COLOUR) {
-      out.push({ label: 'Colour to confirm', detail: 'Colour is still "To be Confirmed" — it must be set before delivery.', tone: WARN_TONE });
-    }
-    if (r.status === 'In Progress' && this.readyExceptGifts(r)) {
-      out.push({ label: 'Gifts outstanding', detail: 'Ready for delivery except free gifts — outstanding items on Cost Breakdown.', tone: WARN_TONE });
-    }
     return out;
   }
 
   modal = signal<ModalKind>(null);
   activeRecordId = signal<string | null>(null);
   deleteTargetId = signal<string | null>(null);
-  reopenTargetId = signal<string | null>(null);
 
   nameFilter = signal('');
   filtersOpen = signal(false);
-  attentionOnly = signal(false);
   // Deliberately starts on "All", not the account's Primary Brand — hiding other brands' existing
   // customers by default risks the SA forgetting about them.
   carFilter = signal('All');
@@ -1511,6 +1412,7 @@ export class CustomerManagerComponent {
   constructor(
     public customers: CustomerService,
     private route: ActivatedRoute,
+    private toast: ToastService,
   ) {
     // Deep link from elsewhere in the app (e.g. Recent Deals' phone number) — ?customer=<id>
     // switches to that record's tab and pops its accordion open.
@@ -1530,7 +1432,7 @@ export class CustomerManagerComponent {
     this.sourceFilter.set('All');
     this.dateFromFilter.set('');
     this.dateToFilter.set('');
-    this.attentionOnly.set(false);
+    this.focus.set(null);
     this.activeTab.set(record.status);
     const index = this.filteredSorted().findIndex((r) => r.id === id);
     this.page.set(index >= 0 ? Math.floor(index / this.pageSize()) : 0);
@@ -1561,36 +1463,19 @@ export class CustomerManagerComponent {
     if (this.panelId() === id) this.closePanel();
   }
 
-  reopenTarget = computed(() => this.customers.records().find((r) => r.id === this.reopenTargetId()) ?? null);
-
-  requestReopen(record: CustomerRecord) {
-    this.reopenTargetId.set(record.id);
-  }
-
-  cancelReopen() {
-    this.reopenTargetId.set(null);
-  }
-
-  async confirmReopen() {
-    const id = this.reopenTargetId();
-    if (!id) return;
-    await this.customers.reopenCustomer(id);
-    this.reopenTargetId.set(null);
-  }
-
   activeRecord = computed(() => this.customers.records().find((r) => r.id === this.activeRecordId()) ?? null);
 
   countFor(t: Tab): number {
     if (t === 'All') return this.customers.records().length;
     if (t === 'Lead') return this.customers.leads().length;
-    if (t === 'Booked') return this.customers.booked().length;
-    if (t === 'In Progress') return this.customers.inProgress().length;
-    if (t === 'Delivered') return this.customers.delivered().length;
-    return this.customers.cancelled().length;
+    if (t === 'Won') return this.customers.won().length;
+    return this.customers.lost().length;
   }
 
   selectTab(t: Tab) {
     this.activeTab.set(t);
+    const focus = this.focus();
+    if (focus && TODOS.find((x) => x.id === focus)!.tab !== t) this.focus.set(null);
     this.page.set(0);
   }
 
@@ -1605,14 +1490,10 @@ export class CustomerManagerComponent {
 
     const search = this.nameFilter().trim().toLowerCase();
     if (search) {
-      // Digits-only comparison too, so "0123456789" finds "012-345 6789" and IC numbers match with
-      // or without dashes.
+      // Digits-only comparison too, so "0123456789" finds "012-345 6789".
       const digits = search.replace(/\D/g, '');
       const digitsMatch = (v?: string) => digits.length >= 3 && !!v && v.replace(/\D/g, '').includes(digits);
-      list = list.filter(
-        (r) =>
-          `${r.name} ${r.brand} ${r.model} ${r.variant} ${r.phone} ${r.icNo ?? ''}`.toLowerCase().includes(search) || digitsMatch(r.phone) || digitsMatch(r.icNo),
-      );
+      list = list.filter((r) => `${r.name} ${r.brand} ${r.model} ${r.variant} ${r.phone}`.toLowerCase().includes(search) || digitsMatch(r.phone));
     }
     if (this.carFilter() !== 'All') list = list.filter((r) => r.brand === this.carFilter());
     if (this.sourceFilter() !== 'All') list = list.filter((r) => r.sourceType === this.sourceFilter());
@@ -1621,11 +1502,11 @@ export class CustomerManagerComponent {
     return list;
   });
 
-  attentionCount = computed(() => this.matching().filter((r) => this.attention(r).length > 0).length);
 
   filteredSorted = computed(() => {
     let list = this.matching();
-    if (this.attentionOnly()) list = list.filter((r) => this.attention(r).length > 0);
+    const focus = this.focus();
+    if (focus) list = list.filter((r) => TODO_MATCH[focus](r, this));
     const key = this.sortKey();
     const dir = this.sortDir();
     return [...list].sort((a, b) => compareRecords(a, b, key, dir));
@@ -1704,90 +1585,17 @@ export class CustomerManagerComponent {
   modelVariantLabel = modelVariantLabel;
   vehicleTitle = vehicleTitle;
 
-  bookedForm: BookedInput = this.blankBookedForm();
-  private blankBookedForm(): BookedInput {
-    return { icNo: '', address: '', email: '' };
-  }
-
-  inProgressForm: InProgressInput = this.blankInProgressForm();
-  private blankInProgressForm(): InProgressInput {
-    // Bank Panel deliberately has no default — it's a real, consequential choice (which bank the
-    // customer is actually financing through), not a generic starting point, so it must be
-    // actively picked rather than silently landing on whichever bank sorts first.
-    return { financingType: 'Loan', loanTenureMonths: TENURE_OPTIONS[0].months, rateType: 'flat' };
-  }
-
-  deliveredForm: DeliveredInput = this.blankDeliveredForm();
-
-  private blankDeliveredForm(): DeliveredInput {
-    return { insuranceName: UNSPECIFIED_INSURER, plateNo: '', deliveryDate: todayStr(), chassisNo: '', engineNo: '', deliveryNotes: '' };
-  }
-
-  cancelForm: CancelledInput = this.blankCancelForm();
-  private blankCancelForm(): CancelledInput {
-    return { cancelReason: CANCEL_REASON_OPTIONS[0], cancelNotes: '' };
-  }
-
-  openBooked(record: CustomerRecord) {
-    this.activeRecordId.set(record.id);
-    const quoted = record.quotation ? this.computeQuotationNumbers(record, record.quotation) : null;
-    this.bookedForm = {
-      icNo: record.icNo ?? '',
-      address: record.address ?? '',
-      email: record.email ?? '',
-      downpayment: record.downpayment ?? (quoted ? quoted.downpaymentCash : undefined),
-      ncd: record.ncd ?? record.quotation?.ncd,
-    };
-    this.modal.set('booked');
-  }
-
-  /** Lives on the record itself (CustomerRecord.colour), not InProgressInput — same reasoning as
-   *  quotationFinancingType: one field edited here and saved back via editCustomer, rather than a
-   *  second copy of it duplicated onto the stage form. */
-  inProgressColour = TO_BE_CONFIRMED_COLOUR;
-
-  openInProgress(record: CustomerRecord) {
-    this.activeRecordId.set(record.id);
-    const quoted = record.quotation ? this.computeQuotationNumbers(record, record.quotation) : null;
-    const financingType: FinancingType = record.financingType ?? 'Loan';
-    this.inProgressForm = {
-      financingType,
-      bankPanel: record.bankPanel,
-      downpayment: record.downpayment ?? (quoted ? quoted.downpaymentCash : undefined),
-      loanAmount: record.loanAmount ?? (quoted ? quoted.loanAmount : undefined),
-      loanTenureMonths: record.quotation?.tenureMonths ?? TENURE_OPTIONS[0].months,
-      rateType: record.quotation?.rateType ?? 'flat',
-      loanInterestRate: undefined,
-    };
-    this.inProgressColour = record.colour;
-    this.modal.set('inprogress');
-  }
-
-  /** This exact variant's factory colours when the catalog has them (colour here is always
-   *  required, unlike the general Edit modal's colourOptionsForForm, so the placeholder "To be
-   *  Confirmed" option never belongs in this list); not every model has one hardcoded yet, so
-   *  those fall back to the generic list. */
-  inProgressColourOptions(rec: CustomerRecord): string[] {
+  /** This exact variant's factory colours when the catalog has them (colour is required here,
+   *  so the placeholder "To be Confirmed" option never belongs in this list); not every model has
+   *  one hardcoded yet, so those fall back to the generic list. */
+  wonColourOptions(rec: CustomerRecord): string[] {
     return coloursForVehicle(rec.brand, rec.model, rec.variant) ?? COLOUR_OPTIONS.filter((c) => c !== TO_BE_CONFIRMED_COLOUR);
   }
 
-  openDelivered(record: CustomerRecord) {
+  openLost(record: CustomerRecord) {
     this.activeRecordId.set(record.id);
-    this.deliveredForm = {
-      insuranceName: record.insuranceName ?? UNSPECIFIED_INSURER,
-      plateNo: record.plateNo ?? '',
-      deliveryDate: record.deliveryDate ?? todayStr(),
-      chassisNo: record.chassisNo ?? '',
-      engineNo: record.engineNo ?? '',
-      deliveryNotes: record.deliveryNotes ?? '',
-    };
-    this.modal.set('delivered');
-  }
-
-  openCancel(record: CustomerRecord) {
-    this.activeRecordId.set(record.id);
-    this.cancelForm = { cancelReason: CANCEL_REASON_OPTIONS[0], cancelNotes: '' };
-    this.modal.set('cancel');
+    this.lostNote.set('');
+    this.modal.set('lost');
   }
 
   // ---------- Panel actions (Edit / Add Note / Change car) ----------
@@ -1808,13 +1616,11 @@ export class CustomerManagerComponent {
   variantsForModel = variantsForModel;
   abs = Math.abs;
   changeCarForm: CarSpec = { brand: '', model: '', variant: '', yearMade: 0 };
-  changeCarAck = false;
 
   openChangeCar(record: CustomerRecord) {
-    if (record.status === 'Delivered' || record.status === 'Cancelled') return;
+    if (record.status === 'Won' || record.status === 'Lost') return;
     this.activeRecordId.set(record.id);
     this.changeCarForm = { brand: record.brand, model: record.model, variant: record.variant, yearMade: record.yearMade };
-    this.changeCarAck = false;
     this.modal.set('changecar');
   }
 
@@ -1846,11 +1652,6 @@ export class CustomerManagerComponent {
     return f.brand !== rec.brand || f.model !== rec.model || f.variant !== rec.variant || f.yearMade !== rec.yearMade;
   }
 
-  /** Booked / In Progress deals have paperwork and financing tied to the old car — confirm first. */
-  changeCarNeedsAck(rec: CustomerRecord): boolean {
-    return rec.status === 'Booked' || rec.status === 'In Progress';
-  }
-
   // Plain method, not computed(): changeCarForm is a mutable object bound with ngModel.
   changeCarPreview(rec: CustomerRecord) {
     const oldVehicle = this.findRecordVehicle(rec);
@@ -1864,30 +1665,8 @@ export class CustomerManagerComponent {
     return { oldPrice, newPrice, delta: newPrice - oldPrice, oldRebate, newRebate, oldDownpayment };
   }
 
-  changeCarWarnings(rec: CustomerRecord, delta: number): string[] {
-    const oldCar = this.carTitle(rec);
-    const diff = delta === 0 ? 'the same price' : `${delta > 0 ? 'RM ' + this.abs(delta).toLocaleString('en-MY') + ' more' : 'RM ' + this.abs(delta).toLocaleString('en-MY') + ' less'}`;
-    const warnings: string[] = [];
-    if (rec.status === 'Booked') {
-      warnings.push(`The booking was made for the ${oldCar} — check whether the booking form or fee needs redoing.`);
-      if (!isCashDeal(rec) && rec.documentStatus && rec.documentStatus !== 'NO') {
-        warnings.push(`Loan documents were already ${this.docMeta(rec.documentStatus).label.toLowerCase()} for the old car's price.`);
-      }
-    }
-    if (rec.status === 'In Progress') {
-      if (isCashDeal(rec)) {
-        warnings.push(`Cash deal — the new car is ${diff}. Confirm the new total with the customer.`);
-      } else {
-        const loan = rec.loanAmount != null ? ` for ${this.fmt(rec.loanAmount)}` : '';
-        const bank = rec.bankPanel ? ` with ${rec.bankPanel}` : '';
-        warnings.push(`The loan was approved${bank}${loan}. The new car is ${diff} — re-submit to the bank if the loan amount changes.`);
-      }
-    }
-    return warnings;
-  }
-
   async submitChangeCar(rec: CustomerRecord) {
-    if (!this.changeCarIsDifferent(rec) || (this.changeCarNeedsAck(rec) && !this.changeCarAck)) return;
+    if (!this.changeCarIsDifferent(rec)) return;
     const delta = this.changeCarPreview(rec).delta;
     const note = delta === 0 ? undefined : `price ${delta > 0 ? '+' : '−'}${this.fmt(this.abs(delta))}`;
     const pendingRequote = rec.quotation ? this.snapshotForRequote(rec) : undefined;
@@ -1937,36 +1716,111 @@ export class CustomerManagerComponent {
     this.activeRecordId.set(null);
   }
 
-  async submitBooked(id: string) {
-    if (!canSubmitBooked(this.bookedForm)) return;
-    await this.customers.markBooked(id, this.bookedForm);
+  // ---------- One-tap stage actions (each offers Undo instead of asking first) ----------
+
+  /** Won straight away when the colour is already known; otherwise one tap on a colour does it. */
+  quickWon(record: CustomerRecord) {
+    if (record.colour === TO_BE_CONFIRMED_COLOUR) {
+      this.activeRecordId.set(record.id);
+      this.modal.set('won');
+      return;
+    }
+    void this.submitWon(record, record.colour);
+  }
+
+  async submitWon(record: CustomerRecord, colour: string) {
+    if (!canSubmitWon(colour !== TO_BE_CONFIRMED_COLOUR)) return;
+    const before = record;
     this.closeModal();
+    await this.customers.markWon(record.id, { colour });
     celebrate();
-    this.activeTab.set('Booked');
+    // Straight to the Won tab with this customer still open — next up is commission and gifts.
+    this.openCustomer(record.id);
+    const gifts = freeGiftsSummary(record);
+    const left = gifts ? gifts.total - gifts.done : 0;
+    const message =
+      left > 0 ? this.i18n.t('Marked Won — {n} gift(s) still to do', { n: left }) : this.i18n.t('{name} marked Won', { name: record.name });
+    this.toast.undoable(message, () => void this.customers.restore(before));
   }
 
-  async submitInProgress(id: string) {
-    if (!canSubmitInProgress(this.inProgressForm, this.inProgressColour !== TO_BE_CONFIRMED_COLOUR)) return;
-    await this.customers.editCustomer(id, { colour: this.inProgressColour });
-    await this.customers.markInProgress(id, this.inProgressForm);
+  lostNote = signal('');
+
+  async submitLost(record: CustomerRecord, reason: string) {
+    const before = record;
     this.closeModal();
-    this.activeTab.set('In Progress');
+    await this.customers.markLost(record.id, { cancelReason: reason, cancelNotes: this.lostNote().trim() || undefined });
+    this.toast.undoable(this.i18n.t('{name} marked Lost', { name: record.name }), () => void this.customers.restore(before));
   }
 
-  async submitDelivered(id: string) {
-    const rec = this.activeRecord();
-    if (!rec || !canSubmitDelivered(this.deliveredForm, this.giftsCompleteFor(rec), rec.colour !== TO_BE_CONFIRMED_COLOUR)) return;
-    await this.customers.markDelivered(id, this.deliveredForm);
-    this.closeModal();
-    celebrate();
-    this.activeTab.set('Delivered');
+  async reopen(record: CustomerRecord) {
+    const before = record;
+    await this.customers.reopenCustomer(record.id);
+    this.toast.undoable(this.i18n.t('{name} reopened', { name: record.name }), () => void this.customers.restore(before));
   }
 
-  async submitCancel(id: string) {
-    if (!canSubmitCancel(this.cancelForm)) return;
-    await this.customers.markCancelled(id, this.cancelForm);
-    this.closeModal();
-    this.activeTab.set('Cancelled');
+  async toggleBooked(record: CustomerRecord) {
+    await this.customers.setBooked(record.id, !record.booked);
+    this.toast.show(record.booked ? 'Booking removed' : 'Marked as booked — no follow-up reminders while they wait');
+  }
+
+  // ---------- Commission (Won deals) ----------
+
+  commissionDraft = signal<number | null>(null);
+
+  commissionChanged(record: CustomerRecord): boolean {
+    const v = this.commissionDraft();
+    const next = v === null || (v as unknown) === '' ? null : Number(v);
+    return next !== (record.commission ?? null) && (next === null || Number.isFinite(next));
+  }
+
+  async saveCommission(record: CustomerRecord) {
+    if (!this.commissionChanged(record)) return;
+    const v = this.commissionDraft();
+    await this.customers.setCommission(record.id, v === null || (v as unknown) === '' ? undefined : Number(v));
+    this.toast.show('Commission saved');
+  }
+
+  /** "Give rebate as cash back" is switched on in Settings. */
+  cashbackAllowed = computed(() => this.settings.settings().salesDefaults.allowCashback ?? false);
+
+  profitOf = dealProfit;
+  signed = (v: number) => `${v >= 0 ? '+' : '−'}${this.fmt(Math.abs(v))}`;
+  formatDate = formatStageDate;
+
+  // ---------- To do ----------
+
+  /** Which to-do the list is narrowed to, if any. */
+  focus = signal<TodoId | null>(null);
+
+  /** Counted across every customer, not just the open tab — each chip also jumps to its tab. */
+  todos = computed(() => {
+    const all = this.customers.records();
+    return TODOS.map((t) => ({ ...t, count: all.filter((r) => TODO_MATCH[t.id](r, this)).length })).filter((t) => t.count > 0);
+  });
+
+  toggleFocus(id: TodoId) {
+    if (this.focus() === id) {
+      this.focus.set(null);
+    } else {
+      this.focus.set(id);
+      this.activeTab.set(TODOS.find((t) => t.id === id)!.tab);
+    }
+    this.page.set(0);
+  }
+
+  /** What a phone card shows top-right — the one figure that matters at this stage. */
+  headlineKey(): SortKey {
+    const tab = this.activeTab();
+    return tab === 'Lead' ? 'quote' : tab === 'Won' ? 'commission' : tab === 'Lost' ? 'cancelReason' : 'status';
+  }
+
+  /** "RM 1,214/mo" for a hire-purchase quote, the total for a cash one. */
+  quoteLine(record: CustomerRecord): { main: string; sub: string } | null {
+    const q = this.panelQuote(record);
+    // No price means the car isn't in the catalog — nothing meaningful to show.
+    if (!q || q.allInPrice <= 0) return null;
+    if (q.cash) return { main: this.fmt(q.allInPrice), sub: 'Cash' };
+    return { main: `${this.fmt(Math.round(q.monthly))}/mo`, sub: `${q.tenureMonths / 12} yrs · ${this.fmt(Math.round(q.downpayment))} down` };
   }
 
   // ---------- Quotation (view / edit / download / print) ----------
@@ -2127,6 +1981,8 @@ export class CustomerManagerComponent {
       downpaymentType: q.downpaymentType,
       downpaymentValue: q.downpaymentValue,
       minDownpaymentCash: minDownpaymentCash(vehicle?.minDownpayment, basePrice),
+      loanRounding: q.loanRounding,
+      cashbackAmount: q.cashbackAmount,
     });
 
     const rateType: RateType = q.rateType ?? 'flat';
@@ -2139,6 +1995,7 @@ export class CustomerManagerComponent {
       allInPrice: totals.totalAmountDue,
       downpaymentCash: totals.downpaymentCash,
       loanAmount: totals.loanAmount,
+      cashback: totals.cashback,
       rateType,
       repaymentRows,
     };
@@ -2155,6 +2012,28 @@ export class CustomerManagerComponent {
   quotationViewNumbers(record: CustomerRecord) {
     if (!record.quotation) return null;
     return this.computeQuotationNumbers(record, record.quotation);
+  }
+
+  /** The figures the customer panel shows — straight from the saved quotation, the only
+   *  financial record a customer has. */
+  panelQuote(record: CustomerRecord): QuoteSummary | null {
+    const q = record.quotation;
+    if (!q) return null;
+    const n = this.computeQuotationNumbers(record, q);
+    return {
+      cash: isCashDeal(record),
+      allInPrice: n.allInPrice,
+      rebate: n.effectiveRebate - n.cashback,
+      cashback: n.cashback,
+      ncd: q.ncd,
+      insurance: n.insuranceAmount,
+      downpayment: n.downpaymentCash,
+      loanAmount: n.loanAmount,
+      tenureMonths: q.tenureMonths,
+      interestRate: q.interestRate,
+      rateType: n.rateType,
+      monthly: monthlyPayment(n.loanAmount, q.interestRate, q.tenureMonths, n.rateType),
+    };
   }
 
 }

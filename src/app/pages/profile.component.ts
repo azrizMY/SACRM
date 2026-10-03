@@ -362,21 +362,21 @@ import {
           </div>
         </div>
         <div class="lift group flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
-          <span class="flex size-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" [ngClass]="statusMeta.Booked.tone">
-            <app-icon name="clipboard-check" [size]="18" />
+          <span class="flex size-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" [ngClass]="statusMeta.Won.tone">
+            <app-icon name="trophy" [size]="18" />
           </span>
           <div class="flex flex-col">
-            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Booked</span>
-            <span class="font-mono text-xl font-bold tabular" [appCountUp]="'' + (customers.booked().length)"></span>
+            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Won</span>
+            <span class="font-mono text-xl font-bold tabular" [appCountUp]="'' + (customers.won().length)"></span>
           </div>
         </div>
         <div class="lift group flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
-          <span class="flex size-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" [ngClass]="statusMeta.Delivered.tone">
-            <app-icon name="car" [size]="18" />
+          <span class="flex size-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" [ngClass]="statusMeta.Lost.tone">
+            <app-icon name="x-circle" [size]="18" />
           </span>
           <div class="flex flex-col">
-            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Delivered</span>
-            <span class="font-mono text-xl font-bold tabular" [appCountUp]="'' + (customers.delivered().length)"></span>
+            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Lost</span>
+            <span class="font-mono text-xl font-bold tabular" [appCountUp]="'' + (customers.lost().length)"></span>
           </div>
         </div>
         <div class="lift group flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
@@ -492,9 +492,9 @@ export class ProfileComponent {
   }
 
   totalCommission = computed(() => this.customers.records().reduce((sum, r) => sum + (r.commission ?? 0), 0));
-  /** In Progress / Delivered deals with no commission keyed in yet (same rule as Cost Breakdown). */
+  /** Won deals with no commission keyed in yet (same rule as Earnings). */
   pendingCommission = computed(
-    () => this.customers.records().filter((r) => (r.status === 'In Progress' || r.status === 'Delivered') && r.commission == null).length,
+    () => this.customers.records().filter((r) => r.status === 'Won' && r.commission == null).length,
   );
 
   recentActivity = computed(() => [...this.customers.records()].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5));

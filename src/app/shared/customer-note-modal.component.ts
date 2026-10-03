@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from './icon.component';
-import type { CustomerRecord } from '../data/customer-data';
+import { NO_ID_NOTES_HINT, type CustomerRecord } from '../data/customer-data';
 
 @Component({
   selector: 'app-customer-note-modal',
@@ -23,6 +23,7 @@ import type { CustomerRecord } from '../data/customer-data';
             Note
             <textarea rows="3" [(ngModel)]="text" placeholder="Add a quick note about this customer…" class="rounded-lg border border-input bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-ring"></textarea>
           </label>
+          <p class="text-[11px] text-muted-foreground">{{ noIdNotesHint }}</p>
         </div>
         <div class="flex items-center justify-end gap-2 border-t border-border p-4">
           <button type="button" (click)="close.emit()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
@@ -38,6 +39,7 @@ export class CustomerNoteModalComponent {
   @Output() close = new EventEmitter<void>();
 
   text = '';
+  noIdNotesHint = NO_ID_NOTES_HINT;
 
   submit() {
     if (!this.text.trim()) return;

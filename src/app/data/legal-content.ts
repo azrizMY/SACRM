@@ -7,7 +7,7 @@ export const OPERATOR = {
   email: 'ahmdazri65@gmail.com',
 };
 
-export const LEGAL_UPDATED = '2026-10-01';
+export const LEGAL_UPDATED = '2026-10-03';
 
 export type LegalLang = 'en' | 'ms';
 export type LegalDoc = 'privacy' | 'terms';
@@ -37,7 +37,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '2. Data about your customers',
           body: [
-            'Customer Manager lets you record your own customers: names, phone numbers, IC numbers, addresses, email, driving licence numbers, car and loan details, and delivery details. You enter this data, and you decide what to record.',
+            'Customer Manager lets you record your own customers: names, phone numbers, lead source, the car and quotation, and whether the deal is won or lost (with optional notes). Redline does not collect IC numbers, addresses, email, driving licence numbers, car registration, chassis or engine numbers, or bank loan approval details. You enter this data, and you decide what to record.',
             'For this data, you are responsible for having your customers’ consent and for using it only for the sale you are handling. We store and process it only to provide Redline to you, and never use it for anything else.',
           ],
         },
@@ -125,7 +125,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '2. Data tentang pelanggan anda',
           body: [
-            'Pengurus Pelanggan membolehkan anda merekod pelanggan anda sendiri: nama, nombor telefon, nombor IC, alamat, e-mel, nombor lesen memandu, butiran kereta dan pinjaman, serta butiran penyerahan. Anda yang memasukkan data ini, dan anda yang menentukan apa yang direkod.',
+            'Pengurus Pelanggan membolehkan anda merekod pelanggan anda sendiri: nama, nombor telefon, sumber prospek, kereta dan sebut harga, serta sama ada urusan berjaya atau gagal (dengan nota pilihan). Redline tidak mengumpul nombor IC, alamat, e-mel, nombor lesen memandu, nombor pendaftaran, casis atau enjin kereta, atau butiran kelulusan pinjaman bank. Anda yang memasukkan data ini, dan anda yang menentukan apa yang direkod.',
             'Bagi data ini, anda bertanggungjawab untuk mendapatkan persetujuan pelanggan anda dan menggunakannya hanya untuk jualan yang anda uruskan. Kami menyimpan dan memprosesnya hanya untuk menyediakan Redline kepada anda, dan tidak sekali-kali menggunakannya untuk tujuan lain.',
           ],
         },
@@ -223,7 +223,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '4. Your customers’ data',
           body: [
-            'You own the data you enter. When you record customers’ personal data, you must have their consent, use it only for their purchase, and follow the Personal Data Protection Act 2010. Do not record data you do not need.',
+            'You own the data you enter. When you record customers’ personal data, you must have their consent, use it only for their purchase, and follow the Personal Data Protection Act 2010. Do not record data you do not need, and do not enter IC, registration, chassis or engine numbers in notes.',
           ],
         },
         {
@@ -290,7 +290,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '4. Data pelanggan anda',
           body: [
-            'Anda memiliki data yang anda masukkan. Apabila anda merekod data peribadi pelanggan, anda mesti mendapatkan persetujuan mereka, menggunakannya hanya untuk pembelian mereka, dan mematuhi Akta Perlindungan Data Peribadi 2010. Jangan rekod data yang tidak diperlukan.',
+            'Anda memiliki data yang anda masukkan. Apabila anda merekod data peribadi pelanggan, anda mesti mendapatkan persetujuan mereka, menggunakannya hanya untuk pembelian mereka, dan mematuhi Akta Perlindungan Data Peribadi 2010. Jangan rekod data yang tidak diperlukan, dan jangan masukkan nombor IC, pendaftaran, casis atau enjin dalam nota.',
           ],
         },
         {

@@ -8,6 +8,9 @@ export type CompareSlot = {
   year: number;
   /** Set only for the car handed over from the Calculator (see CompareOverrides). */
   overrides?: CompareOverrides;
+  /** This car's own "Additional rebate" tick — each brand's additional rebate differs, so it's per
+   *  car. Absent = the account's "Additional Rebate starts ticked" setting. */
+  includeAdditionalRebate?: boolean;
 };
 
 /**
@@ -52,8 +55,12 @@ export class CompareService {
   }
 
   setYear(index: number, year: number) {
-    // Rebate and insurance overrides belong to the year they were quoted for.
-    this.slots.update((list) => list.map((s, i) => (i === index ? { vehicleId: s.vehicleId, year } : s)));
+    // Rebate and insurance overrides belong to the year they were quoted for; the tick carries over.
+    this.slots.update((list) => list.map((s, i) => (i === index ? { vehicleId: s.vehicleId, year, includeAdditionalRebate: s.includeAdditionalRebate } : s)));
+  }
+
+  setAdditionalRebate(index: number, on: boolean) {
+    this.slots.update((list) => list.map((s, i) => (i === index ? { ...s, includeAdditionalRebate: on } : s)));
   }
 
   openInCalculator(vehicleId: string, year: number) {

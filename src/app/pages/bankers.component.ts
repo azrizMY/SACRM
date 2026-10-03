@@ -419,7 +419,7 @@ export class BankersComponent {
   activeTab = signal<Tab>('All');
 
   private settings = inject(SettingsService);
-  /** Filter chips: your banks (Settings → Banks & Insurance), plus any a saved banker still uses. */
+  /** Filter chips: your banks (Settings → Banks), plus any a saved banker still uses. */
   banks = computed(() => [...new Set([...this.settings.banks(), ...this.bankers.bankers().map((b) => b.bank).filter(Boolean)])]);
   /** The banker form's choices — your banks, plus this banker's own if it has since been removed. */
   bankChoices(): string[] {

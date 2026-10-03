@@ -1,15 +1,17 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { CountUpDirective } from '../shared/count-up.directive';
 import { IconComponent, type IconName } from '../shared/icon.component';
 import { DateRangePickerComponent } from '../shared/date-range-picker.component';
 import { BrandMarkComponent } from '../shared/brand-mark.component';
+import { DealExtrasComponent } from '../shared/deal-extras.component';
+import { I18nService, TranslatePipe } from '../shared/i18n';
+import { ToastService } from '../shared/toast.service';
 import { CustomerService } from '../shared/customer.service';
-import { SettingsService } from '../shared/settings.service';
-import { DEFAULT_COST_PRESETS } from '../data/settings-data';
 import { VEHICLES, formatRM, modelVariantLabel } from '../data/calculator-data';
-import { CUSTOMER_STATUS_META, dealProfit, freeGiftsSummary, totalCostSpent, type CostItem, type CustomerRecord } from '../data/customer-data';
+import { CUSTOMER_STATUS_META, dealProfit, freeGiftsSummary, totalCostSpent, giftBudgetReport, giftsSpent, giftsStillToDo, hiddenCosts, wonDate, type CustomerRecord } from '../data/customer-data';
 
 type SortKey = 'date' | 'name' | 'brand' | 'status' | 'commission' | 'totalCost' | 'netProfit';
 type SortDir = 'asc' | 'desc';
@@ -27,9 +29,9 @@ const COLUMNS: { key: SortKey; label: string; align?: 'right' }[] = [
 const PAGE_SIZE_OPTIONS = [10, 20, 30];
 
 
-/** The date a deal is filed under: its delivery date once delivered, otherwise when it came in. */
+/** The date a deal is filed under: the day it was won, or for an open Lead, when it came in. */
 function dealDate(r: CustomerRecord): string {
-  return r.deliveryDate ?? r.date;
+  return r.status === 'Won' ? wonDate(r) : r.date;
 }
 
 function hasCommission(r: CustomerRecord): boolean {
@@ -65,21 +67,21 @@ function monthRange(offset: number): { from: string; to: string } {
 }
 
 /**
- * In Progress and Delivered deals: commission, itemised cost spent, the resulting net profit, and
- * each deal's free-gift checklist (the source of truth Customer Manager's "gifts outstanding"
+ * Won deals (plus Leads with gifts or costs): commission, itemised cost spent, the resulting net
+ * profit, and each deal's free-gift checklist (the source of truth Customer Manager's "gifts outstanding"
  * flag reads). Everything per deal lives in its expandable detail — costs and gifts are edited
  * inline there; only commission uses a small dialog (it's a single required figure with a preview).
  */
 @Component({
   selector: 'app-cost-breakdown',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, DateRangePickerComponent, BrandMarkComponent, CountUpDirective],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, DateRangePickerComponent, BrandMarkComponent, CountUpDirective, DealExtrasComponent, TranslatePipe],
   template: `
     <div class="mx-auto flex max-w-7xl flex-col gap-5">
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div class="flex flex-col gap-1">
-          <h2 class="text-balance text-xl font-bold tracking-tight">Cost Breakdown</h2>
-          <p class="text-pretty text-sm text-muted-foreground">Commission, cost spent and free gifts for every In Progress and Delivered deal.</p>
+          <h2 class="text-balance text-xl font-bold tracking-tight">{{ "Earnings" | t }}</h2>
+          <p class="text-pretty text-sm text-muted-foreground">{{ "Commission in, gifts and costs out — and what's left for you." | t }}</p>
         </div>
         <!-- Quick period — commission is tracked by month -->
         <div role="radiogroup" aria-label="Period" class="flex rounded-lg bg-card p-1">
@@ -126,7 +128,7 @@ function monthRange(offset: number): { from: string; to: string } {
             <app-icon name="arrow-down-right" [size]="18" />
           </span>
           <div class="flex min-w-0 flex-col">
-            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Cost spent</span>
+            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{{ "Cost spent" | t }}</span>
             <span class="truncate font-mono text-xl font-bold tabular text-[var(--destructive)]" [appCountUp]="fmt(totalCosts())"></span>
           </div>
         </div>
@@ -150,6 +152,128 @@ function monthRange(offset: number): { from: string; to: string } {
           </div>
         </div>
       </div>
+
+      <!-- Waiting for commission: type the amount, press Enter, next one -->
+      @if (awaitingCommission().length) {
+        <section class="flex flex-col gap-2 rounded-xl border border-[var(--warning)]/30 bg-[var(--warning)]/8 p-3">
+          <div class="flex items-center gap-2">
+            <app-icon name="wallet" [size]="15" class="text-[var(--warning)]" />
+            <span class="text-sm font-semibold">{{ "Waiting for commission" | t }}</span>
+            <span class="rounded-md bg-[var(--warning)]/20 px-1.5 text-[11px] font-bold text-[var(--warning)] tabular">{{ awaitingCommission().length }}</span>
+            <span class="ml-auto hidden text-[11px] text-muted-foreground sm:block">{{ "Type the amount and press Enter" | t }}</span>
+          </div>
+          <ul class="flex flex-col divide-y divide-border/60">
+            @for (r of awaitingCommission(); track r.id) {
+              <li class="flex flex-wrap items-center gap-x-3 gap-y-2 py-2">
+                <div class="flex min-w-0 flex-1 basis-48 items-center gap-2">
+                  <app-brand-mark [brand]="r.brand" />
+                  <div class="flex min-w-0 flex-col">
+                    <span class="truncate text-sm font-semibold">{{ r.name }}</span>
+                    <span class="truncate text-xs text-muted-foreground">
+                      {{ modelVariantLabel(r.model, r.variant) }} · {{ "won" | t }} {{ shortDate(r) }}@if (costOf(r) !== 0) { · {{ fmt(costOf(r)) }} {{ "spent" | t }} }
+                    </span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="relative w-36">
+                    <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">RM</span>
+                    <input
+                      [id]="'commission-' + r.id"
+                      type="number"
+                      inputmode="decimal"
+                      step="100"
+                      [placeholder]="'e.g. 1500' | t"
+                      [ngModel]="draftFor(r.id)"
+                      (ngModelChange)="setDraft(r.id, $event)"
+                      (keydown.enter)="saveInline(r)"
+                      class="h-9 w-full rounded-lg border border-input bg-input pl-10 pr-2 text-sm tabular text-foreground outline-none focus:border-ring"
+                    />
+                  </div>
+                  <button type="button" (click)="saveInline(r)" [disabled]="!draftValid(r.id)" class="h-9 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground disabled:opacity-40">{{ "Save" | t }}</button>
+                </div>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+
+      <!-- Where the money goes: promised gifts (budget vs what they really cost) and extra costs -->
+      @if (moneyTotals(); as m) {
+        <section class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
+          <div class="flex flex-wrap items-center gap-2">
+            <app-icon name="gift" [size]="15" class="text-primary" />
+            <span class="text-sm font-semibold">{{ "Where the money goes" | t }}</span>
+            <span class="text-[11px] text-muted-foreground">{{ "Follows the period and filters above the list" | t }}</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
+            <div class="flex flex-col rounded-lg bg-muted/50 px-3 py-2">
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Gift budget" | t }}</span>
+              <span class="font-mono text-base font-bold tabular">{{ fmt(m.budget) }}</span>
+              <span class="text-[10px] text-muted-foreground">{{ "What you promised, at usual prices" | t }}</span>
+            </div>
+            <div class="flex flex-col rounded-lg bg-muted/50 px-3 py-2">
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Gifts done" | t }}</span>
+              <span class="font-mono text-base font-bold tabular">{{ fmt(m.actual) }}</span>
+              @if (m.variance !== 0) {
+                <span class="text-[10px] font-semibold" [ngClass]="m.variance > 0 ? 'text-[var(--destructive)]' : 'text-[var(--success)]'">{{ (m.variance > 0 ? '{amount} over' : '{amount} under') | t: { amount: fmt(abs(m.variance)) } }}</span>
+              } @else {
+                <span class="text-[10px] text-muted-foreground">{{ "What they really cost" | t }}</span>
+              }
+            </div>
+            <div class="flex flex-col rounded-lg px-3 py-2" [ngClass]="m.remaining > 0 ? 'bg-[var(--warning)]/10' : 'bg-muted/50'">
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Still to do" | t }}</span>
+              <span class="font-mono text-base font-bold tabular" [ngClass]="m.remaining > 0 ? 'text-[var(--warning)]' : ''">~{{ fmt(m.remaining) }}</span>
+              <span class="text-[10px] text-muted-foreground">{{ "Promised, not sorted yet" | t }}</span>
+            </div>
+            <div class="flex flex-col rounded-lg bg-muted/50 px-3 py-2">
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Extra costs" | t }}</span>
+              <span class="font-mono text-base font-bold tabular">{{ fmt(m.hidden) }}</span>
+              <span class="text-[10px] text-muted-foreground">{{ "Petrol, loader, referral…" | t }}</span>
+            </div>
+          </div>
+
+          <ul class="flex flex-col divide-y divide-border">
+            <li class="hidden items-center gap-x-4 pb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:flex">
+              <span class="flex-1">{{ "Deal" | t }}</span>
+              <span class="w-32 text-right">{{ "Gifts done / budget" | t }}</span>
+              <span class="w-28 text-right">{{ "Result" | t }}</span>
+              <span class="w-24 text-right">{{ "Still to do" | t }}</span>
+              <span class="w-24 text-right">{{ "Extra" | t }}</span>
+            </li>
+            @for (row of moneyRows(); track row.record.id) {
+              <li>
+                <button type="button" (click)="toggleExpand(row.record.id)" class="flex w-full flex-wrap items-center gap-x-4 gap-y-1 py-2 text-left text-sm">
+                  <span class="min-w-0 flex-1 basis-40">
+                    <span class="block truncate font-semibold">{{ row.record.name }}</span>
+                    <span class="block truncate text-xs text-muted-foreground">{{ modelVariantLabel(row.record.model, row.record.variant) }} · {{ statusMeta(row.record.status).label }}</span>
+                  </span>
+                  <span class="w-32 whitespace-nowrap text-right text-xs tabular text-muted-foreground">
+                    {{ row.budget > 0 ? fmt(row.actual) + ' / ' + fmt(row.budget) : '—' }}
+                  </span>
+                  <span class="w-28 whitespace-nowrap text-right text-xs font-semibold tabular" [ngClass]="row.variance > 0 ? 'text-[var(--destructive)]' : row.variance < 0 ? 'text-[var(--success)]' : 'text-muted-foreground'">
+                    @if (row.variance !== 0) {
+                      {{ (row.variance > 0 ? '{amount} over' : '{amount} under') | t: { amount: fmt(abs(row.variance)) } }}
+                    } @else if (row.budget > 0 && row.actual === 0) {
+                      <span class="font-normal">{{ "Not done yet" | t }}</span>
+                    } @else if (row.budget > 0) {
+                      {{ "On budget" | t }}
+                    } @else {
+                      —
+                    }
+                  </span>
+                  <span class="w-24 whitespace-nowrap text-right text-xs tabular" [ngClass]="row.remaining > 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'">
+                    {{ row.remaining > 0 ? '~' + fmt(row.remaining) : '—' }}
+                  </span>
+                  <span class="w-24 whitespace-nowrap text-right text-xs tabular" [ngClass]="row.hidden !== 0 ? 'text-foreground' : 'text-muted-foreground'">
+                    {{ row.hidden !== 0 ? fmt(row.hidden) : '—' }}
+                  </span>
+                </button>
+              </li>
+            }
+          </ul>
+        </section>
+      }
 
       <!-- Filters -->
       <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -244,6 +368,8 @@ function monthRange(offset: number): { from: string; to: string } {
                   <td class="p-4 text-right align-middle tabular">
                     @if (hasCommission(r)) {
                       {{ fmt(r.commission!) }}
+                    } @else if (r.status !== 'Won') {
+                      <span class="text-muted-foreground">—</span>
                     } @else {
                       <span class="rounded-md bg-[var(--warning)]/14 px-1.5 py-0.5 text-[11px] font-semibold text-[var(--warning)]">Pending</span>
                     }
@@ -256,10 +382,12 @@ function monthRange(offset: number): { from: string; to: string } {
                   </td>
                   <td class="p-4 text-right align-middle">
                     <div class="flex items-center justify-end gap-1.5" (click)="$event.stopPropagation()">
-                      <button type="button" (click)="openCosting(r)" class="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5 text-xs font-semibold transition-colors hover:bg-accent">
-                        <app-icon name="pencil" [size]="12" />
-                        Commission
-                      </button>
+                      @if (r.status === 'Won') {
+                        <button type="button" (click)="openCosting(r)" class="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5 text-xs font-semibold transition-colors hover:bg-accent">
+                          <app-icon name="pencil" [size]="12" />
+                          Commission
+                        </button>
+                      }
                       <button type="button" (click)="expandForCost(r.id)" class="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5 text-xs font-semibold transition-colors hover:bg-accent">
                         <app-icon name="plus" [size]="12" />
                         Cost
@@ -305,6 +433,8 @@ function monthRange(offset: number): { from: string; to: string } {
                     <span class="text-[10px] uppercase tracking-wide text-muted-foreground">Commission</span>
                     @if (hasCommission(r)) {
                       <span class="font-semibold tabular">{{ fmt(r.commission!) }}</span>
+                    } @else if (r.status !== 'Won') {
+                      <span class="font-semibold text-muted-foreground">—</span>
                     } @else {
                       <span class="w-fit rounded-md bg-[var(--warning)]/14 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--warning)]">Pending</span>
                     }
@@ -321,10 +451,12 @@ function monthRange(offset: number): { from: string; to: string } {
                 <div class="flex items-center justify-between gap-2">
                   <ng-container [ngTemplateOutlet]="giftChip" [ngTemplateOutletContext]="{ $implicit: r }" />
                   <div class="ml-auto flex gap-1.5" (click)="$event.stopPropagation()">
-                    <button type="button" (click)="openCosting(r)" class="inline-flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-xs font-semibold">
-                      <app-icon name="pencil" [size]="12" />
-                      Commission
-                    </button>
+                    @if (r.status === 'Won') {
+                      <button type="button" (click)="openCosting(r)" class="inline-flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-xs font-semibold">
+                        <app-icon name="pencil" [size]="12" />
+                        Commission
+                      </button>
+                    }
                     <button type="button" (click)="expandForCost(r.id)" class="inline-flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-xs font-semibold">
                       <app-icon name="plus" [size]="12" />
                       Cost
@@ -388,101 +520,14 @@ function monthRange(offset: number): { from: string; to: string } {
       }
     </ng-template>
 
-    <!-- Expanded deal: cost spent (inline add) and free gifts (inline checklist) -->
+    <!-- Expanded deal: free gifts and cost spent, the same editor as the customer panel -->
     <ng-template #detail let-r>
-      <div class="grid gap-3 lg:grid-cols-2">
-        <!-- Cost spent -->
-        <section class="flex flex-col gap-3 rounded-xl bg-card p-3">
-          <div class="flex items-center justify-between">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Cost spent</span>
-            <span class="text-xs font-semibold tabular" [ngClass]="costOf(r) > 0 ? 'text-[var(--destructive)]' : 'text-muted-foreground'">{{ fmt(costOf(r)) }}</span>
-          </div>
-          @if (r.costItems?.length) {
-            <ul class="flex flex-col gap-1">
-              @for (item of r.costItems; track item.id) {
-                <li class="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-1.5 text-xs">
-                  <span class="flex-1 text-foreground">{{ item.label }}</span>
-                  <span class="font-semibold tabular" [ngClass]="item.amount >= 0 ? 'text-[var(--destructive)]' : 'text-[var(--success)]'">{{ item.amount < 0 ? '−' : '' }}{{ fmtAbs(item.amount) }}</span>
-                  <button type="button" (click)="removeCostItem(r, item.id)" aria-label="Remove cost item" class="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-[var(--destructive)]">
-                    <app-icon name="x" [size]="12" />
-                  </button>
-                </li>
-              }
-            </ul>
-          } @else {
-            <p class="text-xs text-muted-foreground">Nothing logged yet.</p>
-          }
-          <div class="flex flex-wrap gap-1.5">
-            @for (p of costPresets(); track $index) {
-              <button
-                type="button"
-                (click)="applyCostPreset(p)"
-                class="rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors"
-                [ngClass]="newCostLabel() === p.label ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'"
-              >
-                {{ p.label }} · {{ fmt(p.amount) }}
-              </button>
-            }
-          </div>
-          <div class="flex gap-2">
-            <input
-              [id]="'cost-label-' + r.id"
-              type="text"
-              placeholder="What was it? e.g. Detailing"
-              [ngModel]="newCostLabel()"
-              (ngModelChange)="newCostLabel.set($event)"
-              (keydown.enter)="addCostItem(r)"
-              class="h-9 min-w-0 flex-1 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none"
-            />
-            <input
-              type="number"
-              step="10"
-              placeholder="RM"
-              title="Use a minus sign for a credit"
-              [ngModel]="newCostAmount()"
-              (ngModelChange)="newCostAmount.set($event)"
-              (keydown.enter)="addCostItem(r)"
-              class="h-9 w-24 rounded-lg border border-input bg-input px-3 text-sm tabular text-foreground outline-none"
-            />
-            <button type="button" (click)="addCostItem(r)" [disabled]="!costEntryValid()" class="rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground disabled:opacity-50">Add</button>
-          </div>
-        </section>
-
-        <!-- Free gifts -->
-        <section class="flex flex-col gap-3 rounded-xl bg-card p-3">
-          <div class="flex items-center justify-between">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Free gifts</span>
-            @if (giftSummary(r); as g) {
-              <span class="text-xs font-semibold tabular" [ngClass]="g.done === g.total ? 'text-[var(--success)]' : 'text-[var(--warning)]'">{{ g.done }}/{{ g.total }} done</span>
-            }
-          </div>
-          @if (r.freeGifts?.length) {
-            <ul class="flex flex-col gap-1">
-              @for (g of r.freeGifts; track g.id) {
-                <li class="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-1.5 text-xs">
-                  <input type="checkbox" [checked]="g.done" (change)="toggleGift(r, g.id)" [attr.aria-label]="'Mark ' + g.name + ' done'" class="size-4 accent-primary" />
-                  <span class="flex-1" [ngClass]="g.done ? 'text-muted-foreground line-through' : 'text-foreground'">{{ g.name }}</span>
-                  <button type="button" (click)="removeGift(r, g.id)" aria-label="Remove gift" class="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-[var(--destructive)]">
-                    <app-icon name="x" [size]="12" />
-                  </button>
-                </li>
-              }
-            </ul>
-          } @else {
-            <p class="text-xs text-muted-foreground">No gifts promised for this deal.</p>
-          }
-          <div class="flex gap-2">
-            <input
-              type="text"
-              placeholder="Add a gift, e.g. Floor mats"
-              [ngModel]="newGiftName()"
-              (ngModelChange)="newGiftName.set($event)"
-              (keydown.enter)="addGift(r)"
-              class="h-9 min-w-0 flex-1 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none"
-            />
-            <button type="button" (click)="addGift(r)" [disabled]="!newGiftName().trim()" class="rounded-lg bg-muted px-3 text-xs font-semibold text-foreground hover:bg-accent disabled:opacity-50">Add</button>
-          </div>
-        </section>
+      <div class="flex flex-col gap-2">
+        <app-deal-extras [record]="r" [columns]="true" [showBudget]="true" surface="bg-card" />
+        <a routerLink="/leads" [queryParams]="{ customer: r.id }" class="flex w-fit items-center gap-1 text-xs font-semibold text-primary hover:underline">
+          {{ "Open customer" | t }}
+          <app-icon name="arrow-up-right" [size]="12" />
+        </a>
       </div>
     </ng-template>
 
@@ -537,7 +582,6 @@ export class CostBreakdownComponent {
   brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
   pageSizeOptions = PAGE_SIZE_OPTIONS;
   /** Quick-add cost buttons — set in Settings → Quote Preferences. */
-  costPresets = computed(() => this.settings.settings().salesDefaults.costPresets ?? DEFAULT_COST_PRESETS);
   periods: { id: Period; label: string }[] = [
     { id: 'thisMonth', label: 'This month' },
     { id: 'lastMonth', label: 'Last month' },
@@ -545,12 +589,11 @@ export class CostBreakdownComponent {
   ];
 
   fmt = (v: number) => formatRM(v);
-  fmtAbs = (v: number) => formatRM(Math.abs(v));
   profitOf = dealProfit;
   costOf = totalCostSpent;
   hasCommission = hasCommission;
   giftSummary = freeGiftsSummary;
-  statusMeta = (s: CustomerRecord['status']) => CUSTOMER_STATUS_META[s];
+  statusMeta = (s: CustomerRecord['status']) => CUSTOMER_STATUS_META[s] ?? CUSTOMER_STATUS_META.Lead;
   signed = (v: number) => `${v >= 0 ? '+' : '−'}${formatRM(Math.abs(v))}`;
 
   nameFilter = signal('');
@@ -568,19 +611,57 @@ export class CostBreakdownComponent {
   commissionInput = signal<number | null>(null);
 
   expandedId = signal<string | null>(null);
-  newCostLabel = signal('');
-  newCostAmount = signal<number | null>(null);
-  newGiftName = signal('');
+  private i18n = inject(I18nService);
 
   constructor(
     public customers: CustomerService,
-    private settings: SettingsService,
+    private toast: ToastService,
   ) {}
+
+  // ---------- Waiting for commission (inline entry) ----------
+
+  /** Every won deal still without a commission — regardless of the period picked, since these are
+   *  jobs to finish, not figures to report. Oldest first: those are the ones most overdue. */
+  awaitingCommission = computed(() =>
+    this.customers
+      .records()
+      .filter((r) => r.status === 'Won' && r.commission == null)
+      .sort((a, b) => wonDate(a).localeCompare(wonDate(b))),
+  );
+
+  private drafts = signal<Record<string, number | null>>({});
+
+  draftFor(id: string): number | null {
+    return this.drafts()[id] ?? null;
+  }
+
+  setDraft(id: string, value: number | null) {
+    this.drafts.update((d) => ({ ...d, [id]: value }));
+  }
+
+  draftValid(id: string): boolean {
+    const v = this.draftFor(id);
+    return v !== null && (v as unknown) !== '' && Number.isFinite(Number(v)) && Number(v) !== 0;
+  }
+
+  /** Saves and jumps to the next deal's box, so a month's payouts go in with just typing and Enter. */
+  async saveInline(record: CustomerRecord) {
+    if (!this.draftValid(record.id)) return;
+    const list = this.awaitingCommission();
+    const next = list[list.findIndex((r) => r.id === record.id) + 1];
+    await this.customers.setCommission(record.id, Number(this.draftFor(record.id)));
+    this.setDraft(record.id, null);
+    this.toast.show(this.i18n.t('Commission saved for {name}', { name: record.name }));
+    if (next) setTimeout(() => document.getElementById('commission-' + next.id)?.focus());
+  }
 
   activeRecord = computed(() => this.customers.records().find((r) => r.id === this.activeRecordId()) ?? null);
 
-  /** Cost Breakdown covers deals from In Progress onward — Lead/Booked/Cancelled never show up here. */
-  eligibleRecords = computed(() => this.customers.records().filter((r) => r.status === 'In Progress' || r.status === 'Delivered'));
+  /** Won deals, plus open Leads that already have gifts promised or money spent — so spending on
+   *  deals that haven't closed yet is visible too. Lost deals never show up here. */
+  eligibleRecords = computed(() =>
+    this.customers.records().filter((r) => r.status === 'Won' || (r.status === 'Lead' && (!!r.freeGifts?.length || !!r.costItems?.length))),
+  );
 
   filteredSorted = computed(() => {
     let list = this.eligibleRecords();
@@ -602,9 +683,36 @@ export class CostBreakdownComponent {
 
   // Tiles follow the same filters as the list. Net profit only counts deals with a commission
   // keyed in — a deal still waiting on its commission would otherwise read as a loss.
-  pendingCount = computed(() => this.filteredSorted().filter((r) => !hasCommission(r)).length);
+  pendingCount = computed(() => this.filteredSorted().filter((r) => r.status === 'Won' && !hasCommission(r)).length);
   totalCommission = computed(() => this.filteredSorted().reduce((sum, r) => sum + (r.commission ?? 0), 0));
   totalCosts = computed(() => this.filteredSorted().reduce((sum, r) => sum + totalCostSpent(r), 0));
+  /** Per deal: gift budget, what done gifts really cost, over/under, still to do, extra costs. */
+  moneyRows = computed(() =>
+    this.filteredSorted()
+      .filter((r) => !!r.freeGifts?.length || !!r.costItems?.length)
+      .map((record) => {
+        const b = giftBudgetReport(record);
+        return {
+          record,
+          budget: b?.budget ?? 0,
+          actual: giftsSpent(record),
+          variance: b?.variance ?? 0,
+          remaining: giftsStillToDo(record),
+          hidden: hiddenCosts(record),
+        };
+      })
+      .sort((a, b) => b.variance - a.variance || b.remaining - a.remaining),
+  );
+  /** The same, summed over the listed deals — null when none has gifts or extra costs. */
+  moneyTotals = computed(() => {
+    const rows = this.moneyRows();
+    if (!rows.length) return null;
+    return rows.reduce(
+      (t, r) => ({ budget: t.budget + r.budget, actual: t.actual + r.actual, variance: t.variance + r.variance, remaining: t.remaining + r.remaining, hidden: t.hidden + r.hidden }),
+      { budget: 0, actual: 0, variance: 0, remaining: 0, hidden: 0 },
+    );
+  });
+  abs = Math.abs;
   totalNet = computed(() => this.filteredSorted().filter(hasCommission).reduce((sum, r) => sum + dealProfit(r), 0));
 
   /** Which quick period the date range currently matches, if any. */
@@ -627,7 +735,7 @@ export class CostBreakdownComponent {
   }
 
   emptyMessage(): string {
-    if (this.eligibleRecords().length === 0) return 'No deals yet — In Progress and Delivered customers from Customer Manager appear here automatically.';
+    if (this.eligibleRecords().length === 0) return 'No deals yet — won deals, and leads with gifts or costs, appear here automatically.';
     return 'No deals match these filters.';
   }
 
@@ -690,60 +798,12 @@ export class CostBreakdownComponent {
 
   toggleExpand(id: string) {
     this.expandedId.set(this.expandedId() === id ? null : id);
-    this.resetDrafts();
   }
 
   /** "+ Cost" on a row: open its detail and put the cursor in the cost field. */
   expandForCost(id: string) {
-    if (this.expandedId() !== id) {
-      this.expandedId.set(id);
-      this.resetDrafts();
-    }
+    this.expandedId.set(id);
     setTimeout(() => document.getElementById('cost-label-' + id)?.focus());
-  }
-
-  private resetDrafts() {
-    this.newCostLabel.set('');
-    this.newCostAmount.set(null);
-    this.newGiftName.set('');
-  }
-
-  applyCostPreset(preset: { label: string; amount: number }) {
-    this.newCostLabel.set(preset.label);
-    this.newCostAmount.set(preset.amount);
-  }
-
-  costEntryValid(): boolean {
-    const amount = this.newCostAmount();
-    return !!this.newCostLabel().trim() && amount !== null && amount !== 0;
-  }
-
-  async addCostItem(record: CustomerRecord) {
-    if (!this.costEntryValid()) return;
-    const item: CostItem = { id: crypto.randomUUID(), label: this.newCostLabel().trim(), amount: this.newCostAmount()! };
-    await this.customers.updateCostItems(record.id, [...(record.costItems ?? []), item]);
-    this.newCostLabel.set('');
-    this.newCostAmount.set(null);
-  }
-
-  async removeCostItem(record: CustomerRecord, itemId: string) {
-    await this.customers.updateCostItems(record.id, (record.costItems ?? []).filter((c) => c.id !== itemId));
-  }
-
-  // Free gifts are saved as they're ticked/added/removed — no separate Save step.
-  async toggleGift(record: CustomerRecord, id: string) {
-    await this.customers.updateFreeGifts(record.id, (record.freeGifts ?? []).map((g) => (g.id === id ? { ...g, done: !g.done } : g)));
-  }
-
-  async addGift(record: CustomerRecord) {
-    const name = this.newGiftName().trim();
-    if (!name) return;
-    await this.customers.updateFreeGifts(record.id, [...(record.freeGifts ?? []), { id: crypto.randomUUID(), name, done: false }]);
-    this.newGiftName.set('');
-  }
-
-  async removeGift(record: CustomerRecord, id: string) {
-    await this.customers.updateFreeGifts(record.id, (record.freeGifts ?? []).filter((g) => g.id !== id));
   }
 
   // ---------- Commission ----------
@@ -764,7 +824,7 @@ export class CostBreakdownComponent {
 
   async saveCosting(id: string) {
     if (!this.commissionValid()) return;
-    await this.customers.updateCosting(id, { commission: this.commissionInput()! });
+    await this.customers.setCommission(id, this.commissionInput()!);
     this.closeCosting();
   }
 

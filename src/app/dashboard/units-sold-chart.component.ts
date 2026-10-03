@@ -6,13 +6,11 @@ import { CustomerService } from '../shared/customer.service';
 const H = 280;
 const PAD = { top: 8, right: 8, bottom: 24, left: 32 };
 
-type Stage = { key: 'lead' | 'booked' | 'inProgress' | 'delivered'; label: string; color: string };
+type Stage = { key: 'lead' | 'won'; label: string; color: string };
 
 const STAGES: Stage[] = [
   { key: 'lead', label: 'Lead', color: 'var(--chart-4)' },
-  { key: 'booked', label: 'Booked', color: 'var(--warning)' },
-  { key: 'inProgress', label: 'In Progress', color: 'oklch(0.65 0.19 300)' },
-  { key: 'delivered', label: 'Delivered', color: 'var(--success)' },
+  { key: 'won', label: 'Won', color: 'var(--success)' },
 ];
 
 @Component({
@@ -24,7 +22,7 @@ const STAGES: Stage[] = [
       <div class="flex flex-col gap-3 px-6">
         <div class="flex flex-col gap-1">
           <h3 class="font-semibold leading-none">Pipeline trend</h3>
-          <p class="text-sm text-muted-foreground">Lead, Booked, In Progress &amp; Delivered, month by month</p>
+          <p class="text-sm text-muted-foreground">Leads &amp; won deals, month by month</p>
         </div>
         <ul class="flex flex-wrap items-center gap-x-4 gap-y-1.5">
           @for (s of stages; track s.key) {
@@ -126,7 +124,7 @@ export class UnitsSoldChartComponent implements AfterViewInit, OnDestroy {
   hover = signal<number | null>(null);
 
   yMax = computed(() => {
-    const max = Math.max(1, ...this.data().map((d) => Math.max(d.lead, d.booked, d.inProgress, d.delivered)));
+    const max = Math.max(1, ...this.data().map((d) => Math.max(d.lead, d.won)));
     return Math.ceil(max / 5) * 5 || 5;
   });
 
@@ -142,9 +140,7 @@ export class UnitsSoldChartComponent implements AfterViewInit, OnDestroy {
       const x = this.pad.left + (n === 1 ? 0 : (i / (n - 1)) * plotW);
       const yByStage: Record<Stage['key'], number> = {
         lead: y(d.lead),
-        booked: y(d.booked),
-        inProgress: y(d.inProgress),
-        delivered: y(d.delivered),
+        won: y(d.won),
       };
       return { ...d, x, y: yByStage };
     });
@@ -173,16 +169,14 @@ export class UnitsSoldChartComponent implements AfterViewInit, OnDestroy {
     const build = (key: Stage['key']) => pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y[key]}`).join(' ');
     return {
       lead: build('lead'),
-      booked: build('booked'),
-      inProgress: build('inProgress'),
-      delivered: build('delivered'),
+      won: build('won'),
     } as Record<Stage['key'], string>;
   });
 
   /** Highest (smallest-y) stage point at this index, so the tooltip clears every line's marker. */
   topY(i: number): number {
     const y = this.points()[i].y;
-    return Math.min(y.lead, y.booked, y.inProgress, y.delivered);
+    return Math.min(y.lead, y.won);
   }
 
   ngAfterViewInit(): void {

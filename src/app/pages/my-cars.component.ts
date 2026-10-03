@@ -218,7 +218,7 @@ type OfferTab = 'preview' | 'settings';
                 class="flex flex-1 items-center justify-center gap-2 rounded-lg bg-muted px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
               >
                 <app-icon name="download" [size]="15" />
-                {{ offerRendering() ? 'Updating…' : downloadingOfferSheet() ? 'Preparing…' : 'Download PDF' }}
+                {{ offerRendering() ? 'Updating…' : downloadingOfferSheet() ? 'Preparing…' : 'Save' }}
               </button>
               <button
                 type="button"
@@ -650,6 +650,7 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
       downpaymentType: 'percent',
       downpaymentValue: defaults.downpaymentPct,
       minDownpaymentCash: minDownpaymentCash(v.minDownpayment, v.price),
+      loanRounding: defaults.loanRounding,
     });
     // Same rule as the Calculator and the customer link: EIR only when an EIR actually exists (the
     // car's own or the account default); otherwise this row is quoted — and computed — as flat,

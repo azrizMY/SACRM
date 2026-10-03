@@ -17,6 +17,7 @@ import { buildQrMatrix } from './qr-code';
 import { drawDocumentsRequired } from './poster-brochure-documents-required';
 import type { BrochureData, BrochureRow } from './poster-brochure-data';
 import { translate, type Lang, type Params } from './i18n-core';
+import { downpaymentDisplay } from '../data/calculator-data';
 
 /** The page being drawn's language — set at the top of each page render, so helpers that only get
  *  the canvas (header bar, rows, documents list) don't each need it threaded through. */
@@ -247,9 +248,19 @@ async function drawRow(ctx: CanvasRenderingContext2D, row: BrochureRow, top: num
   // A car with no rebate shows a plain dash rather than "− RM 0.00", so the real promos stand out.
   ctx.fillText(row.rebate > 0 ? `− ${formatPosterCurrency(row.rebate)}` : '—', cols.rebate + cols.rebateWidth / 2, centerY);
 
-  ctx.font = displayFont(f(20), 700);
-  ctx.fillStyle = POSTER_COLORS.ink;
-  ctx.fillText(formatPosterCurrency(row.downpayment), cols.downpayment + cols.downpaymentWidth / 2, centerY);
+  const dp = downpaymentDisplay(row.downpayment);
+  const dpX = cols.downpayment + cols.downpaymentWidth / 2;
+  if (dp.isCashBack) {
+    ctx.font = labelFont(f(10), 700);
+    ctx.fillStyle = POSTER_COLORS.green;
+    ctx.fillText(L('CASH BACK'), dpX, centerY - f(13));
+    ctx.font = displayFont(f(20), 700);
+    ctx.fillText(formatPosterCurrency(dp.amount), dpX, centerY + f(7));
+  } else {
+    ctx.font = displayFont(f(20), 700);
+    ctx.fillStyle = POSTER_COLORS.ink;
+    ctx.fillText(formatPosterCurrency(dp.amount), dpX, centerY);
+  }
 
   const monthlyFrom = row.monthlyByTenure.length > 0 ? Math.min(...row.monthlyByTenure) : 0;
   const monthlyX = cols.monthly + cols.monthlyWidth / 2;

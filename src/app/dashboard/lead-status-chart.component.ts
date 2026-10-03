@@ -6,10 +6,8 @@ import type { CustomerStatus } from '../data/customer-data';
 
 const STATUS_COLOR: Record<CustomerStatus, string> = {
   Lead: 'var(--chart-4)',
-  Booked: 'var(--warning)',
-  'In Progress': 'oklch(0.65 0.19 300)',
-  Delivered: 'var(--success)',
-  Cancelled: 'var(--muted-foreground)',
+  Won: 'var(--success)',
+  Lost: 'var(--muted-foreground)',
 };
 
 const SIZE = 200;

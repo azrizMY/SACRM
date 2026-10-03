@@ -7,6 +7,7 @@ import { TopbarComponent } from './topbar.component';
 import { SettingsService } from '../shared/settings.service';
 import { TranslatePipe } from '../shared/i18n';
 import { InstallBannerComponent } from '../shared/install-banner.component';
+import { ToastHostComponent } from '../shared/toast-host.component';
 
 const TITLES: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -16,7 +17,7 @@ const TITLES: Record<string, string> = {
   'price-settings': 'Price Settings',
   leads: 'Customer Manager',
   bankers: 'Bankers',
-  notes: 'Cost Breakdown',
+  notes: 'Earnings',
   profile: 'My Profile',
   settings: 'Settings',
 };
@@ -24,7 +25,7 @@ const TITLES: Record<string, string> = {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, SidebarComponent, TopbarComponent, TranslatePipe, InstallBannerComponent],
+  imports: [CommonModule, RouterOutlet, SidebarComponent, TopbarComponent, TranslatePipe, InstallBannerComponent, ToastHostComponent],
   template: `
     <div class="flex h-dvh w-full overflow-hidden">
       <!-- Desktop sidebar -->
@@ -69,6 +70,7 @@ const TITLES: Record<string, string> = {
         </main>
       </div>
     </div>
+    <app-toast-host />
   `,
 })
 export class AppShellComponent {

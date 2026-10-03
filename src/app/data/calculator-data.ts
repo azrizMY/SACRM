@@ -378,13 +378,40 @@ export type QuotationTotalsInput = {
    *  goes towards it, so the customer's own cash only has to cover what the rebate doesn't. A rebate
    *  at or above the minimum leaves just the RM100 loan rounding. 0/absent = no minimum. */
   minDownpaymentCash?: number;
+  /** Which way the loan is rounded to RM100 (Settings → Loan Rounding). Absent = down. */
+  loanRounding?: LoanRounding;
+  /** "Give rebate as cash back": how much of `effectiveRebate` the customer takes as cash instead
+   *  of a discount (clamped to 0…effectiveRebate). Only the rest comes off the price, so the loan is
+   *  sized on OTR + insurance − the discount part, never more than that, and this amount is paid
+   *  back to the customer by the dealer. Set per quote by the SA only; absent/0 = none. */
+  cashbackAmount?: number;
 };
+
+/** 'down' — the loan is floored to RM100 and the leftover (up to RM99.99) goes into the downpayment.
+ *  'up' — the loan is raised to the next RM100, even past the amount due: the excess (under RM100)
+ *  comes back to the customer as cash back, i.e. a negative downpayment. */
+export type LoanRounding = 'down' | 'up';
+
+/** Rounds a loan to RM100 in the given direction. Cents are settled first so floating-point drift
+ *  (91,800.0000001) can never push a whole hundred up or down a step. */
+function roundLoan(value: number, mode: LoanRounding): number {
+  const cents = roundCents(Math.max(0, value));
+  return (mode === 'up' ? Math.ceil(cents / 100) : Math.floor(cents / 100)) * 100;
+}
+
+/** How a downpayment is shown: a negative one (Loan Rounding "up" lifting the loan past the
+ *  amount due) is cash back to the customer, so it's labelled Cash Back with the amount positive. */
+export function downpaymentDisplay(value: number): { label: 'Downpayment' | 'Cash Back'; amount: number; isCashBack: boolean } {
+  return value < 0 ? { label: 'Cash Back', amount: roundCents(-value), isCashBack: true } : { label: 'Downpayment', amount: value, isCashBack: false };
+}
 
 export type QuotationTotals = {
   insuranceAmount: number;
   totalAmountDue: number;
   downpaymentCash: number;
   loanAmount: number;
+  /** The part of the rebate paid back to the customer in cash (cashbackAmount), else 0. */
+  cashback: number;
 };
 
 /** Real money never has sub-cent fractions — floating-point arithmetic (percentages, repeated
@@ -395,6 +422,17 @@ export function roundCents(value: number): number {
 
 /** OTR price after rebate, plus the full itemized insurance charge — the selling price shown to the customer. */
 export function computeQuotationTotals(input: QuotationTotalsInput): QuotationTotals {
+  const cashback = roundCents(Math.min(Math.max(0, input.cashbackAmount ?? 0), Math.max(0, input.effectiveRebate)));
+  if (cashback > 0) {
+    // Only the discount part of the rebate comes off the price (so the minimum downpayment gets no
+    // help from the cash-back part either). The loan is then capped at that price — OTR + insurance
+    // − discount — so it never exceeds the car's real invoice total; that limit wins over Loan
+    // Rounding "up" (the loan drops back to the RM100 below instead).
+    const priced = computeQuotationTotals({ ...input, cashbackAmount: 0, effectiveRebate: roundCents(input.effectiveRebate - cashback) });
+    const loanAmount = priced.loanAmount > priced.totalAmountDue ? roundLoan(priced.totalAmountDue, 'down') : priced.loanAmount;
+    return { ...priced, loanAmount, downpaymentCash: roundCents(priced.totalAmountDue - loanAmount), cashback };
+  }
+  const rounding = input.loanRounding ?? 'down';
   const priceAfterRebate = Math.max(0, input.basePrice - input.effectiveRebate);
   const insuranceAmount = Math.max(0, input.insuranceAmount);
   const totalAmountDue = roundCents(priceAfterRebate + insuranceAmount);
@@ -404,7 +442,7 @@ export function computeQuotationTotals(input: QuotationTotalsInput): QuotationTo
     // An explicit cash downpayment (or a manually-typed Loan Amount, which sets one) — the SA's
     // own number governs directly against the real amount owed; no discount-anchoring applies.
     const downpaymentCash = Math.max(0, Math.min(input.downpaymentValue, totalAmountDue));
-    loanAmount = Math.floor(Math.max(0, totalAmountDue - downpaymentCash) / 100) * 100;
+    loanAmount = roundLoan(totalAmountDue - downpaymentCash, rounding);
   } else {
     // Downpayment is sized off the full sticker total — car price plus the loan-basis insurance
     // (normally the 0% NCD premium, the worst case) — BEFORE rebate is netted out, so rebate
@@ -418,19 +456,22 @@ export function computeQuotationTotals(input: QuotationTotalsInput): QuotationTo
     const pctAmount = (Math.max(0, input.downpaymentValue) / 100) * referenceTotal;
     const downpaymentCashAtBasis = Math.max(0, pctAmount - input.effectiveRebate);
     const loanBasisTotal = roundCents(referenceTotal - input.effectiveRebate);
-    // Banks disburse hire-purchase loans in RM100 increments, never more than what's owed — floor
-    // to the nearest 100 and push whatever's left over into the downpayment, rounded to the cent.
-    const fixedLoanAmount = Math.floor(Math.max(0, loanBasisTotal - downpaymentCashAtBasis) / 100) * 100;
-    loanAmount = Math.min(fixedLoanAmount, Math.floor(totalAmountDue / 100) * 100);
+    // Banks disburse hire-purchase loans in RM100 increments, never more than what's owed — round
+    // to the nearest 100 (down by default, see LoanRounding) and settle the rest in the downpayment.
+    const fixedLoanAmount = roundLoan(loanBasisTotal - downpaymentCashAtBasis, rounding);
+    loanAmount = Math.min(fixedLoanAmount, roundLoan(totalAmountDue, rounding));
   }
 
   // The variant's minimum downpayment caps the loan (still in RM100 steps), whatever was typed —
-  // less whatever the rebate already covers, since the minimum is measured before rebate.
+  // less whatever the rebate already covers, since the minimum is measured before rebate. Always
+  // rounded down here: rounding up could dip the downpayment below the required minimum (and a car
+  // that needs cash down never pays cash back).
   const minCash = Math.max(0, (input.minDownpaymentCash ?? 0) - input.effectiveRebate);
-  if ((input.minDownpaymentCash ?? 0) > 0) loanAmount = Math.min(loanAmount, Math.floor(Math.max(0, totalAmountDue - minCash) / 100) * 100);
+  if ((input.minDownpaymentCash ?? 0) > 0) loanAmount = Math.min(loanAmount, roundLoan(totalAmountDue - minCash, 'down'));
 
-  const downpaymentCash = roundCents(Math.max(0, totalAmountDue - loanAmount));
-  return { insuranceAmount, totalAmountDue, downpaymentCash, loanAmount };
+  // Negative only when rounding up past the amount due — that's cash back to the customer.
+  const downpaymentCash = roundCents(totalAmountDue - loanAmount);
+  return { insuranceAmount, totalAmountDue, downpaymentCash, loanAmount, cashback: 0 };
 }
 
 /** Rate Type — whether the quoted rate is a flat rate (interest on the original principal for

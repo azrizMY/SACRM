@@ -11,7 +11,7 @@ import { CompareService } from '../shared/compare.service';
 import { CompareTableComponent, type CompareColumn } from '../shared/compare-table.component';
 import { renderComparePoster } from '../shared/compare-poster';
 import { downloadBlob } from '../shared/pdf-writer';
-import { NCD_OPTIONS, basicPremiumDefault, modelVariantLabel, type RateType, type Vehicle } from '../data/calculator-data';
+import { NCD_OPTIONS, additionalRebateForYear, basicPremiumDefault, modelVariantLabel, type RateType, type Vehicle } from '../data/calculator-data';
 import { quoteForComparison, type CompareSetup } from '../data/compare-data';
 
 /**
@@ -99,15 +99,6 @@ import { quoteForComparison, type CompareSetup } from '../data/compare-data';
             </div>
           </div>
         </div>
-        <label class="mt-4 flex w-fit cursor-pointer items-center gap-2.5 text-sm">
-          <input
-            type="checkbox"
-            [ngModel]="includeAdditional()"
-            (ngModelChange)="patch({ includeAdditionalRebate: $event })"
-            class="size-4 shrink-0 rounded border-input accent-[var(--primary)]"
-          />
-          {{ 'Include additional rebate' | t }}
-        </label>
       </section>
 
       <app-compare-table
@@ -119,21 +110,34 @@ import { quoteForComparison, type CompareSetup } from '../data/compare-data';
         (chooseCar)="chooseCar($event.column, $event.vehicleId)"
         (remove)="compare.remove($event)"
         (setYear)="compare.setYear($event.index, $event.year)"
+        [showAdditionalRebate]="true"
+        (toggleAdditionalRebate)="compare.setAdditionalRebate($event.index, $event.on)"
         (action)="openInCalculator($event)"
       />
 
       @if (columns().length > 0) {
         <!-- Share -->
         <div class="mt-12 flex flex-col items-center gap-3 text-center">
-          <button
-            type="button"
-            (click)="share()"
-            [disabled]="columns().length < 2 || sharing()"
-            class="btn-glow flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold disabled:opacity-50"
-          >
-            <app-icon name="share" [size]="15" />
-            {{ (sharing() ? 'Preparing…' : 'Share comparison') | t }}
-          </button>
+          <div class="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              (click)="save()"
+              [disabled]="columns().length < 2 || saving()"
+              class="flex items-center justify-center gap-2 rounded-full border border-border bg-card px-6 py-3 text-sm font-semibold transition-colors hover:bg-accent disabled:opacity-50"
+            >
+              <app-icon [name]="saved() ? 'check' : 'download'" [size]="15" />
+              {{ (saving() ? 'Saving…' : saved() ? 'Saved!' : 'Save') | t }}
+            </button>
+            <button
+              type="button"
+              (click)="share()"
+              [disabled]="columns().length < 2 || sharing()"
+              class="btn-glow flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold disabled:opacity-50"
+            >
+              <app-icon name="share" [size]="15" />
+              {{ (sharing() ? 'Preparing…' : 'Share comparison') | t }}
+            </button>
+          </div>
           @if (columns().length < 2) {
             <p class="text-xs text-muted-foreground">{{ 'Choose at least 2 cars to share a comparison.' | t }}</p>
           }
@@ -179,14 +183,13 @@ export class CompareComponent {
         tenureMonths: Math.max(...d.defaultTenureYears) * 12,
         rateType: d.defaultRateType,
         ncd: d.ncd,
-        includeAdditionalRebate: d.additionalRebateByDefault ?? true,
       });
     }
   }
 
   setup = computed(() => this.compare.setup()!);
-  /** The switch's state — a setup saved before the switch existed falls back to the account setting. */
-  includeAdditional = computed(() => this.setup().includeAdditionalRebate ?? this.settings.settings().salesDefaults.additionalRebateByDefault ?? true);
+  /** Where a car's own "Additional rebate" tick starts — the account's setting. */
+  private additionalByDefault = computed(() => this.settings.settings().salesDefaults.additionalRebateByDefault ?? true);
 
   /** Every car, grouped by brand for the column dropdowns. */
   carGroups = computed(() => {
@@ -212,7 +215,15 @@ export class CompareComponent {
           year: slot.year,
           years: vehicle.years.map((y) => y.year).sort((a, b) => b - a),
           fromQuote: !!slot.overrides,
-          quote: quoteForComparison(vehicle, slot.year, setup, pricing, slot.overrides),
+          additionalRebate: additionalRebateForYear(vehicle, slot.year),
+          includeAdditionalRebate: slot.includeAdditionalRebate ?? this.additionalByDefault(),
+          quote: quoteForComparison(
+            vehicle,
+            slot.year,
+            { ...setup, includeAdditionalRebate: slot.includeAdditionalRebate ?? this.additionalByDefault() },
+            pricing,
+            slot.overrides,
+          ),
         },
       ];
     });
@@ -237,6 +248,29 @@ export class CompareComponent {
   openInCalculator(c: CompareColumn) {
     this.compare.openInCalculator(c.vehicle.id, c.year);
     this.router.navigateByUrl('/calculator');
+  }
+
+  saving = signal(false);
+  saved = signal(false);
+
+  /** Saves the comparison image to the device. */
+  async save() {
+    if (this.saving() || this.columns().length < 2) return;
+    this.saving.set(true);
+    try {
+      downloadBlob(new Uint8Array(await (await this.renderImage()).arrayBuffer()), this.imageName(), 'image/png');
+      this.settings.markQuoteShared();
+      this.saved.set(true);
+      setTimeout(() => this.saved.set(false), 2000);
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  private imageName(): string {
+    return `Compare-${this.columns()
+      .map((c) => c.vehicle.model)
+      .join('-vs-')}.png`.replace(/[^\w.-]+/g, '-');
   }
 
   async share() {

@@ -4,6 +4,7 @@ import { carImageWithShadow } from './car-shadow';
 import { loadPosterImage } from './poster-images';
 import { fillTrackedText, formatPosterCurrency, wrapPosterText } from './poster-draw-utils';
 import { POSTER_COLORS, displayFont, labelFont, posterFontsReady } from './poster-theme';
+import { downpaymentDisplay } from '../data/calculator-data';
 
 /** One car's column on the comparison image. */
 export type ComparePosterCar = {
@@ -118,7 +119,7 @@ export async function renderComparePoster(canvas: HTMLCanvasElement, data: Compa
     const rows: [string, string][] = [
       [T('OTR Price'), formatPosterCurrency(car.price)],
       [T('Rebate'), car.rebate > 0 ? `− ${formatPosterCurrency(car.rebate)}` : '—'],
-      [T('Downpayment'), formatPosterCurrency(car.downpayment)],
+      [T(downpaymentDisplay(car.downpayment).label), formatPosterCurrency(downpaymentDisplay(car.downpayment).amount)],
       [T('Loan Amount'), formatPosterCurrency(car.loan)],
     ];
     let y = 620;

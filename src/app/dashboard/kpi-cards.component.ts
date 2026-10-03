@@ -97,7 +97,7 @@ const TONE_SPARK_COLOR: Record<CardTone, string> = {
               <app-brand-mark [brand]="targetBrand()" class="size-5 text-[9px]" />
             </span>
             <p class="font-mono text-2xl font-bold tracking-tight tabular">
-              {{ delivered() }}<span class="text-sm font-normal text-muted-foreground"> / {{ targetUnits() }}</span>
+              {{ won() }}<span class="text-sm font-normal text-muted-foreground"> / {{ targetUnits() }}</span>
             </p>
           </div>
           <p class="text-xs font-medium text-muted-foreground tabular">
@@ -138,20 +138,20 @@ export class KpiCardsComponent {
 
   targetBrand = computed(() => this.settingsService.settings().dashboardTarget.brand);
   targetUnits = computed(() => this.settingsService.settings().dashboardTarget.target);
-  delivered = computed(() => this.customers.delivered().filter((r) => r.brand === this.targetBrand()).length);
+  won = computed(() => this.customers.won().filter((r) => r.brand === this.targetBrand()).length);
 
-  remaining = computed(() => Math.max(0, this.targetUnits() - this.delivered()));
-  targetPct = computed(() => Math.min(100, (this.delivered() / this.targetUnits()) * 100));
+  remaining = computed(() => Math.max(0, this.targetUnits() - this.won()));
+  targetPct = computed(() => Math.min(100, (this.won() / this.targetUnits()) * 100));
 
   cards = computed<Card[]>(() => {
     const records = this.customers.records();
     const units = unitsSoldTotal(records);
-    // Profit only counts delivered deals with a commission keyed in; the rest are shown as
+    // Profit only counts won deals with a commission keyed in; the rest are shown as
     // pending rather than dragging the total down with costs and no commission yet.
-    const delivered = this.customers.delivered();
-    const settled = delivered.filter((r) => r.commission != null);
+    const won = this.customers.won();
+    const settled = won.filter((r) => r.commission != null);
     const profitValue = settled.reduce((sum, r) => sum + dealProfit(r), 0);
-    const pendingCommission = delivered.length - settled.length;
+    const pendingCommission = won.length - settled.length;
     const costSpent = costSpentTotal(records);
     const leads = leadsPipelineStat(records);
 

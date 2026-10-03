@@ -404,7 +404,8 @@ export const promoTemplate: PosterTemplate = {
     ctx.fillStyle = POSTER_COLORS.paper;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    fillTrackedText(ctx, 'JIMAT', M, 118, 7);
+    const allCashback = (data.cashback ?? 0) > 0 && (data.cashback ?? 0) >= data.rebate;
+    fillTrackedText(ctx, allCashback ? 'CASHBACK' : 'JIMAT', M, 118, 7);
     drawAmount(ctx, Math.round(data.rebate).toLocaleString('en-MY'), M - 2, 212, 104, {
       align: 'left',
       maxWidth: W - 2 * M,
@@ -414,7 +415,7 @@ export const promoTemplate: PosterTemplate = {
     ctx.font = labelFont(11, 700);
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.textBaseline = 'middle';
-    fillTrackedText(ctx, T(data, 'REBATE · {model}', { model: data.modelTitle.toUpperCase() }), M, 244, 1.8);
+    fillTrackedText(ctx, T(data, allCashback ? 'CASH BACK · {model}' : 'REBATE · {model}', { model: data.modelTitle.toUpperCase() }), M, 244, 1.8);
 
     await drawCar(ctx, data, W / 2, 478, 470, 200, true);
     if (isStale()) return;

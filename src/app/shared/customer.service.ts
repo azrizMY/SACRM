@@ -1,18 +1,15 @@
 import { Injectable, computed, signal } from '@angular/core';
-import { formatRM, modelVariantLabel, vehicleTitle } from '../data/calculator-data';
-import { TO_BE_CONFIRMED_COLOUR } from '../data/customer-data';
+import { modelVariantLabel, vehicleTitle } from '../data/calculator-data';
+import { TO_BE_CONFIRMED_COLOUR, withCurrentStages, withGiftCosts } from '../data/customer-data';
 import type {
-  BookedInput,
-  CancelledInput,
+  LostInput,
+  WonInput,
   CarSpec,
-  CostingInput,
   CostItem,
   CustomerRecord,
   CustomerStatus,
-  DeliveredInput,
   EditCustomerInput,
   FreeGiftItem,
-  InProgressInput,
   NewLeadInput,
   PendingRequote,
   QuotationDetails,
@@ -22,14 +19,10 @@ import { clearAllCustomers, deleteCustomer, getAllCustomers, putCustomer } from 
 
 /** Field groupings for the generic Edit Customer path, used only to build a coarse "Details updated: X, Y" message. */
 const EDIT_SECTIONS: Record<string, (keyof EditCustomerInput)[]> = {
-  Customer: ['name', 'phone', 'icNo', 'address', 'email', 'drivingLicenceNo', 'sourceType'],
+  Customer: ['name', 'phone', 'sourceType'],
   Vehicle: ['brand', 'model', 'variant', 'yearMade', 'colour'],
-  Payment: ['downpayment', 'ncd'],
-  'Trade-in': ['tradeInStatus', 'tradeInVehicle', 'tradeInValue'],
-  Documents: ['documentStatus'],
-  Financing: ['financingType', 'bankPanel', 'loanAmount', 'loanTenureMonths', 'loanInterestRate'],
-  Delivery: ['insuranceName', 'plateNo', 'deliveryDate', 'chassisNo', 'engineNo', 'deliveryNotes'],
-  Cancellation: ['cancelReason', 'cancelNotes'],
+  Financing: ['financingType'],
+  'Lost reason': ['cancelReason', 'cancelNotes'],
 };
 const EDIT_SECTIONS_ORDER = Object.keys(EDIT_SECTIONS);
 
@@ -43,10 +36,8 @@ export class CustomerService {
   records = signal<CustomerRecord[]>([]);
 
   leads = computed(() => this.records().filter((r) => r.status === 'Lead'));
-  booked = computed(() => this.records().filter((r) => r.status === 'Booked'));
-  inProgress = computed(() => this.records().filter((r) => r.status === 'In Progress'));
-  delivered = computed(() => this.records().filter((r) => r.status === 'Delivered'));
-  cancelled = computed(() => this.records().filter((r) => r.status === 'Cancelled'));
+  won = computed(() => this.records().filter((r) => r.status === 'Won'));
+  lost = computed(() => this.records().filter((r) => r.status === 'Lost'));
 
   constructor() {
     this.load();
@@ -58,7 +49,7 @@ export class CustomerService {
   async load(): Promise<void> {
     try {
       const all = await getAllCustomers();
-      this.records.set(all.sort((a, b) => b.createdAt - a.createdAt));
+      this.records.set(all.map((r) => withGiftCosts(withCurrentStages(r))).sort((a, b) => b.createdAt - a.createdAt));
     } catch {
       this.records.set([]);
     }
@@ -69,7 +60,7 @@ export class CustomerService {
     this.records.set([]);
   }
 
-  async addLead(input: NewLeadInput): Promise<void> {
+  async addLead(input: NewLeadInput): Promise<CustomerRecord> {
     const now = Date.now();
     const record: CustomerRecord = {
       id: crypto.randomUUID(),
@@ -81,69 +72,40 @@ export class CustomerService {
     };
     await putCustomer(record);
     this.records.update((list) => [record, ...list]);
+    return record;
   }
 
-  async markBooked(id: string, input: BookedInput): Promise<void> {
+  /** Colour is the one thing Won requires — it's saved here with the status change. */
+  async markWon(id: string, input: WonInput): Promise<void> {
     await this.mutate(id, (existing) => {
-      const messages: string[] = [`Status changed: ${existing.status} → Booked`];
-      return {
-        // Documents defaults to "Not Submitted" on entering Booked rather than staying unset —
-        // preserve it if already present (e.g. a reopened record already has a real status).
-        changes: { ...input, status: 'Booked', documentStatus: existing.documentStatus ?? 'NO' },
-        messages,
-      };
+      const messages = [`Status changed: ${existing.status} → Won`];
+      if (input.colour !== existing.colour) messages.push(`Colour confirmed: ${input.colour}`);
+      return { changes: { ...input, status: 'Won' }, messages };
     });
   }
 
-  async markInProgress(id: string, input: InProgressInput): Promise<void> {
-    await this.mutate(id, (existing) => {
-      const messages = [`Status changed: ${existing.status} → In Progress`];
-      let quotation = existing.quotation;
-      if (input.financingType === 'Loan') {
-        messages.push(`Financing confirmed: Loan · ${formatRM(input.loanAmount ?? 0)} · ${input.loanTenureMonths}mo`);
-        messages.push('Documents: Approved (loan reaching In Progress means the bank has signed off)');
-        // Keep the quotation snapshot (what "View Quotation" recomputes from) in sync with the
-        // financing actually confirmed here — otherwise it keeps showing the pre-confirmation
-        // down payment/tenure/rate forever, even after the advisor updates them on this screen.
-        if (quotation && input.downpayment != null) {
-          quotation = {
-            ...quotation,
-            downpaymentType: 'amount',
-            downpaymentValue: input.downpayment,
-            tenureMonths: input.loanTenureMonths ?? quotation.tenureMonths,
-            rateType: input.rateType ?? quotation.rateType,
-            interestRate: input.loanInterestRate ?? quotation.interestRate,
-          };
-        }
-      } else {
-        messages.push('Financing confirmed: Cash');
-      }
-      // Reaching In Progress on a loan deal means the bank has approved — the documents that got it
-      // there are done, so Document Status advances with it instead of sitting at its Booked-stage value.
-      return { changes: { ...input, status: 'In Progress', documentStatus: input.financingType === 'Loan' ? 'APPROVE' : existing.documentStatus, quotation }, messages };
-    });
+  async setBooked(id: string, booked: boolean): Promise<void> {
+    await this.mutate(id, () => ({ changes: { booked }, messages: [booked ? 'Marked as booked' : 'Booking removed'] }));
   }
 
-  async markDelivered(id: string, input: DeliveredInput): Promise<void> {
-    await this.mutate(id, (existing) => {
-      const messages = [`Status changed: ${existing.status} → Delivered`, `Delivery completed · ${input.plateNo}`];
-      return { changes: { ...input, status: 'Delivered' }, messages };
-    });
+  /** Commission arrives after delivery — saved on its own, straight from the panel or Earnings. */
+  async setCommission(id: string, commission: number | undefined): Promise<void> {
+    await this.mutate(id, () => ({ changes: { commission } }));
   }
 
-  async markCancelled(id: string, input: CancelledInput): Promise<void> {
+  async markLost(id: string, input: LostInput): Promise<void> {
     await this.mutate(id, (existing) => ({
-      changes: { ...input, status: 'Cancelled', previousStatus: existing.status },
-      messages: [`Status changed: ${existing.status} → Cancelled (${input.cancelReason})`],
+      changes: { ...input, status: 'Lost', previousStatus: existing.status },
+      messages: [`Status changed: ${existing.status} → Lost (${input.cancelReason})`],
     }));
   }
 
-  /** Restores a cancelled record to the stage it was cancelled from. Reason/notes are kept as
-   *  history rather than cleared, so a record cancelled and reopened twice tells its own story. */
+  /** Restores a lost record to the stage it was lost from. Reason/notes are kept as history
+   *  rather than cleared, so a record lost and reopened twice tells its own story. */
   async reopenCustomer(id: string): Promise<void> {
     await this.mutate(id, (existing) => {
       const target: CustomerStatus = existing.previousStatus ?? 'Lead';
-      const messages = [`Reopened: Cancelled → ${target}`];
+      const messages = [`Reopened: Lost → ${target}`];
       return { changes: { status: target, previousStatus: undefined }, messages };
     });
   }
@@ -153,21 +115,7 @@ export class CustomerService {
       const changedSections = EDIT_SECTIONS_ORDER.filter((section) =>
         EDIT_SECTIONS[section].some((k) => input[k] !== undefined && input[k] !== existing[k]),
       );
-      // Same reasoning as markInProgress: editing the confirmed down payment/tenure/rate here is
-      // meant to be the up-to-date financing figures, so keep the quotation snapshot ("View
-      // Quotation" recomputes from this) in step instead of leaving it frozen at old values.
-      let quotation = existing.quotation;
-      const financingType = input.financingType ?? existing.financingType;
-      if (quotation && financingType === 'Loan' && (input.downpayment !== undefined || input.loanTenureMonths !== undefined || input.loanInterestRate !== undefined)) {
-        quotation = {
-          ...quotation,
-          downpaymentType: input.downpayment !== undefined ? 'amount' : quotation.downpaymentType,
-          downpaymentValue: input.downpayment ?? quotation.downpaymentValue,
-          tenureMonths: input.loanTenureMonths ?? quotation.tenureMonths,
-          interestRate: input.loanInterestRate ?? quotation.interestRate,
-        };
-      }
-      return { changes: { ...input, quotation }, messages: changedSections.length ? [`Details updated: ${changedSections.join(', ')}`] : [] };
+      return { changes: input, messages: changedSections.length ? [`Details updated: ${changedSections.join(', ')}`] : [] };
     });
   }
 
@@ -182,12 +130,12 @@ export class CustomerService {
     }));
   }
 
-  async updateCosting(id: string, input: CostingInput): Promise<void> {
-    await this.mutate(id, () => ({ changes: input }));
-  }
-
   async updateCostItems(id: string, items: CostItem[]): Promise<void> {
     await this.mutate(id, () => ({ changes: { costItems: items } }));
+  }
+
+  async updateGiftsAndCosts(id: string, freeGifts: FreeGiftItem[], costItems: CostItem[]): Promise<void> {
+    await this.mutate(id, () => ({ changes: { freeGifts, costItems } }));
   }
 
   /** Saving a quotation is also what resolves a pending re-quote after a car change. */
@@ -203,11 +151,11 @@ export class CustomerService {
    * offers the same colour name) since it has to be re-confirmed for a different car. If the record
    * has a quotation, it's flagged for re-quote — nothing is recalculated here; the SA re-quotes
    * explicitly. Changing twice before re-quoting keeps the *first* snapshot, since that's what the
-   * customer was actually quoted. Delivered records are refused (the car has been handed over).
+   * customer was actually quoted. Won records are refused (the deal is closed, colour confirmed).
    */
   async changeCar(id: string, car: CarSpec, opts: { pendingRequote?: PendingRequote; note?: string } = {}): Promise<void> {
     await this.mutate(id, (existing) => {
-      if (existing.status === 'Delivered') return { changes: {} };
+      if (existing.status === 'Won') return { changes: {} };
       return {
         changes: {
           ...car,
@@ -217,6 +165,12 @@ export class CustomerService {
         messages: [`Car changed: ${carLabel(existing)} → ${carLabel(car)}${opts.note ? ` (${opts.note})` : ''}`, 'Colour reset to To be Confirmed'],
       };
     });
+  }
+
+  /** Puts a record back exactly as it was — what Undo uses after a quick action. */
+  async restore(record: CustomerRecord): Promise<void> {
+    await putCustomer(record);
+    this.records.update((list) => list.map((r) => (r.id === record.id ? record : r)));
   }
 
   async deleteCustomer(id: string): Promise<void> {
@@ -240,7 +194,7 @@ export class CustomerService {
   /**
    * Single seam every mutation goes through, so activity logging can't be silently skipped by a
    * future method. `build` sees the pre-mutation record and returns the patch plus any activity
-   * messages to append (curated prose, not a generic field diff — see markInProgress for why).
+   * messages to append (curated prose, not a generic field diff).
    */
   private async mutate(
     id: string,

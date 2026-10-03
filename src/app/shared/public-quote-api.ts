@@ -25,6 +25,8 @@ export type PublicQuoteBundle = {
     basicPremiumRatePct: number;
     /** The advisor's poster language — the whole customer link is shown in it. */
     posterLanguage?: 'en' | 'ms';
+    /** The advisor's Loan Rounding setting, so the customer sees the same loan they would. */
+    loanRounding?: 'down' | 'up';
   };
   vehicleInsurance: VehicleInsuranceOverrides;
   vehicleOverrides: Record<string, VehicleOverride>;

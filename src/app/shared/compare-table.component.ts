@@ -5,13 +5,23 @@ import { IconComponent } from './icon.component';
 import { TranslatePipe } from './i18n';
 import { CarShadowPipe } from './car-shadow';
 import { MAX_COMPARE } from './compare.service';
-import { modelVariantLabel, type Vehicle } from '../data/calculator-data';
+import { downpaymentDisplay, modelVariantLabel, type Vehicle } from '../data/calculator-data';
 import type { CompareQuote, CompareSetup } from '../data/compare-data';
 
-export type CompareColumn = { index: number; vehicle: Vehicle; year: number; years: number[]; fromQuote: boolean; quote: CompareQuote };
+export type CompareColumn = {
+  index: number;
+  vehicle: Vehicle;
+  year: number;
+  years: number[];
+  fromQuote: boolean;
+  quote: CompareQuote;
+  /** This model year's additional rebate, and whether it's ticked — the SA's page only. */
+  additionalRebate?: number;
+  includeAdditionalRebate?: boolean;
+};
 export type CompareCarGroup = { brand: string; vehicles: Vehicle[] };
 
-type FigureRow = { label: string; caption?: (setup: CompareSetup, q: CompareQuote) => string; value: (q: CompareQuote) => string; strong?: boolean };
+type FigureRow = { label: string; labelFor?: (q: CompareQuote) => string; caption?: (setup: CompareSetup, q: CompareQuote) => string; value: (q: CompareQuote) => string; strong?: boolean };
 
 const rm = (v: number) => `RM ${v.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const rmWhole = (v: number) => `RM ${Math.round(v).toLocaleString('en-MY')}`;
@@ -96,6 +106,17 @@ const rmWhole = (v: number) => `RM ${Math.round(v).toLocaleString('en-MY')}`;
               <span class="text-xs text-muted-foreground">{{ c.year }}</span>
             }
             <span class="mt-1 text-xs text-muted-foreground sm:text-sm">{{ 'From' | t }} {{ rmWhole(c.quote.price) }}</span>
+            @if (showAdditionalRebate && (c.additionalRebate ?? 0) > 0) {
+              <label class="mt-1.5 flex cursor-pointer items-center gap-1.5 rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium sm:text-xs" [class.text-muted-foreground]="!c.includeAdditionalRebate">
+                <input
+                  type="checkbox"
+                  [checked]="!!c.includeAdditionalRebate"
+                  (change)="toggleAdditionalRebate.emit({ index: c.index, on: !c.includeAdditionalRebate })"
+                  class="size-3.5 shrink-0 accent-[var(--primary)]"
+                />
+                {{ 'Additional rebate' | t }} {{ rmWhole(c.additionalRebate!) }}
+              </label>
+            }
           </div>
         } @else {
           <button
@@ -121,7 +142,7 @@ const rmWhole = (v: number) => `RM ${Math.round(v).toLocaleString('en-MY')}`;
                 <div class="flex flex-col items-center gap-0.5 text-center">
                   @if (columnAt(i); as c) {
                     <span class="text-[13px] tabular sm:text-xl" [ngClass]="row.strong ? 'font-semibold' : 'font-medium'">{{ row.value(c.quote) | t }}</span>
-                    <span class="text-[10px] leading-tight text-muted-foreground sm:text-xs">{{ row.label | t }}{{ row.caption ? ' · ' + (row.caption(setup, c.quote) | t) : '' }}</span>
+                    <span class="text-[10px] leading-tight text-muted-foreground sm:text-xs">{{ (row.labelFor ? row.labelFor(c.quote) : row.label) | t }}{{ row.caption ? ' · ' + (row.caption(setup, c.quote) | t) : '' }}</span>
                   }
                 </div>
               }
@@ -181,6 +202,8 @@ export class CompareTableComponent {
   @Input() actionLabel = '';
   /** Label on the column that came from the quote being looked at. */
   @Input() quoteBadge = 'Your quote';
+  /** Offer a per-car "Additional rebate" tick (the SA's page; the customer link never shows it). */
+  @Input() showAdditionalRebate = false;
   /** Where the pinned dropdown row sticks and how far it bleeds — depends on the page's padding. */
   @Input() stickyClass = 'top-0';
 
@@ -188,6 +211,7 @@ export class CompareTableComponent {
   @Output() remove = new EventEmitter<number>();
   @Output() setYear = new EventEmitter<{ index: number; year: number }>();
   @Output() action = new EventEmitter<CompareColumn>();
+  @Output() toggleAdditionalRebate = new EventEmitter<{ index: number; on: boolean }>();
 
   readonly slotIndexes = Array.from({ length: MAX_COMPARE }, (_, i) => i);
   readonly modelVariantLabel = modelVariantLabel;
@@ -206,7 +230,8 @@ export class CompareTableComponent {
     {
       title: 'Loan',
       rows: [
-        { label: 'Downpayment', value: (q) => rm(q.downpayment) },
+        // A negative downpayment (loan rounded up past the amount due) reads as Cash Back.
+        { label: 'Downpayment', labelFor: (q) => downpaymentDisplay(q.downpayment).label, value: (q) => rm(downpaymentDisplay(q.downpayment).amount) },
         { label: 'Loan Amount', value: (q) => rm(q.loan), strong: true },
         {
           label: 'Interest Rate',

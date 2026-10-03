@@ -4,6 +4,7 @@ import { AfterViewInit, Component, computed, effect, ElementRef, HostListener, i
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { ToastService } from '../shared/toast.service';
 import { CompareService } from '../shared/compare.service';
 import { IconComponent } from '../shared/icon.component';
 import { InsuranceQuotationEditorComponent } from '../shared/insurance-quotation-editor.component';
@@ -25,6 +26,7 @@ import {
   computeQuotationTotals,
   minDownpaymentCash,
   defaultRateFor,
+  downpaymentDisplay,
   formatRM,
   loanForMonthlyPayment,
   modelVariantLabel,
@@ -149,12 +151,12 @@ import { TranslatePipe } from '../shared/i18n';
           <div class="flex shrink-0 gap-2">
             <button
               type="button"
-              (click)="copyPosterImage()"
-              [disabled]="copyingPoster() || rateMissing()"
+              (click)="savePosterImage()"
+              [disabled]="savingPoster() || rateMissing()"
               class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
             >
-              <app-icon [name]="posterCopied() ? 'check' : 'clipboard-check'" [size]="15" />
-              {{ copyingPoster() ? ('Copying…' | t) : posterCopied() ? ('Copied!' | t) : ('Copy Image' | t) }}
+              <app-icon [name]="posterSaved() ? 'check' : 'download'" [size]="15" />
+              {{ savingPoster() ? ('Saving…' | t) : posterSaved() ? ('Saved!' | t) : ('Save' | t) }}
             </button>
             <button
               type="button"
@@ -340,6 +342,35 @@ import { TranslatePipe } from '../shared/i18n';
                 />
               </div>
             </div>
+
+            <!-- Rebate as cash back: the loan is sized on OTR + insurance and the rebate is paid back in cash -->
+            @if (cashbackAllowed() && cashbackMax() > 0) {
+              <div class="flex flex-col gap-2 rounded-lg border p-3 transition-colors" [ngClass]="cashbackOn() ? 'border-[var(--success)]/40 bg-[var(--success)]/10' : 'border-border'">
+                <label class="flex cursor-pointer items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    [ngModel]="cashbackOn()"
+                    (ngModelChange)="setRebateAsCashback($event)"
+                    class="size-4 shrink-0 rounded border-input accent-primary"
+                  />
+                  <span class="text-sm font-medium">{{ "Give rebate as cash back" | t }}</span>
+                </label>
+                @if (cashbackOn()) {
+                  <div class="flex flex-col gap-1.5">
+                    <label for="cashbackAmountInput" class="text-xs font-medium text-muted-foreground">{{ "Cash back amount" | t }} <span class="font-normal">({{ "up to {max}" | t: { max: fmt(cashbackMax()) } }})</span></label>
+                    <app-number-field inputId="cashbackAmountInput" prefix="RM" [decimals]="0" [value]="cashbackAmount()" (valueChange)="onCashbackAmountChange($event)" />
+                  </div>
+                  <p class="text-xs leading-relaxed text-muted-foreground">
+                    {{ "Discount {discount} · Cash back {cash} from the dealer." | t: { discount: fmt(effectiveRebate() - totals().cashback), cash: fmt(totals().cashback) } }}
+                    @if (cashbackMonthlyIncrease() > 0) {
+                      <span class="font-semibold text-foreground">{{ "Monthly +{amount} vs taking the rebate as a discount." | t: { amount: fmt2(cashbackMonthlyIncrease()) } }}</span>
+                    }
+                  </p>
+                } @else {
+                  <p class="text-xs text-muted-foreground">{{ "Customer takes the rebate as cash instead of a discount, on a full loan." | t }}</p>
+                }
+              </div>
+            }
           </div>
 
           <!-- Insurance -->
@@ -464,6 +495,16 @@ import { TranslatePipe } from '../shared/i18n';
           <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
             <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Loan Setup" | t }}</span>
 
+            @if (cashbackOn()) {
+              <!-- Cash back only makes sense on a full loan — a customer paying cash upfront would just
+                   take the rebate off that instead — so the downpayment is fixed while it's on. -->
+              <div class="flex flex-col gap-1 rounded-lg border border-[var(--success)]/40 bg-[var(--success)]/10 px-3 py-3">
+                <span class="text-sm font-semibold">{{ "Full loan — cash back is on" | t }}</span>
+                <span class="text-xs leading-relaxed text-muted-foreground">
+                  {{ "Loan {loan} · Cash back {cash}. Untick cash back in Price Setup to set a downpayment." | t: { loan: fmt(loanAmount()), cash: fmt(totals().cashback) } }}
+                </span>
+              </div>
+            } @else {
             <div class="flex flex-col gap-2">
               <span class="text-xs font-medium text-muted-foreground">{{ "Downpayment" | t }}</span>
               <div role="group" [attr.aria-label]="'Quick downpayment presets' | t" class="grid grid-cols-2 gap-1.5">
@@ -586,6 +627,7 @@ import { TranslatePipe } from '../shared/i18n';
                 <span class="text-[11px] text-muted-foreground">{{ 'Targets the {tenure} tenure and works backwards to the loan amount and deposit.' | t: { tenure: (monthlyInstallmentTenureLabel() | t) } }}</span>
               }
             </div>
+            }
           </div>
 
           <!-- Tenure -->
@@ -662,7 +704,7 @@ import { TranslatePipe } from '../shared/i18n';
           </div>
           <div class="flex flex-col gap-3 p-4">
             <p class="text-[11px] text-muted-foreground">
-              {{ vehicleTitle(selectedVehicle().brand, selectedVehicle().model) }} &middot; {{ fmt(downpaymentCash()) }} downpayment &middot; {{ ncd() }}% NCD
+              {{ vehicleTitle(selectedVehicle().brand, selectedVehicle().model) }} &middot; {{ fmt(dpDisplay().amount) }} {{ dpDisplay().isCashBack ? 'cash back' : 'downpayment' }} &middot; {{ ncd() }}% NCD
             </p>
             <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               {{ "Name" | t }}
@@ -712,33 +754,18 @@ import { TranslatePipe } from '../shared/i18n';
                 {{ "Lead saved" | t }}
               </span>
             }
-            @if (whatsAppImageCopied()) {
-              <span class="flex items-center gap-1.5 text-[11px] font-medium text-[var(--success)]">
-                <app-icon name="check" [size]="12" />
-                {{ "Quote image copied — paste it (Ctrl/Cmd+V) into the WhatsApp chat" | t }}
-              </span>
-            }
           </div>
           <div class="flex flex-wrap items-center justify-end gap-2 border-t border-border p-4">
             <button type="button" (click)="closeLeadModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Close" | t }}</button>
             <button
               type="button"
               (click)="submitLead()"
-              [disabled]="!leadName || !leadPhone || !!existingLeadForPhone()"
-              class="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+              [disabled]="!leadName || !leadPhone || savingLead() || !!existingLeadForPhone()"
+              [title]="'Saves the lead, copies the quote image for WhatsApp, and opens the customer' | t"
+              class="flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
             >
-              <app-icon name="plus" [size]="13" />
-              {{ "Save Lead" | t }}
-            </button>
-            <button
-              type="button"
-              (click)="saveAndWhatsApp()"
-              [disabled]="!leadName || !leadPhone || sendingWhatsApp() || !!existingLeadForPhone() || rateMissing()"
-              [title]="rateMissing() ? 'Enter the EIR first — the quote image would show an incomplete rate' : 'Save this lead and open WhatsApp with the quote image copied'"
-              class="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
-            >
-              <app-icon name="message-circle" [size]="13" />
-              {{ sendingWhatsApp() ? ('Copying image…' | t) : ('Save & WhatsApp' | t) }}
+              <app-icon name="check" [size]="13" />
+              {{ savingLead() ? ('Saving…' | t) : ('Save Lead' | t) }}
             </button>
           </div>
         </div>
@@ -776,13 +803,10 @@ import { TranslatePipe } from '../shared/i18n';
 })
 export class CalculatorComponent implements AfterViewInit {
   @ViewChild('posterCanvas') posterCanvasRef?: ElementRef<HTMLCanvasElement>;
-
-  copyingPoster = signal(false);
-  /** Brief "Copied!" confirmation on the button after a successful clipboard write. */
-  posterCopied = signal(false);
-  sendingWhatsApp = signal(false);
-  /** Brief confirmation next to the WhatsApp button once the poster image lands on the clipboard. */
-  whatsAppImageCopied = signal(false);
+  savingPoster = signal(false);
+  /** Brief "Saved!" confirmation on the button after the image is downloaded. */
+  posterSaved = signal(false);
+  savingLead = signal(false);
   /** Set once fonts.google.com's Barlow Semi Condensed + Inter are ready to paint — the draw
    *  effect waits on this so the very first frame never falls back to a system font. */
   private fontsReady = signal(false);
@@ -803,6 +827,7 @@ export class CalculatorComponent implements AfterViewInit {
   private settingsService = inject(SettingsService);
   private compare = inject(CompareService);
   private router = inject(Router);
+  private toast = inject(ToastService);
 
   /** Opens the Compare page with this car as the first column, carrying this quote's own rebate,
    *  insurance and rate (plus its loan setup) so its figures match what the customer was just told. */
@@ -812,6 +837,7 @@ export class CalculatorComponent implements AfterViewInit {
       {
         vehicleId: v.id,
         year: this.modelYear(),
+        includeAdditionalRebate: this.additionalRebateEnabled(),
         overrides: {
           rebate: this.rebateInput(),
           additionalRebate: this.additionalRebateValue(),
@@ -825,7 +851,6 @@ export class CalculatorComponent implements AfterViewInit {
         tenureMonths: this.highlightedTenure(),
         rateType: this.rateType(),
         ncd: this.ncd(),
-        includeAdditionalRebate: this.additionalRebateEnabled(),
       },
     );
     this.router.navigateByUrl('/compare');
@@ -1128,11 +1153,55 @@ export class CalculatorComponent implements AfterViewInit {
       effectiveRebate: this.effectiveRebate(),
       insuranceAmount: this.insurance(),
       loanBasisInsuranceAmount: this.loanBasisInsurance(),
-      downpaymentType: this.downpaymentType(),
-      downpaymentValue: this.downpaymentValue(),
+      downpaymentType: this.quoteDp().type,
+      downpaymentValue: this.quoteDp().value,
       minDownpaymentCash: this.minDownpayment(),
+      loanRounding: this.loanRounding(),
+      cashbackAmount: this.cashbackAmount(),
     }),
   );
+  /** The downpayment the quote actually uses — always a full loan while cash back is on. */
+  quoteDp = computed(() =>
+    this.cashbackOn() ? { type: 'amount' as const, value: 0 } : { type: this.downpaymentType(), value: this.downpaymentValue() },
+  );
+  /** "Give rebate as cash back" — this quote only, off by default, never offered on the customer link. */
+  rebateAsCashback = signal(false);
+  /** Settings → Allow cash back. */
+  cashbackAllowed = computed(() => this.settingsService.settings().salesDefaults.allowCashback ?? false);
+  /** Cash back is in effect only while ticked and still allowed in Settings. */
+  cashbackOn = computed(() => this.cashbackAllowed() && this.rebateAsCashback());
+  /** How much of the rebate goes back as cash; null = all of it. The rest stays a discount. */
+  private cashbackManual = signal<number | null>(null);
+  /** The most that can go back as cash: whatever the rebate has left after covering the car's
+   *  minimum downpayment, so the customer still pays nothing upfront. 0 = cash back not possible. */
+  cashbackMax = computed(() => Math.max(0, this.effectiveRebate() - this.minDownpayment()));
+  cashbackAmount = computed(() => (this.cashbackOn() ? Math.min(this.cashbackMax(), this.cashbackManual() ?? this.cashbackMax()) : 0));
+  /** Cash back is always a full loan — see quoteDp; the downpayment set before comes back once it's off. */
+  setRebateAsCashback(on: boolean) {
+    this.rebateAsCashback.set(on);
+  }
+
+  onCashbackAmountChange(value: number | null) {
+    this.cashbackManual.set(Math.max(0, value ?? 0));
+  }
+  /** How much more a month the customer pays for taking the rebate as cash rather than a discount. */
+  cashbackMonthlyIncrease = computed(() => {
+    if (!this.cashbackOn()) return 0;
+    const asDiscount = computeQuotationTotals({
+      basePrice: this.basePrice(),
+      effectiveRebate: this.effectiveRebate(),
+      insuranceAmount: this.insurance(),
+      loanBasisInsuranceAmount: this.loanBasisInsurance(),
+      downpaymentType: 'amount',
+      downpaymentValue: 0,
+      minDownpaymentCash: this.minDownpayment(),
+      loanRounding: this.loanRounding(),
+    });
+    const m = (loan: number) => monthlyPayment(loan, this.interestRate(), this.highlightedTenure(), this.rateType());
+    return Math.max(0, m(this.loanAmount()) - m(asDiscount.loanAmount));
+  });
+  /** Settings → Loan Rounding: which way the loan rounds to RM100. */
+  loanRounding = computed(() => this.settingsService.settings().salesDefaults.loanRounding ?? 'down');
   /** This variant's minimum cash downpayment (Price Settings), 0 when it has none. */
   minDownpayment = computed(() => minDownpaymentCash(this.selectedVehicle().minDownpayment, this.basePrice()));
   /** Cash the customer must still put down to meet the minimum — the minimum is before rebate, so
@@ -1147,14 +1216,18 @@ export class CalculatorComponent implements AfterViewInit {
       effectiveRebate: this.effectiveRebate(),
       insuranceAmount: this.insurance(),
       loanBasisInsuranceAmount: this.loanBasisInsurance(),
-      downpaymentType: this.downpaymentType(),
-      downpaymentValue: this.downpaymentValue(),
+      downpaymentType: this.quoteDp().type,
+      downpaymentValue: this.quoteDp().value,
+      loanRounding: this.loanRounding(),
+      cashbackAmount: this.cashbackAmount(),
     });
     return unclamped.downpaymentCash < this.totals().downpaymentCash;
   });
 
   allInPrice = computed(() => this.totals().totalAmountDue);
   downpaymentCash = computed(() => this.totals().downpaymentCash);
+  /** The downpayment as shown — Cash Back when rounding the loan up took it negative. */
+  dpDisplay = computed(() => downpaymentDisplay(this.downpaymentCash()));
   loanAmount = computed(() => this.totals().loanAmount);
   /** A straight cash deal, no financing at all — e.g. downpayment dialled up to 100%. Poster
    *  templates that show a loan/monthly breakdown need to know this so they can drop it. */
@@ -1433,6 +1506,7 @@ export class CalculatorComponent implements AfterViewInit {
       ncdPct: this.ncd(),
       insurance: this.insurance(),
       rebate: this.effectiveRebate(),
+      cashback: this.totals().cashback,
       totalAmountDue: this.allInPrice(),
 
       rateLabel: `${this.interestRate()}% ${this.rateType() === 'flat' ? translate(lang, 'FLAT') : 'EIR'}`,
@@ -1497,10 +1571,10 @@ export class CalculatorComponent implements AfterViewInit {
 
   // Guards against creating a duplicate record if Save Lead is clicked more than once in the
   // same modal session, instead of tracking a returned record id.
-  private async saveLeadRecord() {
+  private async saveLeadRecord(): Promise<CustomerRecord | undefined> {
     if (this.leadSaved() || this.existingLeadForPhone()) return;
     const vehicle = this.selectedVehicle();
-    await this.customers.addLead({
+    const record = await this.customers.addLead({
       name: this.leadName,
       phone: this.leadPhone,
       brand: vehicle.brand,
@@ -1518,66 +1592,52 @@ export class CalculatorComponent implements AfterViewInit {
         ncd: this.ncd(),
         interestRate: this.interestRate(),
         rateType: this.rateType(),
-        downpaymentType: this.downpaymentType(),
-        downpaymentValue: this.downpaymentValue(),
+        // The down payment the quote actually used — cash back forces a full loan (see quoteDp).
+        downpaymentType: this.quoteDp().type,
+        downpaymentValue: this.quoteDp().value,
         tenureMonths: this.highlightedTenure(),
         basicPremium: this.insuranceDetails().basicPremium,
         insuranceDetails: this.insuranceDetails(),
+        loanRounding: this.loanRounding(),
+        cashbackAmount: this.cashbackAmount() > 0 ? this.cashbackAmount() : undefined,
       },
     });
     this.leadSaved.set(true);
-  }
-
-  async submitLead() {
-    await this.saveLeadRecord();
-    // Only closes once the lead actually saved — never on the early-return path (a duplicate
-    // phone), where the modal needs to stay open so the SA can see and act on that warning.
-    if (this.leadSaved()) this.closeLeadModal();
+    return record;
   }
 
   /**
-   * Saves the lead and opens WhatsApp in one go. Order matters: the clipboard write and the
-   * WhatsApp window both have to happen while the tap's user-activation is still fresh, so the
-   * save (a network round-trip) runs alongside them rather than first; the modal closes once the
-   * save has landed.
+   * Save Lead does the whole hand-off: copies the quote image (ready to paste into WhatsApp),
+   * saves the lead, then opens that customer in Customer Manager. The clipboard write is started
+   * first, while the tap still counts as a user action — browsers refuse it after an await.
    */
-  async saveAndWhatsApp() {
-    if (this.sendingWhatsApp() || this.existingLeadForPhone()) return;
-    const saving = this.saveLeadRecord();
-    await this.openWhatsAppForLead();
-    await saving;
-    if (this.leadSaved()) this.closeLeadModal();
+  async submitLead() {
+    if (this.savingLead() || this.existingLeadForPhone()) return;
+    this.savingLead.set(true);
+    try {
+      const copying = this.copyQuoteImage();
+      const record = await this.saveLeadRecord();
+      const copied = await copying;
+      // Stays open on the early-return path (a duplicate phone) so the SA can see that warning.
+      if (!record) return;
+      this.closeLeadModal();
+      this.toast.show(copied ? 'Lead saved — quote image copied, paste it into WhatsApp' : 'Lead saved');
+      await this.router.navigate(['/leads'], { queryParams: { customer: record.id } });
+    } finally {
+      this.savingLead.set(false);
+    }
   }
 
-  async openWhatsAppForLead() {
-    if (this.sendingWhatsApp() || this.existingLeadForPhone()) return;
-    this.sendingWhatsApp.set(true);
+  /** Best-effort: false when the browser can't put images on the clipboard, or the rate is still
+   *  missing (the image would show an incomplete quote). */
+  private async copyQuoteImage(): Promise<boolean> {
+    if (this.rateMissing() || typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) return false;
     try {
-      const vehicle = this.selectedVehicle();
-      const vehicleLabel = vehicleTitle(vehicle.brand, modelVariantLabel(vehicle.model, vehicle.variant));
-      const msg =
-        `Hi ${this.leadName}, thank you for your interest in the ${vehicleLabel}. ` +
-        `Selling price ${this.fmt(this.allInPrice())}, downpayment ${this.fmt(this.downpaymentCash())}. ` +
-        `Let me know if you have any questions!`;
-      const phone = toMalaysianWhatsAppNumber(this.leadPhone);
-
-      // Copy the poster image to the clipboard first so it's just a paste away once WhatsApp
-      // opens — same "pass the still-pending blob promise" trick as copyPosterImage() so the
-      // write is issued while the click's user-activation window is still open. Best-effort:
-      // WhatsApp still opens with the text below even if the image copy fails or isn't supported.
-      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-        try {
-          await navigator.clipboard.write([new ClipboardItem({ 'image/png': this.renderPosterPngBlob() })]);
-          this.whatsAppImageCopied.set(true);
-          setTimeout(() => this.whatsAppImageCopied.set(false), 2500);
-        } catch {
-          /* clipboard write not available/denied — WhatsApp still opens below */
-        }
-      }
-
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-    } finally {
-      this.sendingWhatsApp.set(false);
+      // Pass the still-pending blob promise so the write is issued inside the tap's activation window.
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': this.renderPosterPngBlob() })]);
+      return true;
+    } catch {
+      return false;
     }
   }
 
@@ -1624,36 +1684,19 @@ export class CalculatorComponent implements AfterViewInit {
     return !!(navigator as { canShare?: (data: { files: File[] }) => boolean }).canShare?.({ files: [file] });
   }
 
-  /** Copies the poster straight onto the system clipboard so it can be pasted directly into
-   *  WhatsApp/Telegram/email without a save-then-attach round trip for every new quotation — the
-   *  whole point of switching this off download. Works standalone, with no lead saved and no
-   *  name/phone typed in yet. Falls back to a plain download when the Clipboard API can't write
-   *  images (older browser, non-secure context, or the user denies the permission prompt), so the
-   *  quote is never unreachable, just less convenient to hand over in that case. */
-  async copyPosterImage() {
-    if (this.copyingPoster()) return;
-    this.copyingPoster.set(true);
+  /** Saves the poster as a PNG to the device (Downloads, or the Photos/Files prompt on phones). */
+  async savePosterImage() {
+    if (this.savingPoster()) return;
+    this.savingPoster.set(true);
     this.settingsService.markQuoteShared();
     try {
-      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-        // Passing the still-pending blob promise (rather than awaiting it first) is what Chrome/Edge
-        // need to honour a clipboard write from inside this async click handler — awaiting the
-        // render first can burn through the click's "user activation" window and get the write
-        // silently rejected.
-        await navigator.clipboard.write([new ClipboardItem({ 'image/png': this.renderPosterPngBlob() })]);
-        this.posterCopied.set(true);
-        setTimeout(() => this.posterCopied.set(false), 2000);
-      } else {
-        await this.downloadPosterBlob(await this.renderPosterPngBlob());
-      }
+      await this.downloadPosterBlob(await this.renderPosterPngBlob());
+      this.posterSaved.set(true);
+      setTimeout(() => this.posterSaved.set(false), 2000);
     } catch {
-      try {
-        await this.downloadPosterBlob(await this.renderPosterPngBlob());
-      } catch {
-        /* best-effort fallback only — nothing more we can do if this also fails */
-      }
+      /* rendering failed — nothing to save */
     } finally {
-      this.copyingPoster.set(false);
+      this.savingPoster.set(false);
     }
   }
 
@@ -1711,5 +1754,7 @@ export class CalculatorComponent implements AfterViewInit {
     this.insuranceOverride.set(null);
     this.loanAmountDraft.set(null);
     this.monthlyInstallmentDraft.set(null);
+    this.rebateAsCashback.set(false);
+    this.cashbackManual.set(null);
   }
 }

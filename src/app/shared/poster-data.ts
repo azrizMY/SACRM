@@ -55,6 +55,9 @@ export type PosterData = {
   ncdPct: number;
   insurance: number;
   rebate: number;
+  /** The part of `rebate` paid back to the customer in cash rather than taken off the price — the
+   *  selling price only has the rest (rebate − cashback) deducted. 0/absent = none. */
+  cashback?: number;
   totalAmountDue: number;
 
   rateLabel: string;

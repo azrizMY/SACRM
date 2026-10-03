@@ -88,6 +88,7 @@ export function quoteForComparison(vehicle: Vehicle, year: number, setup: Compar
     downpaymentType: setup.downpaymentType,
     downpaymentValue: setup.downpaymentValue,
     minDownpaymentCash: minDownpaymentCash(vehicle.minDownpayment, vehicle.price),
+    loanRounding: pricing.defaults.loanRounding,
   });
 
   const rateType: RateType =

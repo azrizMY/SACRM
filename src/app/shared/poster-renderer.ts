@@ -6,6 +6,7 @@ import { drawWhatsAppIcon } from './poster-whatsapp-icon';
 import { formatMalaysianPhone } from '../data/dashboard-data';
 import type { PosterData } from './poster-data';
 import { translate, type Lang, type Params } from './i18n-core';
+import { downpaymentDisplay } from '../data/calculator-data';
 
 /** Poster text in the advisor's chosen poster language (Settings → Language). */
 const T = (data: { lang?: Lang }, en: string, params?: Params) => translate(data.lang ?? 'en', en, params);
@@ -23,6 +24,20 @@ const T = (data: { lang?: Lang }, en: string, params?: Params) => translate(data
  *  - Data section: solid --data-bg, 1px --hairline at its top.
  *  - Footer: horizontal gradient --footer-a → --footer-b, 3px --acc rule at its top.
  */
+function rebateRow(data: PosterData): { label: string; sub: string; subColor: string; value: string; valueColor: string } {
+  const cashback = data.cashback ?? 0;
+  const discount = Math.max(0, data.rebate - cashback);
+  if (cashback <= 0) return { label: T(data, 'Rebate'), sub: '', subColor: POSTER_COLORS.green, value: `− ${formatPosterCurrency(data.rebate)}`, valueColor: POSTER_COLORS.green };
+  if (discount <= 0) return { label: T(data, 'Rebate'), sub: T(data, '(as cash back)'), subColor: POSTER_COLORS.green, value: formatPosterCurrency(cashback), valueColor: POSTER_COLORS.green };
+  return {
+    label: T(data, 'Rebate'),
+    sub: T(data, '(+{cash} cash back)', { cash: formatPosterCurrency(cashback) }),
+    subColor: POSTER_COLORS.green,
+    value: `− ${formatPosterCurrency(discount)}`,
+    valueColor: POSTER_COLORS.green,
+  };
+}
+
 export function drawPosterSkeleton(ctx: CanvasRenderingContext2D, layout: PosterLayout): void {
   const width = POSTER_WIDTH;
 
@@ -176,10 +191,11 @@ export async function drawPricePanel(ctx: CanvasRenderingContext2D, data: Poster
   const boxHeight = 74;
   const boxWidth = 196;
   const twoBoxWidth = boxWidth * 2 + 14; // 210 - 196 = the gap between the two normal tiles
+  const dp = downpaymentDisplay(data.downpayment);
   const boxes: { x: number; width: number; label: string; value: number }[] = data.isCashPurchase
     ? [{ x: M, width: twoBoxWidth, label: T(data, 'CASH PRICE'), value: data.sellingPrice }]
     : [
-        { x: M, width: boxWidth, label: T(data, 'DOWNPAYMENT'), value: data.downpayment },
+        { x: M, width: boxWidth, label: T(data, dp.isCashBack ? 'CASH BACK' : 'DOWNPAYMENT'), value: dp.amount },
         { x: M + 210, width: boxWidth, label: T(data, 'LOAN AMOUNT'), value: data.loanAmount },
       ];
   for (const box of boxes) {
@@ -332,13 +348,9 @@ export function drawDataSection(ctx: CanvasRenderingContext2D, layout: PosterLay
       value: `+ ${formatPosterCurrency(data.insurance)}`,
       valueColor: POSTER_COLORS.amber,
     },
-    {
-      label: T(data, 'Rebate'),
-      sub: '',
-      subColor: POSTER_COLORS.green,
-      value: `− ${formatPosterCurrency(data.rebate)}`,
-      valueColor: POSTER_COLORS.green,
-    },
+    // Cash back isn't taken off the price — it's paid back to the customer. Only the discount part
+    // carries the minus (and is what the selling price deducts); all-cash-back shows plain.
+    rebateRow(data),
   ];
   const tableTop = contentTop;
   ctx.fillStyle = POSTER_COLORS.block;

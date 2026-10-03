@@ -30,12 +30,12 @@ const FEATURES: Feature[] = [
   {
     icon: 'users',
     title: 'Customer Manager',
-    blurb: 'Every deal from Lead to Booked, In Progress and Delivered, in one searchable pipeline.',
+    blurb: 'Every deal from Lead to Won or Lost, in one searchable pipeline.',
     span: '',
   },
   {
     icon: 'wallet',
-    title: 'Cost Breakdown',
+    title: 'Earnings',
     blurb: 'Commission, gift spend and real profit per deal, filled in automatically from your pipeline.',
     span: '',
   },
@@ -61,9 +61,8 @@ const FEATURES: Feature[] = [
 
 const PIPELINE: { label: string; count: number; tone: string }[] = [
   { label: 'Lead', count: 57, tone: 'bg-muted-foreground' },
-  { label: 'Booked', count: 18, tone: 'bg-[var(--warning)]' },
-  { label: 'In Progress', count: 9, tone: 'bg-primary' },
-  { label: 'Delivered', count: 24, tone: 'bg-[var(--success)]' },
+  { label: 'Won', count: 24, tone: 'bg-[var(--success)]' },
+  { label: 'Lost', count: 9, tone: 'bg-muted-foreground/50' },
 ];
 
 const STEPS: { icon: IconName; title: string; blurb: string }[] = [
@@ -332,7 +331,7 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
             <div class="reveal order-1 flex flex-col gap-5 md:order-2">
               <span class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">From lead to delivery</span>
               <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-4xl">Know where every deal stands, and what it earns</h2>
-              <p class="text-pretty text-muted-foreground">Log a lead in seconds, move it through Booked and In Progress, and mark it Delivered. Cost Breakdown works out your commission, gifts and real profit on the way, and your dashboard shows the month at a glance.</p>
+              <p class="text-pretty text-muted-foreground">Log a lead in seconds, then mark it Won once the car is delivered. Earnings works out your commission, gifts and real profit on the way, and your dashboard shows the month at a glance.</p>
               <a [routerLink]="signedIn() ? '/leads' : '/signup'" class="group flex w-fit items-center gap-1.5 text-sm font-semibold text-primary">
                 {{ signedIn() ? 'Open your pipeline' : 'Start your pipeline' }}
                 <app-icon name="arrow-up-right" [size]="14" class="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />

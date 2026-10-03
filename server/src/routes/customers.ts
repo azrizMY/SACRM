@@ -2,6 +2,23 @@ import { getUserFromSession } from '../auth';
 import { json, readJsonBody } from '../http';
 import type { Env } from '../index';
 
+/** Fields the app no longer stores: identity details (IC, address, email, licence, plate,
+ *  chassis, engine), the post-approval loan, trade-in, insurer and document-status details
+ *  (the quotation is the only financial record now), and delivery date/notes. Stripped from every save so an old cached
+ *  copy of the app can't keep storing them; migration 0009 removed them from existing rows. */
+const REMOVED_FIELDS = [
+  'icNo', 'address', 'email', 'drivingLicenceNo', 'plateNo', 'chassisNo', 'engineNo',
+  'insuranceName', 'documentStatus',
+  'bankPanel', 'loanAmount', 'loanTenureMonths', 'loanInterestRate', 'downpayment', 'ncd',
+  'tradeInStatus', 'tradeInVehicle', 'tradeInValue',
+  'deliveryDate', 'deliveryNotes',
+];
+
+/** The pipeline is Lead → Won, plus Lost — a booked car stays a Lead until it's delivered. An old
+ *  cached copy of the app may still send the retired stages, so they're mapped onto the new ones on
+ *  save (as migration 0009 did). */
+const RENAMED_STATUSES: Record<string, string> = { Booked: 'Lead', 'In Progress': 'Lead', Delivered: 'Won', Cancelled: 'Lost' };
+
 /** CustomerRecord is ~30 mostly-optional fields — stored whole as JSON (see migrations/0001), with
  *  `status`/`created_at`/`updated_at` duplicated as real columns purely so DELETE-all and ownership
  *  checks don't need to parse JSON. The client already fetches-all-then-filters-in-memory, so a
@@ -28,6 +45,11 @@ export async function handleCustomersRoute(request: Request, env: Env, url: URL)
     const body = await readJsonBody<Record<string, unknown>>(request);
     if (!body || typeof body !== 'object' || typeof body.status !== 'string') {
       return json({ error: 'Invalid customer record.' }, 400);
+    }
+    for (const field of REMOVED_FIELDS) delete body[field];
+    for (const key of ['status', 'previousStatus']) {
+      const value = body[key];
+      if (typeof value === 'string' && RENAMED_STATUSES[value]) body[key] = RENAMED_STATUSES[value];
     }
     const existing = await env.DB.prepare('SELECT user_id FROM customers WHERE id = ?').bind(id).first<{ user_id: string }>();
     if (existing && existing.user_id !== user.id) return json({ error: 'Not found' }, 404);

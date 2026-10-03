@@ -15,6 +15,7 @@ import { drawHeader, drawAdvisorAvatar, drawQrCode } from './poster-brochure-ren
 import { drawDocumentsRequired } from './poster-brochure-documents-required';
 import type { BrochureData, BrochureRow } from './poster-brochure-data';
 import { translate, type Lang, type Params } from './i18n-core';
+import { downpaymentDisplay } from '../data/calculator-data';
 
 /** The page being drawn's language — set at the top of each page render, so helpers that only get
  *  the canvas (header bar, rows, documents list) don't each need it threaded through. */
@@ -179,7 +180,18 @@ function drawGroupRow(ctx: CanvasRenderingContext2D, cols: Columns, row: Brochur
   ctx.fillStyle = POSTER_COLORS.ink;
   ctx.fillText(fmtMoney(row.otrPrice), cols.otr + cols.dataColWidth / 2, centerY);
   ctx.fillText(fmtMoney(row.insurance), cols.insurance + cols.dataColWidth / 2, centerY);
-  ctx.fillText(fmtMoney(row.downpayment), cols.downpayment + cols.dataColWidth / 2, centerY);
+  const dp = downpaymentDisplay(row.downpayment);
+  if (dp.isCashBack) {
+    ctx.save();
+    ctx.font = labelFont(f(9), 700);
+    ctx.fillStyle = POSTER_COLORS.green;
+    ctx.fillText(L('CASH BACK'), cols.downpayment + cols.dataColWidth / 2, centerY - f(11));
+    ctx.font = labelFont(f(16), 400);
+    ctx.fillText(fmtMoney(dp.amount), cols.downpayment + cols.dataColWidth / 2, centerY + f(6));
+    ctx.restore();
+  } else {
+    ctx.fillText(fmtMoney(dp.amount), cols.downpayment + cols.dataColWidth / 2, centerY);
+  }
   ctx.fillText(fmtMoney(row.loanAmount), cols.loan + cols.dataColWidth / 2, centerY);
 
   ctx.font = labelFont(f(17), 700);

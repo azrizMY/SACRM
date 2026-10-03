@@ -9,13 +9,11 @@ import {
   type Onboarding,
   type SalesDefaults,
 } from '../data/settings-data';
-import { BANK_OPTIONS, INSURANCE_OPTIONS, SOURCE_TYPES } from '../data/customer-data';
+import { BANK_OPTIONS, SOURCE_TYPES } from '../data/customer-data';
 import { DEFAULT_EPR, defaultInsuranceQuotation, type InsuranceQuotationDetails, type Vehicle } from '../data/calculator-data';
 
-export const UNSPECIFIED_INSURER = 'Unspecified';
-
 /** A dropdown's choices plus the record's own value when it has since been removed from the list,
- *  so opening an old record never silently swaps its bank/insurer/source for the first option. */
+ *  so opening an old record never silently swaps its bank/source for the first option. */
 export function withCurrent(list: string[], current: string | null | undefined): string[] {
   return current && !list.includes(current) ? [...list, current] : list;
 }
@@ -42,12 +40,8 @@ export class SettingsService {
 
   /** The Lead Source choices for this account — edited in Settings → New Leads. */
   leadSources = computed(() => this.settings().salesDefaults.leadSources ?? SOURCE_TYPES);
-  /** Bank panel choices — edited in Settings → Banks & Insurance. */
+  /** Bank panel choices — edited in Settings → Banks. */
   banks = computed(() => this.settings().salesDefaults.banks ?? BANK_OPTIONS);
-  /** Insurer choices, without the "Unspecified" placeholder (see insuranceOptions). */
-  insurers = computed(() => this.settings().salesDefaults.insurers ?? INSURANCE_OPTIONS.filter((i) => i !== UNSPECIFIED_INSURER));
-  /** What an Insurance dropdown lists: "Unspecified" always first, then the account's insurers. */
-  insuranceOptions = computed(() => [UNSPECIFIED_INSURER, ...this.insurers()]);
 
   constructor(private http: HttpClient) {}
 

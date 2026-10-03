@@ -4,18 +4,15 @@ import { SettingsService, withCurrent } from './settings.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from './icon.component';
-import { NCD_OPTIONS, TENURE_OPTIONS, coloursForVehicle, modelVariantLabel, vehicleTitle } from '../data/calculator-data';
+import { coloursForVehicle, modelVariantLabel, vehicleTitle } from '../data/calculator-data';
 import {
   CANCEL_REASON_OPTIONS,
   COLOUR_OPTIONS,
-  DOCUMENT_STATUS_META,
-  DOCUMENT_STATUS_OPTIONS,
   FINANCING_TYPE_OPTIONS,
+  NO_ID_NOTES_HINT,
   TO_BE_CONFIRMED_COLOUR,
-  TRADE_IN_OPTIONS,
   type CustomerRecord,
   type CustomerStatus,
-  type DocumentStatus,
   type EditCustomerInput,
 } from '../data/customer-data';
 
@@ -62,26 +59,6 @@ import {
                 </select>
               </label>
             </div>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                {{ "IC No" | t }}
-                <input type="text" [(ngModel)]="form.icNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                {{ "Driving Licence No" | t }}
-                <input type="text" [(ngModel)]="form.drivingLicenceNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
-            </div>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                {{ "Address" | t }}
-                <input type="text" [(ngModel)]="form.address" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                {{ "Email" | t }}
-                <input type="email" [(ngModel)]="form.email" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
-            </div>
           </fieldset>
 
           <!-- Vehicle -->
@@ -108,153 +85,10 @@ import {
             </label>
           </fieldset>
 
-          <!-- Payment -->
-          @if (showBooking) {
-            <fieldset class="flex flex-col gap-3">
-              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Payment" | t }}</legend>
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                @if (!isCashInForm) {
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    {{ "Down Payment (RM)" | t }}
-                    <input type="number" min="0" step="500" [(ngModel)]="form.downpayment" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                  </label>
-                }
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  {{ "NCD (%)" | t }}
-                  <select [(ngModel)]="form.ncd" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                    @for (n of ncdOptions; track n.value) { <option [ngValue]="n.value">{{ n.label | t }}</option> }
-                  </select>
-                </label>
-              </div>
-              @if (showDocumentsInBooking) {
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Document Status
-                  @if (isCashInForm) {
-                    <span class="flex h-10 items-center rounded-lg border border-input bg-input px-3 text-sm text-muted-foreground">{{ "Cash" | t }}</span>
-                  } @else {
-                    <select [(ngModel)]="form.documentStatus" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @for (d of documentStatusOptions; track d) { <option [value]="d">{{ docLabel(d) }}</option> }
-                    </select>
-                  }
-                </label>
-              }
-            </fieldset>
-          }
-
-          <!-- Trade-in -->
-          @if (showTradeIn) {
-            <fieldset class="flex flex-col gap-3">
-              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Trade-in" | t }}</legend>
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  {{ "Trade-in Status" | t }}
-                  <select [(ngModel)]="form.tradeInStatus" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                    @for (t of tradeInOptions; track t) { <option [value]="t">{{ t }}</option> }
-                  </select>
-                </label>
-                @if (form.tradeInStatus === 'Confirmed') {
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    {{ "Agreed Value (RM)" | t }}
-                    <input type="number" min="0" step="500" [(ngModel)]="form.tradeInValue" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                  </label>
-                }
-              </div>
-              @if (form.tradeInStatus === 'Confirmed') {
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  {{ "Trade-in Vehicle" | t }}
-                  <input type="text" [placeholder]="'e.g. Toyota Vios 2018' | t" [(ngModel)]="form.tradeInVehicle" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                </label>
-              }
-            </fieldset>
-          }
-
-          <!-- Financing -->
-          @if (showFinancing) {
-            <fieldset class="flex flex-col gap-3">
-              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Financing" | t }}</legend>
-              @if (form.financingType === 'Loan') {
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    {{ "Bank Panel" | t }}
-                    <select [(ngModel)]="form.bankPanel" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @if (!form.bankPanel) { <option value="">{{ "Select bank…" | t }}</option> }
-                      @for (b of bankOptions(); track b) { <option [value]="b">{{ b }}</option> }
-                    </select>
-                  </label>
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    {{ "Loan Amount (RM)" | t }}
-                    <input type="number" min="0" step="500" [(ngModel)]="form.loanAmount" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                  </label>
-                </div>
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    {{ "Tenure" | t }}
-                    <select [(ngModel)]="form.loanTenureMonths" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @for (t of tenureOptions; track t.months) { <option [ngValue]="t.months">{{ t.label | t }}</option> }
-                    </select>
-                  </label>
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                    {{ "Interest Rate (%)" | t }}
-                    <input type="number" min="0" step="0.1" [(ngModel)]="form.loanInterestRate" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                  </label>
-                </div>
-              }
-              @if (showDocumentsInFinancing) {
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  Document Status
-                  @if (isCashInForm) {
-                    <span class="flex h-10 items-center rounded-lg border border-input bg-input px-3 text-sm text-muted-foreground">{{ "Cash" | t }}</span>
-                  } @else {
-                    <select [(ngModel)]="form.documentStatus" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                      @for (d of documentStatusOptions; track d) { <option [value]="d">{{ docLabel(d) }}</option> }
-                    </select>
-                  }
-                </label>
-              }
-            </fieldset>
-          }
-
-          <!-- Delivery -->
-          @if (showDelivery) {
-            <fieldset class="flex flex-col gap-3">
-              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Delivery" | t }}</legend>
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  {{ "Insurance" | t }} <span class="text-muted-foreground/70">{{ "(optional)" | t }}</span>
-                  <select [(ngModel)]="form.insuranceName" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                    @for (i of insuranceOptions(); track i) { <option [value]="i">{{ i }}</option> }
-                  </select>
-                </label>
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  {{ "Registration Number" | t }}
-                  <input type="text" [(ngModel)]="form.plateNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                </label>
-              </div>
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  {{ "Chassis / VIN" | t }}
-                  <input type="text" [(ngModel)]="form.chassisNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                </label>
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                  {{ "Engine No." | t }}
-                  <input type="text" [(ngModel)]="form.engineNo" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-                </label>
-              </div>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                {{ "Delivery Date" | t }}
-                <input type="date" [(ngModel)]="form.deliveryDate" class="h-10 w-full rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring" />
-              </label>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                {{ "Delivery Notes" | t }}
-                <textarea rows="2" [(ngModel)]="form.deliveryNotes" class="rounded-lg border border-input bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-ring"></textarea>
-              </label>
-            </fieldset>
-          }
-
-          <!-- Cancellation -->
+          <!-- Lost -->
           @if (showCancellation) {
             <fieldset class="flex flex-col gap-3">
-              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Cancellation" | t }}</legend>
+              <legend class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Lost" | t }}</legend>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
                 {{ "Reason" | t }}
                 <select [(ngModel)]="form.cancelReason" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
@@ -262,8 +96,8 @@ import {
                 </select>
               </label>
               <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                {{ "Cancellation Notes" | t }}
-                <textarea rows="2" [(ngModel)]="form.cancelNotes" class="rounded-lg border border-input bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-ring"></textarea>
+                {{ "Notes" | t }}
+                <textarea rows="2" [(ngModel)]="form.cancelNotes" [placeholder]="noIdNotesHint | t" class="rounded-lg border border-input bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-ring"></textarea>
               </label>
             </fieldset>
           }
@@ -281,6 +115,7 @@ export class CustomerEditModalComponent implements OnInit, AfterViewInit {
   @Input({ required: true }) record!: CustomerRecord;
   @Output() save = new EventEmitter<EditCustomerInput>();
   @Output() close = new EventEmitter<void>();
+  noIdNotesHint = NO_ID_NOTES_HINT;
 
   @ViewChild('colourField') private colourFieldRef?: ElementRef<HTMLElement>;
   highlightColour = false;
@@ -293,16 +128,6 @@ export class CustomerEditModalComponent implements OnInit, AfterViewInit {
     return withCurrent(this.settings.leadSources(), this.form?.sourceType);
   }
   colourOptions = COLOUR_OPTIONS;
-  tradeInOptions = TRADE_IN_OPTIONS;
-  documentStatusOptions = DOCUMENT_STATUS_OPTIONS;
-  bankOptions(): string[] {
-    return withCurrent(this.settings.banks(), this.form?.bankPanel);
-  }
-  insuranceOptions(): string[] {
-    return withCurrent(this.settings.insuranceOptions(), this.form?.insuranceName);
-  }
-  ncdOptions = NCD_OPTIONS;
-  tenureOptions = TENURE_OPTIONS;
   financingTypeOptions = FINANCING_TYPE_OPTIONS;
   cancelReasons = CANCEL_REASON_OPTIONS;
 
@@ -312,15 +137,15 @@ export class CustomerEditModalComponent implements OnInit, AfterViewInit {
   modelVariantLabel = modelVariantLabel;
 
   private effectiveStage(): CustomerStatus {
-    return this.record.status === 'Cancelled' ? (this.record.previousStatus ?? 'Lead') : this.record.status;
+    return this.record.status === 'Lost' ? (this.record.previousStatus ?? 'Lead') : this.record.status;
   }
 
-  /** The colour must be resolved by the time financing is confirmed — "To be Confirmed" is not a
-   *  legal answer once In Progress or later, even though nothing forces it to be resolved earlier.
-   *  Uses effectiveStage() so a Cancelled record inherits whichever stage it was cancelled from. */
+  /** A won deal has a real colour — "To be Confirmed" is not a legal answer once Won,
+   *  even though nothing forces it to be resolved earlier.
+   *  Uses effectiveStage() so a Lost record inherits whichever stage it was lost from. */
   get showColourRequired(): boolean {
     const s = this.effectiveStage();
-    return s === 'In Progress' || s === 'Delivered';
+    return s === 'Won';
   }
 
   get colourOptionsForForm(): string[] {
@@ -335,50 +160,8 @@ export class CustomerEditModalComponent implements OnInit, AfterViewInit {
     return !this.showColourRequired || !!this.form.colour;
   }
 
-  get showBooking(): boolean {
-    return this.effectiveStage() !== 'Lead';
-  }
-
-  private get isInProgressOrLater(): boolean {
-    const s = this.effectiveStage();
-    return s === 'In Progress' || s === 'Delivered';
-  }
-
-  get showTradeIn(): boolean {
-    const s = this.effectiveStage();
-    return s === 'Booked' || s === 'In Progress' || s === 'Delivered';
-  }
-
-  get showFinancing(): boolean {
-    return this.isInProgressOrLater;
-  }
-
-  get showDelivery(): boolean {
-    return this.isInProgressOrLater;
-  }
-
-  private get showDocuments(): boolean {
-    return this.showBooking;
-  }
-
-  /** Document Status has no dedicated fieldset — it lives inside whichever section already
-   *  covers financing at the record's stage: Booking & Payment pre-approval, Financing once set. */
-  get showDocumentsInBooking(): boolean {
-    return this.showDocuments && this.effectiveStage() === 'Booked';
-  }
-
-  get showDocumentsInFinancing(): boolean {
-    return this.showDocuments && this.isInProgressOrLater;
-  }
-
-  /** Reads the live form, not the record, so flipping the dropdown in this same modal updates
-   *  dependent fields (Documents, Payment Status vs Down Payment) immediately. */
-  get isCashInForm(): boolean {
-    return this.form.financingType === 'Cash';
-  }
-
   get showCancellation(): boolean {
-    return this.record.status === 'Cancelled';
+    return this.record.status === 'Lost';
   }
 
   ngOnInit() {
@@ -386,36 +169,16 @@ export class CustomerEditModalComponent implements OnInit, AfterViewInit {
     this.form = {
       name: r.name,
       phone: r.phone,
-      icNo: r.icNo,
-      address: r.address,
-      email: r.email,
-      drivingLicenceNo: r.drivingLicenceNo,
       sourceType: r.sourceType,
       colour: this.showColourRequired && r.colour === TO_BE_CONFIRMED_COLOUR ? '' : r.colour,
-      downpayment: r.downpayment,
-      ncd: r.ncd,
-      tradeInStatus: r.tradeInStatus ?? 'No Trade-in',
-      tradeInVehicle: r.tradeInVehicle,
-      tradeInValue: r.tradeInValue,
-      documentStatus: r.documentStatus,
       financingType: r.financingType,
-      bankPanel: r.bankPanel,
-      loanAmount: r.loanAmount,
-      loanTenureMonths: r.loanTenureMonths,
-      loanInterestRate: r.loanInterestRate,
-      insuranceName: r.insuranceName,
-      plateNo: r.plateNo,
-      deliveryDate: r.deliveryDate,
-      chassisNo: r.chassisNo,
-      engineNo: r.engineNo,
-      deliveryNotes: r.deliveryNotes,
       cancelReason: r.cancelReason,
       cancelNotes: r.cancelNotes,
     };
   }
 
-  /** Colour is the field most likely to be the reason this modal was opened (the In Progress /
-   *  Delivered gates block on it) — if it's still unresolved, draw the advisor's eye straight to
+  /** Colour is the field most likely to be the reason this modal was opened (the Won
+   *  gate blocks on it) — if it's still unresolved, draw the advisor's eye straight to
    *  it instead of leaving them to hunt through the form. */
   ngAfterViewInit() {
     if (this.showColourRequired && !this.form.colour) {
@@ -425,10 +188,6 @@ export class CustomerEditModalComponent implements OnInit, AfterViewInit {
         setTimeout(() => (this.highlightColour = false), 1800);
       }, 100);
     }
-  }
-
-  docLabel(d: DocumentStatus): string {
-    return (DOCUMENT_STATUS_META[d] ?? DOCUMENT_STATUS_META.NO).label;
   }
 
   submit() {

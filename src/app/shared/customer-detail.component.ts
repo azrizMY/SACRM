@@ -3,17 +3,33 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from './icon.component';
-import { VEHICLES, modelVariantLabel, vehicleTitle } from '../data/calculator-data';
+import { DealExtrasComponent } from './deal-extras.component';
+import { VEHICLES, modelVariantLabel, vehicleTitle, type RateType } from '../data/calculator-data';
 import {
   CUSTOMER_STATUS_META,
-  DOCUMENT_STATUS_META,
   TO_BE_CONFIRMED_COLOUR,
   formatStageDate,
-  freeGiftsLabel,
-  isCashDeal,
   stageEnteredAt,
   type CustomerRecord,
 } from '../data/customer-data';
+
+/** What the customer's saved quotation works out to — computed by Customer Manager with the same
+ *  maths as the Calculator, so the panel never keeps a second copy of any financial figure. */
+export type QuoteSummary = {
+  cash: boolean;
+  allInPrice: number;
+  rebate: number;
+  /** Part of the rebate paid to the customer in cash, not taken off the price. */
+  cashback: number;
+  ncd: number;
+  insurance: number;
+  downpayment: number;
+  loanAmount: number;
+  tenureMonths: number;
+  interestRate: number;
+  rateType: RateType;
+  monthly: number;
+};
 
 type Field = { label: string; value: string; badge?: { tone: string; dot: string }; link?: boolean };
 type Section = { title: string; fields: Field[] };
@@ -23,8 +39,14 @@ const EMPTY = '—';
 function fmtMoney(v: number | undefined | null): string {
   return v == null ? EMPTY : `RM ${v.toLocaleString('en-MY')}`;
 }
-function fmtPct(v: number | undefined | null): string {
-  return v == null ? EMPTY : `${v}%`;
+/** Same as Customer Manager's fmt — caps at 2 decimals so instalments and insurance never show a stray 3rd. */
+function fmtRM(v: number): string {
+  return `RM ${v.toLocaleString('en-MY', { maximumFractionDigits: 2 })}`;
+}
+/** "RM 11,000", or how it splits when some of it went to the customer as cash back. */
+function rebateText(q: QuoteSummary): string {
+  if (q.cashback <= 0) return fmtRM(q.rebate);
+  return q.rebate > 0 ? `${fmtRM(q.rebate)} off + ${fmtRM(q.cashback)} cash back` : `${fmtRM(q.cashback)} as cash back`;
 }
 function fmtOrDash(v: string | number | undefined | null): string {
   return v == null || v === '' ? EMPTY : String(v);
@@ -33,12 +55,12 @@ function fmtOrDash(v: string | number | undefined | null): string {
 /**
  * Body of Customer Manager's side panel: the record's details grouped into sections, its activity
  * history, and every per-customer action. Same card set for every status — fields that aren't
- * populated yet just show "—"; only Cancellation (once cancelled) replaces Delivery.
+ * populated yet just show "—"; a lost deal also gets a Lost card.
  */
 @Component({
   selector: 'app-customer-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, IconComponent, TranslatePipe],
+  imports: [CommonModule, RouterLink, IconComponent, TranslatePipe, DealExtrasComponent],
   template: `
     <div class="flex flex-col gap-4">
       <!-- Vehicle -->
@@ -51,12 +73,12 @@ function fmtOrDash(v: string | number | undefined | null): string {
               {{ record.yearMade }} · {{ record.colour }}
             </span>
           </div>
-          @if (record.status !== 'Cancelled') {
+          @if (record.status !== 'Lost') {
             <button
               type="button"
               (click)="changeCar.emit(record)"
-              [disabled]="record.status === 'Delivered'"
-              [title]="record.status === 'Delivered' ? 'This car has already been delivered, so it cannot be changed.' : 'Switch this customer to a different car'"
+              [disabled]="record.status === 'Won'"
+              [title]="record.status === 'Won' ? 'This deal is already won, so the car cannot be changed.' : 'Switch this customer to a different car'"
               class="flex shrink-0 items-center gap-1.5 rounded-lg bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
             >
               <app-icon name="refresh-cw" [size]="12" />
@@ -74,11 +96,22 @@ function fmtOrDash(v: string | number | undefined | null): string {
         </section>
       }
 
-      <!-- Activity History -->
+      <!-- Free gifts + cost spent — recorded at any stage, since both happen before a deal is won -->
+      <app-deal-extras [record]="record" [collapsible]="true" />
+
+      <!-- History — tucked away; the latest entry is enough at a glance -->
       <section class="flex flex-col gap-2 rounded-xl bg-muted/50 p-3">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{{ "Activity" | t }}</span>
-        @if (activity().length) {
-          <ol class="flex flex-col">
+        <button type="button" (click)="historyOpen = !historyOpen" [attr.aria-expanded]="historyOpen" class="flex items-center gap-2 text-left">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{{ "History" | t }}</span>
+          @if (activity()[0]; as latest) {
+            <span class="min-w-0 flex-1 truncate text-xs text-muted-foreground">{{ latest.message }} · {{ entryDate(latest.date) }}</span>
+          } @else {
+            <span class="flex-1 text-xs text-muted-foreground">{{ "No activity recorded yet." | t }}</span>
+          }
+          <app-icon name="chevron-down" [size]="14" class="shrink-0 text-muted-foreground transition-transform" [ngClass]="historyOpen ? 'rotate-180' : ''" />
+        </button>
+        @if (historyOpen && activity().length) {
+          <ol class="flex flex-col pt-1">
             @for (entry of activity(); track entry.id; let last = $last) {
               <li class="relative flex gap-3 pb-3 last:pb-0">
                 @if (!last) {
@@ -92,35 +125,22 @@ function fmtOrDash(v: string | number | undefined | null): string {
               </li>
             }
           </ol>
-        } @else {
-          <p class="text-xs text-muted-foreground">{{ "No activity recorded yet." | t }}</p>
         }
       </section>
 
-      <!-- Actions -->
-      <div class="grid grid-cols-2 gap-2">
-        <button type="button" (click)="addNote.emit(record)" class="flex items-center justify-center gap-1.5 rounded-lg bg-muted px-3 py-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent">
+      <!-- Less frequent actions -->
+      <div class="flex items-center gap-1">
+        <button type="button" (click)="addNote.emit(record)" class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent">
           <app-icon name="sticky-note" [size]="13" />
           {{ "Add note" | t }}
         </button>
-        @if (record.status !== 'Cancelled') {
-          <button type="button" (click)="edit.emit(record)" class="flex items-center justify-center gap-1.5 rounded-lg bg-muted px-3 py-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent">
+        @if (record.status !== 'Lost') {
+          <button type="button" (click)="edit.emit(record)" class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent">
             <app-icon name="pencil" [size]="13" />
             {{ "Edit details" | t }}
           </button>
         }
-        @if (record.status === 'Cancelled') {
-          <button type="button" (click)="reopen.emit(record)" class="flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground">
-            <app-icon name="rotate-ccw" [size]="13" />
-            {{ "Reopen" | t }}
-          </button>
-        } @else if (record.status !== 'Delivered') {
-          <button type="button" (click)="cancel.emit(record)" class="flex items-center justify-center gap-1.5 rounded-lg bg-[var(--destructive)]/12 px-3 py-2.5 text-xs font-semibold text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)]/20">
-            <app-icon name="x-circle" [size]="13" />
-            {{ "Cancel deal" | t }}
-          </button>
-        }
-        <button type="button" (click)="delete.emit(record)" class="flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-[var(--destructive)]/10 hover:text-[var(--destructive)]">
+        <button type="button" (click)="delete.emit(record)" class="ml-auto flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-[var(--destructive)]/10 hover:text-[var(--destructive)]">
           <app-icon name="trash" [size]="13" />
           {{ "Delete" | t }}
         </button>
@@ -150,13 +170,14 @@ function fmtOrDash(v: string | number | undefined | null): string {
 })
 export class CustomerDetailComponent {
   @Input({ required: true }) record!: CustomerRecord;
+  @Input() quote: QuoteSummary | null = null;
 
   @Output() edit = new EventEmitter<CustomerRecord>();
   @Output() addNote = new EventEmitter<CustomerRecord>();
   @Output() changeCar = new EventEmitter<CustomerRecord>();
-  @Output() cancel = new EventEmitter<CustomerRecord>();
-  @Output() reopen = new EventEmitter<CustomerRecord>();
   @Output() delete = new EventEmitter<CustomerRecord>();
+
+  historyOpen = false;
 
   vehicleTitle = vehicleTitle;
   modelVariantLabel = modelVariantLabel;
@@ -165,28 +186,12 @@ export class CustomerDetailComponent {
     return this.record.colour === TO_BE_CONFIRMED_COLOUR;
   }
 
-  get vehicleFields(): Field[] {
-    const r = this.record;
-    const price = VEHICLES.find((v) => v.brand === r.brand && v.model === r.model && v.variant === r.variant)?.price;
-    return [
-      { label: 'Selling Price', value: fmtMoney(price) },
-      { label: 'Rebate', value: fmtMoney(r.quotation?.rebate) },
-      { label: 'NCD', value: r.ncd !== undefined ? fmtPct(r.ncd) : EMPTY },
-      { label: 'Registration Number', value: fmtOrDash(r.plateNo) },
-      { label: 'Chassis / VIN', value: fmtOrDash(r.chassisNo) },
-      { label: 'Engine No.', value: fmtOrDash(r.engineNo) },
-      { label: 'Insurance', value: fmtOrDash(r.insuranceName) },
-    ];
-  }
-
   get sections(): Section[] {
     const r = this.record;
     return [
+      this.quotationSection(),
       this.customerSection(r),
-      this.financingSection(r),
-      this.tradeInSection(r),
-      // Cancelled deals never reach delivery — Cancellation takes that card's place instead.
-      r.status === 'Cancelled' ? this.cancellationSection(r) : this.deliverySection(r),
+      ...(r.status === 'Lost' ? [this.lostSection(r)] : []),
     ];
   }
 
@@ -204,67 +209,56 @@ export class CustomerDetailComponent {
       fields: [
         { label: 'Phone', value: r.phone },
         { label: 'Lead Source', value: r.sourceType },
-        { label: 'IC No', value: fmtOrDash(r.icNo) },
-        { label: 'Driving Licence No', value: fmtOrDash(r.drivingLicenceNo) },
-        { label: 'Address', value: fmtOrDash(r.address) },
-        { label: 'Email', value: fmtOrDash(r.email) },
       ],
     };
   }
 
-  private tradeInSection(r: CustomerRecord): Section {
-    return {
-      title: 'Trade-in',
-      fields: [
-        { label: 'Trade-in Status', value: r.tradeInStatus ?? 'No Trade-in' },
-        { label: 'Vehicle', value: fmtOrDash(r.tradeInVehicle) },
-        { label: 'Agreed Value', value: fmtMoney(r.tradeInValue) },
-      ],
-    };
+  private get catalogPrice(): number | undefined {
+    const r = this.record;
+    return VEHICLES.find((v) => v.brand === r.brand && v.model === r.model && v.variant === r.variant)?.price;
   }
 
-  /** Falls back to the "Not Submitted" meta for any value outside the known enum — a stale
-   *  record from before a schema change should degrade gracefully, never blank the row. */
-  private documentStatusField(r: CustomerRecord): Field {
-    if (isCashDeal(r)) return { label: 'Document Status', value: 'Cash' };
-    const meta = DOCUMENT_STATUS_META[r.documentStatus ?? 'NO'] ?? DOCUMENT_STATUS_META.NO;
-    return { label: 'Document Status', value: meta.label, badge: { tone: meta.tone, dot: meta.dot } };
-  }
-
-  private financingSection(r: CustomerRecord): Section {
-    const fields: Field[] = [{ label: 'Financing Type', value: fmtOrDash(r.financingType) }];
-    if (r.financingType === 'Loan') {
+  /** What the car itself costs this customer — price, plus the insurance and rebate from their quote. */
+  get vehicleFields(): Field[] {
+    const q = this.quote;
+    const fields: Field[] = [{ label: 'Price', value: fmtMoney(this.catalogPrice) }];
+    if (q && this.catalogPrice != null) {
       fields.push(
-        { label: 'Bank Panel', value: fmtOrDash(r.bankPanel) },
-        { label: 'Loan Amount', value: fmtMoney(r.loanAmount) },
-        { label: 'Tenure', value: r.loanTenureMonths !== undefined ? `${r.loanTenureMonths} months` : EMPTY },
-        { label: 'Interest Rate', value: fmtPct(r.loanInterestRate) },
-        { label: 'Down Payment', value: fmtMoney(r.downpayment) },
+        { label: 'Insurance', value: `${fmtRM(q.insurance)} (${q.ncd}% NCD)` },
+        { label: 'Rebate', value: rebateText(q) },
       );
     }
-    fields.push(this.documentStatusField(r));
-    return { title: 'Financing', fields };
+    return fields;
   }
 
-  private deliverySection(r: CustomerRecord): Section {
-    const fields: Field[] = [
-      { label: 'Delivery Date', value: fmtOrDash(r.deliveryDate) },
-      { label: 'Delivery Notes', value: fmtOrDash(r.deliveryNotes) },
-    ];
-    if (r.freeGifts?.length) {
-      fields.push({ label: 'Free Gifts', value: freeGiftsLabel(r), link: true });
+  private quotationSection(): Section {
+    const q = this.quote;
+    if (!q) return { title: 'Quotation', fields: [{ label: 'Quotation', value: 'Not quoted yet' }] };
+    if (this.catalogPrice == null) return { title: 'Quotation', fields: [{ label: 'Quotation', value: 'Car not in your catalog' }] };
+    const fields: Field[] = [{ label: 'Payment', value: q.cash ? 'Cash' : 'Hire Purchase' }];
+    if (q.cashback > 0) fields.push({ label: 'Cash back to customer', value: fmtRM(q.cashback) });
+    if (q.cash) {
+      fields.push({ label: 'Total Price', value: fmtRM(q.allInPrice) });
+    } else {
+      fields.push(
+        { label: q.downpayment < 0 ? 'Cash Back' : 'Down Payment', value: fmtRM(Math.abs(q.downpayment)) },
+        { label: 'Loan Amount', value: fmtRM(q.loanAmount) },
+        { label: 'Tenure', value: `${q.tenureMonths / 12} ${q.tenureMonths === 12 ? 'year' : 'years'}` },
+        { label: 'Interest Rate', value: `${q.interestRate}% ${q.rateType === 'effective' ? 'EIR' : 'flat'}` },
+        { label: 'Monthly', value: fmtRM(q.monthly) },
+      );
     }
-    return { title: 'Delivery', fields };
+    return { title: 'Quotation', fields };
   }
 
-  private cancellationSection(r: CustomerRecord): Section {
+  private lostSection(r: CustomerRecord): Section {
     return {
-      title: 'Cancellation',
+      title: 'Lost',
       fields: [
-        { label: 'Previous Status', value: r.previousStatus ? CUSTOMER_STATUS_META[r.previousStatus].label : EMPTY },
-        { label: 'Cancellation Date', value: formatStageDate(stageEnteredAt(r, 'Cancelled')) },
-        { label: 'Cancellation Reason', value: fmtOrDash(r.cancelReason) },
-        { label: 'Cancellation Notes', value: fmtOrDash(r.cancelNotes) },
+        { label: 'Previous Status', value: r.previousStatus ? (CUSTOMER_STATUS_META[r.previousStatus]?.label ?? r.previousStatus) : EMPTY },
+        { label: 'Lost On', value: formatStageDate(stageEnteredAt(r, 'Lost')) },
+        { label: 'Reason', value: fmtOrDash(r.cancelReason) },
+        { label: 'Notes', value: fmtOrDash(r.cancelNotes) },
       ],
     };
   }

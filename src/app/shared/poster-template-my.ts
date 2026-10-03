@@ -26,6 +26,7 @@ import { translate, type Lang, type Params } from './i18n-core';
 const T = (data: { lang?: Lang }, en: string, params?: Params) => translate(data.lang ?? 'en', en, params);
 
 import type { PosterTemplate } from './poster-templates';
+import { downpaymentDisplay } from '../data/calculator-data';
 
 const WIDTH = 900;
 const MARGIN = 56;
@@ -203,9 +204,10 @@ function drawStatsRow(ctx: CanvasRenderingContext2D, data: PosterData, top: numb
   ctx.fillStyle = POSTER_COLORS.partition;
   ctx.fillRect(M, top, WIDTH - 2 * M, 1);
 
+  const dp = downpaymentDisplay(data.downpayment);
   const columns = [
     { label: T(data, 'OTR PRICE'), value: formatCurrencyCompact(data.otrPrice).replace('.00', '') },
-    { label: T(data, 'DOWNPAYMENT'), value: formatCurrencyCompact(data.downpayment) },
+    { label: T(data, dp.isCashBack ? 'CASH BACK' : 'DOWNPAYMENT'), value: formatCurrencyCompact(dp.amount) },
     { label: T(data, 'INTEREST RATE'), value: `${data.interestRatePct}%` },
   ];
   const colWidth = (WIDTH - 2 * M) / 3;
