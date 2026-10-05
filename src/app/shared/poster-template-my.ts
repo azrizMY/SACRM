@@ -385,22 +385,14 @@ function drawCtaBar(ctx: CanvasRenderingContext2D, data: PosterData, top: number
   const radius = 12;
 
   const gradient = ctx.createLinearGradient(M, 0, M + barWidth, 0);
-  gradient.addColorStop(0, data.hideContact ? POSTER_COLORS.accDark : '#1FB955');
-  gradient.addColorStop(1, data.hideContact ? POSTER_COLORS.acc : POSTER_COLORS.waGreen);
+  gradient.addColorStop(0, '#1FB955');
+  gradient.addColorStop(1, POSTER_COLORS.waGreen);
   ctx.beginPath();
   ctx.roundRect(M, top, barWidth, barHeight, radius);
   ctx.fillStyle = gradient;
   ctx.fill();
 
   const centerY = top + barHeight / 2;
-  if (data.hideContact) {
-    ctx.font = displayFont(20, 700);
-    ctx.fillStyle = POSTER_COLORS.paper;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(data.footerText ?? '', M + barWidth / 2, centerY, barWidth - 40);
-    return top + barHeight;
-  }
   const iconX = M + 23;
   const iconSize = 26;
 

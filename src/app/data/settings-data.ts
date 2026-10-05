@@ -109,11 +109,7 @@ export type LiveQuoteMemory = {
 
 /** Live Mode's own customisation — only how the Live Screen looks. Edited on the Live page only
  *  (never on the Settings page); the quote itself still follows Settings and Price Settings. */
-/** What the Live Screen shows: the Live layout, or one of the Calculator's poster templates. */
-export type LiveDesign = 'live' | 'classic' | 'compact-my' | 'square' | 'promo';
-
 export type LiveSettings = {
-  design: LiveDesign;
   size: LiveScreenSize;
   /** Language of the Live Screen itself; the controls follow the app language. */
   lang: 'ms' | 'en';
@@ -124,15 +120,12 @@ export type LiveSettings = {
   showAdvisor: boolean;
   showBrandLogo: boolean;
   showEstimateNote: boolean;
-  /** Posters only: what goes where the WhatsApp call-to-action was while the phone is hidden. Empty = the default line. */
-  footerText: string;
   /** Vehicle ids pinned for one-tap switching. */
   favourites: string[];
   lastQuote?: LiveQuoteMemory;
 };
 
 export const DEFAULT_LIVE_SETTINGS: LiveSettings = {
-  design: 'live',
   size: 'square',
   lang: 'ms',
   showPhone: false,
@@ -141,7 +134,6 @@ export const DEFAULT_LIVE_SETTINGS: LiveSettings = {
   showAdvisor: true,
   showBrandLogo: true,
   showEstimateNote: true,
-  footerText: '',
   favourites: [],
 };
 

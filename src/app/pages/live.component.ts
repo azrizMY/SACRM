@@ -1,5 +1,4 @@
 import { Component, HostListener, OnDestroy, computed, effect, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../shared/icon.component';
 import { TranslatePipe } from '../shared/i18n';
@@ -11,30 +10,19 @@ import { AdvisorService } from '../shared/advisor.service';
 import { ToastService } from '../shared/toast.service';
 import { VEHICLES, formatRM, modelVariantLabel, type Vehicle } from '../data/calculator-data';
 import { brandLogo, formatMalaysianPhone } from '../data/dashboard-data';
-import { LIVE_SCREEN_SIZES, type LiveDesign, type LiveQuoteMemory, type LiveScreenSize, type LiveSettings } from '../data/settings-data';
-import { LivePosterComponent, LIVE_POSTER_TEMPLATES, posterAvailable } from '../shared/live-poster.component';
-import { quotePosterData } from '../shared/quote-poster-data';
-import type { PosterData } from '../shared/poster-data';
-import type { PosterTemplateId } from '../shared/poster-templates';
+import { LIVE_SCREEN_SIZES, type LiveQuoteMemory, type LiveScreenSize, type LiveSettings } from '../data/settings-data';
 
 /** The pop-out Live Screen window listens on this channel; this page answers with the current screen. */
 export const LIVE_CHANNEL = 'redline-live';
-/** One frame of the Live Screen: the Live layout, or a poster. */
-export type LiveFrame = { design: 'live'; data: LiveScreenData } | { design: PosterTemplateId; poster: PosterData };
 /** hello/alive/bye come from the pop-out (alive every couple of seconds while it's open); screen/close go to it. */
-export type LiveChannelMessage = { type: 'hello' } | { type: 'alive' } | { type: 'bye' } | { type: 'close' } | { type: 'screen'; frame: LiveFrame };
+export type LiveChannelMessage = { type: 'hello' } | { type: 'alive' } | { type: 'bye' } | { type: 'close' } | { type: 'screen'; data: LiveScreenData };
 
 /** How often the pop-out says it's still open, and how long without hearing from it counts as closed. */
 export const LIVE_ALIVE_MS = 2000;
 const LIVE_GONE_MS = 5000;
 
-/** Posters: what replaces the WhatsApp call-to-action while the phone is hidden, unless the SA wrote their own. */
-const DEFAULT_FOOTER = { ms: 'Tulis model kereta di komen', en: 'Type the car model in the comments' };
 
 type Toggle = { key: keyof Pick<LiveSettings, 'showAdvisor' | 'showBrandLogo' | 'showEstimateNote' | 'showShowroom' | 'showPhone' | 'showWhatsApp'>; label: string; hint: string };
-
-/** Posters carry their own logo, name and note — only the phone (and its WhatsApp bar) is up to you. */
-const POSTER_TOGGLES: Toggle[] = [{ key: 'showPhone', label: 'Phone number and WhatsApp', hint: 'TikTok restricts sharing contact details on LIVE.' }];
 
 const TOGGLES: Toggle[] = [
   { key: 'showAdvisor', label: 'Your name and photo', hint: 'Shows who is presenting.' },
@@ -57,7 +45,7 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
 @Component({
   selector: 'app-live',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, TranslatePipe, QuoteControlsComponent, LiveScreenComponent, LivePosterComponent],
+  imports: [CommonModule, IconComponent, TranslatePipe, QuoteControlsComponent, LiveScreenComponent],
   // PC: exactly the height of the main area, so the page itself never scrolls — only the side columns do.
   host: { class: 'block xl:h-full' },
   template: `
@@ -89,35 +77,15 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
 
       <!-- PC: settings | Live Screen | quote. Tablet: settings | Live Screen, quote below. -->
       <div class="grid gap-4 md:grid-cols-[250px_minmax(0,1fr)] xl:min-h-0 xl:flex-1 xl:grid-cols-[250px_minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)]">
-        <!-- Left: what the Live Screen shows and how it looks -->
+        <!-- Left: how the Live Screen looks -->
         <aside class="flex min-w-0 flex-col gap-4 xl:min-h-0 xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
-          <div class="flex flex-col gap-1.5 rounded-xl border border-border bg-card p-3">
-            <span class="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Design" | t }}</span>
-            @for (d of designs(); track d.id) {
-              <button
-                type="button"
-                (click)="update({ design: d.id })"
-                [disabled]="!d.available"
-                [attr.title]="d.available ? null : ('Not available for this quote' | t)"
-                class="flex items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors disabled:opacity-40"
-                [ngClass]="activeDesign() === d.id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'"
-              >
-                {{ d.label | t }}
-                @if (activeDesign() === d.id) {
-                  <app-icon name="check" [size]="14" />
-                }
-              </button>
-            }
-          </div>
-
           <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
             <div class="flex flex-col gap-0.5">
               <span class="flex items-center gap-2 text-sm font-semibold"><app-icon name="settings" [size]="14" class="text-muted-foreground" />{{ "Advanced settings" | t }}</span>
               <span class="text-[11px] text-muted-foreground">{{ "How the Live Screen looks — saved for next time" | t }}</span>
             </div>
 
-            @if (activeDesign() === 'live') {
-              <div class="flex flex-col gap-1.5">
+            <div class="flex flex-col gap-1.5">
                 <span class="text-xs font-semibold text-muted-foreground">{{ "Screen size" | t }}</span>
                 @for (s of sizes; track s.id) {
                   <button
@@ -136,9 +104,6 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
                   </button>
                 }
               </div>
-            } @else {
-              <p class="text-[11px] text-muted-foreground">{{ "Posters keep their own shape, logo and name — the same as in the Calculator." | t }}</p>
-            }
 
             <div class="flex flex-col gap-1.5">
               <span class="text-xs font-semibold text-muted-foreground">{{ "Live Screen language" | t }}</span>
@@ -158,7 +123,7 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
 
             <div class="flex flex-col">
               <span class="mb-1 text-xs font-semibold text-muted-foreground">{{ "Show on the Live Screen" | t }}</span>
-              @for (tg of activeToggles(); track tg.key) {
+              @for (tg of toggles; track tg.key) {
                 <label class="-mx-1 flex items-start gap-2.5 rounded-lg px-1 py-1.5 hover:bg-accent/50" [class.opacity-50]="tg.key === 'showWhatsApp' && !live().showPhone">
                   <input
                     type="checkbox"
@@ -174,21 +139,6 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
                 </label>
               }
             </div>
-
-            @if (activeDesign() !== 'live' && !live().showPhone) {
-              <label class="flex flex-col gap-1">
-                <span class="text-xs font-semibold text-muted-foreground">{{ "Footer text" | t }}</span>
-                <input
-                  type="text"
-                  maxlength="60"
-                  [ngModel]="live().footerText"
-                  (ngModelChange)="update({ footerText: $event })"
-                  [placeholder]="defaultFooter()"
-                  class="h-9 rounded-lg border border-border bg-background px-3 text-sm"
-                />
-                <span class="text-[11px] text-muted-foreground">{{ "Shown where the WhatsApp bar was, while your phone is hidden." | t }}</span>
-              </label>
-            }
 
             <p class="rounded-lg bg-[var(--warning)]/10 px-3 py-2 text-[11px] text-foreground">
               {{ "Phone and WhatsApp start off — TikTok can restrict LIVEs that share contact details or send viewers elsewhere. Anything that looks like a phone number or link is also filtered out of your name and showroom." | t }}
@@ -245,9 +195,9 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
           <div
             class="w-full border border-border bg-muted/40 xl:min-h-0 xl:flex-1"
             [ngClass]="
-              frame().design === 'live' && !popoutOpen()
-                ? 'aspect-[var(--ar)] max-h-[calc(100vh-17rem)] min-h-[360px] xl:aspect-auto xl:max-h-none'
-                : 'h-[calc(100vh-17rem)] min-h-[460px] xl:h-auto'
+              popoutOpen()
+                ? 'h-[calc(100vh-17rem)] min-h-[460px] xl:h-auto'
+                : 'aspect-[var(--ar)] max-h-[calc(100vh-17rem)] min-h-[360px] xl:aspect-auto xl:max-h-none'
             "
             [style.--ar]="dims().width + ' / ' + dims().height"
           >
@@ -260,12 +210,8 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
                   {{ "Close the window" | t }}
                 </button>
               </div>
-            } @else if (frame().design === 'live') {
-              <app-live-screen [data]="screenData()" />
             } @else {
-              <div class="h-full w-full p-3">
-                <app-live-poster [data]="posterData()" [templateId]="posterId()" />
-              </div>
+              <app-live-screen [data]="screenData()" />
             }
           </div>
         </section>
@@ -294,6 +240,7 @@ export class LiveComponent implements OnDestroy {
     { id: 'ms', label: 'BM' },
     { id: 'en', label: 'EN' },
   ];
+  toggles = TOGGLES;
   dpChips = DP_CHIPS;
 
   favourites = computed(() =>
@@ -302,45 +249,6 @@ export class LiveComponent implements OnDestroy {
       .filter((v): v is Vehicle => !!v),
   );
   isFavourite = computed(() => this.live().favourites.includes(this.q.selectedVehicle().id));
-
-  /** The poster version of this quote — the Calculator's own poster data, made safe for TikTok. */
-  posterData = computed<PosterData>(() => {
-    const live = this.live();
-    const base = quotePosterData(this.q, this.advisor, live.lang);
-    const advisor = { ...base.advisor, name: stripContact(base.advisor.name), bio: stripContact(base.advisor.bio) };
-    if (live.showPhone) return { ...base, advisor };
-    return {
-      ...base,
-      advisor: { ...advisor, phoneDisplay: '' },
-      hideContact: true,
-      footerText: stripContact((live.footerText ?? '').trim()) || DEFAULT_FOOTER[live.lang],
-    };
-  });
-
-  defaultFooter = computed(() => DEFAULT_FOOTER[this.live().lang]);
-
-  designs = computed(() => {
-    const data = this.posterData();
-    return [
-      { id: 'live' as LiveDesign, label: 'Live layout', available: true },
-      ...LIVE_POSTER_TEMPLATES.map((t) => ({ id: t.id as LiveDesign, label: t.label, available: posterAvailable(t, data) })),
-    ];
-  });
-  /** The chosen design — or Full Quotation when the chosen poster doesn't fit this quote (e.g. Rebate Deal with no rebate). */
-  activeDesign = computed<LiveDesign>(() => {
-    const chosen = this.live().design ?? 'live';
-    return this.designs().find((d) => d.id === chosen)?.available ? chosen : 'classic';
-  });
-  posterId = computed<PosterTemplateId>(() => {
-    const d = this.activeDesign();
-    return d === 'live' ? 'classic' : d;
-  });
-  activeToggles = computed(() => (this.activeDesign() === 'live' ? TOGGLES : POSTER_TOGGLES));
-
-  frame = computed<LiveFrame>(() => {
-    const design = this.activeDesign();
-    return design === 'live' ? { design, data: this.screenData() } : { design, poster: this.posterData() };
-  });
 
   /** When the pop-out last said it was open — the preview steps aside while it is. */
   private popoutSeenAt = signal(0);
@@ -389,7 +297,7 @@ export class LiveComponent implements OnDestroy {
     this.restoreLastQuote();
 
     // Keep the pop-out window in step, and answer it when it opens.
-    effect(() => this.post(this.frame()));
+    effect(() => this.post(this.screenData()));
     if (this.channel) {
       this.channel.onmessage = (e: MessageEvent<LiveChannelMessage>) => {
         const type = e.data?.type;
@@ -397,7 +305,7 @@ export class LiveComponent implements OnDestroy {
           this.popoutSeenAt.set(Date.now());
           this.now.set(Date.now());
         }
-        if (type === 'hello') this.post(this.frame());
+        if (type === 'hello') this.post(this.screenData());
         if (type === 'bye') this.popoutSeenAt.set(0);
       };
     }
@@ -424,8 +332,8 @@ export class LiveComponent implements OnDestroy {
     this.channel?.close();
   }
 
-  private post(frame: LiveFrame) {
-    this.channel?.postMessage({ type: 'screen', frame } satisfies LiveChannelMessage);
+  private post(data: LiveScreenData) {
+    this.channel?.postMessage({ type: 'screen', data } satisfies LiveChannelMessage);
   }
 
   private restoreLastQuote() {
@@ -513,8 +421,7 @@ export class LiveComponent implements OnDestroy {
   // ---------- Pop-out Live Screen (PC) ----------
 
   openPopout() {
-    // Posters are tall; the Live layout opens at half its own size.
-    const { width, height } = this.activeDesign() === 'live' ? this.dims() : { width: 1200, height: 1560 };
+    const { width, height } = this.dims();
     const w = window.open('/live-screen', 'redline-live-screen', `popup=yes,width=${Math.round(width / 2)},height=${Math.round(height / 2)}`);
     if (!w) this.toast.show('Your browser blocked the window — allow pop-ups for this site and try again');
   }

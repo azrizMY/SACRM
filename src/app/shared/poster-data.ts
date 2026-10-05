@@ -65,9 +65,4 @@ export type PosterData = {
    *  (e.g. just "2.3%") instead of using the English "2.3% FLAT" label. */
   interestRatePct: number;
   tenureRows: PosterTenureRow[];
-
-  /** Live Mode with the phone switched off (TikTok restricts contact details): templates draw no
-   *  phone number and no WhatsApp mark, and put `footerText` where the WhatsApp call-to-action was. */
-  hideContact?: boolean;
-  footerText?: string;
 };

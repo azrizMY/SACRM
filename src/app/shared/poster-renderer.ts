@@ -266,8 +266,6 @@ export async function drawPricePanel(ctx: CanvasRenderingContext2D, data: Poster
     bioLines.forEach((line, i) => ctx.fillText(line, avatarX, 611 + i * 14));
   }
 
-  if (data.hideContact) return;
-
   ctx.font = labelFont(9, 700);
   ctx.fillStyle = POSTER_COLORS.panelGrayD;
   fillTrackedText(ctx, 'WHATSAPP', avatarX, 660, 2.2);
@@ -476,15 +474,6 @@ export function drawDataSection(ctx: CanvasRenderingContext2D, layout: PosterLay
  *  how much the optional inclusions section pushed the footer down. */
 export function drawFooter(ctx: CanvasRenderingContext2D, layout: PosterLayout, data: PosterData): void {
   const top = layout.footerTop;
-
-  if (data.hideContact) {
-    ctx.font = displayFont(30, 700);
-    ctx.fillStyle = POSTER_COLORS.paper;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(data.footerText ?? '', 450, top + 64, 900 - 2 * 56);
-    return;
-  }
 
   drawWhatsAppIcon(ctx, 56, top + 40, 44, POSTER_COLORS.waGreen);
 
