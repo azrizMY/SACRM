@@ -108,8 +108,11 @@ export async function drawHeader(ctx: CanvasRenderingContext2D, data: PosterData
   if (data.logoUrl) {
     try {
       const img = await loadPosterImage(data.logoUrl);
-      const logoWidth = 104;
-      const logoHeight = (img.naturalHeight / img.naturalWidth) * logoWidth;
+      // Fits a 104x80 box keeping its shape: wide wordmarks fill the width, a square badge
+      // (e.g. Honda's) is held by the height so it stays clear of the date below.
+      const scale = Math.min(104 / img.naturalWidth, 80 / img.naturalHeight);
+      const logoWidth = img.naturalWidth * scale;
+      const logoHeight = img.naturalHeight * scale;
       ctx.drawImage(img, rightEdge - logoWidth, 34, logoWidth, logoHeight);
     } catch {
       drawBrandFallback(ctx, data.brand, rightEdge);

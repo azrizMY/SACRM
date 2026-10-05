@@ -152,6 +152,44 @@ export const VEHICLES: Vehicle[] = [
   { id: 'jaecoo-omoda-c9-2wd', brand: 'Omoda | Jaecoo', model: 'Omoda C9', variant: '2WD', price: 168800, brochureUrl: '/brochures/jaecoo-omoda-c9.pdf', colours: ['Matte Grey', 'Khaki White', 'Carbon Crystal Black'], colourSurcharges: { 'Matte Grey': 3000 }, years: [{ year: 2026 }] },
   { id: 'jaecoo-omoda-c9-awd', brand: 'Omoda | Jaecoo', model: 'Omoda C9', variant: 'AWD', price: 188800, brochureUrl: '/brochures/jaecoo-omoda-c9.pdf', colours: ['Matte Grey', 'Khaki White', 'Carbon Crystal Black'], colourSurcharges: { 'Matte Grey': 3000 }, years: [{ year: 2026 }] },
   { id: 'jaecoo-omoda-c9-phev', brand: 'Omoda | Jaecoo', model: 'Omoda C9', variant: 'PHEV', price: 208800, brochureUrl: '/brochures/jaecoo-omoda-c9-phev.pdf', colours: ['Matte Grey', 'Khaki White', 'Carbon Crystal Black'], colourSurcharges: { 'Matte Grey': 3000 }, years: [{ year: 2026 }] },
+
+  // Honda Malaysia lineup — Honda's own "Retail Price Without Insurance" for each variant (5 Oct
+  // 2026). Each model shares its e-brochure across variants. No photos or colour lists yet.
+  { id: 'honda-city-1-5-e', brand: 'Honda', model: 'City', variant: '1.5L E', price: 89900, brochureUrl: '/brochures/honda-city.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-city-1-5-v', brand: 'Honda', model: 'City', variant: '1.5L V', price: 94900, brochureUrl: '/brochures/honda-city.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-city-1-5-rs', brand: 'Honda', model: 'City', variant: '1.5L RS', price: 99900, brochureUrl: '/brochures/honda-city.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-city-1-5-ehev-rs', brand: 'Honda', model: 'City', variant: '1.5L e:HEV RS', price: 111900, brochureUrl: '/brochures/honda-city.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-city-hatchback-1-5-s', brand: 'Honda', model: 'City Hatchback', variant: '1.5L S', price: 85900, brochureUrl: '/brochures/honda-city-hatchback.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-city-hatchback-1-5-e', brand: 'Honda', model: 'City Hatchback', variant: '1.5L E', price: 90900, brochureUrl: '/brochures/honda-city-hatchback.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-city-hatchback-1-5-v', brand: 'Honda', model: 'City Hatchback', variant: '1.5L V', price: 95900, brochureUrl: '/brochures/honda-city-hatchback.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-city-hatchback-1-5-rs', brand: 'Honda', model: 'City Hatchback', variant: '1.5L RS', price: 100900, brochureUrl: '/brochures/honda-city-hatchback.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-city-hatchback-1-5-ehev-rs', brand: 'Honda', model: 'City Hatchback', variant: '1.5L e:HEV RS', price: 112900, brochureUrl: '/brochures/honda-city-hatchback.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-civic-1-5-e', brand: 'Honda', model: 'Civic', variant: '1.5L E', price: 133900, brochureUrl: '/brochures/honda-civic.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-civic-1-5-v', brand: 'Honda', model: 'Civic', variant: '1.5L V', price: 144900, brochureUrl: '/brochures/honda-civic.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-civic-1-5-rs', brand: 'Honda', model: 'Civic', variant: '1.5L RS', price: 149900, brochureUrl: '/brochures/honda-civic.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-civic-2-0-ehev-rs', brand: 'Honda', model: 'Civic', variant: '2.0L e:HEV RS', price: 167900, brochureUrl: '/brochures/honda-civic.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-wrv-1-5-e', brand: 'Honda', model: 'WR-V', variant: '1.5L E', price: 94900, brochureUrl: '/brochures/honda-wrv.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-wrv-1-5-v', brand: 'Honda', model: 'WR-V', variant: '1.5L V', price: 98900, brochureUrl: '/brochures/honda-wrv.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-wrv-1-5-rs', brand: 'Honda', model: 'WR-V', variant: '1.5L RS', price: 104900, brochureUrl: '/brochures/honda-wrv.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-hrv-1-5-s', brand: 'Honda', model: 'HR-V', variant: '1.5L S', price: 115900, brochureUrl: '/brochures/honda-hrv.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-hrv-1-5t-e', brand: 'Honda', model: 'HR-V', variant: '1.5L T E', price: 130900, brochureUrl: '/brochures/honda-hrv.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-hrv-1-5t-v', brand: 'Honda', model: 'HR-V', variant: '1.5L T V', price: 137900, brochureUrl: '/brochures/honda-hrv.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-hrv-1-5-ehev-rs', brand: 'Honda', model: 'HR-V', variant: '1.5L e:HEV RS', price: 143900, brochureUrl: '/brochures/honda-hrv.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-crv-2-0-ehev-e', brand: 'Honda', model: 'CR-V', variant: '2.0L e:HEV E', price: 178200, brochureUrl: '/brochures/honda-crv.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-crv-1-5-v', brand: 'Honda', model: 'CR-V', variant: '1.5L V', price: 181900, brochureUrl: '/brochures/honda-crv.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-crv-2-0-ehev-rs', brand: 'Honda', model: 'CR-V', variant: '2.0L e:HEV RS', price: 195900, brochureUrl: '/brochures/honda-crv.pdf', years: [{ year: 2026 }] },
+
+  // GWM Malaysia lineup (WEY, HAVAL, ORA and TANK sold under the one GWM brand) — prices before
+  // insurance, as supplied by the developer on 6 Oct 2026. Brochures are GWM Malaysia's own
+  // (TANK 300 and TANK 300 HEV only publish a one-page specification sheet). No photos or colour lists yet.
+  { id: 'gwm-wey-g9-hi4-phev', brand: 'GWM', model: 'WEY G9', variant: 'Hi4 PHEV', price: 269800, brochureUrl: '/brochures/gwm-wey-g9.pdf', years: [{ year: 2026 }] },
+  { id: 'gwm-haval-h6-hev', brand: 'GWM', model: 'HAVAL H6', variant: 'HEV', price: 142960, brochureUrl: '/brochures/gwm-haval-h6-hev.pdf', years: [{ year: 2026 }] },
+  { id: 'gwm-ora-good-cat-ultra', brand: 'GWM', model: 'ORA Good Cat', variant: 'Ultra', price: 110500, brochureUrl: '/brochures/gwm-ora-good-cat.pdf', years: [{ year: 2026 }] },
+  { id: 'gwm-ora-good-cat-gt', brand: 'GWM', model: 'ORA Good Cat', variant: 'GT', price: 120500, brochureUrl: '/brochures/gwm-ora-good-cat.pdf', years: [{ year: 2026 }] },
+  { id: 'gwm-tank-300-ultra', brand: 'GWM', model: 'TANK 300', variant: 'Ultra', price: 250000, brochureUrl: '/brochures/gwm-tank-300.pdf', years: [{ year: 2026 }] },
+  { id: 'gwm-tank-300-hev-ultra', brand: 'GWM', model: 'TANK 300 HEV', variant: 'Ultra', price: 259800, brochureUrl: '/brochures/gwm-tank-300-hev.pdf', years: [{ year: 2026 }] },
+  { id: 'gwm-tank-500-hev-ultra', brand: 'GWM', model: 'TANK 500 HEV', variant: 'Ultra', price: 328800, brochureUrl: '/brochures/gwm-tank-500-hev.pdf', years: [{ year: 2026 }] },
+  { id: 'gwm-tank-500-hev-ultra-black', brand: 'GWM', model: 'TANK 500 HEV', variant: 'Ultra Black Edition', price: 336800, brochureUrl: '/brochures/gwm-tank-500-hev.pdf', years: [{ year: 2026 }] },
 ];
 
 /** Factory-default catalog, snapshotted before any account's saved overrides are applied on top —

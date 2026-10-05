@@ -257,7 +257,8 @@ export function stripContact(text: string): string {
         font-family: var(--display); font-size: var(--title); font-weight: 700; line-height: 1.12; letter-spacing: -0.01em;
         display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
       }
-      .logo { margin-top: auto; align-self: flex-start; height: var(--logo); width: auto; max-width: 100%; object-fit: contain; object-position: left bottom; }
+      /* Fits a box rather than one fixed height: wide wordmarks are held by the width, round badges get more height. */
+      .logo { margin-top: auto; align-self: flex-start; width: auto; height: auto; max-width: 100%; max-height: calc(var(--logo) * 1.5); object-fit: contain; object-position: left bottom; }
       .car { min-height: 0; min-width: 0; display: flex; align-items: flex-end; justify-content: center; }
       .car img { max-width: 100%; max-height: 100%; object-fit: contain; }
 

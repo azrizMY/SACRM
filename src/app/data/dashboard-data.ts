@@ -42,6 +42,7 @@ const BRAND_STYLES: Record<string, { bg: string; fg: string }> = {
   Honda: { bg: 'oklch(0.5 0.02 285)', fg: 'oklch(0.98 0 0)' },
   Toyota: { bg: 'oklch(0.58 0.15 30)', fg: 'oklch(0.98 0 0)' },
   'Omoda | Jaecoo': { bg: 'oklch(0.15 0 0)', fg: 'oklch(0.98 0 0)' },
+  GWM: { bg: 'oklch(0.5 0.17 25)', fg: 'oklch(0.98 0 0)' },
   // Customer records saved before the Jaecoo → "Omoda | Jaecoo" rename still hold the old plain
   // "Jaecoo" string (each is a snapshot taken at lead-creation time, not a live catalog lookup) —
   // kept as an alias so those older leads still show the real mark instead of falling back to a
@@ -58,16 +59,19 @@ export function brandInitials(brand: string): string {
 }
 
 /** Brand logo files hardcoded by the developer — drop the image at this path under `public/` (e.g.
- *  `public/brands/proton.png` for the `/brands/proton.png` entry below) and add the brand's entry
- *  here. Brands without one fall back to their initials badge (brandInitials/brandStyle above)
+ *  `public/brands/proton.svg` for the `/brands/proton.svg` entry below) and add the brand's entry
+ *  here. Use an SVG cropped edge to edge, with width/height on its root so posters can draw it on a
+ *  canvas. Brands without one fall back to their initials badge (brandInitials/brandStyle above)
  *  wherever a logo is shown. */
 const BRAND_LOGOS: Record<string, string> = {
-  Chery: '/brands/chery.png',
-  Proton: '/brands/proton.png',
-  'Proton e.MAS': '/brands/proton.png',
-  'Omoda | Jaecoo': '/brands/jaecoo.png',
+  Chery: '/brands/chery.svg',
+  Proton: '/brands/proton.svg',
+  'Proton e.MAS': '/brands/proton-emas.svg',
+  'Omoda | Jaecoo': '/brands/jaecoo.svg',
+  Honda: '/brands/honda.svg',
+  GWM: '/brands/gwm.svg',
   // Same legacy alias as BRAND_STYLES above — see its comment.
-  Jaecoo: '/brands/jaecoo.png',
+  Jaecoo: '/brands/jaecoo.svg',
 };
 
 export function brandLogo(brand: string): string | null {

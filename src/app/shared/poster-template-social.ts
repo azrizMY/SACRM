@@ -268,8 +268,10 @@ export const squareTemplate: PosterTemplate = {
     if (data.logoUrl) {
       try {
         const img = await loadPosterImage(data.logoUrl);
-        logoW = 92;
-        const logoH = Math.min(34, (img.naturalHeight / img.naturalWidth) * logoW);
+        // Fits a 92x34 box keeping its shape (a square badge is held by the height, not squashed).
+        const scale = Math.min(92 / img.naturalWidth, 34 / img.naturalHeight);
+        logoW = img.naturalWidth * scale;
+        const logoH = img.naturalHeight * scale;
         ctx.drawImage(img, W - M - logoW, 30, logoW, logoH);
       } catch {
         logoW = 0;

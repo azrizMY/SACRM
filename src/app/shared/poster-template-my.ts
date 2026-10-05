@@ -58,8 +58,10 @@ async function drawWhiteTop(ctx: CanvasRenderingContext2D, data: PosterData): Pr
   if (data.logoUrl) {
     try {
       const img = await loadPosterImage(data.logoUrl);
-      const logoWidth = 132;
-      const logoHeight = (img.naturalHeight / img.naturalWidth) * logoWidth;
+      // Fits a 132x100 box keeping its shape, so a square badge doesn't grow taller than the header.
+      const scale = Math.min(132 / img.naturalWidth, 100 / img.naturalHeight);
+      const logoWidth = img.naturalWidth * scale;
+      const logoHeight = img.naturalHeight * scale;
       ctx.drawImage(img, rightEdge - logoWidth, 46, logoWidth, logoHeight);
     } catch {
       ctx.font = labelFont(13, 700);
