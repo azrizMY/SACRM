@@ -13,7 +13,7 @@ const NAV: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
   { id: 'calculator', label: 'Calculator', icon: 'calculator' },
   { id: 'compare', label: 'Compare', icon: 'table' },
-  { id: 'live', label: 'Live Mode', icon: 'sparkles' },
+  { id: 'live', label: 'Live Mode', icon: 'live' },
   { id: 'cars', label: 'Catalog', icon: 'car' },
   { id: 'price-settings', label: 'Price Settings', icon: 'tag' },
   { id: 'leads', label: 'Customer Manager', icon: 'users' },

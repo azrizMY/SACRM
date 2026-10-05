@@ -2,6 +2,7 @@ import { AfterViewInit, Component, ElementRef, Input, OnChanges, OnDestroy, View
 import { CommonModule } from '@angular/common';
 import { LIVE_SCREEN_SIZES, type LiveScreenSize } from '../data/settings-data';
 import { POSTER_COLORS, POSTER_FONTS, posterFontsReady } from './poster-theme';
+import { CarShadowPipe } from './car-shadow';
 
 /** Everything the Live Screen shows — a plain snapshot, so the pop-out window can be sent the
  *  same object over a BroadcastChannel. Built by the Live page from its quote and Live settings. */
@@ -19,6 +20,7 @@ export type LiveScreenData = {
   /** The car's own price (OTR), before insurance and rebate — the breakdown table adds them up. */
   carPrice: number;
   insurance: number;
+  /** The part of the rebate taken off the price (any cash back is paid out instead, not deducted). */
   rebate: number;
   downpayment: number;
   loanAmount: number;
@@ -45,10 +47,10 @@ const TEXT = {
     carPrice: 'Car price',
     insurance: 'Insurance',
     rebate: 'Rebate',
+    total: 'Total price',
     downpayment: 'Down payment',
     cashBack: 'Cash back to you',
     loan: 'Loan amount',
-    rate: 'Interest rate',
     rateNeeded: 'To be confirmed',
     estimate: 'Estimate only — subject to bank approval.',
   },
@@ -62,10 +64,10 @@ const TEXT = {
     carPrice: 'Harga kereta',
     insurance: 'Insurans',
     rebate: 'Rebat',
+    total: 'Jumlah harga',
     downpayment: 'Deposit',
     cashBack: 'Pulangan tunai',
     loan: 'Jumlah pinjaman',
-    rate: 'Kadar faedah',
     rateNeeded: 'Belum disahkan',
     estimate: 'Anggaran sahaja — tertakluk kepada kelulusan bank.',
   },
@@ -94,7 +96,7 @@ export function stripContact(text: string): string {
 @Component({
   selector: 'app-live-screen',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, CarShadowPipe],
   host: { class: 'block h-full w-full' },
   template: `
     <div #frame class="relative h-full w-full overflow-hidden">
@@ -110,11 +112,11 @@ export function stripContact(text: string): string {
           [style.--display]="fonts.display"
           [style.--label]="fonts.label"
         >
-          <!-- Top: the car, taking whatever height the numbers leave -->
+          <!-- Top: name and logo on the left, the car on the right taking the full height the numbers leave -->
           <div class="top">
             <div class="head">
               <div class="head-text">
-                <div class="eyebrow">{{ t().eyebrow }} · {{ d.year }}</div>
+                <div class="eyebrow">{{ t().eyebrow }}</div>
                 <div class="title">{{ d.title }}</div>
               </div>
               @if (d.logoUrl) {
@@ -123,7 +125,8 @@ export function stripContact(text: string): string {
             </div>
             <div class="car">
               @if (d.imageUrl) {
-                <img [src]="d.imageUrl" alt="" />
+                <!-- The same ground shadow as the posters -->
+                <img [src]="d.imageUrl | carShadow" alt="" />
               }
             </div>
           </div>
@@ -173,17 +176,21 @@ export function stripContact(text: string): string {
             }
 
             @if (!d.cash) {
+              <!-- How the price adds up… -->
               <div class="table">
                 <div class="tr"><span>{{ t().carPrice }}</span><b>RM {{ n(d.carPrice) }}</b></div>
                 <div class="tr"><span>{{ t().insurance }}</span><b>+ RM {{ n(d.insurance) }}</b></div>
                 <div class="tr"><span>{{ t().rebate }}</span><b [class.good]="d.rebate > 0">{{ d.rebate > 0 ? '− ' : '' }}RM {{ n(d.rebate) }}</b></div>
+                <div class="tr total"><span>{{ t().total }}</span><b>RM {{ n(d.sellingPrice) }}</b></div>
+              </div>
+              <!-- …and how that total is paid -->
+              <div class="split">
                 @if (d.cashback > 0) {
-                  <div class="tr"><span>{{ t().cashBack }}</span><b class="good">RM {{ n(d.cashback) }}</b></div>
+                  <div class="cell"><span>{{ t().cashBack }}</span><b class="good">RM {{ n(d.cashback) }}</b></div>
                 } @else {
-                  <div class="tr"><span>{{ t().downpayment }}</span><b>RM {{ n(d.downpayment) }}</b></div>
+                  <div class="cell"><span>{{ t().downpayment }}</span><b>RM {{ n(d.downpayment) }}</b></div>
                 }
-                <div class="tr"><span>{{ t().loan }}</span><b>RM {{ n(d.loanAmount) }}</b></div>
-                <div class="tr"><span>{{ t().rate }}</span><b>{{ d.rateMissing ? t().rateNeeded : d.rateLabel }}</b></div>
+                <div class="cell"><span>{{ t().loan }}</span><b>RM {{ n(d.loanAmount) }}</b></div>
               </div>
             }
 
@@ -231,26 +238,28 @@ export function stripContact(text: string): string {
       .top {
         flex: 1;
         min-height: 0;
-        display: flex;
-        flex-direction: column;
-        padding: var(--pad) var(--pad) 0;
+        display: grid;
+        grid-template-columns: minmax(0, 0.42fr) minmax(0, 0.58fr);
+        gap: var(--gap);
+        padding: var(--pad) calc(var(--pad) * 0.6) 0 var(--pad);
         background: radial-gradient(80% 70% at 50% 75%, #ffffff 0%, #eceef1 70%, #e3e5e9 100%);
       }
-      .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+      .head { display: flex; flex-direction: column; min-width: 0; padding-bottom: calc(var(--gap) * 1.4); }
       .head-text { min-width: 0; }
       .eyebrow {
         display: flex; align-items: center; gap: 0.6em;
-        font-size: var(--eyebrow); font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: #55555c;
+        font-size: var(--eyebrow); font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: #55555c; white-space: nowrap;
       }
       .eyebrow::before { content: ''; width: 1.6em; height: 0.24em; background: var(--acc); flex-shrink: 0; }
       .title {
         margin-top: 0.12em;
-        font-family: var(--display); font-size: var(--title); font-weight: 700; line-height: 1; letter-spacing: -0.01em;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        padding-bottom: 0.08em;
+        font-family: var(--display); font-size: var(--title); font-weight: 700; line-height: 1.12; letter-spacing: -0.01em;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
       }
-      .logo { height: var(--logo); width: auto; max-width: 30%; object-fit: contain; flex-shrink: 0; }
-      .car { flex: 1; min-height: 0; display: flex; align-items: flex-end; justify-content: center; padding-top: calc(var(--gap) * 0.5); }
-      .car img { max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 22px 18px rgba(0,0,0,0.25)); }
+      .logo { margin-top: auto; align-self: flex-start; height: var(--logo); width: auto; max-width: 100%; object-fit: contain; object-position: left bottom; }
+      .car { min-height: 0; min-width: 0; display: flex; align-items: flex-end; justify-content: center; }
+      .car img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
       /* ---- bottom: the numbers ---- */
       .bottom { display: flex; flex-direction: column; gap: var(--gap); padding: var(--gap) var(--pad) var(--pad); border-top: calc(var(--gap) * 0.5) solid var(--acc); }
@@ -265,11 +274,11 @@ export function stripContact(text: string): string {
       .hero-sub { font-size: var(--hero-sub); font-weight: 600; color: #55555c; margin-top: 0.2em; }
 
       .advisor { display: flex; align-items: center; gap: calc(var(--gap) * 1.2); min-width: 0; max-width: 40%; padding-left: calc(var(--gap) * 2); border-left: 2px solid #e6e6ea; }
-      .advisor img, .advisor .initials { width: var(--avatar); height: var(--avatar); object-fit: cover; flex-shrink: 0; }
+      .advisor img, .advisor .initials { width: var(--avatar); height: var(--avatar); object-fit: cover; flex-shrink: 0; border-radius: 9999px; }
       .advisor .initials { display: flex; align-items: center; justify-content: center; background: var(--ink); color: #fff; font-family: var(--display); font-weight: 700; font-size: calc(var(--avatar) * 0.38); }
       .advisor-text { min-width: 0; }
-      .advisor-name { font-family: var(--display); font-size: var(--adv-name); font-weight: 700; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .advisor-role { font-size: var(--adv-role); color: #6b6b73; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .advisor-name { font-family: var(--display); font-size: var(--adv-name); font-weight: 700; line-height: 1.2; padding-bottom: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .advisor-role { font-size: var(--adv-role); line-height: 1.35; color: #6b6b73; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
       .others { display: grid; gap: calc(var(--gap) * 0.7); }
       .other { display: flex; align-items: stretch; height: var(--ten-h); border: 2px solid #e6e6ea; min-width: 0; }
@@ -282,31 +291,37 @@ export function stripContact(text: string): string {
       .tr { display: flex; align-items: center; justify-content: space-between; gap: 20px; height: var(--row); border-bottom: 2px solid #ececf0; }
       .tr span { font-size: var(--row-label); color: #3b3b42; font-weight: 500; }
       .tr b { font-family: var(--display); font-size: var(--row-val); font-weight: 700; white-space: nowrap; }
-      .tr b.good { color: #15803d; }
+      .tr b.good, .cell b.good { color: #15803d; }
+      .tr.total { border-top: 2px solid var(--ink); border-bottom: none; }
+      .tr.total span { font-weight: 700; color: var(--ink); }
+      .split { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--gap) * 0.7); }
+      .cell { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: var(--row); padding: 0 0.7em; background: #f1f2f4; min-width: 0; }
+      .cell span { font-size: var(--row-label); color: #3b3b42; font-weight: 500; white-space: nowrap; }
+      .cell b { font-family: var(--display); font-size: var(--row-val); font-weight: 700; white-space: nowrap; }
 
       .phone { display: flex; align-items: center; justify-content: center; gap: 0.4em; padding: 0.2em 0.5em; font-family: var(--display); font-size: var(--ten-fig); font-weight: 700; background: var(--ink); color: #fff; }
       .phone.wa { background: #25d366; }
       .phone svg { width: 1em; height: 1em; fill: currentColor; flex-shrink: 0; }
       .foot { display: flex; justify-content: space-between; gap: 20px; font-size: var(--note); color: #77777f; }
-      .showroom { font-weight: 700; color: #3b3b42; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .showroom { font-weight: 700; line-height: 1.35; color: #3b3b42; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
       /* ---- the three sizes ---- */
       .size-square {
-        --pad: 44px; --gap: 16px; --eyebrow: 19px; --title: 76px; --logo: 62px;
+        --pad: 44px; --gap: 16px; --eyebrow: 19px; --title: 76px; --logo: 84px;
         --hero: 132px; --hero-label: 27px; --hero-sub: 23px;
         --avatar: 96px; --adv-name: 32px; --adv-role: 20px;
         --ten-h: 68px; --ten-chip: 30px; --ten-fig: 42px;
         --row: 46px; --row-label: 23px; --row-val: 30px; --note: 17px;
       }
       .size-bigNumbers {
-        --pad: 56px; --gap: 20px; --eyebrow: 23px; --title: 96px; --logo: 80px;
+        --pad: 56px; --gap: 20px; --eyebrow: 20px; --title: 96px; --logo: 108px;
         --hero: 170px; --hero-label: 34px; --hero-sub: 29px;
         --avatar: 124px; --adv-name: 40px; --adv-role: 24px;
         --ten-h: 86px; --ten-chip: 38px; --ten-fig: 54px;
         --row: 60px; --row-label: 29px; --row-val: 38px; --note: 21px;
       }
       .size-bigCamera {
-        --pad: 32px; --gap: 11px; --eyebrow: 16px; --title: 58px; --logo: 48px;
+        --pad: 32px; --gap: 11px; --eyebrow: 16px; --title: 58px; --logo: 64px;
         --hero: 100px; --hero-label: 21px; --hero-sub: 18px;
         --avatar: 74px; --adv-name: 26px; --adv-role: 16px;
         --ten-h: 52px; --ten-chip: 24px; --ten-fig: 33px;

@@ -733,4 +733,7 @@ export const MS: Record<string, string> = {
   "Showing in the Live Screen window": "Dipaparkan di tetingkap Skrin Live",
   "Everything you change here appears there straight away. The preview comes back when you close the window.": "Semua yang anda ubah di sini terus muncul di sana. Pratonton akan kembali bila anda tutup tetingkap itu.",
   "Close the window": "Tutup tetingkap",
+  "Display": "Paparan",
+  "Full screen": "Skrin penuh",
+  "Exit full screen": "Keluar skrin penuh",
 };
