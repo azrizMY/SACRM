@@ -197,8 +197,8 @@ async function drawAvatar(ctx: CanvasRenderingContext2D, data: PosterData, cx: n
 /** Green WhatsApp bar: avatar + name + phone on the left, the WhatsApp mark on the right. */
 async function drawWhatsAppBar(ctx: CanvasRenderingContext2D, data: PosterData, x: number, y: number, w: number, h: number): Promise<void> {
   const g = ctx.createLinearGradient(x, 0, x + w, 0);
-  g.addColorStop(0, '#1FB955');
-  g.addColorStop(1, POSTER_COLORS.waGreen);
+  g.addColorStop(0, data.hideContact ? POSTER_COLORS.accDark : '#1FB955');
+  g.addColorStop(1, data.hideContact ? POSTER_COLORS.acc : POSTER_COLORS.waGreen);
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, 14);
   ctx.fillStyle = g;
@@ -218,6 +218,10 @@ async function drawWhatsAppBar(ctx: CanvasRenderingContext2D, data: PosterData, 
   ctx.fillText(data.advisor.name, textX, cy - h * 0.16, textMax);
   ctx.font = labelFont(Math.round(h * 0.2), 700);
   ctx.fillStyle = 'rgba(255,255,255,0.88)';
+  if (data.hideContact) {
+    ctx.fillText(data.footerText ?? '', textX, cy + h * 0.19, w - (textX - x) - 16);
+    return;
+  }
   ctx.fillText(T(data, 'WhatsApp {phone}', { phone: formatMalaysianPhone(data.advisor.phoneDisplay) }), textX, cy + h * 0.19, textMax);
 
   drawWhatsAppIcon(ctx, x + w - 16 - iconSize, cy - iconSize / 2, iconSize, POSTER_COLORS.waGreen);
@@ -331,19 +335,19 @@ export const squareTemplate: PosterTemplate = {
     ctx.fillStyle = POSTER_COLORS.grayD;
     ctx.fillText(data.advisor.role, rightX, 413, 200);
 
-    const phone = formatMalaysianPhone(data.advisor.phoneDisplay);
+    const phone = data.hideContact ? (data.footerText ?? '') : formatMalaysianPhone(data.advisor.phoneDisplay);
     ctx.font = displayFont(17, 700);
-    const pillW = ctx.measureText(phone).width + 58;
     const pillY = 432;
     const pillH = 40;
+    const pillW = Math.min(ctx.measureText(phone).width + (data.hideContact ? 32 : 58), 340);
     ctx.beginPath();
     ctx.roundRect(rightX - pillW, pillY, pillW, pillH, 20);
-    ctx.fillStyle = POSTER_COLORS.waGreen;
+    ctx.fillStyle = data.hideContact ? POSTER_COLORS.acc : POSTER_COLORS.waGreen;
     ctx.fill();
-    drawWhatsAppIcon(ctx, rightX - pillW + 12, pillY + 9, 22, POSTER_COLORS.waGreen);
+    if (!data.hideContact) drawWhatsAppIcon(ctx, rightX - pillW + 12, pillY + 9, 22, POSTER_COLORS.waGreen);
     ctx.fillStyle = POSTER_COLORS.paper;
     ctx.textAlign = 'right';
-    ctx.fillText(phone, rightX - 16, pillY + pillH / 2 + 1);
+    ctx.fillText(phone, rightX - 16, pillY + pillH / 2 + 1, pillW - 32);
 
     ctx.font = labelFont(9, 400);
     ctx.fillStyle = POSTER_COLORS.panelGrayD;

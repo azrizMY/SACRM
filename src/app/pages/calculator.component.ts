@@ -1,21 +1,18 @@
 
 
-import { AfterViewInit, Component, computed, effect, ElementRef, HostListener, inject, signal, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, computed, effect, ElementRef, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ToastService } from '../shared/toast.service';
 import { CompareService } from '../shared/compare.service';
 import { IconComponent } from '../shared/icon.component';
-import { InsuranceQuotationEditorComponent } from '../shared/insurance-quotation-editor.component';
-import { NumberFieldComponent } from '../shared/number-field.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { CustomerService } from '../shared/customer.service';
 import { SettingsService } from '../shared/settings.service';
 import { CUSTOMER_STATUS_META, FINANCING_TYPE_OPTIONS, TO_BE_CONFIRMED_COLOUR, type CustomerRecord, type FinancingType } from '../data/customer-data';
 import { todayStr } from '../shared/date-utils';
 import { DEFAULT_LEAD_SOURCE } from '../data/settings-data';
-import { translate } from '../shared/i18n-core';
 import { brandLogo, toMalaysianWhatsAppNumber } from '../data/dashboard-data';
 import {
   NCD_OPTIONS,
@@ -47,13 +44,16 @@ import { classicTemplate } from '../shared/poster-template-classic';
 import { compactMyTemplate } from '../shared/poster-template-my';
 import { promoTemplate, squareTemplate } from '../shared/poster-template-social';
 import type { PosterData } from '../shared/poster-data';
+import { quotePosterData } from '../shared/quote-poster-data';
 import type { PosterTemplate, PosterTemplateId } from '../shared/poster-templates';
 import { TranslatePipe } from '../shared/i18n';
+import { QuoteEngine } from '../shared/quote-engine';
+import { QuoteControlsComponent } from '../shared/quote-controls.component';
 
 @Component({
   selector: 'app-calculator',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent, NumberFieldComponent, InsuranceQuotationEditorComponent, TranslatePipe],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, QuoteControlsComponent, TranslatePipe],
   template: `
     <div class="mx-auto flex max-w-7xl flex-col gap-6">
       <!-- Mobile Preview/Customize switcher -->
@@ -202,494 +202,10 @@ import { TranslatePipe } from '../shared/i18n';
             </div>
           </div>
 
-          <!-- Select car -->
-          <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Select Car" | t }}</span>
-              <button type="button" (click)="compareWithOthers()" class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10">
-                <app-icon name="table" [size]="13" />
-                {{ "Compare with other cars" | t }}
-              </button>
-            </div>
-
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div class="flex flex-col gap-2">
-                <label for="brandSelect" class="text-xs font-medium text-muted-foreground">{{ "Brand" | t }}</label>
-                <select
-                  id="brandSelect"
-                  [ngModel]="selectedBrand()"
-                  (ngModelChange)="onBrandChange($event)"
-                  class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
-                >
-                  @for (b of brands; track b) {
-                    <option [value]="b">{{ b }}</option>
-                  }
-                </select>
-              </div>
-
-              <div class="flex flex-col gap-2">
-                <span class="text-xs font-medium text-muted-foreground">{{ "Model" | t }}</span>
-                <div class="relative">
-                  <button
-                    type="button"
-                    (click)="toggleCarDropdown($event)"
-                    class="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
-                  >
-                    <span class="truncate">{{ modelVariantLabel(selectedModelName(), selectedVariant()) }}</span>
-                    <app-icon name="chevron-down" [size]="16" class="shrink-0 text-muted-foreground" />
-                  </button>
-                  @if (carDropdownOpen) {
-                    <div class="absolute left-0 top-full z-50 mt-1 max-h-80 w-full min-w-[220px] overflow-y-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg">
-                      @for (group of carGroups(); track group.model; let first = $first) {
-                        <div class="px-3 pb-1 text-xs font-medium text-muted-foreground" [ngClass]="first ? 'pt-2' : 'pt-3'">{{ group.model }}</div>
-                        @for (item of group.items; track item.variant) {
-                          <button
-                            type="button"
-                            (click)="selectModelVariant(group.model, item.variant)"
-                            class="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent"
-                          >
-                            {{ item.label | t }}
-                            @if (group.model === selectedModelName() && item.variant === selectedVariant()) {
-                              <app-icon name="check" [size]="14" class="shrink-0 text-foreground" />
-                            }
-                          </button>
-                        }
-                      }
-                    </div>
-                  }
-                </div>
-              </div>
-            </div>
-            <span class="text-[11px] text-muted-foreground">{{ fmt(selectedVehicle().price) }} {{ "base price" | t }}</span>
-
-            @if (availableYears().length > 1) {
-              <div class="flex flex-col gap-2">
-                <span class="text-xs font-medium text-muted-foreground">{{ "Model Year" | t }}</span>
-                <div role="radiogroup" [attr.aria-label]="'Model year' | t" class="flex flex-wrap gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
-                  @for (y of availableYears(); track y) {
-                    <button
-                      type="button"
-                      role="radio"
-                      [attr.aria-checked]="y === modelYear()"
-                      (click)="selectModelYear(y)"
-                      class="flex-1 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors"
-                      [ngClass]="y === modelYear() ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                    >
-                      {{ y }}
-                    </button>
-                  }
-                </div>
-                <span class="text-[11px] text-muted-foreground">{{ "This car is in the database under both years — each has its own price and rebate." | t }}</span>
-              </div>
-            } @else {
-              <span class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <app-icon name="calendar" [size]="12" />
-                {{ 'Only listed for {year} in the Car Database.' | t: { year: modelYear() } }}
-              </span>
-            }
-
-            @if (colourPickable(); as colours) {
-              <div class="flex flex-col gap-2">
-                <label for="colourSelect" class="text-xs font-medium text-muted-foreground">{{ "Colour" | t }}</label>
-                <select
-                  id="colourSelect"
-                  [ngModel]="selectedColour()"
-                  (ngModelChange)="selectedColour.set($event)"
-                  class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
-                >
-                  @for (c of colours; track c) { <option [value]="c">{{ colourOptionLabel(c) }}</option> }
-                </select>
-              </div>
-            }
-          </div>
-
-          <!-- Price setup -->
-          <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Price Setup" | t }}</span>
-
-            <div class="flex flex-col gap-2">
-              <div class="flex items-center justify-between">
-                <label for="rebateInput" class="text-xs font-medium text-muted-foreground">{{ "Rebate" | t }}</label>
-                <ng-container [ngTemplateOutlet]="sourceBadge" [ngTemplateOutletContext]="{ $implicit: rebateIsManual(), field: 'rebate' }" />
-              </div>
-              <app-number-field inputId="rebateInput" prefix="RM" [decimals]="0" [value]="rebateInput()" (valueChange)="onRebateChange($event)" />
-            </div>
-
-            <div class="flex flex-col gap-2">
-              <div class="flex items-center justify-between">
-                <label for="additionalRebateInput" class="text-xs font-medium text-muted-foreground">{{ "Additional Rebate" | t }}</label>
-                <ng-container
-                  [ngTemplateOutlet]="sourceBadge"
-                  [ngTemplateOutletContext]="{ $implicit: additionalRebateIsManual() || additionalRebateEnabled() !== autoAdditionalRebateEnabled(), field: 'additionalRebate' }"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  [ngModel]="additionalRebateEnabled()"
-                  (ngModelChange)="onAdditionalRebateEnabledChange($event)"
-                  [attr.aria-label]="'Include additional rebate' | t"
-                  class="size-4 shrink-0 rounded border-input accent-primary"
-                />
-                <app-number-field
-                  class="flex-1"
-                  inputId="additionalRebateInput"
-                  prefix="RM"
-                  [decimals]="0"
-                  [disabled]="!additionalRebateEnabled()"
-                  [value]="additionalRebateValue()"
-                  (valueChange)="onAdditionalRebateChange($event)"
-                />
-              </div>
-            </div>
-
-            <!-- Rebate as cash back: the loan is sized on OTR + insurance and the rebate is paid back in cash -->
-            @if (cashbackAllowed() && cashbackMax() > 0) {
-              <div class="flex flex-col gap-2 rounded-lg border p-3 transition-colors" [ngClass]="cashbackOn() ? 'border-[var(--success)]/40 bg-[var(--success)]/10' : 'border-border'">
-                <label class="flex cursor-pointer items-center gap-2.5">
-                  <input
-                    type="checkbox"
-                    [ngModel]="cashbackOn()"
-                    (ngModelChange)="setRebateAsCashback($event)"
-                    class="size-4 shrink-0 rounded border-input accent-primary"
-                  />
-                  <span class="text-sm font-medium">{{ "Give rebate as cash back" | t }}</span>
-                </label>
-                @if (cashbackOn()) {
-                  <div class="flex flex-col gap-1.5">
-                    <label for="cashbackAmountInput" class="text-xs font-medium text-muted-foreground">{{ "Cash back amount" | t }} <span class="font-normal">({{ "up to {max}" | t: { max: fmt(cashbackMax()) } }})</span></label>
-                    <app-number-field inputId="cashbackAmountInput" prefix="RM" [decimals]="0" [value]="cashbackAmount()" (valueChange)="onCashbackAmountChange($event)" />
-                  </div>
-                  <p class="text-xs leading-relaxed text-muted-foreground">
-                    {{ "Discount {discount} · Cash back {cash} from the dealer." | t: { discount: fmt(effectiveRebate() - totals().cashback), cash: fmt(totals().cashback) } }}
-                    @if (cashbackMonthlyIncrease() > 0) {
-                      <span class="font-semibold text-foreground">{{ "Monthly +{amount} vs taking the rebate as a discount." | t: { amount: fmt2(cashbackMonthlyIncrease()) } }}</span>
-                    }
-                  </p>
-                } @else {
-                  <p class="text-xs text-muted-foreground">{{ "Customer takes the rebate as cash instead of a discount, on a full loan." | t }}</p>
-                }
-              </div>
-            }
-          </div>
-
-          <!-- Insurance -->
-          <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <div class="flex items-center gap-2">
-              <button
-                type="button"
-                (click)="insuranceOpen.set(!insuranceOpen())"
-                [attr.aria-expanded]="insuranceOpen()"
-                class="flex min-w-0 flex-1 items-center gap-2 text-left"
-              >
-                <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Insurance" | t }}</span>
-                  <span class="truncate text-sm font-semibold tabular text-foreground">{{ fmt2(insurance()) }} <span class="font-normal text-muted-foreground">· {{ ncd() }}% NCD</span></span>
-                </span>
-                <app-icon name="chevron-down" [size]="16" [class]="'shrink-0 text-muted-foreground transition-transform duration-200 ' + (insuranceOpen() ? 'rotate-180' : '')" />
-              </button>
-              <ng-container [ngTemplateOutlet]="sourceBadge" [ngTemplateOutletContext]="{ $implicit: insuranceIsManual(), field: 'insurance' }" />
-            </div>
-
-            @if (insuranceOpen()) {
-            <button
-              type="button"
-              (click)="openInsuranceBreakdown()"
-              class="flex w-fit items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-accent"
-            >
-              <app-icon name="settings" [size]="12" />
-              {{ "Insurance Breakdown" | t }}
-            </button>
-
-            <div class="flex flex-col gap-2">
-              <label for="ncdSelect" class="text-xs font-medium text-muted-foreground">
-                <span class="inline-flex items-center gap-1">
-                  <app-icon name="percent" [size]="12" />
-                  {{ "NCD" | t }}
-                </span>
-              </label>
-              <select
-                id="ncdSelect"
-                [ngModel]="ncd()"
-                (ngModelChange)="ncd.set(+$event)"
-                class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
-              >
-                @for (opt of ncdOptions; track opt.value) {
-                  <option [value]="opt.value">{{ opt.label | t }}</option>
-                }
-              </select>
-            </div>
-
-            }
-          </div>
-
-          <!-- Interest Rate -->
-          <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <div class="flex items-center gap-2">
-              <button
-                type="button"
-                (click)="rateOpen.set(!rateExpanded())"
-                [attr.aria-expanded]="rateExpanded()"
-                class="flex min-w-0 flex-1 items-center gap-2 text-left"
-              >
-                <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Interest Rate" | t }}</span>
-                  @if (rateMissing()) {
-                    <span class="text-sm font-semibold text-[var(--warning)]">{{ "EIR needed" | t }}</span>
-                  } @else {
-                    <span class="text-sm font-semibold tabular text-foreground">{{ interestRate() }}% <span class="font-normal text-muted-foreground">· {{ rateType() === 'flat' ? ('Flat' | t) : 'EIR' }}</span></span>
-                  }
-                </span>
-                <app-icon name="chevron-down" [size]="16" [class]="'shrink-0 text-muted-foreground transition-transform duration-200 ' + (rateExpanded() ? 'rotate-180' : '')" />
-              </button>
-              <ng-container [ngTemplateOutlet]="sourceBadge" [ngTemplateOutletContext]="{ $implicit: interestRateIsManual(), field: 'rate' }" />
-            </div>
-
-            @if (rateExpanded()) {
-            <div class="flex flex-col gap-2">
-              <span class="text-xs font-medium text-muted-foreground">{{ "Rate Type" | t }}</span>
-              <div role="radiogroup" [attr.aria-label]="'Rate Type' | t" class="flex gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
-                <button
-                  type="button"
-                  role="radio"
-                  [attr.aria-checked]="rateType() === 'flat'"
-                  (click)="setRateType('flat')"
-                  class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
-                  [ngClass]="rateType() === 'flat' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                >
-                  {{ "Flat" | t }}
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  [attr.aria-checked]="rateType() === 'effective'"
-                  (click)="setRateType('effective')"
-                  class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
-                  [ngClass]="rateType() === 'effective' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                >
-                  {{ "EIR" | t }}
-                </button>
-              </div>
-            </div>
-
-            <div class="flex flex-col gap-2">
-              <label for="interestRateInput" class="text-xs font-medium text-muted-foreground">{{ rateType() === 'flat' ? ('Flat rate' | t) : ('Effective rate (EIR)' | t) }}</label>
-              <app-number-field
-                inputId="interestRateInput"
-                suffix="%"
-                [value]="rateMissing() ? null : interestRate()"
-                [invalid]="rateMissing()"
-                placeholder="Bank's EIR"
-                (valueChange)="onInterestRateChange($event)"
-              />
-              @if (rateMissing()) {
-                <span class="text-[11px] text-[var(--warning)]">
-                  {{ "This car has no EIR and there's no default EIR — type the bank's rate here, or set a default EIR in Price Settings." | t }}
-                </span>
-              }
-            </div>
-            }
-          </div>
-
-          <!-- Loan setup -->
-          <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Loan Setup" | t }}</span>
-
-            @if (cashbackOn()) {
-              <!-- Cash back only makes sense on a full loan — a customer paying cash upfront would just
-                   take the rebate off that instead — so the downpayment is fixed while it's on. -->
-              <div class="flex flex-col gap-1 rounded-lg border border-[var(--success)]/40 bg-[var(--success)]/10 px-3 py-3">
-                <span class="text-sm font-semibold">{{ "Full loan — cash back is on" | t }}</span>
-                <span class="text-xs leading-relaxed text-muted-foreground">
-                  {{ "Loan {loan} · Cash back {cash}. Untick cash back in Price Setup to set a downpayment." | t: { loan: fmt(loanAmount()), cash: fmt(totals().cashback) } }}
-                </span>
-              </div>
-            } @else {
-            <div class="flex flex-col gap-2">
-              <span class="text-xs font-medium text-muted-foreground">{{ "Downpayment" | t }}</span>
-              <div role="group" [attr.aria-label]="'Quick downpayment presets' | t" class="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  (click)="applyDownpaymentPreset('tenPercent')"
-                  class="rounded-lg border px-2 py-2 text-xs font-semibold transition-colors"
-                  [ngClass]="isDownpaymentPreset('tenPercent') ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                >
-                  10%
-                </button>
-                <button
-                  type="button"
-                  (click)="applyDownpaymentPreset('fullLoan')"
-                  class="rounded-lg border px-2 py-2 text-xs font-semibold transition-colors"
-                  [ngClass]="isDownpaymentPreset('fullLoan') ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                >
-                  {{ minDownpayment() > 0 ? ('Minimum' | t) : ('Full Loan' | t) }}
-                </button>
-              </div>
-              <div class="flex gap-2">
-                <app-number-field
-                  class="min-w-0 flex-1"
-                  ariaLabel="Downpayment"
-                  [prefix]="downpaymentType() === 'amount' ? 'RM' : ''"
-                  [suffix]="downpaymentType() === 'percent' ? '%' : ''"
-                  [value]="downpaymentValue()"
-                  (valueChange)="downpaymentValue.set($event ?? 0)"
-                  (committed)="commitDownpayment()"
-                />
-                <div class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
-                  <button
-                    type="button"
-                    (click)="downpaymentType.set('percent')"
-                    class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
-                    [ngClass]="downpaymentType() === 'percent' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
-                  >
-                    %
-                  </button>
-                  <button
-                    type="button"
-                    (click)="downpaymentType.set('amount')"
-                    class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
-                    [ngClass]="downpaymentType() === 'amount' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
-                  >
-                    {{ "Amt" | t }}
-                  </button>
-                </div>
-              </div>
-              @if (minDownpayment() > 0) {
-                @if (downpaymentRaisedToMin()) {
-                  <div class="flex items-start gap-2 rounded-lg bg-[var(--warning)]/12 px-3 py-2 text-[11px] text-foreground">
-                    <app-icon name="alert-triangle" [size]="13" class="mt-px shrink-0 text-[var(--warning)]" />
-                    <span>{{ "This car needs a" | t }} <strong>{{ fmt(minDownpayment()) }}</strong> {{ "minimum downpayment (rebate counts towards it) — raised to meet it." | t }}</span>
-                  </div>
-                } @else {
-                  <span class="text-[11px] text-muted-foreground">Minimum downpayment for this car: {{ fmt(minDownpayment()) }} {{ "before rebate" | t }}</span>
-                }
-              }
-              @if (downpaymentRebateNote(); as n) {
-                <div class="flex flex-col gap-0.5 rounded-lg bg-[var(--success)]/10 px-3 py-2 text-[11px] text-foreground">
-                  @if (n.covered) {
-                    <span><strong>{{ 'Rebates cover the {pct}% down payment.' | t: { pct: n.pct } }}</strong> {{ 'Customer pays {amount} (loan rounding only).' | t: { amount: fmt2(n.after) } }}</span>
-                  } @else {
-                    <span>{{ n.pct }}% is {{ fmt(n.before) }} — rebates of {{ fmt(n.rebate) }} {{ "bring it down to" | t }} <strong>{{ fmt2(n.after) }}</strong>.</span>
-                  }
-                </div>
-              } @else {
-                <span class="text-[11px] text-muted-foreground">
-                  @if (downpaymentType() === 'percent') {
-                    Rebate is applied to reduce the cash downpayment needed.
-                  } @else {
-                    Rebate reduces the car price separately, not counted as cash deposit.
-                  }
-                </span>
-              }
-            </div>
-
-            <div class="flex items-center gap-3">
-              <div class="h-px flex-1 bg-border"></div>
-              <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "or" | t }}</span>
-              <div class="h-px flex-1 bg-border"></div>
-            </div>
-
-            <div class="flex flex-col gap-2">
-              <label for="loanAmountInput" class="text-xs font-medium text-muted-foreground">{{ "Loan Amount" | t }}</label>
-              <app-number-field
-                inputId="loanAmountInput"
-                prefix="RM"
-                [decimals]="0"
-                [value]="loanAmountDisplay()"
-                (valueChange)="onLoanAmountInput($event)"
-                (committed)="commitLoanAmount()"
-              />
-              @if (loanCapNote(); as note) {
-                <span class="text-[11px] font-medium text-[var(--warning)]">{{ note }}</span>
-              } @else {
-                <span class="text-[11px] text-muted-foreground">{{ "Rounds down to the nearest RM100 once you finish typing — any remainder goes to the downpayment." | t }}</span>
-              }
-            </div>
-
-            <div class="flex items-center gap-3">
-              <div class="h-px flex-1 bg-border"></div>
-              <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "or" | t }}</span>
-              <div class="h-px flex-1 bg-border"></div>
-            </div>
-
-            <div class="flex flex-col gap-2">
-              <label for="monthlyInstallmentInput" class="text-xs font-medium text-muted-foreground">{{ "Monthly Installment" | t }}</label>
-              <app-number-field
-                inputId="monthlyInstallmentInput"
-                prefix="RM"
-                [value]="monthlyInstallmentDisplay()"
-                (valueChange)="onMonthlyInstallmentInput($event)"
-                (committed)="commitMonthlyInstallment()"
-              />
-              @if (monthlyCapNote(); as note) {
-                <span class="text-[11px] font-medium text-[var(--warning)]">{{ note }}</span>
-              } @else {
-                <span class="text-[11px] text-muted-foreground">{{ 'Targets the {tenure} tenure and works backwards to the loan amount and deposit.' | t: { tenure: (monthlyInstallmentTenureLabel() | t) } }}</span>
-              }
-            </div>
-            }
-          </div>
-
-          <!-- Tenure -->
-          <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Quotation Summary" | t }}</span>
-
-            <div class="flex flex-col gap-2">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-medium text-muted-foreground">{{ "Tenure Selection" | t }}</span>
-                <span class="text-xs font-semibold tabular text-foreground">{{ posterTenureSummary() }}</span>
-              </div>
-              <div role="group" [attr.aria-label]="'Repayment table tenures (years)' | t" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
-                @for (y of posterYearOptions; track y) {
-                  <button
-                    type="button"
-                    [attr.aria-pressed]="posterTenureYears().includes(y)"
-                    (click)="togglePosterYear(y)"
-                    class="flex aspect-square items-center justify-center rounded-full text-xs font-semibold transition-colors"
-                    [ngClass]="posterTenureYears().includes(y) ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                  >
-                    {{ y }}
-                  </button>
-                }
-              </div>
-              <span class="text-[11px] text-muted-foreground">{{ "Pick 3 tenures to show in the repayment table above." | t }}</span>
-            </div>
-
-            <div class="flex flex-col gap-2">
-              <label for="customTenureMonthsInput" class="text-xs font-medium text-muted-foreground">{{ "Custom Tenure (Months)" | t }}</label>
-              <input
-                id="customTenureMonthsInput"
-                type="number"
-                min="1"
-                max="120"
-                step="1"
-                [ngModel]="highlightedTenure()"
-                (ngModelChange)="onCustomTenureInput($event)"
-                class="h-10 w-full rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular outline-none transition-colors focus:border-ring"
-              />
-              <span class="text-[11px] text-muted-foreground">{{ "Type any month count to use as the chosen tenure — this replaces the repayment table above with just this one, until you pick a tenure button again." | t }}</span>
-            </div>
-          </div>
+          <app-quote-controls [q]="q" [showCompare]="true" (compare)="compareWithOthers()" />
         </div>
       </div>
     </div>
-
-    <!-- "Default" / tappable "Manual ↺" badge — tapping Manual puts just that field back on its default -->
-    <ng-template #sourceBadge let-manual let-field="field">
-      @if (manual) {
-        <button
-          type="button"
-          (click)="resetField(field)"
-          [title]="'Back to the default value' | t"
-          class="flex shrink-0 items-center gap-1 rounded-md bg-[var(--warning)]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--warning)] transition-colors hover:bg-[var(--warning)]/25"
-        >
-          {{ "Manual" | t }}
-          <app-icon name="rotate-ccw" [size]="10" />
-        </button>
-      } @else {
-        <span class="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{{ "Default" | t }}</span>
-      }
-    </ng-template>
 
     <!-- Add Lead modal -->
     @if (leadModalOpen()) {
@@ -772,33 +288,6 @@ import { TranslatePipe } from '../shared/i18n';
       </div>
     }
 
-    <!-- Insurance Breakdown modal -->
-    @if (insuranceBreakdownOpen()) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeInsuranceBreakdown()"></button>
-        <div class="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-          <div class="flex items-center gap-3 border-b border-border p-4">
-            <div class="flex flex-col">
-              <span class="text-sm font-semibold">{{ "Insurance Breakdown" | t }}</span>
-              <span class="text-[11px] text-muted-foreground">{{ vehicleTitle(selectedVehicle().brand, modelVariantLabel(selectedVehicle().model, selectedVehicle().variant)) }}</span>
-            </div>
-            <button type="button" (click)="closeInsuranceBreakdown()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-              <app-icon name="x" [size]="16" />
-            </button>
-          </div>
-          <div class="overflow-y-auto p-4">
-            <app-insurance-quotation-editor
-              [vehicle]="selectedVehicle()"
-              [ncdPct]="ncd()"
-              [fallbackBasicPremium]="autoBasicPremium()"
-              mode="quote"
-              [initialDetails]="insuranceDetails()"
-              (saved)="onInsuranceSaved($event)"
-            />
-          </div>
-        </div>
-      </div>
-    }
   `,
 })
 export class CalculatorComponent implements AfterViewInit {
@@ -811,7 +300,6 @@ export class CalculatorComponent implements AfterViewInit {
    *  effect waits on this so the very first frame never falls back to a system font. */
   private fontsReady = signal(false);
 
-  ncdOptions = NCD_OPTIONS;
   fmt = (v: number) => formatRM(v);
   /** Always shows exactly 2 decimals (even .00) plus thousands separators, matching the Total Due
    *  line in Insurance Breakdown — formatRM's toLocaleString would otherwise drop cents on whole
@@ -821,8 +309,6 @@ export class CalculatorComponent implements AfterViewInit {
   vehicleTitle = vehicleTitle;
   roundCents = roundCents;
   statusMeta = CUSTOMER_STATUS_META;
-
-  brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
 
   private settingsService = inject(SettingsService);
   private compare = inject(CompareService);
@@ -856,556 +342,120 @@ export class CalculatorComponent implements AfterViewInit {
     this.router.navigateByUrl('/compare');
   }
 
-  selectedBrand = signal(this.preferredVehicle().brand);
-  selectedModelName = signal(this.preferredVehicle().model);
-  selectedVariant = signal(this.preferredVehicle().variant);
-  /** Not every car has factory colours hardcoded (see Vehicle.colours) — starts on the first one
-   *  when it does, null otherwise, and resets the same way whenever the car changes (see
-   *  onVariantChange). Purely a price input here — the poster still lists every option
-   *  regardless of which one is picked (see PosterData.colours). */
-  selectedColour = signal<string | null>(this.preferredVehicle().colours?.[0] ?? null);
+  /** The quote itself — car, rebates, insurance, rate, down payment, cash back, tenures and every
+   *  figure derived from them. Shared with the Live page (see QuoteEngine); the names below keep
+   *  this page's template unchanged. */
+  readonly q = new QuoteEngine();
+
+  // ---------- Screen-only state (not part of the quote) ----------
+
   mobileTab = signal<'preview' | 'customize'>('preview');
-  /** Read from the preferred car's own database row, never assumed — a car listed only under
-   *  2025 starts on 2025, not "the current year." */
-  modelYear = signal(Math.max(...this.preferredVehicle().years.map((y) => y.year)));
-  private rebateManual = signal<number | null>(null);
-  private additionalRebateManual = signal<number | null>(null);
-  private additionalRebateEnabledManual = signal<boolean | null>(null);
-  ncd = signal(this.settingsService.settings().salesDefaults.ncd);
-  private interestRateManual = signal<number | null>(null);
-  /** Rate Type — Flat or EIR (declining balance). Picked explicitly by the SA, never derived
-   *  from the other: each uses its own instalment formula (see monthlyPayment()). Starts on the
-   *  account's Default Rate Type (Account Settings → Quote Defaults). */
-  rateType = signal<RateType>(this.settingsService.settings().salesDefaults.defaultRateType);
-  downpaymentType = signal<DownpaymentType>('percent');
-  downpaymentValue = signal(this.settingsService.settings().salesDefaults.downpaymentPct);
-  highlightedTenure = signal(Math.max(...this.settingsService.settings().salesDefaults.defaultTenureYears) * 12);
-  /** Which 3 tenure years (of 1-9) populate the on-screen repayment table / quote poster. Picking
-   *  a button also sets highlightedTenure to that year and drops out of custom mode; typing a
-   *  custom month count does the reverse — see togglePosterYear() / onCustomTenureInput(). Starts
-   *  on the account's Default Tenure Selection (Account Settings → Quote Defaults). */
-  posterYearOptions = Array.from({ length: 9 }, (_, i) => i + 1);
   /** Full 1-9 year range for the Add Lead modal's Tenure question — wider than the legacy 4-option
-   *  TENURE_OPTIONS list, matching every year the poster picker above can actually show. */
-  tenureOptions = this.posterYearOptions.map((y) => ({ months: y * 12, label: `${y} Yrs` }));
-  posterTenureYears = signal<number[]>([...this.settingsService.settings().salesDefaults.defaultTenureYears]);
-  /** True only while the Custom Tenure input is the active source of highlightedTenure — the
-   *  repayment table then shows just that one row instead of the 3 poster tenures. */
-  customTenureActive = signal(false);
+   *  TENURE_OPTIONS list, matching every year the tenure picker can actually show. */
+  tenureOptions = Array.from({ length: 9 }, (_, i) => ({ months: (i + 1) * 12, label: `${i + 1} Yrs` }));
 
-  /** Per-quotation insurance override — set only via the Insurance Breakdown modal or "Customer
-   *  Arranges Own Insurance". Never written to the Car Finance Database, so one customer declining
-   *  or self-arranging coverage never changes what the next customer for this same car sees. */
-  private insuranceOverride = signal<InsuranceQuotationDetails | null>(null);
+  // ---------- The quote (from QuoteEngine) ----------
 
-  insuranceBreakdownOpen = signal(false);
+  selectedBrand = this.q.selectedBrand;
+  selectedModelName = this.q.selectedModelName;
+  selectedVariant = this.q.selectedVariant;
+  selectedColour = this.q.selectedColour;
+  modelYear = this.q.modelYear;
+  modelsForBrand = this.q.modelsForBrand;
+  carGroups = this.q.carGroups;
+  availableYears = this.q.availableYears;
+  selectedVehicle = this.q.selectedVehicle;
+  basePrice = this.q.basePrice;
+  colourPickable = this.q.colourPickable;
+  onBrandChange = this.q.onBrandChange.bind(this.q);
+  onModelChange = this.q.onModelChange.bind(this.q);
+  onVariantChange = this.q.onVariantChange.bind(this.q);
+  colourOptionLabel = this.q.colourOptionLabel.bind(this.q);
 
-  openInsuranceBreakdown() {
-    this.insuranceBreakdownOpen.set(true);
-  }
+  autoRebate = this.q.autoRebate;
+  rebateIsManual = this.q.rebateIsManual;
+  rebateInput = this.q.rebateInput;
+  autoAdditionalRebate = this.q.autoAdditionalRebate;
+  additionalRebateIsManual = this.q.additionalRebateIsManual;
+  additionalRebateValue = this.q.additionalRebateValue;
+  autoAdditionalRebateEnabled = this.q.autoAdditionalRebateEnabled;
+  additionalRebateEnabled = this.q.additionalRebateEnabled;
+  effectiveRebate = this.q.effectiveRebate;
+  selectModelYear = this.q.selectModelYear.bind(this.q);
+  resetField = this.q.resetField.bind(this.q);
+  resetRebate = this.q.resetRebate.bind(this.q);
+  resetAdditionalRebate = this.q.resetAdditionalRebate.bind(this.q);
+  resetInsurance = this.q.resetInsurance.bind(this.q);
+  resetInterestRate = this.q.resetInterestRate.bind(this.q);
+  onRebateChange = this.q.onRebateChange.bind(this.q);
+  onAdditionalRebateEnabledChange = this.q.onAdditionalRebateEnabledChange.bind(this.q);
+  onAdditionalRebateChange = this.q.onAdditionalRebateChange.bind(this.q);
 
-  closeInsuranceBreakdown() {
-    this.insuranceBreakdownOpen.set(false);
-  }
+  ncd = this.q.ncd;
+  insuranceRatePct = this.q.insuranceRatePct;
+  autoBasicPremium = this.q.autoBasicPremium;
+  insuranceDatabaseDefault = this.q.insuranceDatabaseDefault;
+  insuranceIsManual = this.q.insuranceIsManual;
+  insuranceDetails = this.q.insuranceDetails;
+  insuranceBreakdown = this.q.insuranceBreakdown;
+  insurance = this.q.insurance;
+  loanBasisInsurance = this.q.loanBasisInsurance;
 
-  modelsForBrand = computed(() =>
-    Array.from(new Set(VEHICLES.filter((v) => v.brand === this.selectedBrand()).map((v) => v.model))),
-  );
+  rateType = this.q.rateType;
+  autoInterestRate = this.q.autoInterestRate;
+  interestRateIsManual = this.q.interestRateIsManual;
+  rateMissing = this.q.rateMissing;
+  interestRate = this.q.interestRate;
+  onInterestRateChange = this.q.onInterestRateChange.bind(this.q);
+  setRateType = this.q.setRateType.bind(this.q);
 
-  /** Model + Variant combobox, grouped by model: e.g. "Tiggo Cross" heading over its "Turbo" /
-   *  "Hybrid" variant rows, or a single self-titled row for a model with no variants (Chery O5). */
-  carGroups = computed(() => {
-    const brand = this.selectedBrand();
-    return this.modelsForBrand().map((model) => ({
-      model,
-      items: Array.from(new Set(VEHICLES.filter((v) => v.brand === brand && v.model === model).map((v) => v.variant))).map((variant) => ({
-        variant,
-        label: modelVariantLabel(model, variant),
-      })),
-    }));
-  });
-  carDropdownOpen = false;
+  downpaymentType = this.q.downpaymentType;
+  downpaymentValue = this.q.downpaymentValue;
+  totals = this.q.totals;
+  quoteDp = this.q.quoteDp;
+  rebateAsCashback = this.q.rebateAsCashback;
+  cashbackAllowed = this.q.cashbackAllowed;
+  cashbackOn = this.q.cashbackOn;
+  cashbackMax = this.q.cashbackMax;
+  cashbackAmount = this.q.cashbackAmount;
+  setRebateAsCashback = this.q.setRebateAsCashback.bind(this.q);
+  onCashbackAmountChange = this.q.onCashbackAmountChange.bind(this.q);
+  cashbackMonthlyIncrease = this.q.cashbackMonthlyIncrease;
+  loanRounding = this.q.loanRounding;
+  minDownpayment = this.q.minDownpayment;
+  minCashNeeded = this.q.minCashNeeded;
+  downpaymentRaisedToMin = this.q.downpaymentRaisedToMin;
+  allInPrice = this.q.allInPrice;
+  downpaymentCash = this.q.downpaymentCash;
+  dpDisplay = this.q.dpDisplay;
+  loanAmount = this.q.loanAmount;
+  isCashPurchase = this.q.isCashPurchase;
+  applyDownpaymentPreset = this.q.applyDownpaymentPreset.bind(this.q);
+  isDownpaymentPreset = this.q.isDownpaymentPreset.bind(this.q);
+  commitDownpayment = this.q.commitDownpayment.bind(this.q);
+  loanAmountDisplay = this.q.loanAmountDisplay;
+  loanCapNote = this.q.loanCapNote;
+  monthlyCapNote = this.q.monthlyCapNote;
+  onLoanAmountInput = this.q.onLoanAmountInput.bind(this.q);
+  commitLoanAmount = this.q.commitLoanAmount.bind(this.q);
+  downpaymentRebateNote = this.q.downpaymentRebateNote;
 
-  toggleCarDropdown(event: MouseEvent) {
-    event.stopPropagation();
-    this.carDropdownOpen = !this.carDropdownOpen;
-  }
-
-  selectModelVariant(model: string, variant: string) {
-    this.selectedModelName.set(model);
-    this.onVariantChange(variant);
-    this.carDropdownOpen = false;
-  }
-
-  @HostListener('document:click', ['$event'])
-  onDocClick(event: MouseEvent) {
-    if (!this.host.nativeElement.contains(event.target)) {
-      this.carDropdownOpen = false;
-    }
-  }
-
-  @HostListener('document:keydown.escape')
-  onEsc() {
-    this.carDropdownOpen = false;
-  }
-
-  /** Every model year actually in the database for this exact brand/model/variant, newest first —
-   *  never assumed, so a lone "2025" row shows only 2025 and a newly added "2027" row shows up on
-   *  its own. Drives the Model Year switch: nothing to switch when there's only one. */
-  availableYears = computed(() => yearsForVariant(this.selectedBrand(), this.selectedModelName(), this.selectedVariant()));
-
-  /** One row per variant now (see Vehicle.years) — falls back to the catalog's first car if this
-   *  exact brand/model/variant combination doesn't exist (e.g. mid-switch). */
-  selectedVehicle = computed(
-    () =>
-      VEHICLES.find((v) => v.brand === this.selectedBrand() && v.model === this.selectedModelName() && v.variant === this.selectedVariant()) ??
-      VEHICLES[0],
-  );
-  // Colour surcharges (e.g. the Omoda C9 lineup's Matte Grey) are shown as a note next to the
-  // colour — both here and on the poster's "Available in:" list — but no longer added to the
-  // price; a colour is purely cosmetic now, never something that changes what the customer pays.
-  basePrice = computed(() => this.selectedVehicle().price);
-
-  /** The Colour field only appears when this car actually has a surcharge to show a note for
-   *  (currently just the Omoda C9 lineup) — every other car's colours are informational only
-   *  (see the poster's "Available in:" list), so a picker there would be a dropdown that does
-   *  nothing. Data-driven off Vehicle.colourSurcharges rather than a hardcoded model check, so a
-   *  future colour note on another car enables this automatically. */
-  colourPickable = computed(() => {
-    const vehicle = this.selectedVehicle();
-    return Object.keys(vehicle.colourSurcharges ?? {}).length > 0 ? (vehicle.colours ?? []) : null;
-  });
-
-  /** The account's Primary Brand (Profile & Settings → Quote Preferences) starts every fresh quote — falls
-   *  back to the catalog's first car if that brand has no vehicles. */
-  private preferredVehicle(): Vehicle {
-    const brand = this.settingsService.settings().dashboardTarget.brand;
-    return VEHICLES.find((v) => v.brand === brand) ?? VEHICLES[0];
-  }
-
-  onBrandChange(brand: string) {
-    this.selectedBrand.set(brand);
-    const firstModel = VEHICLES.find((v) => v.brand === brand)!.model;
-    this.onModelChange(firstModel);
-  }
-
-  onModelChange(model: string) {
-    this.selectedModelName.set(model);
-    const firstVariant = VEHICLES.find((v) => v.brand === this.selectedBrand() && v.model === model)!.variant;
-    this.onVariantChange(firstVariant);
-  }
-
-  onVariantChange(variant: string) {
-    this.selectedVariant.set(variant);
-    // Prefer whatever year the SA was already looking at if this variant also has it (e.g.
-    // switching between two 2025-and-2026 variants of the same model keeps the chosen year);
-    // otherwise fall back to this variant's own newest year.
-    const years = yearsForVariant(this.selectedBrand(), this.selectedModelName(), variant);
-    if (!years.includes(this.modelYear())) this.modelYear.set(years[0]);
-    // A different car has its own real insurance premium and promo rate — carrying over an
-    // override from the previous car would silently misprice this one, so switching cars starts
-    // fresh from its own database default / promo rate.
-    this.insuranceOverride.set(null);
-    this.interestRateManual.set(null);
-    this.loanAmountDraft.set(null);
-    this.monthlyInstallmentDraft.set(null);
-    this.clearRebateOverrides();
-    // A different car has its own colour lineup — carrying over the previous car's pick could
-    // silently select a colour (and its surcharge) this car doesn't even offer.
-    this.selectedColour.set(this.selectedVehicle().colours?.[0] ?? null);
-  }
-
-  /** e.g. "Matte Grey (+RM 3,000)" — surfaces a colour's surcharge right in the dropdown so the SA
-   *  sees the cost before picking it, not just after. */
-  colourOptionLabel(colour: string): string {
-    const surcharge = colourSurchargeFor(this.selectedVehicle(), colour);
-    return surcharge > 0 ? `${colour} (+RM ${surcharge.toLocaleString('en-MY')})` : colour;
-  }
-
-  /** The model's own dealer rebate for the selected model year, when known, beats the standard
-   *  starting rebate. */
-  autoRebate = computed(() => rebateForYear(this.selectedVehicle(), this.modelYear()));
-  rebateIsManual = computed(() => this.rebateManual() !== null);
-  rebateInput = computed(() => this.rebateManual() ?? this.autoRebate());
-
-  /** The model's own additional-rebate promo for the selected model year, when known, pre-fills
-   *  and enables this by default — independent of Rebate above, since either can differ year to
-   *  year on its own. */
-  autoAdditionalRebate = computed(() => additionalRebateForYear(this.selectedVehicle(), this.modelYear()));
-  additionalRebateIsManual = computed(() => this.additionalRebateManual() !== null);
-  additionalRebateValue = computed(() => this.additionalRebateManual() ?? this.autoAdditionalRebate());
-
-  /** Ticked when the car has an additional rebate and Settings says to include it by default. */
-  autoAdditionalRebateEnabled = computed(
-    () => additionalRebateForYear(this.selectedVehicle(), this.modelYear()) > 0 && (this.settingsService.settings().salesDefaults.additionalRebateByDefault ?? true),
-  );
-  additionalRebateEnabled = computed(() => this.additionalRebateEnabledManual() ?? this.autoAdditionalRebateEnabled());
-
-  // No separate "prior-year bonus" — switching Model Year switches selectedVehicle() to that
-  // year's own database row, so rebateInput() (via autoRebate) already reflects that year's figure.
-  effectiveRebate = computed(() => this.rebateInput() + (this.additionalRebateEnabled() ? this.additionalRebateValue() : 0));
-
-  /** Rebates belong to a specific car and model year — a figure typed for one must never ride
-   *  along silently onto another (same reasoning as insurance/rate in onVariantChange). */
-  private clearRebateOverrides() {
-    this.rebateManual.set(null);
-    this.additionalRebateManual.set(null);
-    this.additionalRebateEnabledManual.set(null);
-  }
-
-  selectModelYear(year: number) {
-    if (year === this.modelYear()) return;
-    this.modelYear.set(year);
-    this.clearRebateOverrides();
-  }
-
-  // Per-field "back to default" — tapping a Manual badge undoes just that one field.
-  resetField(field: 'rebate' | 'additionalRebate' | 'insurance' | 'rate') {
-    if (field === 'rebate') this.resetRebate();
-    else if (field === 'additionalRebate') this.resetAdditionalRebate();
-    else if (field === 'insurance') this.resetInsurance();
-    else this.resetInterestRate();
-  }
-
-  resetRebate() {
-    this.rebateManual.set(null);
-  }
-
-  resetAdditionalRebate() {
-    this.additionalRebateManual.set(null);
-    this.additionalRebateEnabledManual.set(null);
-  }
-
-  resetInsurance() {
-    this.insuranceOverride.set(null);
-  }
-
-  resetInterestRate() {
-    this.interestRateManual.set(null);
-  }
-
-  onRebateChange(value: number | null) {
-    this.rebateManual.set(Math.max(0, value ?? 0));
-  }
-
-  onAdditionalRebateEnabledChange(value: boolean) {
-    this.additionalRebateEnabledManual.set(value);
-  }
-
-  onAdditionalRebateChange(value: number | null) {
-    this.additionalRebateManual.set(Math.max(0, value ?? 0));
-  }
-
-  insuranceRatePct = computed(() => this.settingsService.settings().salesDefaults.basicPremiumRatePct);
-  /** The insurer's exact Basic Premium for this model, when known, beats the %-of-RRP estimate. */
-  autoBasicPremium = computed(() => this.selectedVehicle().basicPremium ?? basicPremiumDefault(this.basePrice(), this.insuranceRatePct()));
-
-  /** The car's saved itemized insurance quotation (Basic Premium, Premium All Rider, Additional
-   *  Coverages, Stamp Duty, Service Tax, EPR) from the Car Finance Database — the starting point
-   *  for every quote, editable from Account Settings → Car Database. */
-  insuranceDatabaseDefault = computed(() => this.settingsService.getVehicleInsurance(this.selectedVehicle(), this.autoBasicPremium()));
-  insuranceIsManual = computed(() => this.insuranceOverride() !== null);
-  /** The details actually in effect for this quote — the per-quote override when the SA has set
-   *  one, otherwise the car's database default. This is what gets snapshotted onto the lead. */
-  insuranceDetails = computed(() => this.insuranceOverride() ?? this.insuranceDatabaseDefault());
-  insuranceBreakdown = computed(() => computeInsuranceBreakdown(this.insuranceDetails(), this.ncd()));
-  /** The full itemized charge — everything the SA sees under Insurance Breakdown, not just Basic Premium. */
-  insurance = computed(() => this.insuranceBreakdown().totalDue);
-  /** Same insurance quotation at 0% NCD — what the loan is sized against, so dialling in a better
-   *  NCD only shrinks the downpayment (see computeQuotationTotals's loanBasisInsuranceAmount). */
-  loanBasisInsurance = computed(() => computeInsuranceBreakdown(this.insuranceDetails(), 0).totalDue);
-
-  onInsuranceSaved(details: InsuranceQuotationDetails) {
-    this.insuranceOverride.set(details);
-    this.closeInsuranceBreakdown();
-  }
-
-  /** The model's own promo rate for whichever Rate Type is active, when known, beats the SA's
-   *  general default — flat and effective are independently-quoted figures on the vehicle (see
-   *  Vehicle.effectiveRate), so switching rate type looks up the matching field, not a conversion. */
-  autoInterestRate = computed(() => defaultRateFor(this.selectedVehicle(), this.rateType(), this.settingsService.settings().salesDefaults));
-  interestRateIsManual = computed(() => this.interestRateManual() !== null);
-  /** Quoting EIR on a car with no EIR anywhere (its own or the account default) and none typed —
-   *  the SA must enter the bank's rate; sharing is blocked until they do (see the preview column). */
-  rateMissing = computed(() => this.interestRateManual() === null && this.autoInterestRate() === null);
-  interestRate = computed(() => this.interestRateManual() ?? this.autoInterestRate() ?? 0);
-
-  onInterestRateChange(value: number | null) {
-    this.interestRateManual.set(value == null ? null : Math.max(0, value));
-  }
-
-  // Insurance and Interest Rate are usually left on their defaults, so they fold into one-line
-  // summaries; the rate section forces itself open while a rate is missing.
-  insuranceOpen = signal(false);
-  rateOpen = signal(false);
-  rateExpanded = computed(() => this.rateOpen() || this.rateMissing());
-
-  /** Switching Rate Type drops any manual rate override — a flat-mode number typed in has no
-   *  business surviving as an effective-mode number, so each type starts back at its own default. */
-  setRateType(type: RateType) {
-    this.rateType.set(type);
-    this.interestRateManual.set(null);
-  }
-
-  totals = computed(() =>
-    computeQuotationTotals({
-      basePrice: this.basePrice(),
-      effectiveRebate: this.effectiveRebate(),
-      insuranceAmount: this.insurance(),
-      loanBasisInsuranceAmount: this.loanBasisInsurance(),
-      downpaymentType: this.quoteDp().type,
-      downpaymentValue: this.quoteDp().value,
-      minDownpaymentCash: this.minDownpayment(),
-      loanRounding: this.loanRounding(),
-      cashbackAmount: this.cashbackAmount(),
-    }),
-  );
-  /** The downpayment the quote actually uses — always a full loan while cash back is on. */
-  quoteDp = computed(() =>
-    this.cashbackOn() ? { type: 'amount' as const, value: 0 } : { type: this.downpaymentType(), value: this.downpaymentValue() },
-  );
-  /** "Give rebate as cash back" — this quote only, off by default, never offered on the customer link. */
-  rebateAsCashback = signal(false);
-  /** Settings → Allow cash back. */
-  cashbackAllowed = computed(() => this.settingsService.settings().salesDefaults.allowCashback ?? false);
-  /** Cash back is in effect only while ticked and still allowed in Settings. */
-  cashbackOn = computed(() => this.cashbackAllowed() && this.rebateAsCashback());
-  /** How much of the rebate goes back as cash; null = all of it. The rest stays a discount. */
-  private cashbackManual = signal<number | null>(null);
-  /** The most that can go back as cash: whatever the rebate has left after covering the car's
-   *  minimum downpayment, so the customer still pays nothing upfront. 0 = cash back not possible. */
-  cashbackMax = computed(() => Math.max(0, this.effectiveRebate() - this.minDownpayment()));
-  cashbackAmount = computed(() => (this.cashbackOn() ? Math.min(this.cashbackMax(), this.cashbackManual() ?? this.cashbackMax()) : 0));
-  /** Cash back is always a full loan — see quoteDp; the downpayment set before comes back once it's off. */
-  setRebateAsCashback(on: boolean) {
-    this.rebateAsCashback.set(on);
-  }
-
-  onCashbackAmountChange(value: number | null) {
-    this.cashbackManual.set(Math.max(0, value ?? 0));
-  }
-  /** How much more a month the customer pays for taking the rebate as cash rather than a discount. */
-  cashbackMonthlyIncrease = computed(() => {
-    if (!this.cashbackOn()) return 0;
-    const asDiscount = computeQuotationTotals({
-      basePrice: this.basePrice(),
-      effectiveRebate: this.effectiveRebate(),
-      insuranceAmount: this.insurance(),
-      loanBasisInsuranceAmount: this.loanBasisInsurance(),
-      downpaymentType: 'amount',
-      downpaymentValue: 0,
-      minDownpaymentCash: this.minDownpayment(),
-      loanRounding: this.loanRounding(),
-    });
-    const m = (loan: number) => monthlyPayment(loan, this.interestRate(), this.highlightedTenure(), this.rateType());
-    return Math.max(0, m(this.loanAmount()) - m(asDiscount.loanAmount));
-  });
-  /** Settings → Loan Rounding: which way the loan rounds to RM100. */
-  loanRounding = computed(() => this.settingsService.settings().salesDefaults.loanRounding ?? 'down');
-  /** This variant's minimum cash downpayment (Price Settings), 0 when it has none. */
-  minDownpayment = computed(() => minDownpaymentCash(this.selectedVehicle().minDownpayment, this.basePrice()));
-  /** Cash the customer must still put down to meet the minimum — the minimum is before rebate, so
-   *  the rebate counts towards it. */
-  minCashNeeded = computed(() => roundCents(Math.max(0, this.minDownpayment() - this.effectiveRebate())));
-  /** True when what was entered fell short of the minimum and the quote was raised to it. */
-  downpaymentRaisedToMin = computed(() => {
-    const min = this.minDownpayment();
-    if (min <= 0 || this.totals().loanAmount === 0) return false;
-    const unclamped = computeQuotationTotals({
-      basePrice: this.basePrice(),
-      effectiveRebate: this.effectiveRebate(),
-      insuranceAmount: this.insurance(),
-      loanBasisInsuranceAmount: this.loanBasisInsurance(),
-      downpaymentType: this.quoteDp().type,
-      downpaymentValue: this.quoteDp().value,
-      loanRounding: this.loanRounding(),
-      cashbackAmount: this.cashbackAmount(),
-    });
-    return unclamped.downpaymentCash < this.totals().downpaymentCash;
-  });
-
-  allInPrice = computed(() => this.totals().totalAmountDue);
-  downpaymentCash = computed(() => this.totals().downpaymentCash);
-  /** The downpayment as shown — Cash Back when rounding the loan up took it negative. */
-  dpDisplay = computed(() => downpaymentDisplay(this.downpaymentCash()));
-  loanAmount = computed(() => this.totals().loanAmount);
-  /** A straight cash deal, no financing at all — e.g. downpayment dialled up to 100%. Poster
-   *  templates that show a loan/monthly breakdown need to know this so they can drop it. */
-  isCashPurchase = computed(() => this.loanAmount() === 0);
-
-  // The Loan Amount field mustn't fight the SA mid-keystroke: since loanAmount() is always
-  // floored to the nearest RM100, binding the input straight to it would snap "82400" back to
-  // "82000" (or worse) after every digit typed, before they've finished. A draft signal holds
-  // whatever's currently typed, unrounded, and only commits (floors + updates downpayment) on
-  // blur/Enter — so the field shows exactly what was typed while editing.
-  private loanAmountDraft = signal<number | null>(null);
-
-  /** One-tap downpayment setups: 10% of the price, or Full Loan (no cash down beyond the RM100
-   *  rounding remainder). */
-  applyDownpaymentPreset(preset: 'tenPercent' | 'fullLoan') {
-    this.loanAmountDraft.set(null);
-    this.monthlyInstallmentDraft.set(null);
-    if (preset === 'tenPercent') {
-      this.downpaymentType.set('percent');
-      this.downpaymentValue.set(10);
-    } else {
-      this.downpaymentType.set('amount');
-      this.downpaymentValue.set(this.minCashNeeded());
-    }
-  }
-
-  isDownpaymentPreset(preset: 'tenPercent' | 'fullLoan'): boolean {
-    const type = this.downpaymentType();
-    if (preset === 'tenPercent') return type === 'percent' && this.downpaymentValue() === 10;
-    return type === 'amount' && this.downpaymentValue() === this.minCashNeeded();
-  }
-
-  /** Unlike Loan Amount/Monthly Installment (which need a draft signal so the derived, rounded
-   *  figure doesn't fight a mid-keystroke value — see loanAmountDraft above), Downpayment IS the
-   *  primary value, so it can bind straight to the signal and update everything else live, no
-   *  draft needed. But in Amt mode, whatever cash figure was typed is never exactly what ends up
-   *  charged: the loan behind it is floored to the nearest RM100 (see totals()), and that rounding
-   *  remainder spills back into the cash downpayment — same "remainder goes to the downpayment"
-   *  rule the Loan Amount field's own helper text already describes. The poster and the Loan
-   *  Amount field both reflect that real, spilled-over figure; settle the field to match once the
-   *  SA is done typing, so it never sits there showing a number that was never actually charged. */
-  commitDownpayment() {
-    if (this.downpaymentType() === 'percent') {
-      this.downpaymentValue.set(Math.min(Math.max(0, this.downpaymentValue()), 100));
-    } else {
-      this.downpaymentValue.set(this.totals().downpaymentCash);
-    }
-  }
-  loanAmountDisplay = computed(() => this.loanAmountDraft() ?? this.loanAmount());
-
-  /** Shown under Loan Amount / Monthly Installment when what was typed couldn't be honoured in
-   *  full (asked for more than the whole amount due) — cleared as soon as they type again. */
-  loanCapNote = signal<string | null>(null);
-  monthlyCapNote = signal<string | null>(null);
-
-  onLoanAmountInput(value: number | null) {
-    this.loanCapNote.set(null);
-    this.loanAmountDraft.set(Math.max(0, value ?? 0));
-  }
-
-  commitLoanAmount() {
-    const draft = this.loanAmountDraft();
-    if (draft !== null) {
-      if (draft > this.allInPrice()) {
-        this.loanCapNote.set(`Capped at ${this.fmt(this.allInPrice())} — the loan can't be more than the total amount due.`);
-      }
-      this.downpaymentType.set('amount');
-      this.downpaymentValue.set(roundCents(Math.max(0, this.allInPrice() - draft)));
-      this.monthlyInstallmentDraft.set(null);
-    }
-    this.loanAmountDraft.set(null);
-  }
-
-  /** The percent-mode down payment before rebates, and how rebates bring it down — rebates come
-   *  off the cash down payment (see computeQuotationTotals), so "10%" can end up far below 10%. */
-  downpaymentRebateNote = computed(() => {
-    if (this.downpaymentType() !== 'percent' || this.effectiveRebate() <= 0 || this.isCashPurchase()) return null;
-    const referenceTotal = this.basePrice() + this.loanBasisInsurance();
-    const before = roundCents((Math.max(0, this.downpaymentValue()) / 100) * referenceTotal);
-    return { pct: this.downpaymentValue(), before, rebate: this.effectiveRebate(), after: this.downpaymentCash(), covered: this.effectiveRebate() >= before };
-  });
-
-  /** Same draft/commit pattern as the Loan Amount field above — holds whatever's typed until
-   *  blur/Enter, then works backwards from "I want to pay about RM X/month" to the loan amount
-   *  that implies, and from there to the deposit. Targets the longest of the 3 selected poster
-   *  tenures (e.g. 5/7/9 picked → 9 years) — that's the worst-case, highest-instalment row in the
-   *  repayment table above, so aiming the deposit at it keeps every shorter tenure under budget
-   *  too. Falls back to whatever's typed into Custom Tenure while that's active, since the table
-   *  then shows only that one row instead of the poster set. */
-  private monthlyInstallmentDraft = signal<number | null>(null);
-  monthlyInstallmentTenureMonths = computed(() =>
-    this.customTenureActive() ? this.highlightedTenure() : Math.max(...this.posterTenureYears()) * 12,
-  );
-  monthlyInstallmentTenureLabel = computed(() => {
-    const m = this.monthlyInstallmentTenureMonths();
-    return m % 12 === 0 ? `${m / 12} Yrs` : `${m} mo`;
-  });
-  /** Once committed, shows the instalment the loan actually settled on — not necessarily what was
-   *  typed, since the loan behind it is floored to the nearest RM100 (see commitMonthlyInstallment)
-   *  the same way a manually-typed Loan Amount is. Closest achievable, not exact. */
-  monthlyInstallmentDisplay = computed(() =>
-    this.monthlyInstallmentDraft() ?? roundCents(monthlyPayment(this.loanAmount(), this.interestRate(), this.monthlyInstallmentTenureMonths(), this.rateType())),
-  );
-
-  onMonthlyInstallmentInput(value: number | null) {
-    this.monthlyCapNote.set(null);
-    this.monthlyInstallmentDraft.set(Math.max(0, value ?? 0));
-  }
-
-  commitMonthlyInstallment() {
-    const draft = this.monthlyInstallmentDraft();
-    if (draft !== null) {
-      const impliedLoan = loanForMonthlyPayment(draft, this.interestRate(), this.monthlyInstallmentTenureMonths(), this.rateType());
-      if (impliedLoan > this.allInPrice()) {
-        this.monthlyCapNote.set(`${this.fmt(draft)}/mo would cover more than the whole car — the loan is capped at the total amount due.`);
-      }
-      this.downpaymentType.set('amount');
-      this.downpaymentValue.set(roundCents(Math.max(0, this.allInPrice() - impliedLoan)));
-      this.loanAmountDraft.set(null);
-    }
-    this.monthlyInstallmentDraft.set(null);
-  }
-
-  /** Monthly payment for an arbitrary tenure, at the current loan amount/rate — powers the Add
-   *  Lead modal's Tenure question, independent of repaymentRows' poster/custom set. */
-  monthlyForTenure(months: number): number {
-    return monthlyPayment(this.loanAmount(), this.interestRate(), months, this.rateType());
-  }
-
-  /** Exclusive with custom mode: while typing a custom tenure, this is just that one row — pick a
-   *  tenure button to go back to the 3-tenure comparison (longest-first). */
-  repaymentRows = computed(() => {
-    if (this.customTenureActive()) {
-      const m = this.highlightedTenure();
-      return [{ months: m, label: this.selectedTenureLabel(), monthly: monthlyPayment(this.loanAmount(), this.interestRate(), m, this.rateType()) }];
-    }
-    const months = [...this.posterTenureYears()].sort((a, b) => b - a).map((y) => y * 12);
-    return months.map((m) => ({ months: m, label: `${m / 12} Yrs`, monthly: monthlyPayment(this.loanAmount(), this.interestRate(), m, this.rateType()) }));
-  });
-
-  /** The tenure actually chosen (a preset or a custom month count) — what the PDF/quotation quote on. */
-  selectedTenureLabel = computed(() => (this.highlightedTenure() % 12 === 0 ? `${this.highlightedTenure() / 12} Yrs` : `${this.highlightedTenure()} mo`));
-  selectedTenureMonthly = computed(() => monthlyPayment(this.loanAmount(), this.interestRate(), this.highlightedTenure(), this.rateType()));
-
-  posterTenureSummary = computed(() => [...this.posterTenureYears()].sort((a, b) => b - a).join(' · '));
-
-  onCustomTenureInput(value: number) {
-    this.highlightedTenure.set(Math.min(120, Math.max(1, Math.round(+value || 1))));
-    this.customTenureActive.set(true);
-  }
-
-  /** Confirms which tenure Add Lead/the PDF quote on — click a row in the repayment table. */
-  selectRepaymentTenure(months: number) {
-    this.highlightedTenure.set(months);
-    this.customTenureActive.set(false);
-  }
-
-  /** Keeps the poster selection at exactly 3 years: toggles off if already picked (min 1 stays
-   *  selected), otherwise adds, replacing the oldest pick once 3 are already chosen. Purely
-   *  changes which years are shown — it never confirms a tenure on its own (see
-   *  selectRepaymentTenure) — except when the confirmed one just scrolled out of view (or was in
-   *  custom mode), where it falls back to the new longest pick so a row is always shown Selected. */
-  togglePosterYear(year: number) {
-    const current = this.posterTenureYears();
-    let next = current;
-    if (current.includes(year)) {
-      if (current.length > 1) next = current.filter((y) => y !== year);
-    } else if (current.length < 3) {
-      next = [...current, year];
-    } else {
-      next = [...current.slice(1), year];
-    }
-    this.posterTenureYears.set(next);
-    if (this.customTenureActive() || !next.includes(this.highlightedTenure() / 12)) {
-      this.customTenureActive.set(false);
-      this.highlightedTenure.set(Math.max(...next) * 12);
-    }
-  }
+  highlightedTenure = this.q.highlightedTenure;
+  posterTenureYears = this.q.posterTenureYears;
+  customTenureActive = this.q.customTenureActive;
+  monthlyInstallmentTenureMonths = this.q.monthlyInstallmentTenureMonths;
+  monthlyInstallmentTenureLabel = this.q.monthlyInstallmentTenureLabel;
+  monthlyInstallmentDisplay = this.q.monthlyInstallmentDisplay;
+  onMonthlyInstallmentInput = this.q.onMonthlyInstallmentInput.bind(this.q);
+  commitMonthlyInstallment = this.q.commitMonthlyInstallment.bind(this.q);
+  monthlyForTenure = this.q.monthlyForTenure.bind(this.q);
+  repaymentRows = this.q.repaymentRows;
+  selectedTenureLabel = this.q.selectedTenureLabel;
+  selectedTenureMonthly = this.q.selectedTenureMonthly;
+  posterTenureSummary = this.q.posterTenureSummary;
+  onCustomTenureInput = this.q.onCustomTenureInput.bind(this.q);
+  selectRepaymentTenure = this.q.selectRepaymentTenure.bind(this.q);
+  togglePosterYear = this.q.togglePosterYear.bind(this.q);
 
   brandLogoUrl = computed(() => brandLogo(this.selectedVehicle().brand));
 
@@ -1423,7 +473,6 @@ export class CalculatorComponent implements AfterViewInit {
   constructor(
     private customers: CustomerService,
     public advisor: AdvisorService,
-    private host: ElementRef,
   ) {
     // "Open in Calculator" from the Compare page — start on that car instead of the primary brand's.
     const fromCompare = this.compare.takeCalculatorCar();
@@ -1475,49 +524,7 @@ export class CalculatorComponent implements AfterViewInit {
   /** Assembles the plain data object the renderer draws from — nothing in poster-renderer.ts
    *  reads a component signal directly, so every figure on the poster traces back to here. */
   private buildPosterData(): PosterData {
-    const vehicle = this.selectedVehicle();
-    const advisorProfile = this.advisor.profile();
-    const lang = this.settingsService.settings().salesDefaults.posterLanguage ?? 'en';
-    return {
-      lang,
-      brand: vehicle.brand,
-      modelTitle: modelVariantLabel(vehicle.model, vehicle.variant),
-      year: this.modelYear(),
-      dateStr: new Date().toLocaleDateString(lang === 'ms' ? 'ms-MY' : 'en-MY', { day: '2-digit', month: 'short', year: 'numeric' }),
-      logoUrl: this.brandLogoUrl(),
-      carImageUrl: vehicle.photoUrl ?? null,
-      colours: vehicle.colours ?? [],
-      colourSurcharges: vehicle.colourSurcharges ?? {},
-
-      sellingPrice: this.allInPrice(),
-      downpayment: this.downpaymentCash(),
-      loanAmount: this.loanAmount(),
-      isCashPurchase: this.isCashPurchase(),
-      advisor: {
-        name: advisorProfile.name,
-        role: advisorProfile.role,
-        initials: this.advisor.initials(),
-        photoUrl: advisorProfile.photoUrl ?? null,
-        phoneDisplay: advisorProfile.phoneDisplay,
-        bio: advisorProfile.bio,
-      },
-
-      otrPrice: this.basePrice(),
-      ncdPct: this.ncd(),
-      insurance: this.insurance(),
-      rebate: this.effectiveRebate(),
-      cashback: this.totals().cashback,
-      totalAmountDue: this.allInPrice(),
-
-      rateLabel: `${this.interestRate()}% ${this.rateType() === 'flat' ? translate(lang, 'FLAT') : 'EIR'}`,
-      interestRatePct: this.interestRate(),
-      tenureRows: this.repaymentRows().map((row) => ({
-        label: translate(lang, row.label),
-        months: row.months,
-        monthly: row.monthly,
-        isLowest: row.months === Math.max(...this.repaymentRows().map((r) => r.months)),
-      })),
-    };
+    return quotePosterData(this.q, this.advisor, this.settingsService.settings().salesDefaults.posterLanguage ?? 'en');
   }
 
   /** Bumped on every draw call so an in-flight async redraw (image loads for the logo/car photo)
@@ -1739,22 +746,6 @@ export class CalculatorComponent implements AfterViewInit {
    *  car's own defaults — leaves the selected brand/model/variant/year untouched, since switching
    *  cars is its own separate action, not something "Reset" should also do. */
   reset() {
-    const defaults = this.settingsService.settings().salesDefaults;
-    this.rebateManual.set(null);
-    this.additionalRebateManual.set(null);
-    this.additionalRebateEnabledManual.set(null);
-    this.ncd.set(defaults.ncd);
-    this.interestRateManual.set(null);
-    this.rateType.set(defaults.defaultRateType);
-    this.downpaymentType.set('percent');
-    this.downpaymentValue.set(defaults.downpaymentPct);
-    this.highlightedTenure.set(Math.max(...defaults.defaultTenureYears) * 12);
-    this.posterTenureYears.set([...defaults.defaultTenureYears]);
-    this.customTenureActive.set(false);
-    this.insuranceOverride.set(null);
-    this.loanAmountDraft.set(null);
-    this.monthlyInstallmentDraft.set(null);
-    this.rebateAsCashback.set(false);
-    this.cashbackManual.set(null);
+    this.q.reset();
   }
 }

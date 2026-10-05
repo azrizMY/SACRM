@@ -6,6 +6,7 @@ import {
   type AppSettings,
   type DashboardTarget,
   type NotificationPrefs,
+  type LiveSettings,
   type Onboarding,
   type SalesDefaults,
 } from '../data/settings-data';
@@ -28,6 +29,7 @@ function mergeSettings(saved: Partial<AppSettings> | null): AppSettings {
     dashboardTarget: { ...DEFAULT_SETTINGS.dashboardTarget, ...saved?.dashboardTarget },
     vehicleInsurance: { ...DEFAULT_SETTINGS.vehicleInsurance, ...saved?.vehicleInsurance },
     onboarding: { ...DEFAULT_SETTINGS.onboarding, ...saved?.onboarding },
+    live: { ...DEFAULT_SETTINGS.live, ...saved?.live },
   };
 }
 
@@ -72,6 +74,11 @@ export class SettingsService {
 
   updateDashboardTarget(patch: Partial<DashboardTarget>) {
     this.persist({ ...this.settings(), dashboardTarget: { ...this.settings().dashboardTarget, ...patch } });
+  }
+
+  /** Live Mode's own settings (Live page only). */
+  updateLive(patch: Partial<LiveSettings>) {
+    this.persist({ ...this.settings(), live: { ...this.settings().live, ...patch } });
   }
 
   updateOnboarding(patch: Partial<Onboarding>) {

@@ -13,6 +13,7 @@ const TITLES: Record<string, string> = {
   dashboard: 'Dashboard',
   calculator: 'Calculator',
   compare: 'Compare Cars',
+  live: 'Live Mode',
   cars: 'Catalog',
   'price-settings': 'Price Settings',
   leads: 'Customer Manager',

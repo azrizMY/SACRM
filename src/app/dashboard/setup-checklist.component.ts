@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, effect, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IconComponent, type IconName } from '../shared/icon.component';
 import { TranslatePipe } from '../shared/i18n';
@@ -10,7 +10,7 @@ import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
 type Step = { id: string; icon: IconName; title: string; hint: string; link: string; action: string; done: boolean };
 
 /** "Get set up" card at the top of the Dashboard for new accounts. Steps tick themselves off from
- *  real data; it disappears once finished and closed, or when closed early. */
+ *  real data; it goes away by itself once every step is done (and stays gone), or when closed early. */
 @Component({
   selector: 'app-setup-checklist',
   standalone: true,
@@ -21,9 +21,9 @@ type Step = { id: string; icon: IconName; title: string; hint: string; link: str
         <span class="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-primary/15 blur-3xl"></span>
         <div class="flex items-start justify-between gap-4">
           <div class="flex flex-col gap-1">
-            <h2 class="text-base font-bold">{{ (allDone() ? "You're all set!" : 'Get set up') | t }}</h2>
+            <h2 class="text-base font-bold">{{ 'Get set up' | t }}</h2>
             <p class="text-sm text-muted-foreground">
-              {{ (allDone() ? 'Your account is ready. Happy selling!' : 'A few quick steps to get the most out of Redline.') | t }}
+              {{ 'A few quick steps to get the most out of Redline.' | t }}
             </p>
           </div>
           <button
@@ -118,7 +118,7 @@ export class SetupChecklistComponent {
         id: 'customer',
         icon: 'users',
         title: 'Add your first customer',
-        hint: 'Track them from lead to delivery in Customer Manager.',
+        hint: 'Track them from lead to won in Customer Manager.',
         link: '/leads',
         action: 'Add',
         done: this.customers.records().length > 0,
@@ -128,7 +128,14 @@ export class SetupChecklistComponent {
 
   doneCount = computed(() => this.steps().filter((s) => s.done).length);
   allDone = computed(() => this.doneCount() === this.steps().length);
-  visible = computed(() => !this.settings.settings().onboarding.hidden);
+  visible = computed(() => !this.settings.settings().onboarding.hidden && !this.allDone());
+
+  constructor() {
+    // Remember completion, so the card doesn't flash up on later visits while data is still loading.
+    effect(() => {
+      if (this.allDone() && !this.settings.settings().onboarding.hidden) this.hide();
+    });
+  }
 
   hide() {
     this.settings.updateOnboarding({ hidden: true });

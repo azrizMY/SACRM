@@ -86,12 +86,72 @@ export type Onboarding = {
   hidden?: boolean;
 };
 
+// ---------- Live Mode (TikTok Live calculator) ----------
+
+/** The Live Screen's fixed size — it shares the stream's tall 1080×1920 frame with the camera. */
+export type LiveScreenSize = 'square' | 'bigNumbers' | 'bigCamera';
+
+export const LIVE_SCREEN_SIZES: Record<LiveScreenSize, { width: number; height: number; label: string; hint: string }> = {
+  square: { width: 1080, height: 1080, label: 'Square', hint: 'Balanced — about 45% left for your camera' },
+  bigNumbers: { width: 1080, height: 1350, label: 'Big numbers', hint: 'The quote matters most — about 30% left for your camera' },
+  bigCamera: { width: 1080, height: 810, label: 'Big camera', hint: 'You do most of the talking — about 60% left for your camera' },
+};
+
+/** The last quote on the Live page, so reopening it carries on where you stopped. */
+export type LiveQuoteMemory = {
+  vehicleId: string;
+  year: number;
+  downpaymentType: 'percent' | 'amount';
+  downpaymentValue: number;
+  tenureYears: number[];
+  highlightedTenure: number;
+};
+
+/** Live Mode's own customisation — only how the Live Screen looks. Edited on the Live page only
+ *  (never on the Settings page); the quote itself still follows Settings and Price Settings. */
+/** What the Live Screen shows: the Live layout, or one of the Calculator's poster templates. */
+export type LiveDesign = 'live' | 'classic' | 'compact-my' | 'square' | 'promo';
+
+export type LiveSettings = {
+  design: LiveDesign;
+  size: LiveScreenSize;
+  /** Language of the Live Screen itself; the controls follow the app language. */
+  lang: 'ms' | 'en';
+  /** Off by default: TikTok restricts sharing contact details and sending viewers off the platform. */
+  showPhone: boolean;
+  showWhatsApp: boolean;
+  showShowroom: boolean;
+  showAdvisor: boolean;
+  showBrandLogo: boolean;
+  showEstimateNote: boolean;
+  /** Posters only: what goes where the WhatsApp call-to-action was while the phone is hidden. Empty = the default line. */
+  footerText: string;
+  /** Vehicle ids pinned for one-tap switching. */
+  favourites: string[];
+  lastQuote?: LiveQuoteMemory;
+};
+
+export const DEFAULT_LIVE_SETTINGS: LiveSettings = {
+  design: 'live',
+  size: 'square',
+  lang: 'ms',
+  showPhone: false,
+  showWhatsApp: false,
+  showShowroom: false,
+  showAdvisor: true,
+  showBrandLogo: true,
+  showEstimateNote: true,
+  footerText: '',
+  favourites: [],
+};
+
 export type AppSettings = {
   salesDefaults: SalesDefaults;
   notifications: NotificationPrefs;
   dashboardTarget: DashboardTarget;
   vehicleInsurance: VehicleInsuranceOverrides;
   onboarding: Onboarding;
+  live: LiveSettings;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -100,4 +160,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   dashboardTarget: { brand: 'Chery', target: 4 },
   vehicleInsurance: {},
   onboarding: {},
+  live: DEFAULT_LIVE_SETTINGS,
 };
