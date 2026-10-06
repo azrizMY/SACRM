@@ -10,15 +10,11 @@ import { InstallBannerComponent } from '../shared/install-banner.component';
 import { ToastHostComponent } from '../shared/toast-host.component';
 
 const TITLES: Record<string, string> = {
-  dashboard: 'Dashboard',
   calculator: 'Calculator',
   compare: 'Compare Cars',
   live: 'Live Mode',
   cars: 'Catalog',
   'price-settings': 'Price Settings',
-  leads: 'Customer Manager',
-  bankers: 'Bankers',
-  notes: 'Earnings',
   profile: 'My Profile',
   settings: 'Settings',
 };
@@ -64,7 +60,7 @@ const TITLES: Record<string, string> = {
       <div class="flex min-w-0 flex-1 flex-col">
         <app-topbar [title]="title()" [brand]="titleBrand()" (openMobile)="mobileOpen.set(true)" />
         <main class="route-host flex-1 overflow-y-auto p-4 md:p-6">
-          @if (active() === 'dashboard') {
+          @if (active() === 'calculator') {
             <app-install-banner />
           }
           <router-outlet />
@@ -77,10 +73,10 @@ const TITLES: Record<string, string> = {
 export class AppShellComponent {
   collapsed = signal(false);
   mobileOpen = signal(false);
-  active = signal('dashboard');
-  title = signal('Dashboard');
-  /** The Primary Brand set in Profile & Settings, shown beside the title only on the Dashboard page. */
-  titleBrand = computed(() => (this.active() === 'dashboard' ? this.settings.settings().dashboardTarget.brand : null));
+  active = signal('calculator');
+  title = signal('Calculator');
+  /** No page shows a brand beside its title on this branch (main shows it on the Dashboard). */
+  titleBrand = computed<string | null>(() => null);
 
   constructor(
     private router: Router,
@@ -91,14 +87,14 @@ export class AppShellComponent {
       .subscribe(() => {
         const id = this.currentId();
         this.active.set(id);
-        this.title.set(TITLES[id] ?? 'Dashboard');
+        this.title.set(TITLES[id] ?? 'Calculator');
         this.mobileOpen.set(false);
       });
   }
 
   private currentId(): string {
     const seg = this.router.url.split('?')[0].split('/').filter(Boolean)[0];
-    return seg ?? 'dashboard';
+    return seg ?? 'calculator';
   }
 
   navigate(id: string) {

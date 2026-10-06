@@ -1,14 +1,11 @@
 import { Component, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CountUpDirective } from '../shared/count-up.directive';
 import { IconComponent } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { AuthService } from '../shared/auth.service';
-import { CustomerService } from '../shared/customer.service';
 import { SettingsService } from '../shared/settings.service';
 import { ImageCropModalComponent } from '../shared/image-crop-modal.component';
-import { CUSTOMER_STATUS_META } from '../data/customer-data';
 import { vehicleTitle } from '../data/calculator-data';
 import type { AdvisorProfile } from '../data/advisor-data';
 import { formatMalaysianPhone, toMalaysianWhatsAppNumber } from '../data/dashboard-data';
@@ -29,7 +26,7 @@ import {
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, ImageCropModalComponent, BrandIconComponent, CountUpDirective],
+  imports: [CommonModule, FormsModule, IconComponent, ImageCropModalComponent, BrandIconComponent],
   template: `
     <div class="mx-auto flex max-w-5xl flex-col gap-5">
       <div class="flex flex-col gap-1">
@@ -349,70 +346,6 @@ import {
           </div>
         </div>
       </div>
-
-      <!-- Stats -->
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div class="lift group flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
-          <span class="flex size-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" [ngClass]="statusMeta.Lead.tone">
-            <app-icon name="users" [size]="18" />
-          </span>
-          <div class="flex flex-col">
-            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Leads</span>
-            <span class="font-mono text-xl font-bold tabular" [appCountUp]="'' + (customers.leads().length)"></span>
-          </div>
-        </div>
-        <div class="lift group flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
-          <span class="flex size-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" [ngClass]="statusMeta.Won.tone">
-            <app-icon name="trophy" [size]="18" />
-          </span>
-          <div class="flex flex-col">
-            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Won</span>
-            <span class="font-mono text-xl font-bold tabular" [appCountUp]="'' + (customers.won().length)"></span>
-          </div>
-        </div>
-        <div class="lift group flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
-          <span class="flex size-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" [ngClass]="statusMeta.Lost.tone">
-            <app-icon name="x-circle" [size]="18" />
-          </span>
-          <div class="flex flex-col">
-            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Lost</span>
-            <span class="font-mono text-xl font-bold tabular" [appCountUp]="'' + (customers.lost().length)"></span>
-          </div>
-        </div>
-        <div class="lift group flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
-          <span class="flex size-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110 bg-primary/15 text-primary">
-            <app-icon name="wallet" [size]="18" />
-          </span>
-          <div class="flex flex-col">
-            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Commission Earned</span>
-            <span class="font-mono text-xl font-bold tabular" [appCountUp]="'' + (fmt(totalCommission()))"></span>
-            @if (pendingCommission() > 0) {
-              <span class="text-[11px] font-medium text-[var(--warning)]">{{ pendingCommission() }} awaiting commission</span>
-            }
-          </div>
-        </div>
-      </div>
-
-      <!-- Recent activity -->
-      <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-        <div class="border-b border-border p-4">
-          <h3 class="text-sm font-semibold">Recent Activity</h3>
-        </div>
-        <ul>
-          @for (r of recentActivity(); track r.id) {
-            <li class="flex flex-wrap items-center gap-3 border-b border-border/60 px-4 py-3 text-sm last:border-0">
-              <span class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" [ngClass]="statusMeta[r.status].tone">
-                <span class="size-1.5 rounded-full" [ngClass]="statusMeta[r.status].dot"></span>
-                {{ statusMeta[r.status].label }}
-              </span>
-              <span class="min-w-0 flex-1 truncate">{{ r.name }} &middot; {{ vehicleTitle(r.brand, r.model) }}</span>
-              <span class="whitespace-nowrap text-xs text-muted-foreground tabular">{{ shortDate(r.date) }}</span>
-            </li>
-          } @empty {
-            <li class="p-6 text-center text-sm text-muted-foreground">No activity yet.</li>
-          }
-        </ul>
-      </div>
     </div>
 
     @if (cropFile(); as file) {
@@ -421,7 +354,6 @@ import {
   `,
 })
 export class ProfileComponent {
-  statusMeta = CUSTOMER_STATUS_META;
   vehicleTitle = vehicleTitle;
   fmt = (v: number) => `RM ${v.toLocaleString('en-MY')}`;
   avatarGradient =
@@ -454,7 +386,6 @@ export class ProfileComponent {
 
   constructor(
     public advisor: AdvisorService,
-    public customers: CustomerService,
     private auth: AuthService,
     private settingsService: SettingsService,
   ) {
@@ -490,14 +421,6 @@ export class ProfileComponent {
   shortDate(d: string): string {
     return d ? new Date(d).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
   }
-
-  totalCommission = computed(() => this.customers.records().reduce((sum, r) => sum + (r.commission ?? 0), 0));
-  /** Won deals with no commission keyed in yet (same rule as Earnings). */
-  pendingCommission = computed(
-    () => this.customers.records().filter((r) => r.status === 'Won' && r.commission == null).length,
-  );
-
-  recentActivity = computed(() => [...this.customers.records()].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5));
 
   startEdit() {
     const profile = this.advisor.profile();

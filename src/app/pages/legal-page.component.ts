@@ -18,7 +18,7 @@ import { LEGAL, LEGAL_UPDATED, type LegalDoc, type LegalLang } from '../data/leg
             <span class="logo-chip flex size-9 items-center justify-center rounded-xl"><app-icon name="car" [size]="18" /></span>
             <span class="flex flex-col leading-tight">
               <span class="text-sm font-bold tracking-tight">Redline</span>
-              <span class="text-[11px] text-muted-foreground">Dealership CRM</span>
+              <span class="text-[11px] text-muted-foreground">Car Quotation</span>
             </span>
           </a>
           <div class="flex rounded-lg border border-border p-0.5 text-xs font-semibold" role="group" aria-label="Language">
@@ -61,7 +61,7 @@ import { LEGAL, LEGAL_UPDATED, type LegalDoc, type LegalLang } from '../data/leg
 
       <footer class="border-t border-border">
         <div class="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-xs text-muted-foreground sm:px-6">
-          <span>Redline Dealership CRM</span>
+          <span>Redline Car Quotation</span>
           <span class="flex gap-4">
             <a routerLink="/privacy" [queryParams]="{ lang: lang() }" class="transition-colors hover:text-foreground">{{ lang() === 'ms' ? 'Dasar Privasi' : 'Privacy Policy' }}</a>
             <a routerLink="/terms" [queryParams]="{ lang: lang() }" class="transition-colors hover:text-foreground">{{ lang() === 'ms' ? 'Terma Penggunaan' : 'Terms of Use' }}</a>

@@ -30,15 +30,14 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
           list: [
             'Account details: your name, email address, phone number, primary brand and password (stored only as a secure hash, never in plain text).',
             'Profile details you choose to add: photo, role, bio, showroom name and address, and social media links.',
-            'Your work in the app: price settings, quote preferences, sales targets, bankers you save, and notes.',
+            'Your work in the app: price settings, quote preferences and display settings.',
             'Technical data needed to keep you signed in and secure: a session cookie, and sign-in attempts used to block password guessing.',
           ],
         },
         {
           heading: '2. Data about your customers',
           body: [
-            'Customer Manager lets you record your own customers: names, phone numbers, lead source, the car and quotation, and whether the deal is won or lost (with optional notes). Redline does not collect IC numbers, addresses, email, driving licence numbers, car registration, chassis or engine numbers, or bank loan approval details. You enter this data, and you decide what to record.',
-            'For this data, you are responsible for having your customers’ consent and for using it only for the sale you are handling. We store and process it only to provide Redline to you, and never use it for anything else.',
+            'None. Redline only works out and shares quotes. It does not ask for or store your customers’ names, phone numbers, IC numbers or any other personal details, and the quote link does not ask the people who open it for theirs.',
           ],
         },
         {
@@ -72,7 +71,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '7. How long we keep it',
           body: [
-            'We keep your data while your account is open. When you delete your account in Settings, your profile, settings, customers, bankers and pricing changes are deleted straight away.',
+            'We keep your data while your account is open. When you delete your account in Settings, your profile, settings and pricing changes are deleted straight away.',
           ],
         },
         {
@@ -118,15 +117,14 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
           list: [
             'Butiran akaun: nama, alamat e-mel, nombor telefon, jenama utama dan kata laluan anda (disimpan sebagai hash yang selamat sahaja, tidak sekali-kali dalam teks biasa).',
             'Butiran profil yang anda pilih untuk tambah: foto, jawatan, bio, nama dan alamat bilik pameran, serta pautan media sosial.',
-            'Kerja anda dalam aplikasi: tetapan harga, pilihan sebut harga, sasaran jualan, pegawai bank yang anda simpan dan nota.',
+            'Kerja anda dalam aplikasi: tetapan harga, pilihan sebut harga dan tetapan paparan.',
             'Data teknikal yang diperlukan untuk memastikan anda kekal log masuk dan selamat: kuki sesi, dan cubaan log masuk yang digunakan untuk menyekat tekaan kata laluan.',
           ],
         },
         {
           heading: '2. Data tentang pelanggan anda',
           body: [
-            'Pengurus Pelanggan membolehkan anda merekod pelanggan anda sendiri: nama, nombor telefon, sumber prospek, kereta dan sebut harga, serta sama ada urusan berjaya atau gagal (dengan nota pilihan). Redline tidak mengumpul nombor IC, alamat, e-mel, nombor lesen memandu, nombor pendaftaran, casis atau enjin kereta, atau butiran kelulusan pinjaman bank. Anda yang memasukkan data ini, dan anda yang menentukan apa yang direkod.',
-            'Bagi data ini, anda bertanggungjawab untuk mendapatkan persetujuan pelanggan anda dan menggunakannya hanya untuk jualan yang anda uruskan. Kami menyimpan dan memprosesnya hanya untuk menyediakan Redline kepada anda, dan tidak sekali-kali menggunakannya untuk tujuan lain.',
+            'Tiada. Redline hanya mengira dan berkongsi sebut harga. Ia tidak meminta atau menyimpan nama, nombor telefon, nombor IC atau sebarang butiran peribadi pelanggan anda, dan pautan sebut harga tidak meminta butiran orang yang membukanya.',
           ],
         },
         {
@@ -160,7 +158,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '7. Berapa lama kami menyimpannya',
           body: [
-            'Kami menyimpan data anda selagi akaun anda dibuka. Apabila anda memadam akaun dalam Tetapan, profil, tetapan, pelanggan, pegawai bank dan perubahan harga anda dipadam serta-merta.',
+            'Kami menyimpan data anda selagi akaun anda dibuka. Apabila anda memadam akaun dalam Tetapan, profil, tetapan dan perubahan harga anda dipadam serta-merta.',
           ],
         },
         {
@@ -205,7 +203,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '1. The service',
           body: [
-            'Redline is a tool for car sales consultants to price cars, prepare quotes and posters, share quote links, and track their own customers and deals. Redline is still in development: features may change, and there may be occasional interruptions or errors.',
+            'Redline is a tool for car sales consultants to price cars, prepare quotes and posters, share quote links, and show quotes on TikTok Live. Redline is still in development: features may change, and there may be occasional interruptions or errors.',
           ],
         },
         {
@@ -223,7 +221,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '4. Your customers’ data',
           body: [
-            'You own the data you enter. When you record customers’ personal data, you must have their consent, use it only for their purchase, and follow the Personal Data Protection Act 2010. Do not record data you do not need, and do not enter IC, registration, chassis or engine numbers in notes.',
+            'Redline does not store your customers’ personal details. Do not put a customer’s personal details into fields meant for your own profile or prices.',
           ],
         },
         {
@@ -272,7 +270,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '1. Perkhidmatan',
           body: [
-            'Redline ialah alat untuk perunding jualan kereta menetapkan harga kereta, menyediakan sebut harga dan poster, berkongsi pautan sebut harga, serta menjejak pelanggan dan urus niaga mereka sendiri. Redline masih dalam pembangunan: ciri mungkin berubah, dan mungkin ada gangguan atau ralat sekali-sekala.',
+            'Redline ialah alat untuk perunding jualan kereta menetapkan harga kereta, menyediakan sebut harga dan poster, berkongsi pautan sebut harga, serta memaparkan sebut harga di TikTok Live. Redline masih dalam pembangunan: ciri mungkin berubah, dan mungkin ada gangguan atau ralat sekali-sekala.',
           ],
         },
         {
@@ -290,7 +288,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '4. Data pelanggan anda',
           body: [
-            'Anda memiliki data yang anda masukkan. Apabila anda merekod data peribadi pelanggan, anda mesti mendapatkan persetujuan mereka, menggunakannya hanya untuk pembelian mereka, dan mematuhi Akta Perlindungan Data Peribadi 2010. Jangan rekod data yang tidak diperlukan, dan jangan masukkan nombor IC, pendaftaran, casis atau enjin dalam nota.',
+            'Redline tidak menyimpan butiran peribadi pelanggan anda. Jangan masukkan butiran peribadi pelanggan ke dalam ruang yang dimaksudkan untuk profil atau harga anda sendiri.',
           ],
         },
         {

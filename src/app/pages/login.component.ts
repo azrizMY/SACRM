@@ -27,7 +27,7 @@ function isLocalDevHost(): boolean {
           </span>
           <div class="flex flex-col leading-tight">
             <span class="text-sm font-bold tracking-tight">Redline</span>
-            <span class="text-[11px] text-muted-foreground">Dealership CRM</span>
+            <span class="text-[11px] text-muted-foreground">Car Quotation</span>
           </div>
         </a>
 
@@ -128,7 +128,7 @@ export class LoginComponent {
       this.error.set(result.error);
       return;
     }
-    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/dashboard';
+    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/calculator';
     this.router.navigateByUrl(returnUrl);
   }
 }

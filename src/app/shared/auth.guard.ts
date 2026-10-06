@@ -8,7 +8,7 @@ export const authGuard: CanActivateFn = (_route, state) => {
   const router = inject(Router);
   if (!auth.isAuthenticated()) {
     // A visitor hitting the bare site gets the landing page; deep links go to login and come back.
-    if (state.url === '/' || state.url === '/dashboard') return router.createUrlTree(['/welcome']);
+    if (state.url === '/' || state.url === '/calculator') return router.createUrlTree(['/welcome']);
     return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
   }
   return true;
@@ -19,5 +19,5 @@ export const guestGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   if (!auth.isAuthenticated()) return true;
-  return router.createUrlTree(['/dashboard']);
+  return router.createUrlTree(['/calculator']);
 };

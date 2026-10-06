@@ -1,7 +1,7 @@
 {
-  "name": "Redline — Dealership CRM",
+  "name": "Redline — Car Quotation",
   "short_name": "Redline",
-  "description": "Premium sales CRM for car dealership consultants. Track sales, profit, leads, and brand performance in real time.",
+  "description": "Car loan quotes, posters and live quote links for car sales consultants. Built for WhatsApp and TikTok Live.",
   "display": "standalone",
   "orientation": "any",
   "scope": "./",

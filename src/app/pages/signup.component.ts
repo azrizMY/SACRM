@@ -20,7 +20,7 @@ import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
           </span>
           <div class="flex flex-col leading-tight">
             <span class="text-sm font-bold tracking-tight">Redline</span>
-            <span class="text-[11px] text-muted-foreground">Dealership CRM</span>
+            <span class="text-[11px] text-muted-foreground">Car Quotation</span>
           </div>
         </a>
 
@@ -191,6 +191,6 @@ export class SignupComponent {
       this.error.set(result.error);
       return;
     }
-    this.router.navigateByUrl('/dashboard');
+    this.router.navigateByUrl('/calculator');
   }
 }

@@ -3,22 +3,17 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IconComponent, IconName } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
-import { CustomerService } from '../shared/customer.service';
 import { UserMenuComponent } from './user-menu.component';
 import { TranslatePipe } from '../shared/i18n';
 
 type NavItem = { id: string; label: string; icon: IconName };
 
 const NAV: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
   { id: 'calculator', label: 'Calculator', icon: 'calculator' },
   { id: 'compare', label: 'Compare', icon: 'table' },
   { id: 'live', label: 'Live Mode', icon: 'live' },
   { id: 'cars', label: 'Catalog', icon: 'car' },
   { id: 'price-settings', label: 'Price Settings', icon: 'tag' },
-  { id: 'leads', label: 'Customer Manager', icon: 'users' },
-  { id: 'notes', label: 'Earnings', icon: 'wallet' },
-  { id: 'bankers', label: 'Bankers', icon: 'landmark' },
 ];
 
 @Component({
@@ -43,7 +38,7 @@ const NAV: NavItem[] = [
         @if (!collapsed) {
           <div class="flex min-w-0 flex-col leading-tight">
             <span class="truncate text-sm font-bold tracking-tight">{{ "Redline" | t }}</span>
-            <span class="truncate text-[11px] text-muted-foreground">{{ "Dealership CRM" | t }}</span>
+            <span class="truncate text-[11px] text-muted-foreground">{{ "Car Quotation" | t }}</span>
           </div>
         }
       </a>
@@ -91,11 +86,6 @@ const NAV: NavItem[] = [
                 @if (!collapsed) {
                   <span class="truncate">{{ item.label | t }}</span>
                 }
-                @if (!collapsed && badgeFor(item.id); as count) {
-                  <span class="logo-chip ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular">
-                    {{ count }}
-                  </span>
-                }
               </button>
             </li>
           }
@@ -141,13 +131,6 @@ export class SidebarComponent {
   nav = NAV;
 
   constructor(
-    private customers: CustomerService,
     public advisor: AdvisorService,
   ) {}
-
-  badgeFor(id: string): number | null {
-    if (id !== 'leads') return null;
-    const count = this.customers.leads().length;
-    return count > 0 ? count : null;
-  }
 }

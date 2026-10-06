@@ -3,17 +3,12 @@
 import { AfterViewInit, Component, computed, effect, ElementRef, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { ToastService } from '../shared/toast.service';
+import { Router } from '@angular/router';
 import { CompareService } from '../shared/compare.service';
 import { IconComponent } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
-import { CustomerService } from '../shared/customer.service';
 import { SettingsService } from '../shared/settings.service';
-import { CUSTOMER_STATUS_META, FINANCING_TYPE_OPTIONS, TO_BE_CONFIRMED_COLOUR, type CustomerRecord, type FinancingType } from '../data/customer-data';
-import { todayStr } from '../shared/date-utils';
-import { DEFAULT_LEAD_SOURCE } from '../data/settings-data';
-import { brandLogo, toMalaysianWhatsAppNumber } from '../data/dashboard-data';
+import { brandLogo } from '../data/dashboard-data';
 import {
   NCD_OPTIONS,
   VEHICLES,
@@ -53,7 +48,7 @@ import { QuoteControlsComponent } from '../shared/quote-controls.component';
 @Component({
   selector: 'app-calculator',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent, QuoteControlsComponent, TranslatePipe],
+  imports: [CommonModule, FormsModule, IconComponent, QuoteControlsComponent, TranslatePipe],
   template: `
     <div class="mx-auto flex max-w-7xl flex-col gap-6">
       <!-- Mobile Preview/Customize switcher -->
@@ -185,14 +180,6 @@ import { QuoteControlsComponent } from '../shared/quote-controls.component';
             <div class="flex items-center gap-1">
               <button
                 type="button"
-                (click)="openLeadModal()"
-                class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-accent"
-              >
-                <app-icon name="plus" [size]="13" />
-                {{ "Add Lead" | t }}
-              </button>
-              <button
-                type="button"
                 (click)="reset()"
                 class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
               >
@@ -207,86 +194,6 @@ import { QuoteControlsComponent } from '../shared/quote-controls.component';
       </div>
     </div>
 
-    <!-- Add Lead modal -->
-    @if (leadModalOpen()) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeLeadModal()"></button>
-        <div class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-          <div class="flex items-center gap-3 border-b border-border p-4">
-            <span class="text-sm font-semibold">{{ "Add Lead" | t }}</span>
-            <button type="button" (click)="closeLeadModal()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-              <app-icon name="x" [size]="16" />
-            </button>
-          </div>
-          <div class="flex flex-col gap-3 p-4">
-            <p class="text-[11px] text-muted-foreground">
-              {{ vehicleTitle(selectedVehicle().brand, selectedVehicle().model) }} &middot; {{ fmt(dpDisplay().amount) }} {{ dpDisplay().isCashBack ? 'cash back' : 'downpayment' }} &middot; {{ ncd() }}% NCD
-            </p>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              {{ "Name" | t }}
-              <input type="text" [(ngModel)]="leadName" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-            </label>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              {{ "Phone No" | t }}
-              <input type="tel" [(ngModel)]="leadPhone" class="h-10 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring" />
-            </label>
-            @if (existingLeadForPhone(); as dup) {
-              <div class="flex items-start gap-2 rounded-lg border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2.5 text-[11px] text-foreground">
-                <app-icon name="alert-triangle" [size]="14" class="mt-0.5 shrink-0 text-[var(--warning)]" />
-                <span>
-                  {{ "This number is already saved as" | t }} <strong class="text-foreground">{{ dup.name }}</strong> ({{ statusMeta[dup.status].label | t }}) —
-                  <a [routerLink]="['/leads']" [queryParams]="{ customer: dup.id }" (click)="closeLeadModal()" class="font-medium text-primary hover:underline">{{ "open them in Customer Manager" | t }}</a>
-                  {{ "instead of saving a new lead here." | t }}
-                </span>
-              </div>
-            }
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              {{ "Source Type" | t }}
-              <select [(ngModel)]="leadSource" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                @for (s of sourceTypes(); track s) { <option [value]="s">{{ s }}</option> }
-              </select>
-            </label>
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              {{ "Financing Type" | t }}
-              <select [(ngModel)]="leadFinancingType" class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring">
-                @for (f of financingTypeOptions; track f.value) { <option [value]="f.value">{{ f.label | t }}</option> }
-              </select>
-            </label>
-            @if (leadFinancingType !== 'Cash') {
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-                {{ "Tenure" | t }}
-                <select
-                  [ngModel]="highlightedTenure()"
-                  (ngModelChange)="selectRepaymentTenure($event)"
-                  class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring"
-                >
-                  @for (t of tenureOptions; track t.months) { <option [ngValue]="t.months">{{ t.label | t }} &middot; {{ fmt2(monthlyForTenure(t.months)) }}/mo</option> }
-                </select>
-              </label>
-            }
-            @if (leadSaved()) {
-              <span class="flex items-center gap-1.5 text-[11px] font-medium text-[var(--success)]">
-                <app-icon name="check" [size]="12" />
-                {{ "Lead saved" | t }}
-              </span>
-            }
-          </div>
-          <div class="flex flex-wrap items-center justify-end gap-2 border-t border-border p-4">
-            <button type="button" (click)="closeLeadModal()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Close" | t }}</button>
-            <button
-              type="button"
-              (click)="submitLead()"
-              [disabled]="!leadName || !leadPhone || savingLead() || !!existingLeadForPhone()"
-              [title]="'Saves the lead, copies the quote image for WhatsApp, and opens the customer' | t"
-              class="flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
-            >
-              <app-icon name="check" [size]="13" />
-              {{ savingLead() ? ('Saving…' | t) : ('Save Lead' | t) }}
-            </button>
-          </div>
-        </div>
-      </div>
-    }
 
   `,
 })
@@ -295,7 +202,6 @@ export class CalculatorComponent implements AfterViewInit {
   savingPoster = signal(false);
   /** Brief "Saved!" confirmation on the button after the image is downloaded. */
   posterSaved = signal(false);
-  savingLead = signal(false);
   /** Set once fonts.google.com's Barlow Semi Condensed + Inter are ready to paint — the draw
    *  effect waits on this so the very first frame never falls back to a system font. */
   private fontsReady = signal(false);
@@ -308,12 +214,10 @@ export class CalculatorComponent implements AfterViewInit {
   modelVariantLabel = modelVariantLabel;
   vehicleTitle = vehicleTitle;
   roundCents = roundCents;
-  statusMeta = CUSTOMER_STATUS_META;
 
   private settingsService = inject(SettingsService);
   private compare = inject(CompareService);
   private router = inject(Router);
-  private toast = inject(ToastService);
 
   /** Opens the Compare page with this car as the first column, carrying this quote's own rebate,
    *  insurance and rate (plus its loan setup) so its figures match what the customer was just told. */
@@ -350,9 +254,6 @@ export class CalculatorComponent implements AfterViewInit {
   // ---------- Screen-only state (not part of the quote) ----------
 
   mobileTab = signal<'preview' | 'customize'>('preview');
-  /** Full 1-9 year range for the Add Lead modal's Tenure question — wider than the legacy 4-option
-   *  TENURE_OPTIONS list, matching every year the tenure picker can actually show. */
-  tenureOptions = Array.from({ length: 9 }, (_, i) => ({ months: (i + 1) * 12, label: `${i + 1} Yrs` }));
 
   // ---------- The quote (from QuoteEngine) ----------
 
@@ -461,17 +362,8 @@ export class CalculatorComponent implements AfterViewInit {
 
   quoteDate = computed(() => new Date().toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' }));
 
-  sourceTypes = this.settingsService.leadSources;
-  financingTypeOptions = FINANCING_TYPE_OPTIONS;
-  leadModalOpen = signal(false);
-  leadSaved = signal(false);
-  leadName = '';
-  leadPhone = '';
-  leadSource = DEFAULT_LEAD_SOURCE;
-  leadFinancingType: FinancingType = 'Loan';
 
   constructor(
-    private customers: CustomerService,
     public advisor: AdvisorService,
   ) {
     // "Open in Calculator" from the Compare page — start on that car instead of the primary brand's.
@@ -549,104 +441,6 @@ export class CalculatorComponent implements AfterViewInit {
 
   ngAfterViewInit() {
     if (this.fontsReady()) this.drawPoster(this.buildPosterData());
-  }
-
-  openLeadModal() {
-    this.leadName = '';
-    this.leadPhone = '';
-    const defaults = this.settingsService.settings().salesDefaults;
-    this.leadSource = defaults.leadSource ?? this.sourceTypes()[0] ?? DEFAULT_LEAD_SOURCE;
-    // Matches whatever the quote is actually showing right now — a downpayment already dialled
-    // to 100% is a cash deal, so the lead shouldn't default back to Hire Purchase just because
-    // that's the modal's own baseline.
-    this.leadFinancingType = this.isCashPurchase() ? 'Cash' : 'Loan';
-    this.leadSaved.set(false);
-    this.leadModalOpen.set(true);
-  }
-
-  closeLeadModal() {
-    this.leadModalOpen.set(false);
-  }
-
-  /** Any existing customer (any stage) whose phone matches what's typed here — the Add Lead
-   *  modal is for brand-new contacts only, so a match blocks Save Lead / WhatsApp entirely rather
-   *  than risking a second record for someone already in the pipeline. */
-  existingLeadForPhone(): CustomerRecord | undefined {
-    if (!this.leadPhone) return undefined;
-    const digits = toMalaysianWhatsAppNumber(this.leadPhone);
-    return this.customers.records().find((r) => toMalaysianWhatsAppNumber(r.phone) === digits);
-  }
-
-  // Guards against creating a duplicate record if Save Lead is clicked more than once in the
-  // same modal session, instead of tracking a returned record id.
-  private async saveLeadRecord(): Promise<CustomerRecord | undefined> {
-    if (this.leadSaved() || this.existingLeadForPhone()) return;
-    const vehicle = this.selectedVehicle();
-    const record = await this.customers.addLead({
-      name: this.leadName,
-      phone: this.leadPhone,
-      brand: vehicle.brand,
-      model: vehicle.model,
-      variant: vehicle.variant,
-      yearMade: this.modelYear(),
-      colour: TO_BE_CONFIRMED_COLOUR,
-      sourceType: this.leadSource,
-      financingType: this.leadFinancingType,
-      date: todayStr(),
-      quotation: {
-        rebate: this.rebateInput(),
-        additionalRebateEnabled: this.additionalRebateEnabled(),
-        additionalRebateValue: this.additionalRebateValue(),
-        ncd: this.ncd(),
-        interestRate: this.interestRate(),
-        rateType: this.rateType(),
-        // The down payment the quote actually used — cash back forces a full loan (see quoteDp).
-        downpaymentType: this.quoteDp().type,
-        downpaymentValue: this.quoteDp().value,
-        tenureMonths: this.highlightedTenure(),
-        basicPremium: this.insuranceDetails().basicPremium,
-        insuranceDetails: this.insuranceDetails(),
-        loanRounding: this.loanRounding(),
-        cashbackAmount: this.cashbackAmount() > 0 ? this.cashbackAmount() : undefined,
-      },
-    });
-    this.leadSaved.set(true);
-    return record;
-  }
-
-  /**
-   * Save Lead does the whole hand-off: copies the quote image (ready to paste into WhatsApp),
-   * saves the lead, then opens that customer in Customer Manager. The clipboard write is started
-   * first, while the tap still counts as a user action — browsers refuse it after an await.
-   */
-  async submitLead() {
-    if (this.savingLead() || this.existingLeadForPhone()) return;
-    this.savingLead.set(true);
-    try {
-      const copying = this.copyQuoteImage();
-      const record = await this.saveLeadRecord();
-      const copied = await copying;
-      // Stays open on the early-return path (a duplicate phone) so the SA can see that warning.
-      if (!record) return;
-      this.closeLeadModal();
-      this.toast.show(copied ? 'Lead saved — quote image copied, paste it into WhatsApp' : 'Lead saved');
-      await this.router.navigate(['/leads'], { queryParams: { customer: record.id } });
-    } finally {
-      this.savingLead.set(false);
-    }
-  }
-
-  /** Best-effort: false when the browser can't put images on the clipboard, or the rate is still
-   *  missing (the image would show an incomplete quote). */
-  private async copyQuoteImage(): Promise<boolean> {
-    if (this.rateMissing() || typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) return false;
-    try {
-      // Pass the still-pending blob promise so the write is issued inside the tap's activation window.
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': this.renderPosterPngBlob() })]);
-      return true;
-    } catch {
-      return false;
-    }
   }
 
   /** Download quality is independent of preview quality — a dedicated (never-visible) canvas

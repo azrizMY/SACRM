@@ -3,13 +3,12 @@ import { CommonModule, NgTemplateOutlet } from '@angular/common';
 import { IconComponent } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { TopbarExtraService } from '../shared/topbar-extra.service';
-import { NotificationBellComponent } from './notification-bell.component';
 import { TranslatePipe } from '../shared/i18n';
 
 @Component({
   selector: 'app-topbar',
   standalone: true,
-  imports: [CommonModule, NgTemplateOutlet, IconComponent, NotificationBellComponent, TranslatePipe],
+  imports: [CommonModule, NgTemplateOutlet, IconComponent, TranslatePipe],
   template: `
     <header class="flex h-16 shrink-0 items-center gap-3 border-b border-border bg-background px-4 md:px-6">
       <button
@@ -37,7 +36,6 @@ import { TranslatePipe } from '../shared/i18n';
           {{ "Welcome," | t }} <span class="font-medium text-foreground">{{ advisor.profile().name }}</span>
         </span>
 
-        <app-notification-bell />
       </div>
     </header>
   `,

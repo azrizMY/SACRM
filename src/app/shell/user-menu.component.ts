@@ -89,7 +89,7 @@ export class UserMenuComponent {
     return `${vertical} ${horizontal}`;
   }
 
-  /** Chrome/Android: the real install dialog. iOS: back to the dashboard banner, which shows the steps. */
+  /** Chrome/Android: the real install dialog. iOS: back to the Calculator's install banner, which shows the steps. */
   installApp() {
     this.open = false;
     if (this.install.canPrompt()) {
@@ -97,7 +97,7 @@ export class UserMenuComponent {
       return;
     }
     this.install.reopenBanner();
-    this.router.navigateByUrl('/dashboard');
+    this.router.navigateByUrl('/calculator');
   }
 
   toggle(event: MouseEvent) {

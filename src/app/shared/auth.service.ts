@@ -5,8 +5,6 @@ import type { AuthUser } from '../data/auth-data';
 import { AdvisorService } from './advisor.service';
 import { SettingsService } from './settings.service';
 import { VehicleCatalogService } from './vehicle-catalog.service';
-import { BankerService } from './banker.service';
-import { CustomerService } from './customer.service';
 
 export type AuthResult = { ok: true } | { ok: false; error: string };
 
@@ -35,8 +33,6 @@ export class AuthService {
     private settingsService: SettingsService,
     private advisorService: AdvisorService,
     private vehicleCatalogService: VehicleCatalogService,
-    private bankerService: BankerService,
-    private customerService: CustomerService,
   ) {}
 
   /** Checks whether the browser's session cookie (if any) still points at a valid session —
@@ -133,8 +129,6 @@ export class AuthService {
     this.settingsService.reset();
     this.advisorService.reset();
     this.vehicleCatalogService.resetOverrides();
-    this.bankerService.reset();
-    this.customerService.reset();
     firstValueFrom(this.http.post('/api/auth/logout', {})).catch(() => {
       /* session cookie is cleared client-side regardless; a failed server call just leaves an
        * orphaned row that expires on its own */
@@ -143,16 +137,12 @@ export class AuthService {
 
   /** Every other per-account slice of data is only knowable once we know who's signed in — loaded
    *  together right after that, on every path that establishes a session (restore, login, signup).
-   *  Bankers/customers already self-load once on construction, but since each is a
-   *  singleton that otherwise only fetches once for the app's lifetime, they need an explicit
-   *  reload here too, or a same-tab account switch would keep showing the previous account's data. */
+ */
   private async loadUserData(): Promise<void> {
     await Promise.all([
       this.settingsService.load(),
       this.advisorService.load(),
       this.vehicleCatalogService.loadOverrides(),
-      this.bankerService.load(),
-      this.customerService.load(),
     ]);
   }
 }

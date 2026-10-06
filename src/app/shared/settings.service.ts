@@ -10,7 +10,6 @@ import {
   type Onboarding,
   type SalesDefaults,
 } from '../data/settings-data';
-import { BANK_OPTIONS, SOURCE_TYPES } from '../data/customer-data';
 import { DEFAULT_EPR, defaultInsuranceQuotation, type InsuranceQuotationDetails, type Vehicle } from '../data/calculator-data';
 
 /** A dropdown's choices plus the record's own value when it has since been removed from the list,
@@ -40,11 +39,6 @@ function mergeSettings(saved: Partial<AppSettings> | null): AppSettings {
 export class SettingsService {
   settings = signal<AppSettings>(DEFAULT_SETTINGS);
 
-  /** The Lead Source choices for this account — edited in Settings → New Leads. */
-  leadSources = computed(() => this.settings().salesDefaults.leadSources ?? SOURCE_TYPES);
-  /** Bank panel choices — edited in Settings → Banks. */
-  banks = computed(() => this.settings().salesDefaults.banks ?? BANK_OPTIONS);
-
   constructor(private http: HttpClient) {}
 
   /** Populates `settings` from the signed-in account — called once per login/session-restore by
@@ -68,9 +62,6 @@ export class SettingsService {
     this.persist({ ...this.settings(), salesDefaults: { ...this.settings().salesDefaults, ...patch } });
   }
 
-  updateNotifications(patch: Partial<NotificationPrefs>) {
-    this.persist({ ...this.settings(), notifications: { ...this.settings().notifications, ...patch } });
-  }
 
   updateDashboardTarget(patch: Partial<DashboardTarget>) {
     this.persist({ ...this.settings(), dashboardTarget: { ...this.settings().dashboardTarget, ...patch } });

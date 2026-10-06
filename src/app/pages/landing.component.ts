@@ -28,15 +28,15 @@ const FEATURES: Feature[] = [
     span: '',
   },
   {
-    icon: 'users',
-    title: 'Customer Manager',
-    blurb: 'Every deal from Lead to Won or Lost, in one searchable pipeline.',
+    icon: 'live',
+    title: 'Live Mode',
+    blurb: 'A loan calculator built for TikTok Live: big, clear numbers on screen while you work the controls.',
     span: '',
   },
   {
-    icon: 'wallet',
-    title: 'Earnings',
-    blurb: 'Commission, gift spend and real profit per deal, filled in automatically from your pipeline.',
+    icon: 'table',
+    title: 'Compare Cars',
+    blurb: 'Up to three cars side by side, same loan setup, so the customer sees the difference at a glance.',
     span: '',
   },
   {
@@ -52,33 +52,28 @@ const FEATURES: Feature[] = [
     span: '',
   },
   {
-    icon: 'landmark',
-    title: 'Bankers Directory',
-    blurb: 'Keep your loan officers by bank and state, and send a contact over WhatsApp in a tap.',
+    icon: 'file-text',
+    title: 'Your Colours',
+    blurb: 'Pick a poster colour once and every poster, offer sheet and quote link matches.',
     span: '',
   },
-];
-
-const PIPELINE: { label: string; count: number; tone: string }[] = [
-  { label: 'Lead', count: 57, tone: 'bg-muted-foreground' },
-  { label: 'Won', count: 24, tone: 'bg-[var(--success)]' },
-  { label: 'Lost', count: 9, tone: 'bg-muted-foreground/50' },
 ];
 
 const STEPS: { icon: IconName; title: string; blurb: string }[] = [
   { icon: 'tag', title: 'Set your prices', blurb: 'Load your catalog and price settings once. Your name, photo and socials go on your profile.' },
   { icon: 'calculator', title: 'Quote in seconds', blurb: 'Pick a variant, tune the loan, then send a poster or a live quote link straight to WhatsApp.' },
-  { icon: 'trophy', title: 'Close & track', blurb: 'Move the customer through your pipeline and watch the profit land on your dashboard.' },
+  { icon: 'live', title: 'Share or go live', blurb: 'Post it, send the quote link, or put Live Mode on your TikTok Live and answer every "berapa sebulan?" on the spot.' },
 ];
 
 const FAQS: { q: string; a: string }[] = [
-  { q: 'Who is Redline for?', a: 'Car sales consultants and advisors who quote, follow up and close their own deals. It works on your own, without a dealership-wide setup.' },
+  { q: 'Who is Redline for?', a: 'Car sales consultants and advisors who quote their own customers. It works on your own, without a dealership-wide setup.' },
   { q: 'Does my customer need an account to see a quote?', a: 'No. A shareable quote link opens in any browser. Your customer can tweak the downpayment and tenure themselves and see the monthly installment update live.' },
-  { q: 'Does it work on my phone?', a: 'Yes. Every screen is built for mobile first, including the calculator, posters and customer pipeline, because that is where most selling happens.' },
+  { q: 'Does it work on my phone?', a: 'Yes. Every screen is built for mobile first, including the calculator, posters and quote links, because that is where most selling happens.' },
+  { q: 'Do I need to keep my customers\' details in Redline?', a: 'No. Redline only works out and shares quotes. It never asks for or stores your customers\' names, phone numbers or IC numbers.' },
   { q: 'Can I use my own prices?', a: 'Yes. Price Settings lets you set your own OTR prices, rebates and packages, and every quote and poster uses them.' },
 ];
 
-/** Decorative bar heights for the hero's mock dashboard preview. */
+/** Decorative bar heights for the hero's mock preview (monthly instalment by tenure). */
 const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
 
 @Component({
@@ -96,7 +91,7 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
             </span>
             <span class="flex flex-col leading-tight">
               <span class="text-sm font-bold tracking-tight">Redline</span>
-              <span class="text-[11px] text-muted-foreground">Dealership CRM</span>
+              <span class="text-[11px] text-muted-foreground">Car Quotation</span>
             </span>
           </button>
           <nav class="hidden items-center gap-1 md:flex" aria-label="Sections">
@@ -106,7 +101,7 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
           </nav>
           <div class="flex items-center gap-1 sm:gap-2">
             @if (signedIn()) {
-              <a routerLink="/dashboard" class="btn-glow whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-semibold">Go to Dashboard</a>
+              <a routerLink="/calculator" class="btn-glow whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-semibold">Open Calculator</a>
             } @else {
               <a routerLink="/login" class="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Log In</a>
               <a routerLink="/signup" class="btn-glow whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-semibold">Get Started</a>
@@ -132,7 +127,7 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
               <span class="text-gradient">Close it.</span>
             </h1>
             <p class="animate-rise max-w-xl text-pretty text-base text-muted-foreground sm:text-lg" style="--i: 2">
-              Price a car in seconds, send your customer a poster or a live quote link, and follow every deal from first chat to delivery. It all runs from your phone.
+              Price a car in seconds, then send your customer a poster or a live quote link, or show it on your TikTok Live. It all runs from your phone.
             </p>
             <div class="animate-rise flex w-full flex-col items-stretch justify-center gap-3 pt-2 sm:w-auto sm:flex-row sm:items-center" style="--i: 3">
               <a [routerLink]="primaryCta().link" class="btn-glow group flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-semibold">
@@ -226,8 +221,8 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
         <section id="features" class="w-full max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6 sm:py-24">
           <div class="reveal mx-auto flex max-w-2xl flex-col items-center gap-3 text-center">
             <span class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Everything in one place</span>
-            <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-5xl">Your whole sales desk in your pocket</h2>
-            <p class="text-pretty text-muted-foreground">No more spreadsheets, screenshots and scattered notes. Redline keeps the tools you use every day in one app.</p>
+            <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-5xl">Every quoting tool in your pocket</h2>
+            <p class="text-pretty text-muted-foreground">No more spreadsheets and screenshots. Redline keeps every tool you need to quote in one app.</p>
           </div>
           <div class="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
             @for (f of features; track f.title) {
@@ -309,31 +304,32 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
           </div>
         </section>
 
-        <!-- Pipeline -->
+        <!-- Live Mode -->
         <section class="w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
           <div class="grid items-center gap-12 md:grid-cols-2">
             <div class="reveal order-2 flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 md:order-1" aria-hidden="true">
-              @for (p of pipeline; track p.label; let i = $index) {
-                <div class="flex items-center gap-3">
-                  <span class="w-24 shrink-0 text-sm font-medium">{{ p.label }}</span>
-                  <div class="h-8 flex-1 overflow-hidden rounded-lg bg-muted/60">
-                    <div class="bar-fill flex h-full items-center justify-end rounded-lg pr-2.5" [style.width.%]="(p.count / 57) * 100" [style.--i]="i">
-                      <span class="font-mono text-xs font-bold tabular text-primary-foreground">{{ p.count }}</span>
-                    </div>
+              <span class="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Kiraan pinjaman kereta</span>
+              <span class="text-2xl font-extrabold">Sedan 1.5 Premium</span>
+              <div class="rounded-xl bg-primary/10 p-4">
+                <p class="text-xs font-semibold text-muted-foreground">Bulanan serendah</p>
+                <p class="font-mono text-4xl font-extrabold tabular text-gradient">RM 1,284</p>
+                <p class="text-xs text-muted-foreground">untuk 9 tahun · 2.3% flat</p>
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                @for (t of liveTenures; track t.y) {
+                  <div class="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                    <span class="font-semibold">{{ t.y }} tahun</span>
+                    <span class="font-mono font-bold tabular text-primary">{{ t.m }}</span>
                   </div>
-                </div>
-              }
-              <div class="mt-2 flex items-center justify-between rounded-xl bg-[var(--success)]/10 px-4 py-3">
-                <span class="text-sm font-medium">Profit this month</span>
-                <span class="font-mono text-lg font-bold tabular text-[var(--success)]">RM 38,240</span>
+                }
               </div>
             </div>
             <div class="reveal order-1 flex flex-col gap-5 md:order-2">
-              <span class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">From lead to delivery</span>
-              <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-4xl">Know where every deal stands, and what it earns</h2>
-              <p class="text-pretty text-muted-foreground">Log a lead in seconds, then mark it Won once the car is delivered. Earnings works out your commission, gifts and real profit on the way, and your dashboard shows the month at a glance.</p>
-              <a [routerLink]="signedIn() ? '/leads' : '/signup'" class="group flex w-fit items-center gap-1.5 text-sm font-semibold text-primary">
-                {{ signedIn() ? 'Open your pipeline' : 'Start your pipeline' }}
+              <span class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Made for TikTok Live</span>
+              <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-4xl">Answer "berapa sebulan?" live, on screen</h2>
+              <p class="text-pretty text-muted-foreground">Live Mode puts a clean, big-number quote on your stream while you change the car and down payment off camera. Your phone number stays hidden unless you switch it on.</p>
+              <a [routerLink]="signedIn() ? '/live' : '/signup'" class="group flex w-fit items-center gap-1.5 text-sm font-semibold text-primary">
+                {{ signedIn() ? 'Open Live Mode' : 'Try Live Mode' }}
                 <app-icon name="arrow-up-right" [size]="14" class="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </a>
             </div>
@@ -378,7 +374,7 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
         <section class="w-full px-4 pb-20 sm:px-6">
           <div class="reveal glow-border relative mx-auto flex max-w-5xl flex-col items-center gap-6 overflow-hidden rounded-3xl border border-border bg-card px-6 py-14 text-center sm:py-20">
             <div class="pointer-events-none absolute -bottom-24 left-1/2 -z-10 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-primary/30 blur-3xl" aria-hidden="true"></div>
-            <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-5xl">Your next deal starts <span class="text-gradient">here.</span></h2>
+            <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-5xl">Your next quote starts <span class="text-gradient">here.</span></h2>
             <p class="max-w-lg text-pretty text-muted-foreground">{{ signedIn() ? 'Pick up where you left off.' : 'Set up your account and send your first quote today.' }}</p>
             <div class="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row">
               <a [routerLink]="primaryCta().link" class="btn-glow flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-semibold">
@@ -399,11 +395,11 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
         <div class="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:px-6">
           <span class="flex items-center gap-2">
             <span class="logo-chip flex size-6 items-center justify-center rounded-md"><app-icon name="car" [size]="12" /></span>
-            Redline Dealership CRM © {{ year }}
+            Redline Car Quotation © {{ year }}
           </span>
           <span class="flex gap-4">
             @if (signedIn()) {
-              <a routerLink="/dashboard" class="transition-colors hover:text-foreground">Dashboard</a>
+              <a routerLink="/calculator" class="transition-colors hover:text-foreground">Calculator</a>
             } @else {
               <a routerLink="/login" class="transition-colors hover:text-foreground">Log In</a>
               <a routerLink="/signup" class="transition-colors hover:text-foreground">Create Account</a>
@@ -479,7 +475,10 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
 })
 export class LandingComponent {
   features = FEATURES;
-  pipeline = PIPELINE;
+  liveTenures = [
+    { y: 7, m: 'RM 1,566' },
+    { y: 5, m: 'RM 2,101' },
+  ];
   steps = STEPS;
   faqs = FAQS;
   bars = PREVIEW_BARS;
@@ -487,7 +486,7 @@ export class LandingComponent {
   scrolled = signal(false);
   /** The page is reachable signed in too (via the sidebar logo), so CTAs lead back into the app. */
   signedIn = inject(AuthService).isAuthenticated;
-  primaryCta = computed(() => (this.signedIn() ? { link: '/dashboard', label: 'Go to your dashboard' } : { link: '/signup', label: 'Create your free account' }));
+  primaryCta = computed(() => (this.signedIn() ? { link: '/calculator', label: 'Open the Calculator' } : { link: '/signup', label: 'Create your free account' }));
 
   navLinks = [
     { id: 'demo', label: 'Demo' },
@@ -497,9 +496,9 @@ export class LandingComponent {
   ];
   trust = ['Free to start', 'Works on any phone', 'Share straight to WhatsApp'];
   stats = [
-    { label: 'Units sold', value: '24', tone: 'text-foreground' },
-    { label: 'Profit', value: 'RM 38.2k', tone: 'text-[var(--success)]' },
-    { label: 'Leads', value: '57', tone: 'text-primary' },
+    { label: 'Models', value: '75', tone: 'text-foreground' },
+    { label: 'From', value: 'RM 924', tone: 'text-[var(--success)]' },
+    { label: 'Posters', value: '4', tone: 'text-primary' },
   ];
   quoteRows = [
     { k: 'Downpayment', v: 'RM 9,880' },

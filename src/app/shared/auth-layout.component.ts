@@ -51,7 +51,7 @@ import { IconComponent } from './icon.component';
           </span>
           <div class="flex flex-col leading-tight">
             <span class="text-sm font-bold tracking-tight">Redline</span>
-            <span class="text-[11px] text-muted-foreground">Dealership CRM</span>
+            <span class="text-[11px] text-muted-foreground">Car Quotation</span>
           </div>
         </a>
 
@@ -85,7 +85,7 @@ import { IconComponent } from './icon.component';
             <div class="float-b absolute right-0 top-6 flex items-center gap-2.5 rounded-xl bg-card px-3.5 py-2.5 shadow-xl">
               <span class="flex size-8 items-center justify-center rounded-lg bg-[var(--success)]/15 text-[var(--success)]"><app-icon name="check" [size]="15" /></span>
               <div class="flex flex-col leading-tight">
-                <span class="text-xs font-semibold">Deal booked</span>
+                <span class="text-xs font-semibold">Poster saved</span>
                 <span class="text-[11px] text-muted-foreground">Tiggo 8 Pro · just now</span>
               </div>
             </div>
@@ -110,8 +110,8 @@ import { IconComponent } from './icon.component';
 
         <div class="relative flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
           <span class="flex items-center gap-1.5"><app-icon name="calculator" [size]="13" class="text-primary" /> Instant quotes</span>
-          <span class="flex items-center gap-1.5"><app-icon name="users" [size]="13" class="text-primary" /> Lead pipeline</span>
-          <span class="flex items-center gap-1.5"><app-icon name="layout-dashboard" [size]="13" class="text-primary" /> Sales dashboard</span>
+          <span class="flex items-center gap-1.5"><app-icon name="live" [size]="13" class="text-primary" /> Live Mode</span>
+          <span class="flex items-center gap-1.5"><app-icon name="share" [size]="13" class="text-primary" /> Quote links</span>
         </div>
       </aside>
 
