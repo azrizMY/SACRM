@@ -2,9 +2,42 @@
  *  exactly. Canvas 2D needs literal colour strings (it can't resolve CSS custom properties like
  *  var(--acc)), so this object is the single source of truth; POSTER_CSS_VARS below is generated
  *  from it for any surrounding DOM chrome that wants to match without duplicating hex by hand. */
+/** The advisor's poster colour (Settings → Poster colour). Each one is a tuned set, not just a
+ *  hue: `acc` carries white text (bars, the LOWEST row, the year tag) and accents on white paper;
+ *  `accDark` is its gradient partner; `accBright` is for text and thin lines drawn straight on the
+ *  dark price panels, where a deep colour like navy would disappear. */
+export const POSTER_ACCENTS = {
+  red: { label: 'Redline red', acc: '#D61E2A', accDark: '#960E1A', accBright: '#E6303F' },
+  blue: { label: 'Royal blue', acc: '#1D5FD6', accDark: '#123E91', accBright: '#5B95F7' },
+  navy: { label: 'Navy', acc: '#1F3F7A', accDark: '#122650', accBright: '#7FA6E8' },
+  teal: { label: 'Teal', acc: '#0E7C86', accDark: '#08545B', accBright: '#3FC6CF' },
+  orange: { label: 'Orange', acc: '#E0550B', accDark: '#9E3A06', accBright: '#FF8A3D' },
+  purple: { label: 'Purple', acc: '#6D3FD4', accDark: '#47278F', accBright: '#A98BF7' },
+  magenta: { label: 'Magenta', acc: '#C2185B', accDark: '#880E4F', accBright: '#F06292' },
+  gold: { label: 'Gold', acc: '#B37A12', accDark: '#7A520A', accBright: '#E8B54D' },
+} as const;
+
+export type PosterAccentId = keyof typeof POSTER_ACCENTS;
+export const DEFAULT_POSTER_ACCENT: PosterAccentId = 'red';
+
+export function posterAccent(id: string | null | undefined) {
+  return POSTER_ACCENTS[(id ?? '') as PosterAccentId] ?? POSTER_ACCENTS[DEFAULT_POSTER_ACCENT];
+}
+
+/** Points the poster palette at the advisor's colour. Every poster renderer calls this first with
+ *  the accent in its data, so whichever page draws it (Calculator, Offers, Compare, the customer
+ *  link) the poster comes out in the same colour. */
+export function usePosterAccent(id: string | null | undefined): void {
+  const a = posterAccent(id);
+  POSTER_COLORS.acc = a.acc;
+  POSTER_COLORS.accDark = a.accDark;
+  POSTER_COLORS.accBright = a.accBright;
+}
+
 export const POSTER_COLORS = {
-  acc: '#D61E2A',
-  accDark: '#960E1A',
+  acc: '#D61E2A' as string,
+  accDark: '#960E1A' as string,
+  accBright: '#E6303F' as string,
   paper: '#FFFFFF',
   ink: '#121214',
   gray: '#707078',
@@ -24,7 +57,7 @@ export const POSTER_COLORS = {
   waGreen: '#25D366',
   footerA: '#0D0D10',
   footerB: '#08080A',
-} as const;
+};
 
 function toKebab(key: string): string {
   return key.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());

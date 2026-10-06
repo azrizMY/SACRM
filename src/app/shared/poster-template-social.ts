@@ -5,7 +5,7 @@
  *
  *  Both consume the same PosterData as the other templates and share one headline figure
  *  (see heroFigure): the lowest monthly instalment for a loan, the all-in price for a cash deal. */
-import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
+import { POSTER_COLORS, displayFont, labelFont, usePosterAccent } from './poster-theme';
 import { carImageWithShadow } from './car-shadow';
 import { loadPosterImage } from './poster-images';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
@@ -249,6 +249,7 @@ export const squareTemplate: PosterTemplate = {
   label: 'Compact',
   aspect: 'square',
   async render(canvas, data, scale, isStale) {
+    usePosterAccent(data.accent);
     const ctx = setupCanvas(canvas, SQUARE_H, scale);
     if (!ctx) return;
     const M = 32;
@@ -312,7 +313,7 @@ export const squareTemplate: PosterTemplate = {
     ctx.textBaseline = 'middle';
     fillTrackedText(ctx, hero.label, M, 386, 2.2);
     const leftMax = 250;
-    const amountW = drawAmount(ctx, hero.amount, M, 444, hero.perMonth ? 60 : 46, { align: 'left', maxWidth: leftMax, rmColor: '#E6303F', color: POSTER_COLORS.paper });
+    const amountW = drawAmount(ctx, hero.amount, M, 444, hero.perMonth ? 60 : 46, { align: 'left', maxWidth: leftMax, rmColor: POSTER_COLORS.accBright, color: POSTER_COLORS.paper });
     if (hero.perMonth && amountW < leftMax - 30) {
       ctx.font = displayFont(18, 700);
       ctx.fillStyle = POSTER_COLORS.grayD;
@@ -365,14 +366,15 @@ export const promoTemplate: PosterTemplate = {
   /** Its headline is the rebate — there's nothing to promote without one. */
   isAvailable: (data) => data.rebate > 0,
   async render(canvas, data, scale, isStale) {
+    usePosterAccent(data.accent);
     const ctx = setupCanvas(canvas, PROMO_H, scale);
     if (!ctx) return;
     const M = 34;
     darkBackground(ctx, PROMO_H);
 
-    // Red banner with a slanted bottom edge; the car sits across the slant.
+    // Accent banner with a slanted bottom edge; the car sits across the slant.
     const red = ctx.createLinearGradient(0, 0, W, 330);
-    red.addColorStop(0, '#E8283A');
+    red.addColorStop(0, POSTER_COLORS.acc);
     red.addColorStop(1, POSTER_COLORS.accDark);
     fillPolygon(ctx, [[0, 0], [W, 0], [W, 300], [0, 372]], red);
     // Faint diagonal stripes for texture.
@@ -430,7 +432,7 @@ export const promoTemplate: PosterTemplate = {
     const amountW = drawAmount(ctx, hero.amount, W / 2 - (hero.perMonth ? 26 : 0), 562, 52, {
       align: 'center',
       maxWidth: W - 2 * M - 60,
-      rmColor: '#E6303F',
+      rmColor: POSTER_COLORS.accBright,
       color: POSTER_COLORS.paper,
     });
     if (hero.perMonth) {

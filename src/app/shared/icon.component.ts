@@ -24,6 +24,9 @@ type IconName =
   | 'arrow-down'
   | 'arrow-up-right'
   | 'maximize'
+  | 'sun'
+  | 'moon'
+  | 'monitor'
   | 'live'
   | 'arrow-down-right'
   | 'trophy'
@@ -97,6 +100,9 @@ const PATHS: Record<IconName, string> = {
   'arrow-up-right': '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
   // A video camera with a filled record dot — going live.
   live: '<path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/><circle cx="9" cy="12" r="2.2" fill="currentColor" stroke="none"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>',
   maximize: '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',
   'arrow-down-right': '<path d="m7 7 10 10"/><path d="M17 7v10H7"/>',
   trophy:

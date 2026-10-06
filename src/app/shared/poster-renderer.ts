@@ -171,7 +171,7 @@ export async function drawPricePanel(ctx: CanvasRenderingContext2D, data: Poster
   const M = MARGIN;
 
   // Accent bar.
-  ctx.fillStyle = POSTER_COLORS.acc;
+  ctx.fillStyle = POSTER_COLORS.accBright;
   ctx.fillRect(M, 522, 38, 3);
 
   // "SELLING PRICE" label.
@@ -203,7 +203,7 @@ export async function drawPricePanel(ctx: CanvasRenderingContext2D, data: Poster
       ];
   for (const box of boxes) {
     fillNotchedRect(ctx, box.x, boxY, box.width, boxHeight, 14, POSTER_COLORS.panelCard);
-    ctx.fillStyle = POSTER_COLORS.acc;
+    ctx.fillStyle = POSTER_COLORS.accBright;
     ctx.fillRect(box.x, boxY, 3, boxHeight);
 
     ctx.font = labelFont(9, 700);
@@ -274,7 +274,7 @@ export async function drawPricePanel(ctx: CanvasRenderingContext2D, data: Poster
   fillTrackedText(ctx, 'WHATSAPP', avatarX, 660, 2.2);
 
   ctx.font = displayFont(26, 700);
-  ctx.fillStyle = POSTER_COLORS.acc;
+  ctx.fillStyle = POSTER_COLORS.accBright;
   ctx.fillText(formatMalaysianPhone(data.advisor.phoneDisplay), avatarX, 692);
 }
 
@@ -284,7 +284,7 @@ function drawAdvisorInitialsTile(ctx: CanvasRenderingContext2D, data: PosterData
   ctx.fillStyle = POSTER_COLORS.panelCard;
   ctx.fill();
   ctx.font = displayFont(22, 700);
-  ctx.fillStyle = POSTER_COLORS.acc;
+  ctx.fillStyle = POSTER_COLORS.accBright;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(data.advisor.initials, x + size / 2, y + size / 2);
@@ -329,7 +329,7 @@ export function drawDataSection(ctx: CanvasRenderingContext2D, layout: PosterLay
   fillTrackedText(ctx, data.isCashPurchase ? T(data, 'CASH BUYER PERKS') : T(data, 'MONTHLY ESTIMATE'), rightX, labelY, 2.8);
 
   if (!data.isCashPurchase) {
-    ctx.fillStyle = POSTER_COLORS.acc;
+    ctx.fillStyle = POSTER_COLORS.accBright;
     const rateText = data.rateLabel.toUpperCase();
     const rateWidth = measureTrackedText(ctx, rateText, 2.8);
     fillTrackedText(ctx, rateText, 844 - rateWidth, labelY, 2.8);

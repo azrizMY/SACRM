@@ -1,3 +1,4 @@
+import { usePosterAccent } from './poster-theme';
 import { computePosterLayout } from './poster-layout';
 import { drawPosterSkeleton, drawHeader, drawPricePanel, drawDataSection, drawFooter } from './poster-renderer';
 import { drawCarHeroWithColours } from './poster-hero-colours';
@@ -9,6 +10,7 @@ export const classicTemplate: PosterTemplate = {
   id: 'classic',
   label: 'Full Quotation',
   async render(canvas, data, scale, isStale) {
+    usePosterAccent(data.accent);
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 

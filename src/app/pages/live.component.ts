@@ -11,6 +11,7 @@ import { ToastService } from '../shared/toast.service';
 import { VEHICLES, formatRM, modelVariantLabel, type Vehicle } from '../data/calculator-data';
 import { brandLogo, formatMalaysianPhone } from '../data/dashboard-data';
 import { LIVE_SCREEN_SIZES, type LiveQuoteMemory, type LiveScreenSize, type LiveSettings } from '../data/settings-data';
+import { posterAccent } from '../shared/poster-theme';
 
 /** The pop-out Live Screen window listens on this channel; this page answers with the current screen. */
 export const LIVE_CHANNEL = 'redline-live';
@@ -350,6 +351,7 @@ export class LiveComponent implements OnDestroy {
       phone: live.showPhone && profile.phoneDisplay ? formatMalaysianPhone(profile.phoneDisplay) : null,
       whatsapp: live.showPhone && live.showWhatsApp,
       estimateNote: live.showEstimateNote,
+      accent: posterAccent(this.settings.settings().salesDefaults.posterAccent).acc,
     };
   });
 

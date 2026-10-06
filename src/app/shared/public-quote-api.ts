@@ -27,6 +27,8 @@ export type PublicQuoteBundle = {
     posterLanguage?: 'en' | 'ms';
     /** The advisor's Loan Rounding setting, so the customer sees the same loan they would. */
     loanRounding?: 'down' | 'up';
+    /** The advisor's poster colour, so the customer's poster matches theirs. */
+    posterAccent?: string;
   };
   vehicleInsurance: VehicleInsuranceOverrides;
   vehicleOverrides: Record<string, VehicleOverride>;

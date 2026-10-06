@@ -65,4 +65,6 @@ export type PosterData = {
    *  (e.g. just "2.3%") instead of using the English "2.3% FLAT" label. */
   interestRatePct: number;
   tenureRows: PosterTenureRow[];
+  /** The advisor's poster colour (an id from POSTER_ACCENTS) — absent means Redline red. */
+  accent?: string;
 };

@@ -13,7 +13,7 @@
  *  measurement by hand (which is what this file did before, and kept drifting out of sync). Every
  *  other measurement below — this template's own content, not shared with the classic one — is the
  *  original 1024-wide design scaled down by the same 900/1024 factor, so proportions stay intact. */
-import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
+import { POSTER_COLORS, displayFont, labelFont, usePosterAccent } from './poster-theme';
 import { carImageWithShadow } from './car-shadow';
 import { loadPosterImage } from './poster-images';
 import { drawWhatsAppIcon } from './poster-whatsapp-icon';
@@ -146,8 +146,8 @@ function drawPriceBlock(ctx: CanvasRenderingContext2D, data: PosterData, top: nu
   ctx.rect(0, WHITE_HEIGHT + 3, WIDTH, glowRadius * 2);
   ctx.clip();
   const glow = ctx.createRadialGradient(centerX, glowCenterY, 0, centerX, glowCenterY, glowRadius);
-  glow.addColorStop(0, 'rgba(214, 30, 42, 0.18)');
-  glow.addColorStop(1, 'rgba(214, 30, 42, 0)');
+  glow.addColorStop(0, POSTER_COLORS.acc + '2E');
+  glow.addColorStop(1, POSTER_COLORS.acc + '00');
   ctx.fillStyle = glow;
   ctx.fillRect(centerX - glowRadius, glowCenterY - glowRadius, glowRadius * 2, glowRadius * 2);
   ctx.restore();
@@ -165,7 +165,7 @@ function drawPriceBlock(ctx: CanvasRenderingContext2D, data: PosterData, top: nu
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.font = displayFont(26, 700);
-  ctx.fillStyle = '#E6303F';
+  ctx.fillStyle = POSTER_COLORS.accBright;
   ctx.fillText('RM', groupLeft, amountBaseline - 5);
 
   ctx.font = displayFont(79, 700);
@@ -257,7 +257,7 @@ function drawTenureTable(ctx: CanvasRenderingContext2D, data: PosterData, top: n
   // used elsewhere for exactly this "distinct from the background" purpose.
   ctx.fillStyle = POSTER_COLORS.panelCard;
   ctx.fillRect(M, top, tableWidth, headerHeight);
-  ctx.fillStyle = POSTER_COLORS.acc;
+  ctx.fillStyle = POSTER_COLORS.accBright;
   ctx.fillRect(M, top + headerHeight - 2, tableWidth, 2);
 
   ctx.font = labelFont(11, 700);
@@ -285,7 +285,7 @@ function drawTenureTable(ctx: CanvasRenderingContext2D, data: PosterData, top: n
     ctx.fillText(T(data, `${years} Yrs`), M + 25, centerY);
 
     ctx.font = displayFont(21, 700);
-    ctx.fillStyle = POSTER_COLORS.acc;
+    ctx.fillStyle = POSTER_COLORS.accBright;
     ctx.textAlign = 'right';
     ctx.fillText(formatCurrencyCompact(row.monthly), WIDTH - M - 25, centerY);
   });
@@ -304,7 +304,7 @@ async function drawAdvisorRow(ctx: CanvasRenderingContext2D, data: PosterData, t
   const drawRing = () => {
     ctx.beginPath();
     ctx.arc(cx, centerY, avatarSize / 2 + ringWidth / 2, 0, Math.PI * 2);
-    ctx.strokeStyle = POSTER_COLORS.acc;
+    ctx.strokeStyle = POSTER_COLORS.accBright;
     ctx.lineWidth = ringWidth;
     ctx.stroke();
   };
@@ -374,7 +374,7 @@ function drawAdvisorInitials(ctx: CanvasRenderingContext2D, data: PosterData, x:
   ctx.fillStyle = POSTER_COLORS.panelCard;
   ctx.fill();
   ctx.font = displayFont(19, 700);
-  ctx.fillStyle = POSTER_COLORS.acc;
+  ctx.fillStyle = POSTER_COLORS.accBright;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(data.advisor.initials, x + size / 2, centerY);
@@ -435,6 +435,7 @@ export const compactMyTemplate: PosterTemplate = {
   id: 'compact-my',
   label: 'Monthly Estimate',
   async render(canvas, data, scale, isStale) {
+    usePosterAccent(data.accent);
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 

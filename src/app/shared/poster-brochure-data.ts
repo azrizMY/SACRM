@@ -28,6 +28,8 @@ export type BrochureRow = {
 export type BrochureData = {
   /** Language the offer sheet is drawn in — the advisor's poster language. */
   lang: Lang;
+  /** The advisor's poster colour (an id from POSTER_ACCENTS). */
+  accent?: string;
   brand: string;
   logoUrl: string | null;
   /** e.g. "September 2026 Offers" — user-editable, defaults from today's date. */

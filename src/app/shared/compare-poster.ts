@@ -3,7 +3,7 @@ import { translate } from './i18n-core';
 import { carImageWithShadow } from './car-shadow';
 import { loadPosterImage } from './poster-images';
 import { fillTrackedText, formatPosterCurrency, wrapPosterText } from './poster-draw-utils';
-import { POSTER_COLORS, displayFont, labelFont, posterFontsReady } from './poster-theme';
+import { POSTER_COLORS, displayFont, labelFont, posterFontsReady, usePosterAccent } from './poster-theme';
 import { downpaymentDisplay } from '../data/calculator-data';
 
 /** One car's column on the comparison image. */
@@ -21,6 +21,8 @@ export type ComparePosterCar = {
 
 export type ComparePosterData = {
   lang: Lang;
+  /** The advisor's poster colour (an id from POSTER_ACCENTS). */
+  accent?: string;
   cars: ComparePosterCar[];
   /** e.g. "10% downpayment · 9 years · Flat 2.5%" — already translated. */
   setupLine: string;
@@ -41,6 +43,7 @@ const FOOTER_TOP = 1150;
 /** "Which one suits you?" — 2–3 cars side by side as a 4:5 image for WhatsApp/Instagram, in the
  *  same visual language as the quote posters (white hero, dark data panel, accent-ruled footer). */
 export async function renderComparePoster(canvas: HTMLCanvasElement, data: ComparePosterData): Promise<void> {
+  usePosterAccent(data.accent);
   await posterFontsReady();
   const T = (en: string, params?: Params) => translate(data.lang, en, params);
   canvas.width = W;

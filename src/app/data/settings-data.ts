@@ -17,6 +17,8 @@ export type SalesDefaults = {
   /** Language of everything customers see — quote posters, offer sheets and the customer link —
    *  chosen separately from the UI language. Absent = English. */
   posterLanguage?: Lang;
+  /** Colour of every poster, offer sheet and the Live Screen (an id from POSTER_ACCENTS). Absent = Redline red. */
+  posterAccent?: string;
   /** Whether a new quote starts with Additional Rebate ticked (for cars that have one). Optional —
    *  absent means ticked, the original behaviour. */
   additionalRebateByDefault?: boolean;
@@ -147,7 +149,7 @@ export type AppSettings = {
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  salesDefaults: { interestRate: 2.5, downpaymentPct: 10, ncd: 0, basicPremiumRatePct: 3.27, defaultRateType: 'flat', defaultTenureYears: [9, 7, 5] },
+  salesDefaults: { interestRate: 2.3, effectiveRate: 4.3, downpaymentPct: 10, ncd: 0, basicPremiumRatePct: 3.27, defaultRateType: 'flat', defaultTenureYears: [9, 7, 5] },
   notifications: { newLeadAlerts: true, weeklySummary: false },
   dashboardTarget: { brand: 'Chery', target: 4 },
   vehicleInsurance: {},

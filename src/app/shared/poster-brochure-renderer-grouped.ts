@@ -8,7 +8,7 @@
  *  are toggled on in Offer Sheet Settings (same setting the other two templates share), not a fixed
  *  set. Rows never split across a page break; whole model groups move to the next page together
  *  instead. */
-import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
+import { POSTER_COLORS, displayFont, labelFont, usePosterAccent } from './poster-theme';
 import { fillTrackedText, measureTrackedText } from './poster-draw-utils';
 import { formatMalaysianPhone } from '../data/dashboard-data';
 import { drawHeader, drawAdvisorAvatar, drawQrCode } from './poster-brochure-renderer-simple';
@@ -324,6 +324,7 @@ async function drawFooter(ctx: CanvasRenderingContext2D, data: BrochureData): Pr
 }
 
 export async function renderGroupedPage(canvas: HTMLCanvasElement, data: BrochureData, pageRows: BrochureRow[], pageIndex: number, pageCount: number): Promise<void> {
+  usePosterAccent(data.accent);
   lang = data.lang;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;

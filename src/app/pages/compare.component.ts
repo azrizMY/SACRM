@@ -312,6 +312,7 @@ export class CompareComponent {
     const canvas = document.createElement('canvas');
     await renderComparePoster(canvas, {
       lang,
+      accent: this.settings.settings().salesDefaults.posterAccent,
       setupLine,
       tenureYears: years,
       cars: this.columns().map((c) => ({

@@ -1282,7 +1282,7 @@ export class PublicQuoteComponent implements OnInit {
    *  sales default), just with no override path. */
   private rateDefaults = computed(() => {
     const d = this.bundle()?.salesDefaults;
-    return { interestRate: d?.interestRate ?? 2.5, effectiveRate: d?.effectiveRate };
+    return { interestRate: d?.interestRate ?? 2.3, effectiveRate: d?.effectiveRate ?? 4.3 };
   });
   /** The SA's default Rate Type — except that an EIR quote on a car with no EIR anywhere (neither
    *  its own nor an account default) falls back to quoting flat, labelled as flat. The customer
@@ -1567,6 +1567,7 @@ export class PublicQuoteComponent implements OnInit {
     const lang = this.i18n.lang();
     return {
       lang,
+      accent: this.bundle()!.salesDefaults.posterAccent,
       brand: vehicle.brand,
       modelTitle: modelVariantLabel(vehicle.model, vehicle.variant),
       year: this.modelYear(),

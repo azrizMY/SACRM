@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { AppUpdateService } from './shared/app-update.service';
 import { InstallService } from './shared/install.service';
+import { ThemeService } from './shared/theme.service';
 import { TourOverlayComponent } from './shared/tour-overlay.component';
 
 @Component({
@@ -18,4 +19,6 @@ export class AppComponent {
   private install = inject(InstallService);
   // Moves the installed app onto a new deploy at the next safe moment (see AppUpdateService).
   private updates = inject(AppUpdateService);
+  // Keeps light / dark / System in step with Settings and with the device (see ThemeService).
+  private theme = inject(ThemeService);
 }

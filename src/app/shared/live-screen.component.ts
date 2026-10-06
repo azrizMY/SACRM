@@ -34,6 +34,8 @@ export type LiveScreenData = {
   phone: string | null;
   whatsapp: boolean;
   estimateNote: boolean;
+  /** The advisor's poster colour as a hex — sent along so the pop-out window matches too. */
+  accent?: string;
 };
 
 const TEXT = {
@@ -107,7 +109,7 @@ export function stripContact(text: string): string {
           [style.width.px]="dims().width"
           [style.height.px]="dims().height"
           [style.transform]="'translate(-50%, -50%) scale(' + scale() + ')'"
-          [style.--acc]="colors.acc"
+          [style.--acc]="d.accent || colors.acc"
           [style.--ink]="colors.ink"
           [style.--display]="fonts.display"
           [style.--label]="fonts.label"

@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, computed, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -11,6 +11,8 @@ import { AdvisorService } from '../shared/advisor.service';
 import { AuthService } from '../shared/auth.service';
 import { CustomerService } from '../shared/customer.service';
 import { SettingsService } from '../shared/settings.service';
+import { ThemeService, type ThemeMode } from '../shared/theme.service';
+import { DEFAULT_POSTER_ACCENT, POSTER_ACCENTS, type PosterAccentId } from '../shared/poster-theme';
 import { BANK_OPTIONS } from '../data/customer-data';
 import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
 import { NCD_OPTIONS } from '../data/calculator-data';
@@ -33,7 +35,7 @@ type NavItem = { id: string; label: string; icon: IconName };
         <!-- Section nav -->
         <nav
           [attr.aria-label]="'Settings sections' | t"
-          class="flex shrink-0 flex-row gap-1 overflow-x-auto pb-1 lg:sticky lg:top-4 lg:w-52 lg:flex-col lg:overflow-visible lg:pb-0"
+          class="flex shrink-0 flex-row gap-1 overflow-x-auto pb-1 lg:sticky lg:top-0 lg:w-52 lg:flex-col lg:overflow-visible lg:pb-0"
         >
           @for (item of navItems; track item.id) {
             <button
@@ -484,6 +486,31 @@ type NavItem = { id: string; label: string; icon: IconName };
           </section>
 
           <!-- Notifications -->
+          <!-- Appearance — saved on this device, applied before the app even loads -->
+          <section id="appearance" data-section class="flex scroll-mt-20 flex-col gap-4">
+            <div class="flex flex-col gap-0.5">
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ 'Appearance' | t }}</h3>
+              <p class="text-xs text-muted-foreground">{{ 'Light or dark screens. System follows your phone or computer. Posters and the Live Screen look the same either way.' | t }}</p>
+            </div>
+            <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+              <div role="radiogroup" [attr.aria-label]="'Theme' | t" class="grid grid-cols-3 gap-2 p-4">
+                @for (opt of themeOptions; track opt.id) {
+                  <button
+                    type="button"
+                    role="radio"
+                    [attr.aria-checked]="theme.mode() === opt.id"
+                    (click)="theme.setMode(opt.id)"
+                    class="flex flex-col items-center gap-2 rounded-lg border px-3 py-3 text-sm font-medium transition-colors"
+                    [ngClass]="theme.mode() === opt.id ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                  >
+                    <app-icon [name]="opt.icon" [size]="18" />
+                    {{ opt.label | t }}
+                  </button>
+                }
+              </div>
+            </div>
+          </section>
+
           <!-- Language — the app's screens and what customers see are chosen separately -->
           <section id="language" data-section class="flex scroll-mt-20 flex-col gap-4">
             <div class="flex flex-col gap-0.5">
@@ -552,6 +579,63 @@ type NavItem = { id: string; label: string; icon: IconName };
               @if (uiLanguage() === 'ms') {
                 <p class="border-t border-border px-5 py-3 text-[11px] text-muted-foreground">{{ 'Some pages are still being translated and will show in English for now.' | t }}</p>
               }
+            </div>
+          </section>
+
+          <!-- Poster colour — one choice for every poster, offer sheet, the customer link and Live Mode -->
+          <section id="poster-colour" data-section class="flex scroll-mt-20 flex-col gap-4">
+            <div class="flex flex-col gap-0.5">
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ 'Poster colour' | t }}</h3>
+              <p class="text-xs text-muted-foreground">{{ 'Used on every poster and offer sheet, your customer link and the Live Screen.' | t }}</p>
+            </div>
+            <div class="flex flex-col gap-5 overflow-hidden rounded-xl border border-border bg-card p-5 text-card-foreground shadow-sm md:flex-row md:items-center">
+              <div role="radiogroup" [attr.aria-label]="'Poster colour' | t" class="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4">
+                @for (opt of posterAccents; track opt.id) {
+                  <button
+                    type="button"
+                    role="radio"
+                    [attr.aria-checked]="posterAccentId() === opt.id"
+                    (click)="setPosterAccent(opt.id)"
+                    class="flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors"
+                    [ngClass]="posterAccentId() === opt.id ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                  >
+                    <span class="flex size-6 shrink-0 items-center justify-center rounded-full" [style.background-color]="opt.acc">
+                      @if (posterAccentId() === opt.id) {
+                        <app-icon name="check" [size]="13" class="text-white" />
+                      }
+                    </span>
+                    {{ opt.label | t }}
+                  </button>
+                }
+              </div>
+
+              <!-- A slice of a poster in the chosen colour: the white header, the dark price panel, the lowest-tenure row -->
+              <div class="w-full shrink-0 overflow-hidden rounded-lg border border-border md:w-60" aria-hidden="true">
+                <div class="bg-white px-4 pb-3 pt-3.5">
+                  <div class="flex items-center gap-1.5">
+                    <span class="h-3 w-[3px] -skew-x-12" [style.background-color]="accentPreview().acc"></span>
+                    <span class="text-[8px] font-bold uppercase tracking-[0.2em] text-neutral-500">{{ 'Vehicle loan estimate' | t }}</span>
+                  </div>
+                  <div class="mt-1 text-lg font-bold leading-tight text-neutral-900">Chery O5</div>
+                  <span class="mt-1 inline-block -skew-x-12 px-2 text-[9px] font-bold text-white" [style.background-color]="accentPreview().acc">2026</span>
+                </div>
+                <div class="h-[3px]" [style.background-color]="accentPreview().acc"></div>
+                <div class="flex flex-col gap-2 bg-[#121214] px-4 py-3">
+                  <div class="flex items-baseline gap-1">
+                    <span class="text-xs font-bold" [style.color]="accentPreview().accBright">RM</span>
+                    <span class="text-2xl font-bold text-white">1,232</span>
+                    <span class="text-[10px] text-white/60">/{{ 'month' | t }}</span>
+                  </div>
+                  <div class="flex items-center justify-between rounded px-2.5 py-1.5 text-[10px] font-bold text-white" [style.background-color]="accentPreview().acc">
+                    <span>9 {{ 'Yrs' | t }}</span>
+                    <span>RM 1,232</span>
+                  </div>
+                  <div class="flex items-center justify-between rounded bg-white/[0.06] px-2.5 py-1.5 text-[10px] font-bold text-white/80">
+                    <span>7 {{ 'Yrs' | t }}</span>
+                    <span [style.color]="accentPreview().accBright">RM 1,519</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -965,6 +1049,19 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
   uiLanguage = computed<Lang>(() => this.settingsService.settings().salesDefaults.uiLanguage ?? 'en');
   posterLanguage = computed<Lang>(() => this.settingsService.settings().salesDefaults.posterLanguage ?? 'en');
 
+  posterAccents = (Object.keys(POSTER_ACCENTS) as PosterAccentId[]).map((id) => ({ id, ...POSTER_ACCENTS[id] }));
+  posterAccentId = computed<PosterAccentId>(() => {
+    const id = this.settingsService.settings().salesDefaults.posterAccent;
+    return id && id in POSTER_ACCENTS ? (id as PosterAccentId) : DEFAULT_POSTER_ACCENT;
+  });
+  accentPreview = computed(() => POSTER_ACCENTS[this.posterAccentId()]);
+
+  /** Saves straight away, like the language switches. */
+  setPosterAccent(id: PosterAccentId) {
+    this.settingsService.updateSalesDefaults({ posterAccent: id });
+    this.salesForm.posterAccent = id;
+  }
+
   /** Saves straight away — a language switch should take effect the moment it's tapped. */
   setLanguage(field: 'uiLanguage' | 'posterLanguage', lang: Lang) {
     this.settingsService.updateSalesDefaults({ [field]: lang });
@@ -973,7 +1070,9 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
 
   navItems: NavItem[] = [
     { id: 'defaults', label: 'Quote Preferences', icon: 'wallet' },
+    { id: 'appearance', label: 'Appearance', icon: 'sun' },
     { id: 'language', label: 'Language', icon: 'languages' },
+    { id: 'poster-colour', label: 'Poster colour', icon: 'file-text' },
     { id: 'notifications', label: 'Notifications', icon: 'bell' },
     { id: 'data', label: 'Data & Privacy', icon: 'file-text' },
     { id: 'security', label: 'Account & Security', icon: 'lock' },
@@ -1035,6 +1134,13 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
   deleteConfirmText = '';
   deleteError = signal<string | null>(null);
   deletingAccount = signal(false);
+
+  themeOptions: { id: ThemeMode; label: string; icon: IconName }[] = [
+    { id: 'system', label: 'System', icon: 'monitor' },
+    { id: 'light', label: 'Light', icon: 'sun' },
+    { id: 'dark', label: 'Dark', icon: 'moon' },
+  ];
+  theme = inject(ThemeService);
 
   constructor(
     public settingsService: SettingsService,

@@ -136,7 +136,7 @@ type OfferTab = 'preview' | 'settings';
                         <app-icon name="file-text" [size]="13" />
                         View
                       </button>
-                      <button type="button" (click)="sendBrochureFile(v)" class="flex flex-1 items-center justify-center gap-1 rounded-lg bg-[#25D366]/12 py-1.5 text-xs font-semibold text-[#25D366] transition-colors hover:bg-[#25D366]/20">
+                      <button type="button" (click)="sendBrochureFile(v)" class="flex flex-1 items-center justify-center gap-1 rounded-lg bg-[#25D366]/12 py-1.5 text-xs font-semibold text-[var(--whatsapp-text)] transition-colors hover:bg-[#25D366]/20">
                         <app-icon name="share" [size]="13" />
                         Share
                       </button>
@@ -185,7 +185,7 @@ type OfferTab = 'preview' | 'settings';
 
         <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
           <!-- Offer sheet preview — an A5 page renders at its natural height, no inner scroll. -->
-          <div class="flex-col gap-3 xl:sticky xl:top-4 xl:col-span-2 xl:flex" [ngClass]="offerMobileTab() === 'preview' ? 'flex' : 'hidden'">
+          <div class="flex-col gap-3 xl:sticky xl:top-0 xl:col-span-2 xl:flex" [ngClass]="offerMobileTab() === 'preview' ? 'flex' : 'hidden'">
             @if (offerSheetTemplates.length > 1) {
               <div role="radiogroup" aria-label="Offer sheet template" class="flex w-full shrink-0 gap-1.5 rounded-xl bg-card p-1.5">
                 @for (t of offerSheetTemplates; track t.id) {
@@ -233,7 +233,7 @@ type OfferTab = 'preview' | 'settings';
           </div>
 
           <!-- Offer sheet settings -->
-          <div class="flex-col gap-4 xl:sticky xl:top-4 xl:col-span-1 xl:flex" [ngClass]="offerMobileTab() === 'settings' ? 'flex' : 'hidden'">
+          <div class="flex-col gap-4 xl:sticky xl:top-0 xl:col-span-1 xl:flex" [ngClass]="offerMobileTab() === 'settings' ? 'flex' : 'hidden'">
             <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground">
               <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sheet</span>
               <div class="flex flex-col gap-2">
@@ -705,6 +705,7 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
     const advisorProfile = this.advisor.profile();
     return {
       lang: this.posterLang,
+      accent: this.settingsService.settings().salesDefaults.posterAccent,
       brand,
       logoUrl: brandLogo(brand),
       title: this.offerTitle(),

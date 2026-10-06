@@ -7,7 +7,7 @@
  *  color tokens (POSTER_COLORS) rather than copied wholesale. Sized to fit an entire brand's
  *  catalog (12 rows) on one A5 page whenever possible, only spilling to a second page if a brand
  *  ever exceeds that. */
-import { POSTER_COLORS, displayFont, labelFont } from './poster-theme';
+import { POSTER_COLORS, displayFont, labelFont, usePosterAccent } from './poster-theme';
 import { carImageWithShadow } from './car-shadow';
 import { loadPosterImage } from './poster-images';
 import { fillPolygon, fillTrackedText, measureTrackedText, formatPosterCurrency } from './poster-draw-utils';
@@ -464,6 +464,7 @@ async function drawFooter(ctx: CanvasRenderingContext2D, data: BrochureData): Pr
 }
 
 export async function renderBrochurePage(canvas: HTMLCanvasElement, data: BrochureData, pageRows: BrochureRow[], pageIndex: number, pageCount: number): Promise<void> {
+  usePosterAccent(data.accent);
   lang = data.lang;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;

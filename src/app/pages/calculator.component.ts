@@ -99,7 +99,7 @@ import { QuoteControlsComponent } from '../shared/quote-controls.component';
              poster is a fixed shape, so it just renders at its natural height and the page scrolls
              as a whole instead of a scrollbar sitting on the preview column itself. -->
         <div
-          class="flex-col gap-2 xl:sticky xl:top-4 xl:col-span-2 xl:flex"
+          class="flex-col gap-2 xl:sticky xl:top-0 xl:col-span-2 xl:flex"
           [ngClass]="mobileTab() === 'preview' ? 'flex' : 'hidden'"
         >
           @if (availableTemplates().length > 1) {
@@ -177,7 +177,7 @@ import { QuoteControlsComponent } from '../shared/quote-controls.component';
 
         <!-- Customize quote -->
         <div
-          class="flex-col gap-4 xl:sticky xl:top-4 xl:col-span-1 xl:flex xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1"
+          class="flex-col gap-4 xl:sticky xl:top-0 xl:col-span-1 xl:flex xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1"
           [ngClass]="mobileTab() === 'customize' ? 'flex' : 'hidden'"
         >
           <div class="flex items-center justify-between">
@@ -524,7 +524,8 @@ export class CalculatorComponent implements AfterViewInit {
   /** Assembles the plain data object the renderer draws from — nothing in poster-renderer.ts
    *  reads a component signal directly, so every figure on the poster traces back to here. */
   private buildPosterData(): PosterData {
-    return quotePosterData(this.q, this.advisor, this.settingsService.settings().salesDefaults.posterLanguage ?? 'en');
+    const defaults = this.settingsService.settings().salesDefaults;
+    return quotePosterData(this.q, this.advisor, defaults.posterLanguage ?? 'en', defaults.posterAccent);
   }
 
   /** Bumped on every draw call so an in-flight async redraw (image loads for the logo/car photo)

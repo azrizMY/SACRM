@@ -139,7 +139,7 @@ type TodoId = 'followup' | 'requote' | 'booked' | 'gifts' | 'commission';
 const TODOS: { id: TodoId; label: string; icon: IconName; tab: Tab; activeTone: string }[] = [
   { id: 'followup', label: 'Follow up', icon: 'bell', tab: 'Lead', activeTone: 'bg-[var(--warning)]/20 text-[var(--warning)]' },
   { id: 'requote', label: 'Re-quote', icon: 'refresh-cw', tab: 'Lead', activeTone: 'bg-[var(--warning)]/20 text-[var(--warning)]' },
-  { id: 'booked', label: 'Booked, waiting for car', icon: 'calendar', tab: 'Lead', activeTone: 'bg-[oklch(0.7_0.17_300)]/20 text-[oklch(0.7_0.17_300)]' },
+  { id: 'booked', label: 'Booked, waiting for car', icon: 'calendar', tab: 'Lead', activeTone: 'bg-[var(--booked)]/20 text-[var(--booked)]' },
   { id: 'gifts', label: 'Gifts to sort out', icon: 'gift', tab: 'All', activeTone: 'bg-[var(--warning)]/20 text-[var(--warning)]' },
   { id: 'commission', label: 'Add commission', icon: 'wallet', tab: 'Won', activeTone: 'bg-[var(--success)]/20 text-[var(--success)]' },
 ];
@@ -434,7 +434,7 @@ const TODO_MATCH: Record<TodoId, (r: CustomerRecord, cm: { isStale(r: CustomerRe
             <span class="text-xs text-muted-foreground tabular">{{ r.phone }}</span>
             @if (r.booked && r.status === 'Lead') {
               <span class="flex flex-wrap gap-1">
-                <span class="inline-flex items-center gap-1 rounded-md bg-[oklch(0.7_0.17_300)]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[oklch(0.7_0.17_300)]">
+                <span class="inline-flex items-center gap-1 rounded-md bg-[var(--booked)]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--booked)]">
                   <app-icon name="calendar" [size]="10" />
                   {{ "Booked" | t }}
                 </span>
@@ -516,7 +516,7 @@ const TODO_MATCH: Record<TodoId, (r: CustomerRecord, cm: { isStale(r: CustomerRe
           rel="noopener"
           [title]="'WhatsApp ' + r.phone"
           [attr.aria-label]="'WhatsApp' | t"
-          class="inline-flex size-8 items-center justify-center rounded-lg text-[#25D366] transition-colors hover:bg-[#25D366]/15"
+          class="inline-flex size-8 items-center justify-center rounded-lg text-[var(--whatsapp-text)] transition-colors hover:bg-[#25D366]/15"
         >
           <app-icon name="message-circle" [size]="15" />
         </a>
@@ -580,7 +580,7 @@ const TODO_MATCH: Record<TodoId, (r: CustomerRecord, cm: { isStale(r: CustomerRe
                 {{ statusMeta(p.status).label | t }}
               </span>
               @if (p.booked && p.status === 'Lead') {
-                <span class="rounded-md bg-[oklch(0.7_0.17_300)]/15 px-1.5 py-0.5 text-[11px] font-medium text-[oklch(0.7_0.17_300)]">{{ "Booked" | t }}</span>
+                <span class="rounded-md bg-[var(--booked)]/15 px-1.5 py-0.5 text-[11px] font-medium text-[var(--booked)]">{{ "Booked" | t }}</span>
               }
               @if (panelIndex() >= 0) {
                 <span class="tabular">{{ '{n} of {total}' | t: { n: panelIndex() + 1, total: filteredSorted().length } }}</span>
@@ -603,7 +603,7 @@ const TODO_MATCH: Record<TodoId, (r: CustomerRecord, cm: { isStale(r: CustomerRe
         <!-- Contact + the stage action, always in reach at the top -->
         <div class="flex flex-col gap-2 border-b border-border p-3">
           <div class="grid grid-cols-3 gap-2">
-            <a [href]="waLink(p.phone)" target="_blank" rel="noopener" class="flex flex-col items-center gap-1 rounded-lg bg-[#25D366]/12 py-2 text-[11px] font-semibold text-[#25D366] transition-colors hover:bg-[#25D366]/20">
+            <a [href]="waLink(p.phone)" target="_blank" rel="noopener" class="flex flex-col items-center gap-1 rounded-lg bg-[#25D366]/12 py-2 text-[11px] font-semibold text-[var(--whatsapp-text)] transition-colors hover:bg-[#25D366]/20">
               <app-icon name="message-circle" [size]="16" />
               {{ "WhatsApp" | t }}
             </a>
@@ -632,7 +632,7 @@ const TODO_MATCH: Record<TodoId, (r: CustomerRecord, cm: { isStale(r: CustomerRe
                   (click)="toggleBooked(p)"
                   [attr.aria-pressed]="!!p.booked"
                   class="flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-colors"
-                  [ngClass]="p.booked ? 'bg-[oklch(0.7_0.17_300)]/15 text-[oklch(0.7_0.17_300)]' : 'bg-muted text-foreground hover:bg-accent'"
+                  [ngClass]="p.booked ? 'bg-[var(--booked)]/15 text-[var(--booked)]' : 'bg-muted text-foreground hover:bg-accent'"
                 >
                   <app-icon [name]="p.booked ? 'check' : 'calendar'" [size]="13" />
                   {{ (p.booked ? 'Booked' : 'Mark booked') | t }}

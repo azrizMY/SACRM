@@ -112,7 +112,96 @@
   --sidebar-border: oklch(1 0 0 / 5%);
   --sidebar-ring: oklch(0.6 0.235 25.5);
 
+  /* Surface details that differ by theme: the faint top highlight on cards, drop shadows, hover
+     and selected fills, the table header band, scrollbars and the backdrop dot grid. */
+  --edge-highlight: oklch(1 0 0 / 4%);
+  --edge-highlight-strong: oklch(1 0 0 / 7%);
+  --shadow-near: oklch(0 0 0 / 40%);
+  --shadow-mid: oklch(0 0 0 / 50%);
+  --shadow-far: oklch(0 0 0 / 70%);
+  --shadow-deep: oklch(0 0 0 / 80%);
+  --card-hover: oklch(0.215 0.006 280);
+  --segment-active: oklch(0.3 0.008 280);
+  --table-head: oklch(1 0 0 / 2.5%);
+  --scrollbar: oklch(1 0 0 / 14%);
+  --backdrop-dot: oklch(1 0 0 / 7%);
+  --gradient-end: oklch(0.85 0.12 70);
+  /* WhatsApp green as text, and the Booked badge purple — both deepened in light mode to stay readable on white. */
+  --whatsapp-text: #25d366;
+  --booked: oklch(0.7 0.17 300);
+
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Light: white cards on a soft grey page, dark text, the same red. Cards still separate by
+   elevation — a light hairline-free shadow instead of the dark theme's deep one. */
+:root.light {
+  color-scheme: light;
+  --background: oklch(0.97 0.002 280);
+  --foreground: oklch(0.2 0.006 280);
+
+  --card: oklch(1 0 0);
+  --card-solid: var(--card);
+  --card-foreground: oklch(0.2 0.006 280);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.006 280);
+
+  --primary: oklch(0.57 0.235 25.5);
+  --primary-foreground: oklch(0.99 0 0);
+  --primary-glow: oklch(0.66 0.2 42);
+
+  --secondary: oklch(0.945 0.003 280);
+  --secondary-foreground: oklch(0.22 0.006 280);
+
+  --muted: oklch(0.945 0.003 280);
+  --muted-foreground: oklch(0.47 0.012 280);
+
+  --accent: oklch(0.93 0.004 280);
+  --accent-foreground: oklch(0.2 0.006 280);
+
+  --destructive: oklch(0.56 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --success: oklch(0.55 0.15 155);
+  --success-foreground: oklch(0.99 0 0);
+
+  --warning: oklch(0.6 0.15 62);
+  --warning-foreground: oklch(0.99 0 0);
+
+  --border: oklch(0 0 0 / 9%);
+  --input: oklch(0.955 0.003 280);
+  --ring: oklch(0.57 0.235 25.5);
+
+  --chart-1: oklch(0.57 0.235 25.5);
+  --chart-2: oklch(0.6 0.15 155);
+  --chart-3: oklch(0.7 0.15 70);
+  --chart-4: oklch(0.55 0.15 255);
+  --chart-5: oklch(0.6 0.02 280);
+
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.25 0.006 280);
+  --sidebar-primary: oklch(0.57 0.235 25.5);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.95 0.003 280);
+  --sidebar-accent-foreground: oklch(0.2 0.006 280);
+  --sidebar-border: oklch(0 0 0 / 7%);
+  --sidebar-ring: oklch(0.57 0.235 25.5);
+
+  --edge-highlight: oklch(1 0 0 / 0%);
+  --edge-highlight-strong: oklch(1 0 0 / 0%);
+  --shadow-near: oklch(0.25 0.01 280 / 7%);
+  --shadow-mid: oklch(0.25 0.01 280 / 10%);
+  --shadow-far: oklch(0.25 0.01 280 / 12%);
+  --shadow-deep: oklch(0.25 0.01 280 / 22%);
+  --card-hover: oklch(0.975 0.002 280);
+  --segment-active: oklch(1 0 0);
+  --table-head: oklch(0 0 0 / 3%);
+  --scrollbar: oklch(0 0 0 / 20%);
+  --backdrop-dot: oklch(0 0 0 / 6%);
+  --gradient-end: oklch(0.68 0.16 55);
+  --whatsapp-text: oklch(0.52 0.14 152);
+  --booked: oklch(0.5 0.2 300);
 }
 
 @layer base {
@@ -137,9 +226,6 @@
   .tabular {
     font-variant-numeric: tabular-nums;
   }
-  select {
-    color-scheme: dark;
-  }
   /* Native <option> popups render on their own surface and ignore the
      select's background utility class, so they must be styled directly
      or they fall back to the OS default (white-on-white until hover). */
@@ -152,7 +238,7 @@
   }
   /* Table headers read as small caps labels on a faint band. */
   thead tr {
-    background-color: oklch(1 0 0 / 2.5%);
+    background-color: var(--table-head);
   }
   thead th {
     font-size: 0.7rem;
@@ -166,7 +252,7 @@
   }
   * {
     scrollbar-width: thin;
-    scrollbar-color: oklch(1 0 0 / 14%) transparent;
+    scrollbar-color: var(--scrollbar) transparent;
   }
 }
 
@@ -179,7 +265,7 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-image: radial-gradient(oklch(1 0 0 / 7%) 1px, transparent 1.3px);
+  background-image: radial-gradient(var(--backdrop-dot) 1px, transparent 1.3px);
   background-size: 22px 22px;
   mask-image: linear-gradient(to bottom, #000 0%, transparent 60%);
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 60%);
@@ -194,20 +280,23 @@ body::before {
 :is([class*='bg-muted'], [class*='bg-secondary']).border:is(.rounded-md, .rounded-lg, .rounded-xl) {
   border-color: transparent;
 }
+:root.light .bg-card:is(.rounded-lg, .rounded-xl, .rounded-2xl) {
+  border-color: oklch(0 0 0 / 6%);
+}
 .bg-card.rounded-xl,
 .bg-card.rounded-2xl {
   box-shadow:
-    inset 0 1px 0 0 oklch(1 0 0 / 4%),
-    0 1px 2px 0 oklch(0 0 0 / 40%),
-    0 10px 28px -14px oklch(0 0 0 / 70%);
+    inset 0 1px 0 0 var(--edge-highlight),
+    0 1px 2px 0 var(--shadow-near),
+    0 10px 28px -14px var(--shadow-far);
 }
 /* Selected segment in a segmented control (Preview / Customize, Specs / Offers): a raised,
    lighter pill so the active option is obvious without an outline. */
 button.bg-card[aria-selected='true'] {
-  background-color: oklch(0.3 0.008 280);
+  background-color: var(--segment-active);
   box-shadow:
-    inset 0 1px 0 0 oklch(1 0 0 / 7%),
-    0 1px 3px 0 oklch(0 0 0 / 50%);
+    inset 0 1px 0 0 var(--edge-highlight-strong),
+    0 1px 3px 0 var(--shadow-mid);
 }
 /* Every solid primary button across the app inherits the gradient + glow of .btn-glow. */
 button.bg-primary,
@@ -259,8 +348,8 @@ a.bg-primary:hover {
 .fixed.inset-0 > .relative.bg-card {
   animation: rl-pop 0.32s var(--ease-out-expo) backwards;
   box-shadow:
-    inset 0 1px 0 0 oklch(1 0 0 / 7%),
-    0 30px 80px -20px oklch(0 0 0 / 80%);
+    inset 0 1px 0 0 var(--edge-highlight-strong),
+    0 30px 80px -20px var(--shadow-deep);
 }
 @keyframes rl-pop {
   from {
@@ -272,7 +361,7 @@ a.bg-primary:hover {
 /* Dropdowns and popovers fade down into place. */
 .absolute.bg-popover:not(.pointer-events-none) {
   animation: rl-drop 0.18s var(--ease-out-expo) backwards;
-  box-shadow: 0 18px 50px -12px oklch(0 0 0 / 75%);
+  box-shadow: 0 18px 50px -12px var(--shadow-deep);
 }
 @keyframes rl-drop {
   from {
@@ -290,7 +379,7 @@ a.bg-card {
 }
 button.bg-card:hover:not(:disabled, [aria-selected='true']),
 a.bg-card:hover {
-  background-color: oklch(0.215 0.006 280);
+  background-color: var(--card-hover);
 }
 
 /* Form fields share the soft red focus halo used on the auth pages. */
@@ -359,7 +448,7 @@ a.bg-card:hover {
   }
 
   .text-gradient {
-    background: linear-gradient(100deg, var(--primary) 10%, var(--primary-glow) 60%, oklch(0.85 0.12 70));
+    background: linear-gradient(100deg, var(--primary) 10%, var(--primary-glow) 60%, var(--gradient-end));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -383,8 +472,8 @@ a.bg-card:hover {
   .lift:hover {
     transform: translateY(-3px);
     box-shadow:
-      inset 0 1px 0 0 oklch(1 0 0 / 6%),
-      0 20px 40px -18px oklch(0 0 0 / 80%);
+      inset 0 1px 0 0 var(--edge-highlight),
+      0 20px 40px -18px var(--shadow-deep);
   }
 
   /* Gradient progress fill that sweeps in from the left; set --i to stagger. */

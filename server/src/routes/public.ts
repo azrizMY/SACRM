@@ -59,6 +59,9 @@ function publicSocials(raw: unknown): Record<string, string> | undefined {
  *  bio, showroom and social links shown on the Profile tab (never email,
  *  never other customers, nothing write-capable — the page's "WhatsApp Advisor" button sends the
  *  quote as a plain wa.me message, so there's no lead-submission endpoint to guard here either). */
+/** The poster colours the app offers (POSTER_ACCENTS in src/app/shared/poster-theme.ts). */
+const POSTER_ACCENT_IDS = ['red', 'blue', 'navy', 'teal', 'orange', 'purple', 'magenta', 'gold'];
+
 export async function handlePublicRoute(request: Request, env: Env, url: URL): Promise<Response> {
   const bundleMatch = url.pathname.match(/^\/api\/public\/quote\/([^/]+)$/);
   if (bundleMatch && request.method === 'GET') {
@@ -98,13 +101,15 @@ async function getPublicQuoteBundle(env: Env, token: string): Promise<Response> 
   const settingsData = settingsRow ? JSON.parse(settingsRow.data) : {};
   const salesDefaults = {
     defaultRateType: settingsData.salesDefaults?.defaultRateType ?? 'flat',
-    interestRate: settingsData.salesDefaults?.interestRate ?? 2.5,
-    effectiveRate: typeof settingsData.salesDefaults?.effectiveRate === 'number' ? settingsData.salesDefaults.effectiveRate : undefined,
+    interestRate: settingsData.salesDefaults?.interestRate ?? 2.3,
+    effectiveRate: typeof settingsData.salesDefaults?.effectiveRate === 'number' ? settingsData.salesDefaults.effectiveRate : 4.3,
     downpaymentPct: settingsData.salesDefaults?.downpaymentPct ?? 10,
     ncd: settingsData.salesDefaults?.ncd ?? 0,
     basicPremiumRatePct: settingsData.salesDefaults?.basicPremiumRatePct ?? 3.6,
     posterLanguage: settingsData.salesDefaults?.posterLanguage === 'ms' ? 'ms' : 'en',
     loanRounding: settingsData.salesDefaults?.loanRounding === 'up' ? 'up' : 'down',
+    // Only a known colour id is passed on (the app falls back to red for anything else).
+    posterAccent: POSTER_ACCENT_IDS.includes(settingsData.salesDefaults?.posterAccent) ? settingsData.salesDefaults.posterAccent : undefined,
   };
   const vehicleInsurance = settingsData.vehicleInsurance ?? {};
   // Only the brand name, not the SA's sales target number — that figure is internal, the brand

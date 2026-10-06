@@ -99,7 +99,7 @@ import { IconComponent } from './icon.component';
             </div>
 
             <div class="float-b absolute bottom-0 left-0 flex items-center gap-2.5 rounded-xl bg-card px-3.5 py-2.5 shadow-xl">
-              <span class="flex size-8 items-center justify-center rounded-lg bg-[#25D366]/15 text-[#25D366]"><app-icon name="message-circle" [size]="15" /></span>
+              <span class="flex size-8 items-center justify-center rounded-lg bg-[#25D366]/15 text-[var(--whatsapp-text)]"><app-icon name="message-circle" [size]="15" /></span>
               <div class="flex flex-col leading-tight">
                 <span class="text-xs font-semibold">Quote sent</span>
                 <span class="text-[11px] text-muted-foreground">via WhatsApp</span>
