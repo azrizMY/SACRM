@@ -7,7 +7,7 @@ export const OPERATOR = {
   email: 'ahmdazri65@gmail.com',
 };
 
-export const LEGAL_UPDATED = '2026-10-03';
+export const LEGAL_UPDATED = '2026-10-07';
 
 export type LegalLang = 'en' | 'ms';
 export type LegalDoc = 'privacy' | 'terms';
@@ -30,7 +30,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
           list: [
             'Account details: your name, email address, phone number, primary brand and password (stored only as a secure hash, never in plain text).',
             'Profile details you choose to add: photo, role, bio, showroom name and address, and social media links.',
-            'Your work in the app: price settings, quote preferences and display settings.',
+            'Your work in the app: price settings, quote and poster preferences (such as poster colour and festive frame), and display and language settings.',
             'Technical data needed to keep you signed in and secure: a session cookie, and sign-in attempts used to block password guessing.',
           ],
         },
@@ -38,6 +38,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
           heading: '2. Data about your customers',
           body: [
             'None. Redline only works out and shares quotes. It does not ask for or store your customers’ names, phone numbers, IC numbers or any other personal details, and the quote link does not ask the people who open it for theirs.',
+            'What a customer enters on your quote link, such as their monthly budget, deposit or whether they have a car to trade in, is worked out in their own browser and is not sent to us. It only reaches you if they choose to send it to you on WhatsApp.',
           ],
         },
         {
@@ -53,7 +54,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '4. What customers see on your quote link',
           body: [
-            'When you share a quote link, anyone who opens it can see your name, role, phone number, photo, bio, showroom and social links, plus your quote settings and prices. They never see your email, your customers or any other account data. Link previews (for example on WhatsApp) show your name, role, showroom and photo.',
+            'When you share a quote link, anyone who opens it can see your name, role, phone number, photo, bio, showroom and social links, plus your quote settings and prices. They never see your email or any other account data. Link previews (for example on WhatsApp) show your name, role, showroom and photo.',
           ],
         },
         {
@@ -65,7 +66,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '6. Cookies and local storage',
           body: [
-            'We use one essential cookie to keep you signed in. Your browser also stores a few preferences on your device, such as dismissed tips. We do not use advertising or tracking cookies.',
+            'We use one essential cookie to keep you signed in. Your browser also stores a few preferences on your device, such as light or dark mode, your Live Mode layout and dismissed tips. We do not use advertising or tracking cookies.',
           ],
         },
         {
@@ -117,7 +118,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
           list: [
             'Butiran akaun: nama, alamat e-mel, nombor telefon, jenama utama dan kata laluan anda (disimpan sebagai hash yang selamat sahaja, tidak sekali-kali dalam teks biasa).',
             'Butiran profil yang anda pilih untuk tambah: foto, jawatan, bio, nama dan alamat bilik pameran, serta pautan media sosial.',
-            'Kerja anda dalam aplikasi: tetapan harga, pilihan sebut harga dan tetapan paparan.',
+            'Kerja anda dalam aplikasi: tetapan harga, pilihan sebut harga dan poster (seperti warna poster dan bingkai perayaan), serta tetapan paparan dan bahasa.',
             'Data teknikal yang diperlukan untuk memastikan anda kekal log masuk dan selamat: kuki sesi, dan cubaan log masuk yang digunakan untuk menyekat tekaan kata laluan.',
           ],
         },
@@ -125,6 +126,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
           heading: '2. Data tentang pelanggan anda',
           body: [
             'Tiada. Redline hanya mengira dan berkongsi sebut harga. Ia tidak meminta atau menyimpan nama, nombor telefon, nombor IC atau sebarang butiran peribadi pelanggan anda, dan pautan sebut harga tidak meminta butiran orang yang membukanya.',
+            'Apa yang pelanggan masukkan pada pautan sebut harga anda, seperti bajet bulanan, deposit atau sama ada mereka ada kereta untuk tukar beli, dikira dalam pelayar mereka sendiri dan tidak dihantar kepada kami. Ia hanya sampai kepada anda jika mereka memilih untuk menghantarnya kepada anda melalui WhatsApp.',
           ],
         },
         {
@@ -140,7 +142,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '4. Apa yang pelanggan lihat pada pautan sebut harga anda',
           body: [
-            'Apabila anda berkongsi pautan sebut harga, sesiapa yang membukanya boleh melihat nama, jawatan, nombor telefon, foto, bio, bilik pameran dan pautan sosial anda, serta tetapan sebut harga dan harga anda. Mereka tidak sekali-kali melihat e-mel anda, pelanggan anda atau data akaun lain. Pratonton pautan (contohnya di WhatsApp) memaparkan nama, jawatan, bilik pameran dan foto anda.',
+            'Apabila anda berkongsi pautan sebut harga, sesiapa yang membukanya boleh melihat nama, jawatan, nombor telefon, foto, bio, bilik pameran dan pautan sosial anda, serta tetapan sebut harga dan harga anda. Mereka tidak sekali-kali melihat e-mel anda atau data akaun lain. Pratonton pautan (contohnya di WhatsApp) memaparkan nama, jawatan, bilik pameran dan foto anda.',
           ],
         },
         {
@@ -152,7 +154,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '6. Kuki dan storan setempat',
           body: [
-            'Kami menggunakan satu kuki penting untuk memastikan anda kekal log masuk. Pelayar anda juga menyimpan beberapa pilihan pada peranti anda, seperti tip yang telah ditutup. Kami tidak menggunakan kuki pengiklanan atau penjejakan.',
+            'Kami menggunakan satu kuki penting untuk memastikan anda kekal log masuk. Pelayar anda juga menyimpan beberapa pilihan pada peranti anda, seperti mod cerah atau gelap, susun atur Mod Live anda dan tip yang telah ditutup. Kami tidak menggunakan kuki pengiklanan atau penjejakan.',
           ],
         },
         {
@@ -203,13 +205,13 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '1. The service',
           body: [
-            'Redline is a tool for car sales consultants to price cars, prepare quotes and posters, share quote links, and show quotes on TikTok Live. Redline is still in development: features may change, and there may be occasional interruptions or errors.',
+            'Redline is a tool for car sales consultants to price cars, prepare quotes and posters, find cars that fit a monthly budget, compare cars, share quote links, and show quotes on TikTok Live. Redline is still in development: features may change, and there may be occasional interruptions or errors.',
           ],
         },
         {
           heading: '2. Quotes are estimates',
           body: [
-            'Prices, rebates, loan amounts, interest rates, insurance and monthly instalments shown in Redline, on posters and on quote links are estimates only. They are not an offer, a loan approval or a binding price. Always confirm the final figures with the dealership, the bank and the insurer before a customer commits.',
+            'Prices, rebates, deposits, loan amounts, interest rates, insurance and monthly instalments shown in Redline, on posters, on the Budget page and on quote links are estimates only. They are not an offer, a loan approval or a binding price, and Redline does not check whether a customer qualifies for a loan. Always confirm the final figures with the dealership, the bank and the insurer before a customer commits.',
           ],
         },
         {
@@ -270,13 +272,13 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '1. Perkhidmatan',
           body: [
-            'Redline ialah alat untuk perunding jualan kereta menetapkan harga kereta, menyediakan sebut harga dan poster, berkongsi pautan sebut harga, serta memaparkan sebut harga di TikTok Live. Redline masih dalam pembangunan: ciri mungkin berubah, dan mungkin ada gangguan atau ralat sekali-sekala.',
+            'Redline ialah alat untuk perunding jualan kereta menetapkan harga kereta, menyediakan sebut harga dan poster, mencari kereta yang sesuai dengan bajet bulanan, membandingkan kereta, berkongsi pautan sebut harga, serta memaparkan sebut harga di TikTok Live. Redline masih dalam pembangunan: ciri mungkin berubah, dan mungkin ada gangguan atau ralat sekali-sekala.',
           ],
         },
         {
           heading: '2. Sebut harga ialah anggaran',
           body: [
-            'Harga, rebat, jumlah pinjaman, kadar faedah, insurans dan ansuran bulanan yang dipaparkan dalam Redline, pada poster dan pada pautan sebut harga adalah anggaran sahaja. Ia bukan tawaran, kelulusan pinjaman atau harga yang mengikat. Sentiasa sahkan angka akhir dengan pengedar, bank dan syarikat insurans sebelum pelanggan membuat keputusan.',
+            'Harga, rebat, deposit, jumlah pinjaman, kadar faedah, insurans dan ansuran bulanan yang dipaparkan dalam Redline, pada poster, pada halaman Bajet dan pada pautan sebut harga adalah anggaran sahaja. Ia bukan tawaran, kelulusan pinjaman atau harga yang mengikat, dan Redline tidak menyemak sama ada pelanggan layak mendapat pinjaman. Sentiasa sahkan angka akhir dengan pengedar, bank dan syarikat insurans sebelum pelanggan membuat keputusan.',
           ],
         },
         {

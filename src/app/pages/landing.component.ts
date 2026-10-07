@@ -1,85 +1,79 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../shared/auth.service';
-import { CountUpDirective } from '../shared/count-up.directive';
 import { IconComponent, type IconName } from '../shared/icon.component';
-import { LandingDemoComponent } from './landing-demo.component';
+import { VEHICLES } from '../data/calculator-data';
 
-type Feature = { icon: IconName; title: string; blurb: string; points?: string[]; span: string };
+/** One selling point: copy on one side, a real screenshot of the app on the other.
+ *  The screenshots in public/landing/ are taken from the app with a made-up advisor profile. */
+type Showcase = {
+  id: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+  points: string[];
+  visual: 'poster' | 'link' | 'budget' | 'live';
+};
 
-const FEATURES: Feature[] = [
+const SHOWCASES: Showcase[] = [
   {
-    icon: 'calculator',
-    title: 'Quotation Calculator',
-    blurb: 'Price any brand, model and variant with live financing math. Work forwards from the downpayment, or backwards from the monthly installment the customer can afford.',
-    points: ['Reverse-calc loan amount & installment', 'Cash or loan deals', 'Tenure & rate presets'],
-    span: 'md:col-span-2 md:row-span-2',
+    id: 'posters',
+    eyebrow: 'Ready-to-post posters',
+    title: 'A quote your customer can read at a glance',
+    body: 'Every quote becomes a clean poster with the car, the monthly instalment and the full price breakdown, ready for WhatsApp, Instagram and TikTok.',
+    points: ['Full Quotation, Monthly Estimate, Compact and Rebate Deal layouts', 'Your own poster colour, plus festive frames for Raya, CNY, Deepavali and more', 'Your name, photo and WhatsApp number on every poster'],
+    visual: 'poster',
   },
   {
-    icon: 'sparkles',
-    title: 'Ready-to-post Posters',
-    blurb: 'Turn a quote into a Classic, Story, Square or Promo poster in one tap, sized for WhatsApp, Instagram and TikTok.',
-    span: '',
+    id: 'link',
+    eyebrow: 'Your own quote link',
+    title: 'Let customers work out the numbers themselves',
+    body: 'Send one link or show your QR code. Customers pick a car, change the deposit and loan period, compare cars and open brochures, with no app and no login.',
+    points: ['One tap sends their exact quote to your WhatsApp', 'They can tell you up front if they have a car to trade in', 'Your profile and contact on every page they open'],
+    visual: 'link',
   },
   {
-    icon: 'share',
-    title: 'Shareable Quote Links',
-    blurb: 'Send customers a link to build their own quote, with no login needed. Your promo card rides along.',
-    span: '',
+    id: 'budget',
+    eyebrow: 'Budget',
+    title: 'Start from what the customer can pay each month',
+    body: 'Most customers know their monthly, not their car. Enter it with the cash they have, and Redline lists every car that fits, with the deposit each one needs.',
+    points: ['Full loan or a maximum deposit, using your own loan rounding', 'Cars just above the budget are shown too, so no option is missed', 'On your Budget page and on your customer\'s quote link'],
+    visual: 'budget',
   },
   {
-    icon: 'live',
-    title: 'Live Mode',
-    blurb: 'A loan calculator built for TikTok Live: big, clear numbers on screen while you work the controls.',
-    span: '',
-  },
-  {
-    icon: 'table',
-    title: 'Compare Cars',
-    blurb: 'Up to three cars side by side, same loan setup, so the customer sees the difference at a glance.',
-    span: '',
-  },
-  {
-    icon: 'car',
-    title: 'Catalog & Brochures',
-    blurb: 'Brochures and offer sheets for every model, filterable by brand and ready to download or send.',
-    span: '',
-  },
-  {
-    icon: 'tag',
-    title: 'Price Settings',
-    blurb: 'Set your own OTR prices, rebates and packages once. Every quote picks them up.',
-    span: '',
-  },
-  {
-    icon: 'file-text',
-    title: 'Your Colours',
-    blurb: 'Pick a poster colour once and every poster, offer sheet and quote link matches.',
-    span: '',
+    id: 'live',
+    eyebrow: 'Live Mode',
+    title: 'Answer "berapa sebulan?" live, on screen',
+    body: 'Live Mode puts a big, clear quote on your TikTok Live while you change the car and deposit off camera. Open it in its own window or run it full screen on a tablet.',
+    points: ['Every loan period and the full price breakdown', 'Bahasa Melayu or English on screen', 'Your phone number stays hidden unless you switch it on'],
+    visual: 'live',
   },
 ];
 
-const STEPS: { icon: IconName; title: string; blurb: string }[] = [
-  { icon: 'tag', title: 'Set your prices', blurb: 'Load your catalog and price settings once. Your name, photo and socials go on your profile.' },
-  { icon: 'calculator', title: 'Quote in seconds', blurb: 'Pick a variant, tune the loan, then send a poster or a live quote link straight to WhatsApp.' },
-  { icon: 'live', title: 'Share or go live', blurb: 'Post it, send the quote link, or put Live Mode on your TikTok Live and answer every "berapa sebulan?" on the spot.' },
+const VALUES: { icon: IconName; title: string; blurb: string }[] = [
+  { icon: 'lock', title: 'No customer data', blurb: 'Redline never asks for or stores your customers\' names, phone numbers or IC numbers.' },
+  { icon: 'tag', title: 'Your prices, your rules', blurb: 'Set your OTR prices, rebates, interest rate and loan rounding once. Every quote follows them.' },
+  { icon: 'file-text', title: 'Brochures included', blurb: 'Official brochures for every model, ready to send on WhatsApp in one tap.' },
+  { icon: 'message-circle', title: 'English and Bahasa Melayu', blurb: 'The app, posters, Live Mode and WhatsApp messages work in either language.' },
 ];
+
+/** Brands in catalog order, as shown in the "loaded with" strip. */
+const BRANDS = [...new Set(VEHICLES.map((v) => v.brand))];
 
 const FAQS: { q: string; a: string }[] = [
-  { q: 'Who is Redline for?', a: 'Car sales consultants and advisors who quote their own customers. It works on your own, without a dealership-wide setup.' },
-  { q: 'Does my customer need an account to see a quote?', a: 'No. A shareable quote link opens in any browser. Your customer can tweak the downpayment and tenure themselves and see the monthly installment update live.' },
-  { q: 'Does it work on my phone?', a: 'Yes. Every screen is built for mobile first, including the calculator, posters and quote links, because that is where most selling happens.' },
+  { q: 'Who is Redline for?', a: 'Car sales advisors in Malaysia who quote their own customers. It works on your own, without a dealership-wide setup.' },
+  { q: 'Which brands are included?', a: `${BRANDS.join(', ')}, with ${VEHICLES.length} variants and their brochures. You can change any price, rebate or package in Price Settings.` },
+  { q: 'Does my customer need an account to see a quote?', a: 'No. Your quote link opens in any browser. Customers can change the car, deposit and loan period, find cars for their budget and compare them, then WhatsApp you in one tap.' },
   { q: 'Do I need to keep my customers\' details in Redline?', a: 'No. Redline only works out and shares quotes. It never asks for or stores your customers\' names, phone numbers or IC numbers.' },
-  { q: 'Can I use my own prices?', a: 'Yes. Price Settings lets you set your own OTR prices, rebates and packages, and every quote and poster uses them.' },
+  { q: 'Can I use Bahasa Melayu?', a: 'Yes. The app, your posters, the Live Screen and the WhatsApp messages can each be set to Bahasa Melayu or English in Settings.' },
+  { q: 'Does it work on my phone?', a: 'Yes. Redline works on phones, tablets and computers, and you can install it on your home screen like an app.' },
 ];
-
-/** Decorative bar heights for the hero's mock preview (monthly instalment by tenure). */
-const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
 
 @Component({
   selector: 'app-landing',
   standalone: true,
-  imports: [RouterLink, IconComponent, CountUpDirective, LandingDemoComponent],
+  imports: [NgClass, RouterLink, IconComponent],
   template: `
     <div class="flex min-h-dvh flex-col overflow-x-hidden text-foreground">
       <!-- Nav -->
@@ -112,30 +106,26 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
 
       <main id="top" class="flex flex-1 flex-col items-center">
         <!-- Hero -->
-        <section class="relative flex w-full flex-col items-center px-4 pb-10 pt-10 sm:px-6 sm:pt-16">
+        <section class="relative flex w-full flex-col items-center px-4 pt-10 sm:px-6 sm:pt-16">
           <div class="hero-grid pointer-events-none absolute inset-0 -z-10" aria-hidden="true"></div>
-          <div class="flex max-w-3xl flex-col items-center gap-6 text-center">
-            <span class="animate-rise flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-              <span class="relative flex size-2">
-                <span class="animate-rl-ping absolute inline-flex size-full rounded-full bg-primary opacity-75"></span>
-                <span class="relative inline-flex size-2 rounded-full bg-primary"></span>
-              </span>
-              Built for car sales consultants
+          <div class="flex max-w-4xl flex-col items-center gap-6 text-center">
+            <span class="animate-rise rounded-full border border-border bg-card px-3.5 py-1 text-xs font-semibold text-muted-foreground">
+              For car sales advisors in Malaysia
             </span>
             <h1 class="animate-rise text-balance text-[2.75rem] font-extrabold leading-[1.05] tracking-tight sm:text-7xl" style="--i: 1">
               Quote it. Post it.
               <span class="text-gradient">Close it.</span>
             </h1>
-            <p class="animate-rise max-w-xl text-pretty text-base text-muted-foreground sm:text-lg" style="--i: 2">
-              Price a car in seconds, then send your customer a poster or a live quote link, or show it on your TikTok Live. It all runs from your phone.
+            <p class="animate-rise max-w-2xl text-pretty text-base text-muted-foreground sm:text-lg" style="--i: 2">
+              Turn a car price into a full loan quotation in seconds. Share it as a poster, send a link your customer can play with, or show it on TikTok Live.
             </p>
             <div class="animate-rise flex w-full flex-col items-stretch justify-center gap-3 pt-2 sm:w-auto sm:flex-row sm:items-center" style="--i: 3">
               <a [routerLink]="primaryCta().link" class="btn-glow group flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-semibold">
                 {{ primaryCta().label }}
                 <app-icon name="arrow-up-right" [size]="16" class="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </a>
-              <button type="button" (click)="scrollTo('features')" class="glass flex items-center justify-center gap-2 rounded-xl border border-border px-6 py-3.5 text-sm font-semibold text-foreground transition-colors hover:border-primary/40">
-                See what's inside
+              <button type="button" (click)="scrollTo('posters')" class="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-6 py-3.5 text-sm font-semibold text-foreground transition-colors hover:border-primary/40">
+                See how it works
                 <app-icon name="chevron-down" [size]="16" />
               </button>
             </div>
@@ -149,213 +139,108 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
             </ul>
           </div>
 
-          <!-- Product preview -->
-          <div class="animate-rise relative mt-14 w-full max-w-5xl" style="--i: 5" aria-hidden="true">
-            <div class="absolute -inset-x-10 -inset-y-6 -z-10 rounded-[3rem] bg-primary/20 blur-3xl"></div>
-            <div class="hero-float glass glow-border rounded-3xl p-3 sm:p-5">
-              <div class="flex items-center gap-1.5 pb-3 sm:pb-4">
-                <span class="size-2.5 rounded-full bg-[var(--destructive)]/80"></span>
-                <span class="size-2.5 rounded-full bg-[var(--warning)]/80"></span>
-                <span class="size-2.5 rounded-full bg-[var(--success)]/80"></span>
-                <span class="ml-3 h-2 w-32 rounded-full bg-muted"></span>
+          <!-- Product shot: the advisor's Calculator, with the customer's quote link on a phone -->
+          <div class="animate-rise relative mt-14 w-full max-w-5xl pb-8 sm:pb-16" style="--i: 5">
+            <div class="absolute inset-x-16 top-16 -z-10 h-2/3 rounded-full bg-primary/15 blur-3xl" aria-hidden="true"></div>
+            <figure class="overflow-hidden rounded-xl border border-border bg-card shadow-2xl sm:rounded-2xl">
+              <div class="flex items-center gap-1.5 border-b border-border px-4 py-2.5" aria-hidden="true">
+                <span class="size-2.5 rounded-full bg-muted-foreground/30"></span>
+                <span class="size-2.5 rounded-full bg-muted-foreground/30"></span>
+                <span class="size-2.5 rounded-full bg-muted-foreground/30"></span>
               </div>
-              <div class="grid gap-3 md:grid-cols-[1fr_17rem]">
-                <div class="flex min-w-0 flex-col gap-3">
-                  <div class="grid grid-cols-3 gap-3">
-                    @for (s of stats; track s.label) {
-                      <div class="rounded-xl border border-border bg-card p-3 text-left sm:p-4">
-                        <p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">{{ s.label }}</p>
-                        <p class="mt-1 font-mono text-base font-bold tabular sm:text-2xl" [class]="s.tone" [appCountUp]="s.value" [countUpDuration]="1400"></p>
-                      </div>
-                    }
-                  </div>
-                  <div class="flex h-32 items-end gap-2 rounded-xl border border-border bg-card p-4 sm:h-44">
-                    @for (h of bars; track $index) {
-                      <div class="bar-rise flex-1 rounded-t-md bg-gradient-to-t from-primary/40 to-[var(--primary-glow)]" [style.height.%]="h" [style.--i]="$index"></div>
-                    }
-                  </div>
-                </div>
-                <!-- Mini quote card -->
-                <div class="hidden flex-col gap-3 rounded-xl border border-border bg-card p-4 text-left md:flex">
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quote</span>
-                    <span class="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">Loan</span>
-                  </div>
-                  <div>
-                    <p class="text-sm font-bold">Sedan 1.5 Premium</p>
-                    <p class="text-xs text-muted-foreground">OTR RM 98,800</p>
-                  </div>
-                  <div class="flex flex-col gap-2 text-xs">
-                    @for (r of quoteRows; track r.k) {
-                      <div class="flex justify-between">
-                        <span class="text-muted-foreground">{{ r.k }}</span>
-                        <span class="font-mono font-semibold tabular">{{ r.v }}</span>
-                      </div>
-                    }
-                  </div>
-                  <div class="mt-auto rounded-lg bg-primary/10 p-3">
-                    <p class="text-[10px] font-semibold uppercase tracking-wider text-primary">Monthly</p>
-                    <p class="font-mono text-2xl font-extrabold tabular text-gradient">RM 1,284</p>
-                  </div>
-                  <div class="flex gap-2">
-                    <span class="btn-glow flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold"><app-icon name="share" [size]="12" /> Share</span>
-                    <span class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-xs font-semibold"><app-icon name="download" [size]="12" /> Poster</span>
-                  </div>
-                </div>
-              </div>
+              <img src="/landing/calculator.webp" width="2160" height="1350" alt="The Redline Calculator with a Chery O5 quote and its poster" class="block h-auto w-full" fetchpriority="high" />
+            </figure>
+            <div class="phone absolute -bottom-2 right-2 w-[28%] max-w-[15rem] sm:-right-6 sm:bottom-0 md:-right-10">
+              <img src="/landing/phone-quote.webp" width="780" height="1688" alt="The same quote on the customer's phone" class="block h-auto w-full rounded-[1.4rem]" />
             </div>
           </div>
         </section>
 
-        <!-- Live demo -->
-        <section id="demo" class="w-full max-w-5xl scroll-mt-20 px-4 pt-16 sm:px-6 sm:pt-24">
-          <div class="reveal mx-auto mb-12 flex max-w-2xl flex-col items-center gap-3 text-center">
-            <span class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">See it in action</span>
-            <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-5xl">A full quote in under a minute</h2>
-            <p class="text-pretty text-muted-foreground">Pick the car, set the loan, and send it. The monthly instalment updates as you go.</p>
-          </div>
-          <app-landing-demo />
-        </section>
-
-        <!-- Features -->
-        <section id="features" class="w-full max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6 sm:py-24">
-          <div class="reveal mx-auto flex max-w-2xl flex-col items-center gap-3 text-center">
-            <span class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Everything in one place</span>
-            <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-5xl">Every quoting tool in your pocket</h2>
-            <p class="text-pretty text-muted-foreground">No more spreadsheets and screenshots. Redline keeps every tool you need to quote in one app.</p>
-          </div>
-          <div class="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-            @for (f of features; track f.title) {
-              <div class="reveal lift group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-card p-6 text-card-foreground" [class]="f.span">
-                <span class="pointer-events-none absolute -right-12 -top-12 size-40 rounded-full bg-primary/20 opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100"></span>
-                <span class="logo-chip flex size-11 items-center justify-center rounded-xl transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110">
-                  <app-icon [name]="f.icon" [size]="20" />
-                </span>
-                <span class="text-base font-bold" [class]="f.points ? 'md:text-2xl' : ''">{{ f.title }}</span>
-                <span class="text-pretty text-sm leading-relaxed text-muted-foreground">{{ f.blurb }}</span>
-                @if (f.points) {
-                  <ul class="mt-2 flex flex-col gap-2">
-                    @for (p of f.points; track p) {
-                      <li class="flex items-center gap-2 text-sm"><app-icon name="check" [size]="14" class="text-primary" /> {{ p }}</li>
-                    }
-                  </ul>
-                  <div class="mt-auto hidden gap-2 pt-6 md:flex" aria-hidden="true">
-                    @for (d of downpayments; track d) {
-                      <span class="rounded-lg border border-border px-3 py-1.5 font-mono text-xs tabular text-muted-foreground" [class.active-chip]="d === '10%'">{{ d }}</span>
-                    }
-                  </div>
-                }
-              </div>
-            }
-          </div>
-        </section>
-
-        <!-- Share spotlight -->
+        <!-- Brands strip -->
         <section class="w-full border-y border-border bg-card/40">
-          <div class="mx-auto grid w-full max-w-6xl items-center gap-12 px-4 py-16 sm:px-6 sm:py-24 md:grid-cols-2">
-            <div class="reveal flex flex-col gap-5">
-              <span class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Built for WhatsApp selling</span>
-              <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-4xl">Let customers build their own quote</h2>
-              <p class="text-pretty text-muted-foreground">Send one link. Your customer picks the model, slides the downpayment and tenure, and sees the monthly installment live, with your name, photo and contact on every page.</p>
-              <ul class="flex flex-col gap-3">
-                @for (s of shareBullets; track s.title) {
-                  <li class="flex gap-3">
-                    <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><app-icon [name]="s.icon" [size]="16" /></span>
-                    <span class="flex flex-col gap-0.5">
-                      <span class="text-sm font-semibold">{{ s.title }}</span>
-                      <span class="text-sm text-muted-foreground">{{ s.blurb }}</span>
-                    </span>
-                  </li>
-                }
-              </ul>
-            </div>
-            <!-- Phone mock -->
-            <div class="reveal relative mx-auto w-full max-w-[18rem]" aria-hidden="true">
-              <div class="absolute -inset-8 -z-10 rounded-full bg-primary/20 blur-3xl"></div>
-              <div class="glass glow-border rounded-[2.25rem] p-3">
-                <div class="flex flex-col gap-3 rounded-[1.75rem] bg-background p-4">
-                  <div class="mx-auto h-1.5 w-16 rounded-full bg-muted"></div>
-                  <div class="flex items-center gap-2.5">
-                    <span class="logo-chip flex size-9 items-center justify-center rounded-full text-xs font-bold">AR</span>
-                    <span class="flex flex-col leading-tight">
-                      <span class="text-xs font-bold">Your name</span>
-                      <span class="text-[10px] text-muted-foreground">Sales Advisor</span>
-                    </span>
-                  </div>
-                  <div class="rounded-xl border border-border bg-card p-3">
-                    <p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Downpayment</p>
-                    <div class="mt-2 h-1.5 rounded-full bg-muted"><div class="slider-fill h-full rounded-full bg-gradient-to-r from-primary to-[var(--primary-glow)]"></div></div>
-                    <div class="mt-3 grid grid-cols-4 gap-1">
-                      @for (t of tenures; track t) {
-                        <span class="rounded-md border border-border py-1 text-center font-mono text-[10px] tabular" [class.active-chip]="t === 9">{{ t }}y</span>
-                      }
+          <div class="mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-4 py-7 text-center sm:px-6 md:flex-row md:justify-between md:text-left">
+            <p class="text-sm text-muted-foreground">
+              Loaded with <span class="font-semibold text-foreground">{{ variantCount }} variants</span> and their brochures
+            </p>
+            <ul class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+              @for (b of brands; track b) {
+                <li class="text-sm font-bold tracking-tight text-foreground/80">{{ b }}</li>
+              }
+            </ul>
+          </div>
+        </section>
+
+        <!-- Selling points -->
+        <div id="features" class="flex w-full max-w-6xl scroll-mt-20 flex-col gap-20 px-4 py-20 sm:gap-28 sm:px-6 sm:py-28">
+          @for (s of showcases; track s.id; let i = $index) {
+            <section [id]="s.id" class="grid scroll-mt-24 items-center gap-10 md:grid-cols-2 md:gap-16">
+              <div class="reveal flex flex-col gap-5" [ngClass]="{ 'md:order-2': i % 2 === 1 }">
+                <span class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{{ s.eyebrow }}</span>
+                <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-4xl">{{ s.title }}</h2>
+                <p class="text-pretty leading-relaxed text-muted-foreground">{{ s.body }}</p>
+                <ul class="flex flex-col gap-3 pt-1">
+                  @for (p of s.points; track p) {
+                    <li class="flex gap-3 text-sm">
+                      <span class="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary"><app-icon name="check" [size]="12" /></span>
+                      <span>{{ p }}</span>
+                    </li>
+                  }
+                </ul>
+              </div>
+
+              <div class="reveal relative flex justify-center" [ngClass]="{ 'md:order-1': i % 2 === 1 }">
+                <div class="absolute inset-10 -z-10 rounded-full bg-primary/12 blur-3xl" aria-hidden="true"></div>
+                @switch (s.visual) {
+                  @case ('poster') {
+                    <img src="/landing/poster.webp" width="1800" height="2336" loading="lazy" alt="A Full Quotation poster for a Chery O5" class="block h-auto w-full max-w-md rounded-xl shadow-2xl" />
+                  }
+                  @case ('link') {
+                    <div class="relative flex w-full max-w-md justify-center">
+                      <div class="phone w-[52%] -rotate-3">
+                        <img src="/landing/phone-profile.webp" width="780" height="1688" loading="lazy" alt="The advisor's profile on the customer's quote link" class="block h-auto w-full rounded-[1.4rem]" />
+                      </div>
+                      <div class="phone -ml-[10%] mt-12 w-[52%] rotate-3">
+                        <img src="/landing/phone-quote.webp" width="780" height="1688" loading="lazy" alt="The customer's own quote with a WhatsApp button" class="block h-auto w-full rounded-[1.4rem]" />
+                      </div>
                     </div>
-                  </div>
-                  <div class="rounded-xl bg-primary/10 p-3 text-center">
-                    <p class="text-[10px] font-semibold uppercase tracking-wider text-primary">Your monthly</p>
-                    <p class="font-mono text-3xl font-extrabold tabular text-gradient">RM 1,284</p>
-                  </div>
-                  <span class="flex items-center justify-center gap-1.5 rounded-xl bg-[var(--success)] py-2.5 text-xs font-bold text-[var(--success-foreground)]">
-                    <app-icon name="message-circle" [size]="14" /> Chat on WhatsApp
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Live Mode -->
-        <section class="w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-          <div class="grid items-center gap-12 md:grid-cols-2">
-            <div class="reveal order-2 flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 md:order-1" aria-hidden="true">
-              <span class="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Kiraan pinjaman kereta</span>
-              <span class="text-2xl font-extrabold">Sedan 1.5 Premium</span>
-              <div class="rounded-xl bg-primary/10 p-4">
-                <p class="text-xs font-semibold text-muted-foreground">Bulanan serendah</p>
-                <p class="font-mono text-4xl font-extrabold tabular text-gradient">RM 1,284</p>
-                <p class="text-xs text-muted-foreground">untuk 9 tahun · 2.3% flat</p>
-              </div>
-              <div class="grid grid-cols-2 gap-2 text-sm">
-                @for (t of liveTenures; track t.y) {
-                  <div class="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-                    <span class="font-semibold">{{ t.y }} tahun</span>
-                    <span class="font-mono font-bold tabular text-primary">{{ t.m }}</span>
-                  </div>
+                  }
+                  @case ('budget') {
+                    <div class="phone w-[62%] max-w-[17rem]">
+                      <img src="/landing/phone-budget-cars.webp" width="780" height="1688" loading="lazy" alt="Cars that fit a RM 900 monthly budget, with the deposit for each" class="block h-auto w-full rounded-[1.4rem]" />
+                    </div>
+                  }
+                  @case ('live') {
+                    <figure class="relative w-full max-w-md">
+                      <span class="absolute -top-3 right-4 z-10 flex items-center gap-1.5 rounded-md bg-[#fe2c55] px-2 py-1 text-[11px] font-bold tracking-wide text-white shadow">
+                        <span class="size-1.5 rounded-full bg-white"></span>LIVE
+                      </span>
+                      <img src="/landing/live-screen.webp" width="1053" height="1053" loading="lazy" alt="The Live Screen in Bahasa Melayu showing a monthly of RM 1,214" class="block h-auto w-full rounded-xl shadow-2xl" />
+                    </figure>
+                  }
                 }
               </div>
-            </div>
-            <div class="reveal order-1 flex flex-col gap-5 md:order-2">
-              <span class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Made for TikTok Live</span>
-              <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-4xl">Answer "berapa sebulan?" live, on screen</h2>
-              <p class="text-pretty text-muted-foreground">Live Mode puts a clean, big-number quote on your stream while you change the car and down payment off camera. Your phone number stays hidden unless you switch it on.</p>
-              <a [routerLink]="signedIn() ? '/live' : '/signup'" class="group flex w-fit items-center gap-1.5 text-sm font-semibold text-primary">
-                {{ signedIn() ? 'Open Live Mode' : 'Try Live Mode' }}
-                <app-icon name="arrow-up-right" [size]="14" class="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-              </a>
-            </div>
-          </div>
-        </section>
+            </section>
+          }
+        </div>
 
-        <!-- How it works -->
-        <section id="how" class="w-full max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6 sm:py-20">
-          <div class="reveal mx-auto flex max-w-2xl flex-col items-center gap-3 text-center">
-            <span class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">How it works</span>
-            <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-5xl">Up and quoting in minutes</h2>
+        <!-- Values -->
+        <section class="w-full border-y border-border bg-card/40">
+          <div class="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+            <h2 class="reveal mx-auto max-w-2xl text-balance text-center text-3xl font-extrabold tracking-tight sm:text-4xl">Built the way you sell</h2>
+            <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              @for (v of values; track v.title) {
+                <div class="reveal flex flex-col gap-3 rounded-2xl border border-border bg-card p-6">
+                  <span class="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><app-icon [name]="v.icon" [size]="18" /></span>
+                  <span class="text-base font-bold">{{ v.title }}</span>
+                  <span class="text-pretty text-sm leading-relaxed text-muted-foreground">{{ v.blurb }}</span>
+                </div>
+              }
+            </div>
           </div>
-          <ol class="mt-12 grid gap-4 md:grid-cols-3">
-            @for (s of steps; track s.title; let i = $index) {
-              <li class="reveal relative flex flex-col gap-3 rounded-2xl border border-border bg-card p-6">
-                <span class="absolute right-5 top-4 font-mono text-5xl font-extrabold text-muted/80">0{{ i + 1 }}</span>
-                <span class="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><app-icon [name]="s.icon" [size]="20" /></span>
-                <span class="text-base font-bold">{{ s.title }}</span>
-                <span class="text-pretty text-sm leading-relaxed text-muted-foreground">{{ s.blurb }}</span>
-              </li>
-            }
-          </ol>
         </section>
 
         <!-- FAQ -->
-        <section id="faq" class="w-full max-w-3xl scroll-mt-20 px-4 py-16 sm:px-6 sm:py-20">
+        <section id="faq" class="w-full max-w-3xl scroll-mt-20 px-4 py-16 sm:px-6 sm:py-24">
           <h2 class="reveal text-center text-3xl font-extrabold tracking-tight sm:text-4xl">Questions, answered</h2>
           <div class="mt-10 flex flex-col gap-3">
             @for (f of faqs; track f.q) {
@@ -372,8 +257,8 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
 
         <!-- Final CTA -->
         <section class="w-full px-4 pb-20 sm:px-6">
-          <div class="reveal glow-border relative mx-auto flex max-w-5xl flex-col items-center gap-6 overflow-hidden rounded-3xl border border-border bg-card px-6 py-14 text-center sm:py-20">
-            <div class="pointer-events-none absolute -bottom-24 left-1/2 -z-10 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-primary/30 blur-3xl" aria-hidden="true"></div>
+          <div class="reveal relative mx-auto flex max-w-5xl flex-col items-center gap-6 overflow-hidden rounded-3xl border border-border bg-card px-6 py-14 text-center sm:py-20">
+            <div class="pointer-events-none absolute -bottom-24 left-1/2 -z-10 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-primary/25 blur-3xl" aria-hidden="true"></div>
             <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-5xl">Your next quote starts <span class="text-gradient">here.</span></h2>
             <p class="max-w-lg text-pretty text-muted-foreground">{{ signedIn() ? 'Pick up where you left off.' : 'Set up your account and send your first quote today.' }}</p>
             <div class="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row">
@@ -381,9 +266,7 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
                 {{ primaryCta().label }}
                 <app-icon name="arrow-up-right" [size]="16" />
               </a>
-              @if (signedIn()) {
-                <a routerLink="/calculator" class="flex items-center justify-center rounded-xl border border-border px-6 py-3.5 text-sm font-semibold transition-colors hover:border-primary/40">Start a new quote</a>
-              } @else {
+              @if (!signedIn()) {
                 <a routerLink="/login" class="flex items-center justify-center rounded-xl border border-border px-6 py-3.5 text-sm font-semibold transition-colors hover:border-primary/40">I already have an account</a>
               }
             </div>
@@ -420,42 +303,13 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
       background-size: 48px 48px;
       mask-image: radial-gradient(ellipse 70% 55% at 50% 20%, #000 30%, transparent 75%);
     }
-    .hero-float {
-      animation: landing-float 7s ease-in-out infinite;
-    }
-    @keyframes landing-float {
-      0%,
-      100% {
-        transform: translateY(0);
-      }
-      50% {
-        transform: translateY(-10px);
-      }
-    }
-    .bar-rise {
-      transform-origin: bottom;
-      animation: landing-bar 1.1s var(--ease-out-expo) both;
-      animation-delay: calc(var(--i) * 70ms + 500ms);
-    }
-    @keyframes landing-bar {
-      from {
-        transform: scaleY(0);
-      }
-    }
-    .active-chip {
-      border-color: color-mix(in oklch, var(--primary), transparent 50%);
-      background-color: color-mix(in oklch, var(--primary), transparent 85%);
-      color: var(--primary);
-      font-weight: 700;
-    }
-    .slider-fill {
-      width: 10%;
-      animation: landing-slide 4s var(--ease-out-expo) infinite alternate;
-    }
-    @keyframes landing-slide {
-      to {
-        width: 35%;
-      }
+    /* A plain phone body around a phone-sized screenshot */
+    .phone {
+      padding: 6px;
+      border-radius: 1.75rem;
+      background: #0b0b0d;
+      border: 1px solid color-mix(in oklch, var(--border), white 8%);
+      box-shadow: 0 30px 60px -20px rgb(0 0 0 / 0.55);
     }
     /* Scroll-driven reveal where supported; elsewhere content simply shows. */
     @supports (animation-timeline: view()) {
@@ -474,14 +328,11 @@ const PREVIEW_BARS = [38, 52, 44, 66, 58, 74, 62, 88, 80, 96];
   `,
 })
 export class LandingComponent {
-  features = FEATURES;
-  liveTenures = [
-    { y: 7, m: 'RM 1,566' },
-    { y: 5, m: 'RM 2,101' },
-  ];
-  steps = STEPS;
+  showcases = SHOWCASES;
+  values = VALUES;
   faqs = FAQS;
-  bars = PREVIEW_BARS;
+  brands = BRANDS;
+  variantCount = VEHICLES.length;
   year = new Date().getFullYear();
   scrolled = signal(false);
   /** The page is reachable signed in too (via the sidebar logo), so CTAs lead back into the app. */
@@ -489,30 +340,13 @@ export class LandingComponent {
   primaryCta = computed(() => (this.signedIn() ? { link: '/calculator', label: 'Open the Calculator' } : { link: '/signup', label: 'Create your free account' }));
 
   navLinks = [
-    { id: 'demo', label: 'Demo' },
-    { id: 'features', label: 'Features' },
-    { id: 'how', label: 'How it works' },
+    { id: 'posters', label: 'Posters' },
+    { id: 'link', label: 'Quote link' },
+    { id: 'budget', label: 'Budget' },
+    { id: 'live', label: 'Live Mode' },
     { id: 'faq', label: 'FAQ' },
   ];
-  trust = ['Free to start', 'Works on any phone', 'Share straight to WhatsApp'];
-  stats = [
-    { label: 'Models', value: '75', tone: 'text-foreground' },
-    { label: 'From', value: 'RM 924', tone: 'text-[var(--success)]' },
-    { label: 'Posters', value: '4', tone: 'text-primary' },
-  ];
-  quoteRows = [
-    { k: 'Downpayment', v: 'RM 9,880' },
-    { k: 'Loan amount', v: 'RM 88,920' },
-    { k: 'Tenure', v: '9 years' },
-    { k: 'Rate', v: '2.60%' },
-  ];
-  downpayments = ['0%', '10%', '20%', '30%'];
-  tenures = [5, 7, 9, 10];
-  shareBullets: { icon: IconName; title: string; blurb: string }[] = [
-    { icon: 'user', title: 'Your brand on every quote', blurb: 'Your profile, promo card and socials show on the page your customer opens.' },
-    { icon: 'sparkles', title: 'Posters for every channel', blurb: 'Story, Square and Promo layouts, ready for WhatsApp Status, Instagram and TikTok.' },
-    { icon: 'lock', title: 'No login for customers', blurb: 'The link opens in any browser, so nothing gets in the way of a warm lead.' },
-  ];
+  trust = ['Current Malaysian prices loaded', 'Works on phone, tablet and PC', 'No customer data stored'];
 
   onScroll() {
     this.scrolled.set(window.scrollY > 8);
