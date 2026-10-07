@@ -11,7 +11,9 @@ type NavItem = { id: string; label: string; icon: IconName };
 const NAV: NavItem[] = [
   { id: 'calculator', label: 'Calculator', icon: 'calculator' },
   { id: 'compare', label: 'Compare', icon: 'table' },
+  { id: 'budget', label: 'Budget', icon: 'wallet' },
   { id: 'live', label: 'Live Mode', icon: 'live' },
+  { id: 'links', label: 'Quote Links', icon: 'share' },
   { id: 'cars', label: 'Catalog', icon: 'car' },
   { id: 'price-settings', label: 'Price Settings', icon: 'tag' },
 ];

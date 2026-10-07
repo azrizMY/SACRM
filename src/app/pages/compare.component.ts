@@ -286,7 +286,7 @@ export class CompareComponent {
       const nav = navigator as { canShare?: (d: { files: File[] }) => boolean };
       if (nav.canShare?.({ files: [file] })) {
         try {
-          await navigator.share({ files: [file], title: 'Car comparison' });
+          await navigator.share({ files: [file], title: translate(this.settings.whatsappLang(), 'Car comparison') });
         } catch {
           /* cancelled */
         }
@@ -313,6 +313,7 @@ export class CompareComponent {
     await renderComparePoster(canvas, {
       lang,
       accent: this.settings.settings().salesDefaults.posterAccent,
+      frame: this.settings.settings().salesDefaults.posterFrame,
       setupLine,
       tenureYears: years,
       cars: this.columns().map((c) => ({

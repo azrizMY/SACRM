@@ -8,12 +8,13 @@ import { brandLogo } from '../data/dashboard-data';
 
 /** Assembles the plain data object a poster template draws from — shared by the Calculator and
  *  Live Mode, so every figure on either poster traces back to the same QuoteEngine. */
-export function quotePosterData(q: QuoteEngine, advisor: AdvisorService, lang: Lang, accent?: string): PosterData {
+export function quotePosterData(q: QuoteEngine, advisor: AdvisorService, lang: Lang, accent?: string, frame?: string): PosterData {
   const vehicle = q.selectedVehicle();
   const advisorProfile = advisor.profile();
   return {
     lang,
     accent,
+    frame,
     brand: vehicle.brand,
     modelTitle: modelVariantLabel(vehicle.model, vehicle.variant),
     year: q.modelYear(),

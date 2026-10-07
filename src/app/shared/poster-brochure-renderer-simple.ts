@@ -459,7 +459,7 @@ async function drawFooter(ctx: CanvasRenderingContext2D, data: BrochureData): Pr
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  const waText = `https://wa.me/${data.advisor.phoneWa}?text=${encodeURIComponent(L('Hi, I would like to enquire about the {brand} promotion.', { brand: data.brand }))}`;
+  const waText = `https://wa.me/${data.advisor.phoneWa}?text=${encodeURIComponent(translate(data.waLang ?? lang, 'Hi, I would like to enquire about the {brand} promotion.', { brand: data.brand }))}`;
   drawQrCode(ctx, waText, qrCardX + qrCardPad, qrCardTop + qrCardPad, qrSize);
 }
 

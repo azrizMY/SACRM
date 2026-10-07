@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IconComponent, type IconName } from '../shared/icon.component';
 import { BrandIconComponent } from '../shared/brand-icon.component';
-import { I18nService, TranslatePipe, translate } from '../shared/i18n';
+import { I18nService, TranslatePipe, translate, type Lang } from '../shared/i18n';
 import { CompareTableComponent, type CompareColumn } from '../shared/compare-table.component';
 import { quoteForComparison, type ComparePricing, type CompareSetup } from '../data/compare-data';
 import { DEFAULT_SETTINGS } from '../data/settings-data';
@@ -41,17 +41,20 @@ import {
   type VehicleOverride,
   vehicleTitle,
 } from '../data/calculator-data';
+import { applyPosterFrame } from '../shared/poster-frames';
+import { BudgetFinderComponent, type BudgetPick } from '../shared/budget-finder.component';
+import type { BudgetRules } from '../shared/budget-finder';
 
 /** The full 1-9 year range the tenure picker offers — same range as the Calculator's own poster
  *  year buttons, just single-select here instead of "pick 3 for a comparison table". */
 const TENURE_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => i + 1);
 
-type PageSection = 'quote' | 'profile' | 'compare' | 'cars';
+type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
 
 @Component({
   selector: 'app-public-quote',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent, BrandIconComponent, TranslatePipe, CarShadowPipe, CompareTableComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, BrandIconComponent, TranslatePipe, CarShadowPipe, CompareTableComponent, BudgetFinderComponent],
   // Its own instance, pinned to the advisor's poster language rather than any UI language.
   providers: [I18nService],
   template: `
@@ -165,6 +168,12 @@ type PageSection = 'quote' | 'profile' | 'compare' | 'cars';
               <app-icon name="info" [size]="12" class="mr-1 inline-block align-[-2px]" />
               {{ "Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here." | t }}
             </p>
+            @if (qualifyWhatsAppHref(); as href) {
+              <a [href]="href" target="_blank" rel="noopener" class="flex shrink-0 items-center justify-center gap-1.5 text-center text-xs font-medium text-[var(--success)] hover:underline">
+                <app-icon name="message-circle" [size]="13" />
+                {{ "Not sure if you qualify? WhatsApp me — I will check with the banks for you." | t }}
+              </a>
+            }
 
             <!-- Phones/tablets: Follow Me below the disclaimer (desktop shows it in the Customize column) -->
             <!-- A compact one-row card so it fits the gap above the bottom bar without making the
@@ -711,6 +720,23 @@ type PageSection = 'quote' | 'profile' | 'compare' | 'cars';
 
           <button
             type="button"
+            (click)="selectSection('budget')"
+            class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
+          >
+            <span class="flex items-center gap-3">
+              <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <app-icon name="wallet" [size]="18" />
+              </span>
+              <span class="flex flex-col gap-0.5">
+                <span class="text-sm font-semibold">{{ "Find a car for your budget" | t }}</span>
+                <span class="text-xs text-muted-foreground">{{ "Tell us your monthly and see the deposit for every car." | t }}</span>
+              </span>
+            </span>
+            <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground" />
+          </button>
+
+          <button
+            type="button"
             (click)="selectSection('quote')"
             class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
           >
@@ -729,6 +755,18 @@ type PageSection = 'quote' | 'profile' | 'compare' | 'cars';
           <a routerLink="/privacy" [queryParams]="{ lang: pageLang() }" target="_blank" class="self-center py-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
             {{ "Privacy Policy" | t }}
           </a>
+        </div>
+      }
+
+      <!-- Budget: start from the monthly the customer is comfortable with — every car shows the deposit
+           that gets it there. Never says anyone can't afford a car; doubts go to the advisor. -->
+      @if (section() === 'budget') {
+        <div class="mx-auto flex w-full max-w-5xl flex-col p-4 pb-28 md:p-6 md:pb-28 xl:py-8">
+          <div class="flex flex-col gap-1 pb-5">
+            <h1 class="text-xl font-bold tracking-tight">{{ "Find a car for your budget" | t }}</h1>
+            <p class="text-sm text-muted-foreground">{{ "Start from the monthly you are comfortable with, and see the deposit for every car." | t }}</p>
+          </div>
+          <app-budget-finder [vehicles]="budgetVehicles()" [brands]="carsBrands()" [rules]="budgetRules()" [doubtHref]="qualifyWhatsAppHref()" (pick)="quoteFromBudget($event)" />
         </div>
       }
 
@@ -1049,6 +1087,7 @@ export class PublicQuoteComponent implements OnInit {
     // Quote is the page's main feature, so it sits right after Profile; Compare leads on from it.
     { id: 'profile', label: 'Profile', icon: 'user' },
     { id: 'quote', label: 'Quote', icon: 'calculator' },
+    { id: 'budget', label: 'Budget', icon: 'wallet' },
     { id: 'compare', label: 'Compare', icon: 'table' },
     { id: 'cars', label: 'Cars', icon: 'car' },
   ];
@@ -1129,11 +1168,17 @@ export class PublicQuoteComponent implements OnInit {
     return local ? `tel:${local}` : null;
   });
 
+  /** The advisor's WhatsApp-message language (Settings → Language), for everything sent to them. */
+  waLang = computed<Lang>(() => {
+    const d = this.bundle()?.salesDefaults;
+    return d?.whatsappLanguage ?? d?.posterLanguage ?? 'en';
+  });
+
   profileWhatsAppHref = computed(() => {
     const advisor = this.bundle()?.advisor;
     const wa = (advisor?.phoneWa ?? '').replace(/[^0-9]/g, '');
     if (!wa) return null;
-    const text = `Hi ${advisor!.name}, I came across your profile and would like to know more.`;
+    const text = translate(this.waLang(), 'Hi {advisor}, I came across your profile and would like to know more.', { advisor: advisor!.name });
     return `https://wa.me/${wa}?text=${encodeURIComponent(text)}`;
   });
 
@@ -1568,6 +1613,7 @@ export class PublicQuoteComponent implements OnInit {
     return {
       lang,
       accent: this.bundle()!.salesDefaults.posterAccent,
+      frame: this.bundle()!.salesDefaults.posterFrame,
       brand: vehicle.brand,
       modelTitle: modelVariantLabel(vehicle.model, vehicle.variant),
       year: this.modelYear(),
@@ -1605,6 +1651,7 @@ export class PublicQuoteComponent implements OnInit {
     if (!canvas) return;
     const generation = ++this.drawGeneration;
     await classicTemplate.render(canvas, data, PublicQuoteComponent.PREVIEW_SCALE, () => generation !== this.drawGeneration);
+    if (generation === this.drawGeneration) applyPosterFrame(canvas, data.frame, data.lang, PublicQuoteComponent.PREVIEW_SCALE);
   }
 
   /** No name/phone form at all — the customer's own WhatsApp number reaches the SA automatically
@@ -1612,21 +1659,23 @@ export class PublicQuoteComponent implements OnInit {
    *  configured goes along as plain text instead of being posted anywhere. */
   openWhatsAppToAdvisor() {
     const vehicle = this.selectedVehicle();
+    const W = (en: string, params?: Record<string, string | number>) => translate(this.waLang(), en, params);
+    const dp = downpaymentDisplay(this.downpaymentCash());
     const lines = [
-      `Hi ${this.bundle()!.advisor.name}, I'm interested in the ${vehicleTitle(vehicle.brand, modelVariantLabel(vehicle.model, vehicle.variant))} (${this.modelYear()}).`,
+      W("Hi {advisor}, I'm interested in the {car} ({year}).", { advisor: this.bundle()!.advisor.name, car: vehicleTitle(vehicle.brand, modelVariantLabel(vehicle.model, vehicle.variant)), year: this.modelYear() }),
       '',
-      "Here's the quote I put together:",
+      W("Here's the quote I put together:"),
       // Only mentioned for cars that actually offer a colour choice — see the Colour select's own
       // @if (selectedVehicle().colours; ...) guard. "Not confirmed yet" (rather than omitting the
       // line) since the advisor still needs to know a colour is expected, just not picked.
-      ...(vehicle.colours ? [`- Colour: ${this.selectedColour() ?? 'Not confirmed yet'}`] : []),
-      `- ${downpaymentDisplay(this.downpaymentCash()).label}: ${this.fmt2(downpaymentDisplay(this.downpaymentCash()).amount)}`,
-      `- Loan Amount: ${this.fmt2(this.loanAmount())}`,
-      `- Rebate: ${this.fmt(this.rebateInput())}`,
-      `- Insurance (${this.ncd()}% NCD): ${this.fmt2(this.insurance())}`,
-      `- Tenure: ${this.tenureYears()} Years`,
+      ...(vehicle.colours ? [W('- Colour: {colour}', { colour: this.selectedColour() ?? W('Not confirmed yet') })] : []),
+      `- ${W(dp.label)}: ${this.fmt2(dp.amount)}`,
+      W('- Loan Amount: {amount}', { amount: this.fmt2(this.loanAmount()) }),
+      W('- Rebate: {amount}', { amount: this.fmt(this.rebateInput()) }),
+      W('- Insurance ({ncd}% NCD): {amount}', { ncd: this.ncd(), amount: this.fmt2(this.insurance()) }),
+      W('- Tenure: {years} Years', { years: this.tenureYears() }),
       '',
-      'Please get in touch with me!',
+      W('Please get in touch with me!'),
     ];
     const phone = this.bundle()!.advisor.phoneWa.replace(/[^0-9]/g, '');
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
@@ -1725,6 +1774,54 @@ export class PublicQuoteComponent implements OnInit {
   }
 
   /** "Get this quote" — back to the Quote tab on that car and model year. */
+  // ---------- Budget ----------
+
+  /** The cars this link shows (just the Primary Brand's on the single-brand link). */
+  budgetVehicles = computed(() => {
+    const brands = this.carsBrands();
+    return this.vehicles().filter((v) => brands.includes(v.brand));
+  });
+  /** The advisor's own quoting rules — the same ones the Quote tab uses. */
+  budgetRules = computed<BudgetRules>(() => {
+    const d = this.bundle()?.salesDefaults;
+    return {
+      defaultRateType: d?.defaultRateType ?? 'flat',
+      interestRate: d?.interestRate ?? 2.3,
+      effectiveRate: d?.effectiveRate,
+      basicPremiumRatePct: d?.basicPremiumRatePct ?? 3.27,
+      ncd: this.ncd(),
+      loanRounding: d?.loanRounding,
+      insuranceFor: (vehicle, fallback) => {
+        const saved = this.bundle()?.vehicleInsurance[vehicle.id];
+        return saved ? { ...saved, epr: saved.epr ?? DEFAULT_EPR } : defaultInsuranceQuotation(vehicle, fallback);
+      },
+    };
+  });
+
+  /** "Not sure if you qualify?" — a WhatsApp to the advisor, so an unsure customer talks to them
+   *  instead of quietly leaving. Null when the advisor has no WhatsApp number. */
+  qualifyWhatsAppHref = computed(() => {
+    const advisor = this.bundle()?.advisor;
+    const wa = (advisor?.phoneWa ?? '').replace(/[^0-9]/g, '');
+    if (!wa) return null;
+    const text = translate(this.waLang(), 'Hi {advisor}, I am not sure if I qualify for a car loan. Could you check with the banks for me?', { advisor: advisor!.name });
+    return `https://wa.me/${wa}?text=${encodeURIComponent(text)}`;
+  });
+
+  /** A car from Budget opens in Quote at the deposit and loan period it showed. */
+  quoteFromBudget(pick: BudgetPick) {
+    const v = this.vehicles().find((x) => x.id === pick.vehicleId);
+    if (!v) return;
+    this.selectedBrand.set(v.brand);
+    this.selectModelVariant(v.model, v.variant);
+    if (v.years.some((y) => y.year === pick.year)) this.modelYear.set(pick.year);
+    this.downpaymentType.set('amount');
+    this.downpaymentValue.set(pick.deposit);
+    this.tenureYears.set(pick.tenureYears);
+    this.mobileTab.set('preview');
+    this.selectSection('quote');
+  }
+
   quoteCompared(c: CompareColumn) {
     this.selectedBrand.set(c.vehicle.brand);
     this.selectModelVariant(c.vehicle.model, c.vehicle.variant);
@@ -1742,18 +1839,19 @@ export class PublicQuoteComponent implements OnInit {
   whatsAppComparison() {
     const s = this.compareSetup();
     const dp = s.downpaymentType === 'percent' ? `${s.downpaymentValue}%` : this.fmt(s.downpaymentValue);
+    const W = (en: string, params?: Record<string, string | number>) => translate(this.waLang(), en, params);
     const lines = [
-      `Hi ${this.bundle()!.advisor.name}, I'm comparing these cars:`,
+      W("Hi {advisor}, I'm comparing these cars:", { advisor: this.bundle()!.advisor.name }),
       '',
       ...this.compareColumns().map((c) => {
         const name = vehicleTitle(c.vehicle.brand, modelVariantLabel(c.vehicle.model, c.vehicle.variant));
-        const monthly = c.quote.monthly === null ? 'rate needed' : c.quote.monthly === 0 ? 'cash' : `${this.fmt2(c.quote.monthly)}/month`;
+        const monthly = c.quote.monthly === null ? W('rate needed') : c.quote.monthly === 0 ? W('cash') : W('{amount}/month', { amount: this.fmt2(c.quote.monthly) });
         return `- ${name} (${c.year}): ${monthly}`;
       }),
       '',
-      `Based on ${dp} downpayment, ${s.tenureMonths / 12} years, ${s.ncd}% NCD.`,
+      W('Based on {dp} downpayment, {years} years, {ncd}% NCD.', { dp, years: s.tenureMonths / 12, ncd: s.ncd }),
       '',
-      'Which one would you recommend?',
+      W('Which one would you recommend?'),
     ];
     const phone = this.bundle()!.advisor.phoneWa.replace(/[^0-9]/g, '');
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');

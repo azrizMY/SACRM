@@ -11,6 +11,7 @@ import { AuthService } from '../shared/auth.service';
 import { SettingsService } from '../shared/settings.service';
 import { ThemeService, type ThemeMode } from '../shared/theme.service';
 import { DEFAULT_POSTER_ACCENT, POSTER_ACCENTS, type PosterAccentId } from '../shared/poster-theme';
+import { POSTER_FRAMES, posterFrameThumbnail, type PosterFrameId } from '../shared/poster-frames';
 import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
 import { NCD_OPTIONS } from '../data/calculator-data';
 import { type DashboardTarget, type SalesDefaults } from '../data/settings-data';
@@ -385,6 +386,26 @@ type NavItem = { id: string; label: string; icon: IconName };
                       </button>
                   </div>
                 </div>
+                <div class="flex flex-wrap items-center justify-between gap-4 py-4">
+                  <div class="flex min-w-0 flex-col">
+                    <span class="text-sm font-medium">{{ 'WhatsApp messages' | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ 'The ready-written messages you share with customers, and the ones customers send you from your quote link.' | t }}</span>
+                  </div>
+                  <div role="radiogroup" [attr.aria-label]="'WhatsApp messages' | t" class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
+                    @for (l of languageOptions; track l.id) {
+                      <button
+                        type="button"
+                        role="radio"
+                        [attr.aria-checked]="whatsappLanguage() === l.id"
+                        (click)="setLanguage('whatsappLanguage', l.id)"
+                        class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+                        [ngClass]="whatsappLanguage() === l.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                      >
+                        {{ l.label | t }}
+                      </button>
+                    }
+                  </div>
+                </div>
               </div>
               @if (uiLanguage() === 'ms') {
                 <p class="border-t border-border px-5 py-3 text-[11px] text-muted-foreground">{{ 'Some pages are still being translated and will show in English for now.' | t }}</p>
@@ -445,6 +466,37 @@ type NavItem = { id: string; label: string; icon: IconName };
                     <span [style.color]="accentPreview().accBright">RM 1,519</span>
                   </div>
                 </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Festive frame — drawn around every poster, offer sheet and the customer link's poster -->
+          <section id="festive-frame" data-section class="flex scroll-mt-20 flex-col gap-4">
+            <div class="flex flex-col gap-0.5">
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ 'Festive frame' | t }}</h3>
+              <p class="text-xs text-muted-foreground">{{ 'A border and greeting around your posters for the season. It never covers prices — remember to switch it off after the festival.' | t }}</p>
+            </div>
+            <div class="overflow-hidden rounded-xl border border-border bg-card p-5 text-card-foreground shadow-sm">
+              <div role="radiogroup" [attr.aria-label]="'Festive frame' | t" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                @for (opt of frameOptions(); track opt.id) {
+                  <button
+                    type="button"
+                    role="radio"
+                    [attr.aria-checked]="posterFrameId() === opt.id"
+                    (click)="setPosterFrame(opt.id)"
+                    class="flex flex-col items-center gap-2 rounded-lg border p-2 text-center text-xs font-medium transition-colors"
+                    [ngClass]="posterFrameId() === opt.id ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                  >
+                    @if (opt.thumb) {
+                      <img [src]="opt.thumb" alt="" class="aspect-[5/6] w-full rounded object-cover" />
+                    } @else {
+                      <span class="flex aspect-[5/6] w-full items-center justify-center rounded border border-dashed border-border text-muted-foreground">
+                        <app-icon name="x" [size]="18" />
+                      </span>
+                    }
+                    {{ opt.label | t }}
+                  </button>
+                }
               </div>
             </div>
           </section>
@@ -723,6 +775,11 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
 
   uiLanguage = computed<Lang>(() => this.settingsService.settings().salesDefaults.uiLanguage ?? 'en');
   posterLanguage = computed<Lang>(() => this.settingsService.settings().salesDefaults.posterLanguage ?? 'en');
+  whatsappLanguage = computed<Lang>(() => this.settingsService.whatsappLang());
+  readonly languageOptions: { id: Lang; label: string }[] = [
+    { id: 'en', label: 'English' },
+    { id: 'ms', label: 'Bahasa Melayu' },
+  ];
 
   posterAccents = (Object.keys(POSTER_ACCENTS) as PosterAccentId[]).map((id) => ({ id, ...POSTER_ACCENTS[id] }));
   posterAccentId = computed<PosterAccentId>(() => {
@@ -737,8 +794,28 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
     this.salesForm.posterAccent = id;
   }
 
+  /** None plus every festive frame, each with a small preview drawn in the poster language. */
+  frameOptions = computed(() => {
+    const lang = this.settingsService.settings().salesDefaults.posterLanguage ?? 'en';
+    return [
+      { id: '', label: 'None', thumb: '' },
+      ...(Object.keys(POSTER_FRAMES) as PosterFrameId[]).map((id) => ({ id, label: POSTER_FRAMES[id].label, thumb: posterFrameThumbnail(id, lang) })),
+    ];
+  });
+  posterFrameId = computed(() => {
+    const id = this.settingsService.settings().salesDefaults.posterFrame ?? '';
+    return id in POSTER_FRAMES ? id : '';
+  });
+
+  /** Saves straight away, like Poster colour. '' = no frame. */
+  setPosterFrame(id: string) {
+    const posterFrame = id || undefined;
+    this.settingsService.updateSalesDefaults({ posterFrame });
+    this.salesForm.posterFrame = posterFrame;
+  }
+
   /** Saves straight away — a language switch should take effect the moment it's tapped. */
-  setLanguage(field: 'uiLanguage' | 'posterLanguage', lang: Lang) {
+  setLanguage(field: 'uiLanguage' | 'posterLanguage' | 'whatsappLanguage', lang: Lang) {
     this.settingsService.updateSalesDefaults({ [field]: lang });
     this.salesForm[field] = lang;
   }
@@ -748,6 +825,7 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
     { id: 'appearance', label: 'Appearance', icon: 'sun' },
     { id: 'language', label: 'Language', icon: 'languages' },
     { id: 'poster-colour', label: 'Poster colour', icon: 'file-text' },
+    { id: 'festive-frame', label: 'Festive frame', icon: 'sparkles' },
     { id: 'data', label: 'Data & Privacy', icon: 'file-text' },
     { id: 'security', label: 'Account & Security', icon: 'lock' },
   ];

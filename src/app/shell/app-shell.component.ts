@@ -12,7 +12,9 @@ import { ToastHostComponent } from '../shared/toast-host.component';
 const TITLES: Record<string, string> = {
   calculator: 'Calculator',
   compare: 'Compare Cars',
+  budget: 'Budget',
   live: 'Live Mode',
+  links: 'Quote Links',
   cars: 'Catalog',
   'price-settings': 'Price Settings',
   profile: 'My Profile',

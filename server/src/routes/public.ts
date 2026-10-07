@@ -61,6 +61,8 @@ function publicSocials(raw: unknown): Record<string, string> | undefined {
  *  quote as a plain wa.me message, so there's no lead-submission endpoint to guard here either). */
 /** The poster colours the app offers (POSTER_ACCENTS in src/app/shared/poster-theme.ts). */
 const POSTER_ACCENT_IDS = ['red', 'blue', 'navy', 'teal', 'orange', 'purple', 'magenta', 'gold'];
+/** The festive frames the app offers (POSTER_FRAMES in src/app/shared/poster-frames.ts). */
+const POSTER_FRAME_IDS = ['raya', 'ramadan', 'haji', 'cny', 'deepavali', 'christmas', 'merdeka', 'malaysiaday', 'newyear'];
 
 export async function handlePublicRoute(request: Request, env: Env, url: URL): Promise<Response> {
   const bundleMatch = url.pathname.match(/^\/api\/public\/quote\/([^/]+)$/);
@@ -107,9 +109,12 @@ async function getPublicQuoteBundle(env: Env, token: string): Promise<Response> 
     ncd: settingsData.salesDefaults?.ncd ?? 0,
     basicPremiumRatePct: settingsData.salesDefaults?.basicPremiumRatePct ?? 3.6,
     posterLanguage: settingsData.salesDefaults?.posterLanguage === 'ms' ? 'ms' : 'en',
+    // What customers' WhatsApp messages to the advisor are written in; absent = the poster language.
+    whatsappLanguage: ['ms', 'en'].includes(settingsData.salesDefaults?.whatsappLanguage) ? settingsData.salesDefaults.whatsappLanguage : undefined,
     loanRounding: settingsData.salesDefaults?.loanRounding === 'up' ? 'up' : 'down',
     // Only a known colour id is passed on (the app falls back to red for anything else).
     posterAccent: POSTER_ACCENT_IDS.includes(settingsData.salesDefaults?.posterAccent) ? settingsData.salesDefaults.posterAccent : undefined,
+    posterFrame: POSTER_FRAME_IDS.includes(settingsData.salesDefaults?.posterFrame) ? settingsData.salesDefaults.posterFrame : undefined,
   };
   const vehicleInsurance = settingsData.vehicleInsurance ?? {};
   // Only the brand name, not the SA's sales target number — that figure is internal, the brand

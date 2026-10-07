@@ -30,6 +30,10 @@ export type BrochureData = {
   lang: Lang;
   /** The advisor's poster colour (an id from POSTER_ACCENTS). */
   accent?: string;
+  /** Festive frame around each page (an id from POSTER_FRAMES). */
+  frame?: string;
+  /** Language of the WhatsApp message the QR code opens (Settings → WhatsApp messages). */
+  waLang?: Lang;
   brand: string;
   logoUrl: string | null;
   /** e.g. "September 2026 Offers" — user-editable, defaults from today's date. */

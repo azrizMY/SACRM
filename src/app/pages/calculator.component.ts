@@ -41,9 +41,10 @@ import { promoTemplate, squareTemplate } from '../shared/poster-template-social'
 import type { PosterData } from '../shared/poster-data';
 import { quotePosterData } from '../shared/quote-poster-data';
 import type { PosterTemplate, PosterTemplateId } from '../shared/poster-templates';
-import { TranslatePipe } from '../shared/i18n';
+import { TranslatePipe, translate } from '../shared/i18n';
 import { QuoteEngine } from '../shared/quote-engine';
 import { QuoteControlsComponent } from '../shared/quote-controls.component';
+import { applyPosterFrame } from '../shared/poster-frames';
 
 @Component({
   selector: 'app-calculator',
@@ -374,6 +375,16 @@ export class CalculatorComponent implements AfterViewInit {
       this.selectedModelName.set(handed.model);
       this.onVariantChange(handed.variant);
       if (handed.years.some((y) => y.year === fromCompare.year)) this.modelYear.set(fromCompare.year);
+      // From Budget Finder: open at the deposit and loan period it showed.
+      if (fromCompare.deposit != null) {
+        this.q.downpaymentType.set('amount');
+        this.q.downpaymentValue.set(fromCompare.deposit);
+      }
+      if (fromCompare.tenureYears) {
+        const years = fromCompare.tenureYears;
+        this.q.highlightedTenure.set(years * 12);
+        if (!this.q.posterTenureYears().includes(years)) this.q.posterTenureYears.update((list) => [years, ...list.slice(0, 2)].sort((a, b) => b - a));
+      }
     }
 
     posterFontsReady().then(() => this.fontsReady.set(true));
@@ -417,7 +428,7 @@ export class CalculatorComponent implements AfterViewInit {
    *  reads a component signal directly, so every figure on the poster traces back to here. */
   private buildPosterData(): PosterData {
     const defaults = this.settingsService.settings().salesDefaults;
-    return quotePosterData(this.q, this.advisor, defaults.posterLanguage ?? 'en', defaults.posterAccent);
+    return quotePosterData(this.q, this.advisor, defaults.posterLanguage ?? 'en', defaults.posterAccent, defaults.posterFrame);
   }
 
   /** Bumped on every draw call so an in-flight async redraw (image loads for the logo/car photo)
@@ -437,6 +448,7 @@ export class CalculatorComponent implements AfterViewInit {
     if (!canvas) return;
     const generation = ++this.drawGeneration;
     await this.currentTemplate().render(canvas, data, CalculatorComponent.PREVIEW_SCALE, () => generation !== this.drawGeneration);
+    if (generation === this.drawGeneration) applyPosterFrame(canvas, data.frame, data.lang, CalculatorComponent.PREVIEW_SCALE);
   }
 
   ngAfterViewInit() {
@@ -457,6 +469,7 @@ export class CalculatorComponent implements AfterViewInit {
     const canvas = document.createElement('canvas');
     // A fresh, never-visible canvas with no concurrent redraw risk — isStale can just say "never".
     await this.currentTemplate().render(canvas, data, CalculatorComponent.EXPORT_SCALE, () => false);
+    applyPosterFrame(canvas, data.frame, data.lang, CalculatorComponent.EXPORT_SCALE);
     return canvas;
   }
 
@@ -523,7 +536,7 @@ export class CalculatorComponent implements AfterViewInit {
       if (this.canShareFile(file)) {
         const advisorProfile = this.advisor.profile();
         try {
-          await navigator.share({ files: [file], title: 'Vehicle Quote', text: `${advisorProfile.name}, ${advisorProfile.role}` });
+          await navigator.share({ files: [file], title: translate(this.settingsService.whatsappLang(), 'Vehicle Quote'), text: `${advisorProfile.name}, ${advisorProfile.role}` });
         } catch {
           /* cancelled or failed — nothing actionable here, same as the brochure share */
         }

@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
-import { AuthService } from '../shared/auth.service';
 import { SettingsService } from '../shared/settings.service';
 import { ImageCropModalComponent } from '../shared/image-crop-modal.component';
 import { vehicleTitle } from '../data/calculator-data';
@@ -277,75 +276,6 @@ import {
           </div>
         }
       </div>
-
-      <!-- Shareable links -->
-      <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-        <div class="flex items-center gap-3 px-5 py-4">
-          <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <app-icon name="share" [size]="18" />
-          </span>
-          <div class="flex flex-col gap-0.5">
-            <span class="text-sm font-semibold leading-none">Shareable Quote Links</span>
-            <span class="text-xs text-muted-foreground">Send these to a customer to build their own quote — no login needed.</span>
-          </div>
-        </div>
-
-        <div class="flex flex-col divide-y divide-border border-t border-border px-5">
-          <div class="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex flex-col gap-0.5">
-              <span class="text-sm font-medium">Your Customer Link</span>
-              <span class="text-xs text-muted-foreground">Your promo card is shown on the quote they build.</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <code class="max-w-[220px] truncate rounded-md bg-muted/40 px-2.5 py-1.5 text-xs text-foreground sm:max-w-xs">{{ customerLinkUrl() }}</code>
-              <button
-                type="button"
-                (click)="copyCustomerLink()"
-                class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
-              >
-                <app-icon [name]="linkCopied() ? 'check' : 'clipboard-check'" [size]="13" />
-                {{ linkCopied() ? 'Copied!' : 'Copy' }}
-              </button>
-              <a
-                [href]="customerLinkUrl()"
-                target="_blank"
-                rel="noopener"
-                class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
-              >
-                <app-icon name="arrow-up-right" [size]="13" />
-                Open
-              </a>
-            </div>
-          </div>
-
-          <div class="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex flex-col gap-0.5">
-              <span class="text-sm font-medium">{{ defaultBrand() }}-Only Link</span>
-              <span class="text-xs text-muted-foreground">Same quote page, locked to {{ defaultBrand() }} — no brand switcher for the customer.</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <code class="max-w-[220px] truncate rounded-md bg-muted/40 px-2.5 py-1.5 text-xs text-foreground sm:max-w-xs">{{ brandOnlyLinkUrl() }}</code>
-              <button
-                type="button"
-                (click)="copyBrandOnlyLink()"
-                class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
-              >
-                <app-icon [name]="brandLinkCopied() ? 'check' : 'clipboard-check'" [size]="13" />
-                {{ brandLinkCopied() ? 'Copied!' : 'Copy' }}
-              </button>
-              <a
-                [href]="brandOnlyLinkUrl()"
-                target="_blank"
-                rel="noopener"
-                class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
-              >
-                <app-icon name="arrow-up-right" [size]="13" />
-                Open
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
 
     @if (cropFile(); as file) {
@@ -363,8 +293,6 @@ export class ProfileComponent {
   photoError = signal<string | null>(null);
   cropFile = signal<File | null>(null);
   form: AdvisorProfile;
-  linkCopied = signal(false);
-  brandLinkCopied = signal(false);
 
   formatPhone = formatMalaysianPhone;
   socialPlatforms = SOCIAL_PLATFORMS;
@@ -386,36 +314,9 @@ export class ProfileComponent {
 
   constructor(
     public advisor: AdvisorService,
-    private auth: AuthService,
     private settingsService: SettingsService,
   ) {
     this.form = { ...this.advisor.profile() };
-  }
-
-  defaultBrand = computed(() => this.settingsService.settings().dashboardTarget.brand);
-  customerLinkUrl = computed(() => `${location.origin}/quote/${this.auth.currentUser()?.publicToken ?? ''}`);
-  brandOnlyLinkUrl = computed(() => `${location.origin}/quote/${this.auth.currentUser()?.publicToken ?? ''}/brand`);
-
-  async copyCustomerLink() {
-    try {
-      await navigator.clipboard.writeText(this.customerLinkUrl());
-      this.settingsService.markQuoteShared();
-      this.linkCopied.set(true);
-      setTimeout(() => this.linkCopied.set(false), 2000);
-    } catch {
-      /* clipboard permission denied — the link is still visible to copy manually */
-    }
-  }
-
-  async copyBrandOnlyLink() {
-    try {
-      await navigator.clipboard.writeText(this.brandOnlyLinkUrl());
-      this.settingsService.markQuoteShared();
-      this.brandLinkCopied.set(true);
-      setTimeout(() => this.brandLinkCopied.set(false), 2000);
-    } catch {
-      /* clipboard permission denied — the link is still visible to copy manually */
-    }
   }
 
   shortDate(d: string): string {

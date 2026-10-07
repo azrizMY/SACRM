@@ -17,8 +17,13 @@ export type SalesDefaults = {
   /** Language of everything customers see — quote posters, offer sheets and the customer link —
    *  chosen separately from the UI language. Absent = English. */
   posterLanguage?: Lang;
+  /** Language of every WhatsApp message — what the advisor sends customers and what customers send
+   *  them from the quote link. Absent = same as posterLanguage. */
+  whatsappLanguage?: Lang;
   /** Colour of every poster, offer sheet and the Live Screen (an id from POSTER_ACCENTS). Absent = Redline red. */
   posterAccent?: string;
+  /** Festive frame around every poster and offer sheet (an id from POSTER_FRAMES). Absent = none. */
+  posterFrame?: string;
   /** Whether a new quote starts with Additional Rebate ticked (for cars that have one). Optional —
    *  absent means ticked, the original behaviour. */
   additionalRebateByDefault?: boolean;

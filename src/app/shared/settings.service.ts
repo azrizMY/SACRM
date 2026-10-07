@@ -1,4 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
+import type { Lang } from './i18n-core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import {
@@ -38,6 +39,12 @@ function mergeSettings(saved: Partial<AppSettings> | null): AppSettings {
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
   settings = signal<AppSettings>(DEFAULT_SETTINGS);
+
+  /** Settings → Language → WhatsApp messages (follows Poster language until it's set). */
+  whatsappLang = computed<Lang>(() => {
+    const d = this.settings().salesDefaults;
+    return d.whatsappLanguage ?? d.posterLanguage ?? 'en';
+  });
 
   constructor(private http: HttpClient) {}
 

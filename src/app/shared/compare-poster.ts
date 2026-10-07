@@ -5,6 +5,7 @@ import { loadPosterImage } from './poster-images';
 import { fillTrackedText, formatPosterCurrency, wrapPosterText } from './poster-draw-utils';
 import { POSTER_COLORS, displayFont, labelFont, posterFontsReady, usePosterAccent } from './poster-theme';
 import { downpaymentDisplay } from '../data/calculator-data';
+import { applyPosterFrame } from './poster-frames';
 
 /** One car's column on the comparison image. */
 export type ComparePosterCar = {
@@ -23,6 +24,8 @@ export type ComparePosterData = {
   lang: Lang;
   /** The advisor's poster colour (an id from POSTER_ACCENTS). */
   accent?: string;
+  /** Festive frame around the poster (an id from POSTER_FRAMES). */
+  frame?: string;
   cars: ComparePosterCar[];
   /** e.g. "10% downpayment · 9 years · Flat 2.5%" — already translated. */
   setupLine: string;
@@ -187,6 +190,7 @@ export async function renderComparePoster(canvas: HTMLCanvasElement, data: Compa
   ctx.fillStyle = POSTER_COLORS.panelGrayD;
   ctx.font = labelFont(15);
   ctx.fillText(T('Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here.'), MARGIN, H - 30);
+  applyPosterFrame(canvas, data.frame, data.lang);
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {

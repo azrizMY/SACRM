@@ -3,6 +3,8 @@ import type { CompareOverrides, CompareSetup } from '../data/compare-data';
 
 export const MAX_COMPARE = 3;
 
+export type CalculatorCar = { vehicleId: string; year: number; deposit?: number; tenureYears?: number };
+
 export type CompareSlot = {
   vehicleId: string;
   year: number;
@@ -25,7 +27,7 @@ export class CompareService {
   readonly setup = signal<CompareSetup | null>(null);
 
   /** A car the Calculator should open on next time it loads, then forget. */
-  private calculatorCar: { vehicleId: string; year: number } | null = null;
+  private calculatorCar: CalculatorCar | null = null;
 
   /** From the Calculator: the quoted car (with its own figures) becomes the first column and its
    *  loan setup becomes the comparison's. Other cars already picked stay. */
@@ -63,11 +65,12 @@ export class CompareService {
     this.slots.update((list) => list.map((s, i) => (i === index ? { ...s, includeAdditionalRebate: on } : s)));
   }
 
-  openInCalculator(vehicleId: string, year: number) {
-    this.calculatorCar = { vehicleId, year };
+  /** `deposit` and `tenureYears` come from Budget Finder, so the quote opens at the figures it showed. */
+  openInCalculator(vehicleId: string, year: number, extra?: { deposit: number; tenureYears: number }) {
+    this.calculatorCar = { vehicleId, year, ...extra };
   }
 
-  takeCalculatorCar(): { vehicleId: string; year: number } | null {
+  takeCalculatorCar(): CalculatorCar | null {
     const car = this.calculatorCar;
     this.calculatorCar = null;
     return car;

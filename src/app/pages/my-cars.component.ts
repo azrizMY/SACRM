@@ -34,6 +34,7 @@ import { simpleBrochureTemplate } from '../shared/poster-brochure-template-simpl
 import { groupedBrochureTemplate } from '../shared/poster-brochure-template-grouped';
 import type { BrochureTemplate, BrochureTemplateId } from '../shared/poster-brochure-templates';
 import type { BrochureData, BrochureRow } from '../shared/poster-brochure-data';
+import { applyPosterFrame } from '../shared/poster-frames';
 
 type OfferTab = 'preview' | 'settings';
 
@@ -529,7 +530,7 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
       if (this.canShareFile(file)) {
         const advisor = this.advisor.profile();
         try {
-          await navigator.share({ files: [file], title: 'Redline Brochure', text: `${advisor.name}, ${advisor.role}` });
+          await navigator.share({ files: [file], title: translate(this.settingsService.whatsappLang(), 'Car brochure'), text: `${advisor.name}, ${advisor.role}` });
         } catch (err) {
           if ((err as DOMException)?.name !== 'AbortError') {
             /* share failed for a reason other than user cancellation — nothing actionable to do here */
@@ -706,6 +707,8 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
     return {
       lang: this.posterLang,
       accent: this.settingsService.settings().salesDefaults.posterAccent,
+      frame: this.settingsService.settings().salesDefaults.posterFrame,
+      waLang: this.settingsService.whatsappLang(),
       brand,
       logoUrl: brandLogo(brand),
       title: this.offerTitle(),
@@ -747,6 +750,7 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
       for (let i = 0; i < pages.length; i++) {
         await template.renderPage(canvases[i], data, pages[i], i, pages.length);
         if (generation !== this.offerRenderGeneration) return;
+        applyPosterFrame(canvases[i], data.frame, data.lang);
       }
     } finally {
       // Only the newest rebuild clears the flag — an older one bailing out mustn't unlock the buttons.

@@ -67,4 +67,6 @@ export type PosterData = {
   tenureRows: PosterTenureRow[];
   /** The advisor's poster colour (an id from POSTER_ACCENTS) — absent means Redline red. */
   accent?: string;
+  /** Festive frame drawn around the poster (an id from POSTER_FRAMES) — absent means none. */
+  frame?: string;
 };
