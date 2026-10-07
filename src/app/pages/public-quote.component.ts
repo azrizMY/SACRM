@@ -158,9 +158,9 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                 type="button"
                 data-tour="quote-whatsapp"
                 (click)="openWhatsAppToAdvisor()"
-                class="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 xl:hidden"
+                class="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-3 text-sm font-semibold text-white shadow-sm transition-[filter] hover:brightness-95 xl:hidden"
               >
-                <app-icon name="message-circle" [size]="16" />
+                <app-brand-icon name="whatsapp" [size]="18" />
                 {{ "WhatsApp Me Here" | t }}
               </button>
             }
@@ -168,57 +168,30 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
               <app-icon name="info" [size]="12" class="mr-1 inline-block align-[-2px]" />
               {{ "Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here." | t }}
             </p>
-            @if (qualifyWhatsAppHref(); as href) {
-              <a [href]="href" target="_blank" rel="noopener" class="flex shrink-0 items-center justify-center gap-1.5 text-center text-xs font-medium text-[var(--success)] hover:underline">
-                <app-icon name="message-circle" [size]="13" />
-                {{ "Not sure if you qualify? WhatsApp me — I will check with the banks for you." | t }}
-              </a>
-            }
-
-            <!-- Phones/tablets: Follow Me below the disclaimer (desktop shows it in the Customize column) -->
-            <!-- A compact one-row card so it fits the gap above the bottom bar without making the
-                 page much longer than the stacked desktop version would. -->
-            @if (socials().length) {
-              <div class="flex shrink-0 items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-card-foreground xl:hidden">
-                <span class="flex min-w-0 flex-1 flex-col">
-                  <span class="text-xs font-bold">{{ "Follow Me" | t }}</span>
-                  <span class="truncate text-[11px] text-muted-foreground">{{ "Latest promos & new arrivals" | t }}</span>
-                </span>
-                @for (s of socials(); track s.id) {
-                  <a
-                    [href]="s.href"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    [attr.aria-label]="s.label + ' (opens in a new tab)'"
-                    [title]="s.label"
-                    class="rounded-lg outline-none transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <app-brand-icon [name]="s.id" [size]="34" [tile]="true" />
-                  </a>
-                }
-              </div>
-            }
           </div>
 
-          <!-- The SA's social links (same set as Profile's "Follow Me"), compact -->
-          <ng-template #followMe>
-            @if (socials().length) {
-              <section class="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 text-card-foreground">
-                <span class="text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Follow Me" | t }}</span>
-                <div class="flex flex-wrap justify-center gap-x-1 gap-y-3">
-                  @for (s of socials(); track s.id) {
-                    <a
-                      [href]="s.href"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      [attr.aria-label]="s.label + ' (opens in a new tab)'"
-                      class="group flex w-16 flex-col items-center gap-1 rounded-xl p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          <!-- Trade-in: a simple yes/no that goes into the WhatsApp message (the model is asked on WhatsApp) -->
+          <ng-template #tradeInCard>
+            @if (bundle()!.advisor.phoneWa) {
+              <section class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm 2xl:flex-1">
+                <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Trade-in" | t }}</span>
+                <span class="text-sm font-medium">{{ "Do you have a car to trade in?" | t }}</span>
+                <div role="group" [attr.aria-label]="'Do you have a car to trade in?' | t" class="grid grid-cols-2 gap-1.5">
+                  @for (o of tradeInOptions; track o.label) {
+                    <button
+                      type="button"
+                      (click)="tradeIn.set(o.value)"
+                      [attr.aria-pressed]="tradeIn() === o.value"
+                      class="rounded-lg border px-2 py-2 text-xs font-semibold transition-colors"
+                      [ngClass]="tradeIn() === o.value ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                     >
-                      <app-brand-icon [name]="s.id" [size]="42" [tile]="true" class="transition-transform group-hover:scale-105 group-active:scale-95" />
-                      <span class="w-full truncate text-center text-[10px] font-medium text-muted-foreground group-hover:text-foreground">{{ s.label | t }}</span>
-                    </a>
+                      {{ o.label | t }}
+                    </button>
                   }
                 </div>
+                @if (tradeIn()) {
+                  <span class="text-[11px] text-muted-foreground">{{ "This will be added to your WhatsApp message." | t }}</span>
+                }
               </section>
             }
           </ng-template>
@@ -236,9 +209,9 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                     type="button"
                     data-tour="quote-whatsapp"
                     (click)="openWhatsAppToAdvisor()"
-                    class="hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-accent xl:flex"
+                    class="mr-1 hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md bg-[#25D366] px-2.5 py-1 text-xs font-semibold text-white shadow-sm transition-[filter] hover:brightness-95 xl:flex"
                   >
-                    <app-icon name="message-circle" [size]="13" />
+                    <app-brand-icon name="whatsapp" [size]="14" />
                     {{ "WhatsApp Me Here" | t }}
                   </button>
                 }
@@ -262,7 +235,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
               </div>
             </div>
 
-            <div class="flex flex-col gap-4 2xl:grid 2xl:grid-cols-2 2xl:items-start 2xl:gap-4">
+            <div class="flex flex-col gap-4 2xl:grid 2xl:grid-cols-2 2xl:items-stretch 2xl:gap-4">
               <div class="flex flex-col gap-4">
               <!-- Select car -->
               <div data-tour="quote-car" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
@@ -414,10 +387,8 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
               </div>
             </div>
 
-            <!-- Desktop: Follow Me under Insurance — on wide screens this lands beside Tenure -->
-            <div class="hidden xl:block">
-              <ng-container [ngTemplateOutlet]="followMe" />
-            </div>
+            <!-- Trade-in under Insurance — on wide screens this lands beside Tenure -->
+            <ng-container [ngTemplateOutlet]="tradeInCard" />
               </div>
 
               <div class="flex flex-col gap-4">
@@ -555,7 +526,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
             </div>
 
             <!-- Tenure -->
-            <div data-tour="quote-tenure" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+            <div data-tour="quote-tenure" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm 2xl:flex-1">
               <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Tenure" | t }}</span>
               <div class="flex flex-col gap-2">
                 <div class="flex items-center justify-between">
@@ -766,7 +737,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
             <h1 class="text-xl font-bold tracking-tight">{{ "Find a car for your budget" | t }}</h1>
             <p class="text-sm text-muted-foreground">{{ "Start from the monthly you are comfortable with, and see the deposit for every car." | t }}</p>
           </div>
-          <app-budget-finder [vehicles]="budgetVehicles()" [brands]="carsBrands()" [rules]="budgetRules()" [doubtHref]="qualifyWhatsAppHref()" (pick)="quoteFromBudget($event)" />
+          <app-budget-finder [vehicles]="budgetVehicles()" [brands]="carsBrands()" [primaryBrand]="bundle()!.defaultBrand" [rules]="budgetRules()" [doubtHref]="qualifyWhatsAppHref()" (pick)="quoteFromBudget($event)" />
         </div>
       }
 
@@ -1657,6 +1628,13 @@ export class PublicQuoteComponent implements OnInit {
   /** No name/phone form at all — the customer's own WhatsApp number reaches the SA automatically
    *  once they send the message, so there's nothing to separately capture. Everything they
    *  configured goes along as plain text instead of being posted anywhere. */
+  /** "Do you have a car to trade in?" — only a yes/no; the advisor asks for the model on WhatsApp. */
+  tradeIn = signal(false);
+  readonly tradeInOptions = [
+    { value: true, label: 'Yes' },
+    { value: false, label: 'No' },
+  ];
+
   openWhatsAppToAdvisor() {
     const vehicle = this.selectedVehicle();
     const W = (en: string, params?: Record<string, string | number>) => translate(this.waLang(), en, params);
@@ -1674,6 +1652,7 @@ export class PublicQuoteComponent implements OnInit {
       W('- Rebate: {amount}', { amount: this.fmt(this.rebateInput()) }),
       W('- Insurance ({ncd}% NCD): {amount}', { ncd: this.ncd(), amount: this.fmt2(this.insurance()) }),
       W('- Tenure: {years} Years', { years: this.tenureYears() }),
+      ...(this.tradeIn() ? [W('- Trade-in: Yes, I have a car to trade in')] : []),
       '',
       W('Please get in touch with me!'),
     ];
@@ -1870,6 +1849,7 @@ export class PublicQuoteComponent implements OnInit {
     this.tenureYears.set(9);
     this.loanAmountDraft.set(null);
     this.monthlyInstallmentDraft.set(null);
+    this.tradeIn.set(false);
   }
 }
 

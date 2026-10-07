@@ -58,7 +58,7 @@ import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
               Phone Number
               <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary),transparent_80%)]">
                 <app-icon name="phone" [size]="15" class="shrink-0 text-muted-foreground" />
-                <input type="tel" name="phone" autocomplete="tel" [(ngModel)]="phone" placeholder="011-53206966" class="h-10 w-full bg-transparent text-sm text-foreground outline-none" />
+                <input type="tel" name="phone" autocomplete="tel" [(ngModel)]="phone" placeholder="012-345 6789" class="h-10 w-full bg-transparent text-sm text-foreground outline-none" />
               </div>
             </label>
 

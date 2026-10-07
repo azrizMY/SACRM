@@ -15,11 +15,13 @@ export type AdvisorProfile = {
   socials?: SocialLinks;
 };
 
+/** Only what an account hasn't filled in yet falls back to these — so nothing here may ever be a real
+ *  person's details (a blank phone shows no WhatsApp button; a real one would show someone else's). */
 export const DEFAULT_ADVISOR: AdvisorProfile = {
-  name: 'Ahmad Azri',
+  name: '',
   role: 'Sales Consultant',
-  email: 'ahmdazri65@gmail.com',
-  phoneDisplay: '011-5320 6966',
-  phoneWa: '601153206966',
+  email: '',
+  phoneDisplay: '',
+  phoneWa: '',
   bio: 'Helping customers find the right car and the right deal, from first test drive to delivery day.',
 };

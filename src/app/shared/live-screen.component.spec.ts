@@ -3,7 +3,7 @@ import { stripContact } from './live-screen.component';
 /** Contact details must never reach the Live Screen through a name or showroom. */
 describe('stripContact', () => {
   it('keeps an ordinary name or showroom as it is', () => {
-    expect(stripContact('Ahmad Azri')).toBe('Ahmad Azri');
+    expect(stripContact('Nur Aisyah')).toBe('Nur Aisyah');
     expect(stripContact('Proton Edar Shah Alam')).toBe('Proton Edar Shah Alam');
   });
 

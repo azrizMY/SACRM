@@ -1,19 +1,19 @@
-import { Component, EventEmitter, Input, Output, computed, signal } from '@angular/core';
+import { Component, EventEmitter, Input, Output, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from './icon.component';
-import { TranslatePipe } from './i18n';
+import { I18nService, TranslatePipe } from './i18n';
 import { BrandMarkComponent } from './brand-mark.component';
 import { CarShadowPipe } from './car-shadow';
 import { budgetMatches, type BudgetMatch, type BudgetRules, type CashLimit } from './budget-finder';
-import { modelVariantLabel, type Vehicle } from '../data/calculator-data';
+import { NCD_OPTIONS, modelVariantLabel, type Vehicle } from '../data/calculator-data';
 
 export type BudgetPick = { vehicleId: string; year: number; deposit: number; tenureYears: number };
 
 const QUICK_BUDGETS = [500, 700, 900, 1200, 1500, 2000];
 const QUICK_DEPOSITS: Exclude<CashLimit, null>[] = ['fullLoan', 5000, 10000, 20000, 30000];
 const TENURES = [5, 7, 9];
-/** Results shown before "Show more". */
-const PAGE = 12;
+/** Cars shown per brand before "Show all". */
+const PER_BRAND = 6;
 /** Cars that need more than the maximum deposit are shown at that deposit only while their
  *  monthly stays within this much of the budget; further above, they're left out. */
 const OVER_BUDGET_LIMIT = 200;
@@ -78,7 +78,7 @@ const OVER_BUDGET_LIMIT = 200;
                 [value]="cashAmount() === null ? '' : grouped(cashAmount()!)"
                 (input)="maxDeposit.set(digits($event))"
                 (blur)="refresh($event, cashAmount())"
-                [placeholder]="(maxDeposit() === 'fullLoan' ? 'Full loan' : 'Any amount') | t"
+                [placeholder]="(maxDeposit() === 'fullLoan' ? 'Full loan' : 'Enter Amount') | t"
                 [attr.aria-label]="'Cash you can put down' | t"
                 style="font-size: 2.25rem"
                 class="w-full min-w-0 bg-transparent font-bold leading-tight tabular-nums text-foreground outline-none placeholder:text-muted-foreground/40"
@@ -115,6 +115,18 @@ const OVER_BUDGET_LIMIT = 200;
               }
             </div>
           </div>
+          <label class="flex items-center gap-2">
+            <span class="text-xs font-medium text-muted-foreground">{{ 'NCD' | t }}</span>
+            <select
+              [value]="ncd()"
+              (change)="ncd.set(+$any($event.target).value)"
+              class="h-9 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring"
+            >
+              @for (o of ncdOptions; track o.value) {
+                <option [value]="o.value" [selected]="o.value === ncd()">{{ o.label | t }}</option>
+              }
+            </select>
+          </label>
           @if (brands.length > 1) {
             <label class="flex items-center gap-2">
               <span class="text-xs font-medium text-muted-foreground">{{ 'Brand' | t }}</span>
@@ -154,58 +166,72 @@ const OVER_BUDGET_LIMIT = 200;
             }
           </p>
         }
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          @for (m of shown(); track m.vehicle.id) {
-            <div class="flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm">
-              <div class="flex items-center gap-3 p-4">
-                <span class="flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white">
-                  @if (m.vehicle.photoUrl) {
-                    <img [src]="m.vehicle.photoUrl | carShadow" alt="" class="max-h-full max-w-full object-contain" />
-                  } @else {
-                    <app-brand-mark [brand]="m.vehicle.brand" class="size-9" />
-                  }
-                </span>
-                <div class="flex min-w-0 flex-col">
-                  <span class="truncate text-sm font-semibold">{{ label(m) }}</span>
-                  <span class="text-xs text-muted-foreground">{{ m.vehicle.brand }} · {{ rm(m.totalDue) }}</span>
-                </div>
-              </div>
-              <div class="grid grid-cols-2 border-t border-border">
-                <div class="flex flex-col gap-0.5 p-4">
-                  <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ 'Deposit' | t }}</span>
-                  <span class="text-lg font-bold tabular-nums">{{ fullLoan(m) ? ('Full loan' | t) : rm(m.deposit) }}</span>
-                  @if (fullLoan(m) && m.deposit > 0) {
-                    <span class="text-[11px] text-muted-foreground">{{ rm(m.deposit) }} {{ 'to round off the loan' | t }}</span>
-                  }
-                  @if (m.minimumApplies) {
-                    <span class="text-[11px] text-muted-foreground">{{ 'Minimum for this car' | t }}</span>
-                  }
-                </div>
-                <div class="flex flex-col gap-0.5 border-l border-border p-4">
-                  <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ 'Monthly' | t }}</span>
-                  <span class="text-lg font-bold tabular-nums" [ngClass]="overBudget(m) ? 'text-foreground' : 'text-primary'">{{ rm(m.monthly) }}</span>
-                  <!-- Only when it really is above: a car held back by its own minimum deposit can come in under the budget -->
-                  @if (overBudget(m)) {
-                    <span class="text-[11px] font-medium text-[var(--warning)]">{{ rm(m.monthly - budget()) }} {{ 'above your monthly' | t }}</span>
-                  }
-                  <span class="text-[11px] text-muted-foreground">{{ tenureYears() }} {{ 'years' | t }} · {{ m.rate }}% {{ m.rateType === 'flat' ? ('flat' | t) : 'EIR' }}</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                (click)="pick.emit({ vehicleId: m.vehicle.id, year: m.year, deposit: m.deposit, tenureYears: tenureYears() })"
-                class="mt-auto flex items-center justify-center gap-1.5 border-t border-border py-2.5 text-xs font-semibold text-primary transition-colors hover:bg-accent"
-              >
-                {{ openLabel | t }}
-                <app-icon name="chevron-right" [size]="14" />
-              </button>
+        @for (g of groups(); track g.brand) {
+          <section class="flex flex-col gap-3">
+            <div class="flex items-center gap-3 border-b border-border pb-2 pt-2">
+              <app-brand-mark [brand]="g.brand" class="size-8" />
+              <h3 class="text-base font-bold">{{ g.brand }}</h3>
+              <span class="text-xs text-muted-foreground">
+                {{ g.cars.length }} {{ 'cars' | t }}@if (maxDeposit() !== null) { · {{ g.fit }} {{ 'fit' | t }}}
+              </span>
             </div>
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          @for (m of visible(g); track m.vehicle.id) {
+            <!-- One car: the photo, then the monthly as the headline. The whole card opens the quote. -->
+            <button
+              type="button"
+              (click)="pick.emit({ vehicleId: m.vehicle.id, year: m.year, deposit: m.deposit, tenureYears: tenureYears() })"
+              class="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-left text-card-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+            >
+              <div class="relative flex h-40 items-end justify-center bg-gradient-to-b from-white to-[#eceef1] px-6 pb-3 pt-8">
+                @if (m.vehicle.photoUrl) {
+                  <img [src]="m.vehicle.photoUrl | carShadow" alt="" class="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]" />
+                } @else {
+                  <app-brand-mark [brand]="m.vehicle.brand" class="mb-6 size-16 opacity-80" />
+                }
+                <span class="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-semibold" [ngClass]="badge(m).tone">{{ badge(m).text }}</span>
+              </div>
+
+              <div class="flex flex-1 flex-col gap-3 p-4">
+                <div class="flex items-baseline justify-between gap-3">
+                  <span class="min-w-0 truncate text-base font-bold">{{ label(m) }}</span>
+                  <span class="shrink-0 text-xs tabular-nums text-muted-foreground">{{ rm(m.totalDue) }}</span>
+                </div>
+
+                <div class="flex items-end justify-between gap-3">
+                  <div class="flex flex-col">
+                    <span class="flex items-baseline gap-1">
+                      <span class="text-2xl font-extrabold tabular-nums leading-none" [ngClass]="overBudget(m) ? 'text-foreground' : 'text-primary'">{{ rm(m.monthly) }}</span>
+                      <span class="text-xs text-muted-foreground">/ {{ 'month' | t }}</span>
+                    </span>
+                    <span class="mt-1 text-[11px] text-muted-foreground">{{ tenureYears() }} {{ 'years' | t }} · {{ m.rate }}% {{ m.rateType === 'flat' ? ('flat' | t) : 'EIR' }}</span>
+                  </div>
+                  <div class="flex flex-col items-end text-right">
+                    <span class="text-sm font-bold tabular-nums">{{ fullLoan(m) ? ('Full loan' | t) : rm(m.deposit) }}</span>
+                    <span class="text-[11px] text-muted-foreground">
+                      @if (fullLoan(m)) {
+                        {{ m.deposit > 0 ? rm(m.deposit) + ' ' + ('to round off the loan' | t) : ('No deposit' | t) }}
+                      } @else {
+                        {{ (m.minimumApplies ? 'Minimum deposit' : 'Deposit') | t }}
+                      }
+                    </span>
+                  </div>
+                </div>
+
+                <span class="mt-auto flex items-center gap-1 border-t border-border pt-3 text-xs font-semibold text-primary">
+                  {{ openLabel | t }}
+                  <app-icon name="chevron-right" [size]="14" class="transition-transform group-hover:translate-x-0.5" />
+                </span>
+              </div>
+            </button>
           }
-        </div>
-        @if (matches().length > shown().length) {
-          <button type="button" (click)="limit.set(limit() + PAGE)" class="self-center rounded-lg border border-border px-4 py-2 text-xs font-semibold transition-colors hover:bg-accent">
-            {{ 'Show more cars' | t }} ({{ matches().length - shown().length }})
-          </button>
+            </div>
+            @if (g.cars.length > PER_BRAND) {
+              <button type="button" (click)="toggle(g.brand)" class="self-center rounded-lg border border-border px-4 py-2 text-xs font-semibold transition-colors hover:bg-accent">
+                {{ (expanded().has(g.brand) ? 'Show fewer' : 'Show all {n} {brand}') | t: { n: g.cars.length, brand: g.brand } }}
+              </button>
+            }
+          </section>
         }
         <p class="text-center text-[11px] text-muted-foreground">{{ 'Estimates only. The bank decides the final loan.' | t }}</p>
       }
@@ -218,16 +244,23 @@ export class BudgetFinderComponent {
   }
   @Input({ required: true }) set rules(r: BudgetRules) {
     this.ruleSet.set(r);
+    this.ncd.set(r.ncd);
   }
   /** Brands the customer can filter by; one brand hides the filter. */
   @Input() brands: string[] = [];
+  /** The advisor's Primary Brand — its section comes first. */
+  @Input() set primaryBrand(b: string | null | undefined) {
+    this.primary.set(b ?? null);
+  }
+  private primary = signal<string | null>(null);
   /** Customer link only: where "Not sure if you qualify?" leads (the advisor's WhatsApp). */
   @Input() doubtHref: string | null = null;
   @Input() openLabel = 'See full quote';
   @Output() pick = new EventEmitter<BudgetPick>();
 
   readonly Math = Math;
-  readonly PAGE = PAGE;
+  private i18n = inject(I18nService);
+  readonly PER_BRAND = PER_BRAND;
   readonly quickBudgets = QUICK_BUDGETS;
   readonly quickDeposits = QUICK_DEPOSITS;
   readonly tenures = TENURES;
@@ -243,8 +276,12 @@ export class BudgetFinderComponent {
     return typeof d === 'number' ? d : null;
   });
   tenureYears = signal(9);
+  /** Starts at the advisor's default NCD; changing it here only affects this search. */
+  ncd = signal(0);
+  readonly ncdOptions = NCD_OPTIONS;
   brand = signal('');
-  limit = signal(PAGE);
+  /** Brands opened with "Show all". */
+  expanded = signal<Set<string>>(new Set());
 
   brandFilters = computed(() => ['', ...this.brands]);
 
@@ -254,10 +291,42 @@ export class BudgetFinderComponent {
     const brand = this.brand();
     const cars = this.vehicleList().filter((v) => !brand || v.brand === brand);
     const budget = this.budget();
-    return budgetMatches(cars, budget, this.tenureYears() * 12, rules, this.maxDeposit()).filter((m) => m.fits || m.monthly - budget <= OVER_BUDGET_LIMIT);
+    return budgetMatches(cars, budget, this.tenureYears() * 12, { ...rules, ncd: this.ncd() }, this.maxDeposit()).filter((m) => m.fits || m.monthly - budget <= OVER_BUDGET_LIMIT);
   });
   fitCount = computed(() => this.matches().filter((m) => m.fits).length);
-  shown = computed(() => this.matches().slice(0, this.limit()));
+  /** The results by brand — the Primary Brand first, then catalog order; within a brand the order is
+   *  the finder's own (fits first). */
+  groups = computed(() => {
+    const primary = this.primary();
+    const catalogOrder = [...new Set(this.vehicleList().map((v) => v.brand))];
+    const order = primary && catalogOrder.includes(primary) ? [primary, ...catalogOrder.filter((b) => b !== primary)] : catalogOrder;
+    return order
+      .map((brand) => {
+        const cars = this.matches().filter((m) => m.vehicle.brand === brand);
+        return { brand, cars, fit: cars.filter((m) => m.fits).length };
+      })
+      .filter((g) => g.cars.length > 0);
+  });
+
+  visible(g: { brand: string; cars: BudgetMatch[] }): BudgetMatch[] {
+    return this.expanded().has(g.brand) ? g.cars : g.cars.slice(0, PER_BRAND);
+  }
+
+  toggle(brand: string) {
+    this.expanded.update((set) => {
+      const next = new Set(set);
+      if (next.has(brand)) next.delete(brand);
+      else next.add(brand);
+      return next;
+    });
+  }
+
+  /** The little label on the photo. */
+  badge(m: BudgetMatch): { text: string; tone: string } {
+    if (this.overBudget(m)) return { text: `+${this.rm(m.monthly - this.budget())} ${this.i18n.t('above')}`, tone: 'bg-[var(--warning)] text-white' };
+    if (!m.fits) return { text: this.i18n.t('Min. deposit'), tone: 'bg-neutral-900/80 text-white' };
+    return { text: this.i18n.t('Fits your budget'), tone: 'bg-[var(--success)] text-white' };
+  }
 
   /** The monthly at this deposit is above the budget by at least RM1 (only possible when it doesn't fit). */
   overBudget(m: BudgetMatch): boolean {

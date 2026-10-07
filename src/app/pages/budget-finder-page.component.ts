@@ -22,7 +22,7 @@ import { CompareService } from '../shared/compare.service';
         <h2 class="text-balance text-xl font-bold tracking-tight">{{ 'Budget' | t }}</h2>
         <p class="text-pretty text-sm text-muted-foreground">{{ 'Start from the monthly your customer can manage and see the deposit every car needs. Your customers get the same on your quote link.' | t }}</p>
       </div>
-      <app-budget-finder [vehicles]="catalog.vehicles()" [brands]="catalog.brands()" [rules]="rules()" openLabel="Open in Calculator" (pick)="open($event)" />
+      <app-budget-finder [vehicles]="catalog.vehicles()" [brands]="catalog.brands()" [primaryBrand]="primaryBrand()" [rules]="rules()" openLabel="Open in Calculator" (pick)="open($event)" />
     </div>
   `,
 })
@@ -31,6 +31,8 @@ export class BudgetFinderPageComponent {
   private settings = inject(SettingsService);
   private compare = inject(CompareService);
   private router = inject(Router);
+
+  primaryBrand = computed(() => this.settings.settings().dashboardTarget.brand);
 
   rules = computed<BudgetRules>(() => {
     const d = this.settings.settings().salesDefaults;

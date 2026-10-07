@@ -45,7 +45,7 @@ export type BrochureData = {
     name: string;
     role: string;
     phoneDisplay: string;
-    /** Digits-only, country-code-prefixed (e.g. "601153206966") — what a wa.me link needs. */
+    /** Digits-only, country-code-prefixed (e.g. "60123456789") — what a wa.me link needs. */
     phoneWa: string;
     photoUrl: string | null;
   };

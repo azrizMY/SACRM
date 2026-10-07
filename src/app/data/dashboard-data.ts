@@ -24,7 +24,7 @@ export function toMalaysianWhatsAppNumber(phone: string): string {
 }
 
 /** Formats a Malaysian phone number for display with the standard spacing — 11-digit numbers
- *  (the "011" mobile prefix) as "011-5320 6966", 10-digit numbers (every other mobile prefix)
+ *  (the "011" mobile prefix) as "011-2345 6789", 10-digit numbers (every other mobile prefix)
  *  as "012-345 6789". Anything else (landlines, partial input) passes through unchanged. */
 export function formatMalaysianPhone(phone: string): string {
   const digits = phone.replace(/[^0-9]/g, '');
