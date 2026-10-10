@@ -99,8 +99,8 @@ export class AppShellComponent {
     return seg ?? 'calculator';
   }
 
-  navigate(id: string) {
+  /** The sidebar items are router links; this only closes the phone menu behind them. */
+  navigate(_id: string) {
     this.mobileOpen.set(false);
-    this.router.navigate([id]);
   }
 }

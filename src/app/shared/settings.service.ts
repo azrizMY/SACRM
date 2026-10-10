@@ -1,4 +1,6 @@
 import { Injectable, computed, signal } from '@angular/core';
+import { resolveInsuranceDetails } from '../data/calculator-data';
+import { DEFAULT_MOTOR_TARIFF, guessBand, tariffBasicPremium, type TariffRegion } from '../data/motor-tariff';
 import type { Lang } from './i18n-core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
@@ -11,7 +13,7 @@ import {
   type Onboarding,
   type SalesDefaults,
 } from '../data/settings-data';
-import { DEFAULT_EPR, defaultInsuranceQuotation, type InsuranceQuotationDetails, type Vehicle } from '../data/calculator-data';
+import { type InsuranceQuotationDetails, type Vehicle } from '../data/calculator-data';
 
 /** A dropdown's choices plus the record's own value when it has since been removed from the list,
  *  so opening an old record never silently swaps its bank/source for the first option. */
@@ -45,6 +47,16 @@ export class SettingsService {
     const d = this.settings().salesDefaults;
     return d.whatsappLanguage ?? d.posterLanguage ?? 'en';
   });
+
+  /** Settings → Brands I sell, always including the Primary Brand, which comes first. */
+  brandsISell = computed<string[]>(() => {
+    const s = this.settings();
+    const primary = s.dashboardTarget.brand;
+    const picked = s.salesDefaults.brandsISell ?? [];
+    return [primary, ...picked.filter((b) => b !== primary)].filter(Boolean);
+  });
+  /** True until the account has chosen its brands once — shows the one-time hint. */
+  brandsISellUnset = computed(() => this.settings().salesDefaults.brandsISell === undefined);
 
   constructor(private http: HttpClient) {}
 
@@ -93,10 +105,21 @@ export class SettingsService {
   /** The saved itemized insurance quotation for this car, or a sensible starting point derived
    *  from its own catalog figures when the SA hasn't customized one yet. */
   getVehicleInsurance(vehicle: Vehicle, fallbackBasicPremium: number): InsuranceQuotationDetails {
-    const saved = this.settings().vehicleInsurance[vehicle.id];
-    if (!saved) return defaultInsuranceQuotation(vehicle, fallbackBasicPremium);
-    // Backfills quotations saved before EPR replaced the old Discount (%) field.
-    return { ...saved, epr: saved.epr ?? DEFAULT_EPR };
+    return resolveInsuranceDetails(vehicle, this.settings().vehicleInsurance[vehicle.id], fallbackBasicPremium, this.tariffPremiumFor(vehicle));
+  }
+
+  /** The account's tariff table and region. */
+  tariff = computed(() => this.settings().salesDefaults.motorTariff ?? DEFAULT_MOTOR_TARIFF);
+  region = computed<TariffRegion>(() => this.settings().salesDefaults.insuranceRegion ?? 'peninsular');
+
+  /** The car's band: its own, or one guessed from the variant name. */
+  bandFor(vehicle: Vehicle): string | null {
+    return vehicle.ratingBand ?? guessBand(`${vehicle.model} ${vehicle.variant}`, this.tariff());
+  }
+
+  /** Basic premium from the motor tariff for this car, or null without a sum insured and band. */
+  tariffPremiumFor(vehicle: Vehicle, sumInsured = vehicle.sumInsured, band = this.bandFor(vehicle)): number | null {
+    return tariffBasicPremium(sumInsured, band, this.region(), this.tariff());
   }
 
   updateVehicleInsurance(vehicleId: string, details: InsuranceQuotationDetails) {

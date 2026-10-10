@@ -237,6 +237,8 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
       return json({ error: 'Password is incorrect.' }, 401);
     }
 
+    // Quote link activity on its own, so a database without that table yet can't block a deletion.
+    await env.DB.prepare('DELETE FROM link_events WHERE user_id = ?').bind(user.id).run().catch(() => undefined);
     // Child rows are deleted explicitly rather than relying on ON DELETE CASCADE being enforced.
     await env.DB.batch([
       env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(user.id),

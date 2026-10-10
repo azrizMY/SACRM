@@ -87,7 +87,7 @@ export function quoteForComparison(vehicle: Vehicle, year: number, setup: Compar
     loanBasisInsuranceAmount: loanBasisInsurance,
     downpaymentType: setup.downpaymentType,
     downpaymentValue: setup.downpaymentValue,
-    minDownpaymentCash: minDownpaymentCash(vehicle.minDownpayment, vehicle.price),
+    minDownpaymentCash: minDownpaymentCash(vehicle.minDownpayment, vehicle.price + insurance),
     loanRounding: pricing.defaults.loanRounding,
   });
 

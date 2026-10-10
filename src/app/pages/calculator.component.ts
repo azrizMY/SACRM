@@ -8,7 +8,7 @@ import { CompareService } from '../shared/compare.service';
 import { IconComponent } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { SettingsService } from '../shared/settings.service';
-import { brandLogo } from '../data/dashboard-data';
+import { brandLogo, formatRM2 } from '../data/dashboard-data';
 import {
   NCD_OPTIONS,
   VEHICLES,
@@ -211,7 +211,7 @@ export class CalculatorComponent implements AfterViewInit {
   /** Always shows exactly 2 decimals (even .00) plus thousands separators, matching the Total Due
    *  line in Insurance Breakdown — formatRM's toLocaleString would otherwise drop cents on whole
    *  numbers and show up to 3 fraction digits on others. Used throughout the Quote Preview. */
-  fmt2 = (v: number) => `RM ${v.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  fmt2 = formatRM2;
   modelVariantLabel = modelVariantLabel;
   vehicleTitle = vehicleTitle;
   roundCents = roundCents;
@@ -536,7 +536,7 @@ export class CalculatorComponent implements AfterViewInit {
       if (this.canShareFile(file)) {
         const advisorProfile = this.advisor.profile();
         try {
-          await navigator.share({ files: [file], title: translate(this.settingsService.whatsappLang(), 'Vehicle Quote'), text: `${advisorProfile.name}, ${advisorProfile.role}` });
+          await navigator.share({ files: [file], title: translate(this.settingsService.whatsappLang(), 'Vehicle Quote') });
         } catch {
           /* cancelled or failed — nothing actionable here, same as the brochure share */
         }

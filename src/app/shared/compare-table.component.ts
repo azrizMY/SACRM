@@ -21,7 +21,7 @@ export type CompareColumn = {
 };
 export type CompareCarGroup = { brand: string; vehicles: Vehicle[] };
 
-type FigureRow = { label: string; labelFor?: (q: CompareQuote) => string; caption?: (setup: CompareSetup, q: CompareQuote) => string; value: (q: CompareQuote) => string; strong?: boolean };
+type FigureRow = { label: string; labelFor?: (q: CompareQuote) => string; caption?: (setup: CompareSetup, q: CompareQuote) => string | null; value: (q: CompareQuote) => string; strong?: boolean };
 
 const rm = (v: number) => `RM ${v.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const rmWhole = (v: number) => `RM ${Math.round(v).toLocaleString('en-MY')}`;
@@ -134,35 +134,64 @@ const rmWhole = (v: number) => `RM ${Math.round(v).toLocaleString('en-MY')}`;
     @if (columns.length > 0) {
       <!-- Figures, in headed sections -->
       @for (section of sections; track section.title) {
-        <section class="mt-10 border-t border-border pt-6 sm:mt-14 sm:pt-8">
-          <h2 class="mb-2 text-xl font-semibold tracking-tight sm:text-3xl">{{ section.title | t }}</h2>
-          @for (row of section.rows; track row.label) {
-            <div class="grid grid-cols-3 gap-2 py-3 sm:gap-6 sm:py-4">
-              @for (i of slotIndexes; track i) {
-                <div class="flex flex-col items-center gap-0.5 text-center">
-                  @if (columnAt(i); as c) {
-                    <span class="text-[13px] tabular sm:text-xl" [ngClass]="row.strong ? 'font-semibold' : 'font-medium'">{{ row.value(c.quote) | t }}</span>
-                    <span class="text-[10px] leading-tight text-muted-foreground sm:text-xs">{{ (row.labelFor ? row.labelFor(c.quote) : row.label) | t }}{{ row.caption ? ' · ' + (row.caption(setup, c.quote) | t) : '' }}</span>
-                  }
-                </div>
-              }
-            </div>
-          }
-        </section>
+        <!-- A cash deal has no downpayment, loan or rate: its Loan cells just say so, and when every
+             car is cash the Loan section goes altogether. -->
+        @if (!(section.loan && allCash())) {
+          <section class="mt-10 border-t border-border pt-6 sm:mt-14 sm:pt-8">
+            <h2 class="mb-2 text-xl font-semibold tracking-tight sm:text-3xl">{{ section.title | t }}</h2>
+            @for (row of section.rows; track row.label; let first = $first) {
+              <div class="grid grid-cols-3 gap-2 py-3 sm:gap-6 sm:py-4">
+                @for (i of slotIndexes; track i) {
+                  <div class="flex flex-col items-center gap-0.5 text-center">
+                    @if (columnAt(i); as c) {
+                      @if (section.loan && isCash(c.quote)) {
+                        @if (first) {
+                          <span class="text-[13px] font-semibold sm:text-xl">{{ 'Cash' | t }}</span>
+                          <span class="text-[10px] leading-tight text-muted-foreground sm:text-xs">{{ 'No loan' | t }}</span>
+                        }
+                      } @else {
+                        <span class="text-[13px] tabular sm:text-xl" [ngClass]="row.strong ? 'font-semibold' : 'font-medium'">{{ row.value(c.quote) | t }}</span>
+                        <span class="text-[10px] leading-tight text-muted-foreground sm:text-xs">{{ (row.labelFor ? row.labelFor(c.quote) : row.label) | t }}@if (row.caption?.(setup, c.quote); as caption) { · {{ caption | t }}}</span>
+                      }
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </section>
+        }
       }
 
       <!-- Monthly -->
       <section class="mt-10 border-t border-border pt-6 sm:mt-14 sm:pt-8">
-        <h2 class="text-xl font-semibold tracking-tight sm:text-3xl">{{ 'Monthly instalment' | t }}</h2>
-        <p class="mt-1 text-xs text-muted-foreground sm:text-sm">{{ setup.tenureMonths / 12 }} {{ 'years' | t }} · {{ (setup.rateType === 'flat' ? 'Flat rate' : 'EIR') | t }}</p>
+        @if (allCash()) {
+          <h2 class="text-xl font-semibold tracking-tight sm:text-3xl">{{ 'Cash price' | t }}</h2>
+          <p class="mt-1 text-xs text-muted-foreground sm:text-sm">{{ 'Paid in full' | t }}</p>
+        } @else {
+          <h2 class="text-xl font-semibold tracking-tight sm:text-3xl">{{ 'Monthly instalment' | t }}</h2>
+          <p class="mt-1 text-xs text-muted-foreground sm:text-sm">{{ setup.tenureMonths / 12 }} {{ 'years' | t }}</p>
+        }
         <div class="mt-5 grid grid-cols-3 gap-2 sm:gap-6">
           @for (i of slotIndexes; track i) {
             <div class="flex flex-col items-center gap-1.5 text-center">
               @if (columnAt(i); as c) {
-                <div class="flex w-full flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-4 sm:py-6" [ngClass]="isLowest(c) ? 'bg-primary/10 ring-1 ring-primary/30' : 'bg-card'">
-                  <span class="text-[17px] font-semibold tabular sm:text-4xl" [ngClass]="isLowest(c) ? 'text-primary' : ''">{{ monthlyLabel(c.quote) | t }}</span>
-                  @if (c.quote.monthly !== null && c.quote.monthly > 0) {
-                    <span class="text-[10px] text-muted-foreground sm:text-xs">{{ 'per month' | t }}</span>
+                <div class="flex w-full flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-4 sm:py-6" [ngClass]="isLowest(c) || isCheapest(c) ? 'bg-primary/10 ring-1 ring-primary/30' : 'bg-card'">
+                  @if (isCash(c.quote)) {
+                    <!-- Cash: the price paid in full, no monthly and never "Lowest" -->
+                    <span class="text-[17px] font-semibold tabular sm:text-4xl" [ngClass]="isCheapest(c) ? 'text-primary' : ''">{{ allCash() ? rmWhole(c.quote.totalDue) : ('Cash' | t) }}</span>
+                    <span class="text-[10px] text-muted-foreground sm:text-xs">{{ allCash() ? ('Cash' | t) : rmWhole(c.quote.totalDue) }}</span>
+                    @if (isCheapest(c)) {
+                      <span class="mt-1 flex items-center gap-1 rounded-full bg-[var(--success)]/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--success)] sm:text-xs">
+                        <app-icon name="check" [size]="11" />{{ 'Cheapest' | t }}
+                      </span>
+                    } @else if (cashDiff(c)) {
+                      <span class="mt-1 text-[10px] text-muted-foreground sm:text-xs">+{{ cashDiff(c) }}</span>
+                    }
+                  } @else {
+                    <span class="text-[17px] font-semibold tabular sm:text-4xl" [ngClass]="isLowest(c) ? 'text-primary' : ''">{{ monthlyLabel(c.quote) | t }}</span>
+                    @if (c.quote.monthly !== null && c.quote.monthly > 0) {
+                      <span class="text-[10px] text-muted-foreground sm:text-xs">{{ 'per month' | t }}</span>
+                    }
                   }
                   @if (isLowest(c)) {
                     <span class="mt-1 flex items-center gap-1 rounded-full bg-[var(--success)]/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--success)] sm:text-xs">
@@ -217,7 +246,7 @@ export class CompareTableComponent {
   readonly modelVariantLabel = modelVariantLabel;
   readonly rmWhole = rmWhole;
 
-  readonly sections: { title: string; rows: FigureRow[] }[] = [
+  readonly sections: { title: string; loan?: boolean; rows: FigureRow[] }[] = [
     {
       title: 'Price',
       rows: [
@@ -229,13 +258,13 @@ export class CompareTableComponent {
     },
     {
       title: 'Loan',
+      loan: true,
       rows: [
         // A negative downpayment (loan rounded up past the amount due) reads as Cash Back.
         { label: 'Downpayment', labelFor: (q) => downpaymentDisplay(q.downpayment).label, value: (q) => rm(downpaymentDisplay(q.downpayment).amount) },
         { label: 'Loan Amount', value: (q) => rm(q.loan), strong: true },
         {
           label: 'Interest Rate',
-          caption: (_s, q) => (q.rateType === 'flat' ? 'Flat' : 'EIR'),
           value: (q) => (q.rate === null ? 'Rate needed' : `${q.rate}%`),
         },
       ],
@@ -253,9 +282,28 @@ export class CompareTableComponent {
   private lowestMonthly = computed(() => {
     const m = this.columnsSignal()
       .map((c) => c.quote.monthly)
-      .filter((v): v is number => v !== null);
+      .filter((v): v is number => v !== null && v > 0);
     return m.length > 1 ? Math.min(...m) : null;
   });
+
+  /** Paid in full: no downpayment, loan or monthly to compare. */
+  isCash(q: CompareQuote): boolean {
+    return q.loan <= 0;
+  }
+  allCash = computed(() => this.columnsSignal().length > 0 && this.columnsSignal().every((c) => this.isCash(c.quote)));
+
+  /** All cash: the lowest price paid in full, highlighted like the lowest monthly. */
+  private lowestCash = computed(() => {
+    const cols = this.columnsSignal();
+    return this.allCash() && cols.length > 1 ? Math.min(...cols.map((c) => c.quote.totalDue)) : null;
+  });
+  isCheapest(c: CompareColumn): boolean {
+    return this.lowestCash() !== null && Math.round(c.quote.totalDue) === Math.round(this.lowestCash()!);
+  }
+  cashDiff(c: CompareColumn): string | null {
+    const low = this.lowestCash();
+    return low === null || c.quote.totalDue - low < 0.5 ? null : rmWhole(c.quote.totalDue - low);
+  }
 
   isLowest(c: CompareColumn): boolean {
     return this.lowestMonthly() !== null && c.quote.monthly === this.lowestMonthly();

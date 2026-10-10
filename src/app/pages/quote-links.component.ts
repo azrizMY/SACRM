@@ -7,6 +7,7 @@ import { AuthService } from '../shared/auth.service';
 import { SettingsService } from '../shared/settings.service';
 import { buildQrMatrix } from '../shared/qr-code';
 import { downloadBlob } from '../shared/pdf-writer';
+import { LinkActivityComponent } from '../shared/link-activity.component';
 
 type LinkId = 'all' | 'brand';
 type QuoteLink = {
@@ -31,13 +32,10 @@ const QR_QUIET = 4;
 @Component({
   selector: 'app-quote-links',
   standalone: true,
-  imports: [CommonModule, RouterLink, IconComponent, TranslatePipe],
+  imports: [CommonModule, RouterLink, IconComponent, TranslatePipe, LinkActivityComponent],
   template: `
     <div class="mx-auto flex max-w-5xl flex-col gap-6">
       <div class="flex flex-col gap-1">
-        <h2 class="text-balance text-xl font-bold tracking-tight">
-          {{ 'Quote Links' | t }}
-        </h2>
         <p class="text-pretty text-sm text-muted-foreground">
           {{
             'Send a link and your customer builds their own quote — no login, and they never have to give you their details.'
@@ -85,6 +83,8 @@ const QR_QUIET = 4;
           </div>
         }
       </div>
+
+      <app-link-activity />
 
       <!-- What the customer gets -->
       <div

@@ -1,3 +1,4 @@
+import type { MotorTariff } from '../data/motor-tariff';
 import { apiRequest } from './api-client';
 import type { VehicleOverride } from '../data/calculator-data';
 import type { VehicleInsuranceOverrides } from '../data/settings-data';
@@ -33,6 +34,11 @@ export type PublicQuoteBundle = {
     posterAccent?: string;
     /** The advisor's festive frame, so the customer's poster matches theirs. */
     posterFrame?: string;
+    /** Motor tariff column and table, so the customer sees the same tariff insurance. */
+    insuranceRegion?: 'peninsular' | 'east';
+    /** "Book test drive": on unless the advisor turned it off. */
+    testDriveEnabled?: boolean;
+    motorTariff?: MotorTariff;
   };
   vehicleInsurance: VehicleInsuranceOverrides;
   vehicleOverrides: Record<string, VehicleOverride>;

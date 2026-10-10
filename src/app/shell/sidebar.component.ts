@@ -1,10 +1,11 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IconComponent, IconName } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { UserMenuComponent } from './user-menu.component';
 import { TranslatePipe } from '../shared/i18n';
+import { LinkActivityService } from '../shared/link-activity.service';
 
 type NavItem = { id: string; label: string; icon: IconName };
 
@@ -64,11 +65,13 @@ const NAV: NavItem[] = [
         <ul class="flex flex-col gap-1">
           @for (item of nav; track item.id) {
             <li>
-              <button
-                type="button"
+              <!-- Real links, so a page can be opened in a new tab (Ctrl-click, long-press) -->
+              <a
+                [routerLink]="'/' + item.id"
                 (click)="navigate.emit(item.id)"
                 [attr.aria-current]="item.id === active ? 'page' : null"
-                [title]="collapsed ? item.label : null"
+                [attr.aria-label]="item.label | t"
+                [attr.title]="collapsed ? (item.label | t) : null"
                 class="group relative flex w-full items-center gap-3 rounded-lg py-2.5 text-sm font-medium transition-all duration-200"
                 [ngClass]="[
                   collapsed ? 'justify-center px-0' : 'px-2.5',
@@ -88,7 +91,14 @@ const NAV: NavItem[] = [
                 @if (!collapsed) {
                   <span class="truncate">{{ item.label | t }}</span>
                 }
-              </button>
+                @if (item.id === 'links' && activity.unseen() > 0) {
+                  <span
+                    class="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground"
+                    [ngClass]="collapsed ? 'absolute right-1 top-1 h-4 min-w-4 px-1' : 'ml-auto'"
+                    [attr.aria-label]="activity.unseen() + ' new visits'"
+                  >{{ activity.unseen() > 99 ? '99+' : activity.unseen() }}</span>
+                }
+              </a>
             </li>
           }
         </ul>
@@ -131,6 +141,8 @@ export class SidebarComponent {
   @Output() toggle = new EventEmitter<void>();
 
   nav = NAV;
+
+  activity = inject(LinkActivityService);
 
   constructor(
     public advisor: AdvisorService,

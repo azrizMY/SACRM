@@ -35,13 +35,14 @@ import { groupedBrochureTemplate } from '../shared/poster-brochure-template-grou
 import type { BrochureTemplate, BrochureTemplateId } from '../shared/poster-brochure-templates';
 import type { BrochureData, BrochureRow } from '../shared/poster-brochure-data';
 import { applyPosterFrame } from '../shared/poster-frames';
+import { BrandsHintComponent } from '../shared/brands-hint.component';
 
 type OfferTab = 'preview' | 'settings';
 
 @Component({
   selector: 'app-my-cars',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, CarShadowPipe],
+  imports: [BrandsHintComponent, CommonModule, FormsModule, IconComponent, CarShadowPipe],
   template: `
     <div class="mx-auto flex max-w-7xl flex-col gap-5 pb-16">
 
@@ -52,6 +53,8 @@ type OfferTab = 'preview' | 'settings';
             Your browser can't hand files to WhatsApp directly — brochure downloaded. Attach it in WhatsApp Desktop/Web.
           </div>
         }
+
+        <app-brands-hint />
 
         <!-- Search + brand filter -->
         <div class="flex flex-col gap-3">
@@ -399,9 +402,15 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
    *  VehicleCatalogService (not the raw VEHICLES import) so a price/rebate saved in Price Settings
    *  shows up here without needing a full page reload — brand/model/variant identity itself never
    *  changes at runtime, so the brand lists below can stay static off VEHICLES directly. */
-  allVehicles = computed(() => this.catalog.vehicles());
-  brandFilters = ['All', ...Array.from(new Set(VEHICLES.map((v) => v.brand)))];
-  brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
+  allVehicles = computed(() => this.catalog.soldVehicles());
+  /** Settings → Brands I sell, Primary Brand first; "All" means all of those. */
+  get brandFilters(): string[] {
+    const brands = this.catalog.soldBrands();
+    return brands.length > 1 ? ['All', ...brands] : brands;
+  }
+  get brands(): string[] {
+    return this.catalog.soldBrands();
+  }
 
   private settingsService = inject(SettingsService);
 
@@ -530,7 +539,7 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
       if (this.canShareFile(file)) {
         const advisor = this.advisor.profile();
         try {
-          await navigator.share({ files: [file], title: translate(this.settingsService.whatsappLang(), 'Car brochure'), text: `${advisor.name}, ${advisor.role}` });
+          await navigator.share({ files: [file], title: translate(this.settingsService.whatsappLang(), 'Car brochure') });
         } catch (err) {
           if ((err as DOMException)?.name !== 'AbortError') {
             /* share failed for a reason other than user cancellation — nothing actionable to do here */
@@ -650,7 +659,7 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
       insuranceAmount: insurance,
       downpaymentType: 'percent',
       downpaymentValue: defaults.downpaymentPct,
-      minDownpaymentCash: minDownpaymentCash(v.minDownpayment, v.price),
+      minDownpaymentCash: minDownpaymentCash(v.minDownpayment, v.price + insurance),
       loanRounding: defaults.loanRounding,
     });
     // Same rule as the Calculator and the customer link: EIR only when an EIR actually exists (the
@@ -816,7 +825,7 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
       if (this.canShareFile(file)) {
         const advisor = this.advisor.profile();
         try {
-          await navigator.share({ files: [file], title: this.offerTitle(), text: `${advisor.name}, ${advisor.role}` });
+          await navigator.share({ files: [file], title: this.offerTitle() });
         } catch {
           /* cancelled or failed — nothing actionable, same as the brochure share */
         }

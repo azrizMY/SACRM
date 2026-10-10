@@ -6,6 +6,7 @@ import type { BudgetRules } from '../shared/budget-finder';
 import { SettingsService } from '../shared/settings.service';
 import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
 import { CompareService } from '../shared/compare.service';
+import { BrandsHintComponent } from '../shared/brands-hint.component';
 
 /**
  * Budget Finder for the advisor: the same finder customers get on the quote link, with the
@@ -15,14 +16,14 @@ import { CompareService } from '../shared/compare.service';
 @Component({
   selector: 'app-budget-finder-page',
   standalone: true,
-  imports: [TranslatePipe, BudgetFinderComponent],
+  imports: [BrandsHintComponent, TranslatePipe, BudgetFinderComponent],
   template: `
     <div class="mx-auto flex max-w-6xl flex-col gap-6">
       <div class="flex flex-col gap-1">
-        <h2 class="text-balance text-xl font-bold tracking-tight">{{ 'Budget' | t }}</h2>
         <p class="text-pretty text-sm text-muted-foreground">{{ 'Start from the monthly your customer can manage and see the deposit every car needs. Your customers get the same on your quote link.' | t }}</p>
       </div>
-      <app-budget-finder [vehicles]="catalog.vehicles()" [brands]="catalog.brands()" [primaryBrand]="primaryBrand()" [rules]="rules()" openLabel="Open in Calculator" (pick)="open($event)" />
+      <app-brands-hint />
+      <app-budget-finder [vehicles]="catalog.soldVehicles()" [brands]="catalog.soldBrands()" [primaryBrand]="primaryBrand()" [rules]="rules()" openLabel="Open in Calculator" (pick)="open($event)" />
     </div>
   `,
 })

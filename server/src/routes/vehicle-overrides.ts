@@ -19,6 +19,21 @@ export async function handleVehicleOverridesRoute(request: Request, env: Env, ur
     return json(map);
   }
 
+  // Many cars at once (Price Settings' brand rebate editor and price list import): one request,
+  // one batch — every override is the car's full merged override, same as the single-car PUT.
+  if (url.pathname === '/api/vehicle-overrides' && request.method === 'PUT') {
+    const body = await readJsonBody<Record<string, unknown>>(request);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'Invalid override payload.' }, 400);
+    const entries = Object.entries(body).filter(([id, data]) => typeof id === 'string' && id.length <= 120 && data && typeof data === 'object');
+    if (entries.length === 0) return json({});
+    if (entries.length > 500) return json({ error: 'Too many cars in one save.' }, 400);
+    const stmt = env.DB.prepare(
+      'INSERT INTO vehicle_overrides (user_id, vehicle_id, data) VALUES (?, ?, ?) ON CONFLICT(user_id, vehicle_id) DO UPDATE SET data = excluded.data',
+    );
+    await env.DB.batch(entries.map(([id, data]) => stmt.bind(user.id, id, JSON.stringify(data))));
+    return json(Object.fromEntries(entries));
+  }
+
   const match = url.pathname.match(/^\/api\/vehicle-overrides\/([^/]+)$/);
   if (match && request.method === 'PUT') {
     const vehicleId = decodeURIComponent(match[1]);

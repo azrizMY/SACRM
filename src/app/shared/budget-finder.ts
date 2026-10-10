@@ -74,7 +74,7 @@ export function budgetMatch(vehicle: Vehicle, monthlyBudget: number, tenureMonth
   const loanBasisInsurance = computeInsuranceBreakdown(details, 0).totalDue;
   const totalDue = roundCents(Math.max(0, basePrice - rebate) + insurance);
   const { rate, rateType } = rateFor(vehicle, rules);
-  const minimum = minDownpaymentCash(vehicle.minDownpayment, basePrice);
+  const minimum = minDownpaymentCash(vehicle.minDownpayment, basePrice + insurance);
 
   // The biggest loan the budget covers; the rest is the deposit. Loans go in RM100 steps, rounded
   // down so the monthly never ends up above the budget.

@@ -15,8 +15,9 @@ import { fetchPublicQuote, type PublicQuoteBundle } from '../shared/public-quote
 import { posterFontsReady } from '../shared/poster-theme';
 import { classicTemplate } from '../shared/poster-template-classic';
 import type { PosterData } from '../shared/poster-data';
-import { brandLogo, formatMalaysianPhone } from '../data/dashboard-data';
-import { DEFAULT_EPR, defaultInsuranceQuotation } from '../data/calculator-data';
+import { brandLogo, formatMalaysianPhone, formatRM2 } from '../data/dashboard-data';
+import { resolveInsuranceDetails } from '../data/calculator-data';
+import { DEFAULT_MOTOR_TARIFF, guessBand, tariffBasicPremium } from '../data/motor-tariff';
 import {
   DEFAULT_VEHICLES,
   NCD_OPTIONS,
@@ -43,6 +44,7 @@ import {
 } from '../data/calculator-data';
 import { applyPosterFrame } from '../shared/poster-frames';
 import { BudgetFinderComponent, type BudgetPick } from '../shared/budget-finder.component';
+import { LinkActivityRecorder } from '../shared/link-activity-recorder';
 import type { BudgetRules } from '../shared/budget-finder';
 
 /** The full 1-9 year range the tenure picker offers — same range as the Calculator's own poster
@@ -164,6 +166,16 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                 {{ "WhatsApp Me Here" | t }}
               </button>
             }
+            @if (testDriveOn()) {
+              <button
+                type="button"
+                (click)="openTestDrive(selectedVehicle())"
+                class="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm font-semibold transition-colors hover:bg-accent xl:hidden"
+              >
+                <app-icon name="car" [size]="17" />
+                {{ "Book test drive" | t }}
+              </button>
+            }
             <p class="shrink-0 text-balance text-center text-[10px] leading-relaxed text-muted-foreground">
               <app-icon name="info" [size]="12" class="mr-1 inline-block align-[-2px]" />
               {{ "Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here." | t }}
@@ -180,7 +192,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                   @for (o of tradeInOptions; track o.label) {
                     <button
                       type="button"
-                      (click)="tradeIn.set(o.value)"
+                      (click)="tradeIn.set(o.value); activity?.record('trade_in', null, { tradeIn: o.value })"
                       [attr.aria-pressed]="tradeIn() === o.value"
                       class="rounded-lg border px-2 py-2 text-xs font-semibold transition-colors"
                       [ngClass]="tradeIn() === o.value ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
@@ -213,6 +225,16 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                   >
                     <app-brand-icon name="whatsapp" [size]="14" />
                     {{ "WhatsApp Me Here" | t }}
+                  </button>
+                }
+                @if (testDriveOn()) {
+                  <button
+                    type="button"
+                    (click)="openTestDrive(selectedVehicle())"
+                    class="mr-1 hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-border px-2.5 py-1 text-xs font-semibold transition-colors hover:bg-accent xl:flex"
+                  >
+                    <app-icon name="car" [size]="13" />
+                    {{ "Book test drive" | t }}
                   </button>
                 }
                 <button
@@ -558,170 +580,197 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
       </div>
 
       @if (section() === 'profile') {
-        <div class="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4 pb-28 md:p-6 md:pb-28 xl:py-8">
-          <!-- Advisor card -->
+        <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 pb-28 md:gap-5 md:p-6 md:pb-28 xl:py-8">
+          <!-- Advisor card: on wider screens the name, bio and buttons sit beside the photo so the card
+               fills the width. -->
           <section class="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm">
-            <div class="h-24 bg-gradient-to-br from-primary/70 via-primary/25 to-card sm:h-28"></div>
-            <div class="-mt-12 flex flex-col items-center gap-3 px-5 pb-5 text-center sm:-mt-14">
-              @if (bundle()!.advisor.photoUrl; as photo) {
-                <img [src]="photo" alt="" class="size-24 rounded-full object-cover ring-4 ring-card sm:size-28" />
-              } @else {
-                <span class="flex size-24 items-center justify-center rounded-full text-3xl font-bold text-white/90 ring-4 ring-card sm:size-28" [style.background]="avatarGradient">
-                  {{ advisorInitials() }}
-                </span>
-              }
-              <div class="flex flex-col items-center gap-1.5">
-                <h1 class="text-balance text-xl font-semibold tracking-tight">{{ bundle()!.advisor.name }}</h1>
-                @if (bundle()!.advisor.role; as role) {
-                  <span class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">{{ role }}</span>
+            <div class="p-5 md:p-7">
+              <div class="flex flex-col items-center gap-4 text-center md:flex-row md:items-center md:gap-6 md:text-left">
+                @if (bundle()!.advisor.photoUrl; as photo) {
+                  <img [src]="photo" alt="" class="size-24 shrink-0 rounded-full object-cover ring-1 ring-border sm:size-28 md:size-32" />
+                } @else {
+                  <span class="flex size-24 shrink-0 items-center justify-center rounded-full text-3xl font-bold text-white/90 ring-1 ring-border sm:size-28 md:size-32" [style.background]="avatarGradient">
+                    {{ advisorInitials() }}
+                  </span>
                 }
-                @if (bundle()!.advisor.phoneDisplay; as phone) {
-                  <span class="text-sm tabular text-muted-foreground">{{ formatPhone(phone) }}</span>
-                }
-              </div>
-              @if (bundle()!.advisor.bio; as bio) {
-                <p class="max-w-md whitespace-pre-line text-pretty text-sm leading-relaxed text-muted-foreground">{{ bio }}</p>
-              }
-              @if (callHref() || profileWhatsAppHref()) {
-                <div class="grid w-full auto-cols-fr grid-flow-col gap-2 pt-1">
-                  @if (callHref(); as href) {
-                    <a
-                      [href]="href"
-                      class="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-                    >
-                      <app-icon name="phone" [size]="16" />
-                      {{ "Call" | t }}
-                    </a>
-                  }
-                  @if (profileWhatsAppHref(); as href) {
-                    <a
-                      [href]="href"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-3 text-sm font-semibold text-white shadow-sm transition-[filter] hover:brightness-95"
-                    >
-                      <app-brand-icon name="whatsapp" [size]="16" />
-                      {{ "WhatsApp" | t }}
-                    </a>
+                <div class="flex min-w-0 flex-1 flex-col items-center gap-1.5 md:items-start">
+                  <h1 class="text-balance text-xl font-semibold tracking-tight md:text-2xl">{{ bundle()!.advisor.name }}</h1>
+                  <div class="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 md:justify-start">
+                    @if (bundle()!.advisor.role; as role) {
+                      <span class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">{{ role }}</span>
+                    }
+                    @if (!callHref() && bundle()!.advisor.phoneDisplay) {
+                      <span class="text-sm tabular text-muted-foreground">{{ formatPhone(bundle()!.advisor.phoneDisplay) }}</span>
+                    }
+                  </div>
+                  @if (bundle()!.advisor.bio; as bio) {
+                    <p class="mt-1.5 max-w-md whitespace-pre-line text-pretty text-sm leading-relaxed text-muted-foreground md:max-w-2xl">{{ bio }}</p>
                   }
                 </div>
-              }
+                <!-- Get in touch: two contact tiles, a panel of its own on the right on wider screens -->
+                @if (callHref() || profileWhatsAppHref()) {
+                  <div class="flex w-full flex-col gap-2.5 md:w-64 md:shrink-0 md:self-stretch md:justify-center md:border-l md:border-border md:pl-6">
+                    <span class="hidden text-[11px] font-semibold uppercase tracking-wide text-muted-foreground md:block">{{ "Get in touch" | t }}</span>
+                    <div class="grid gap-2.5 sm:grid-cols-2 md:grid-cols-1">
+                      @if (profileWhatsAppHref(); as href) {
+                        <a
+                          [href]="href"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          (click)="activity?.record('whatsapp_tapped')"
+                          class="group flex items-center gap-3 rounded-2xl bg-gradient-to-br from-[#25D366] to-[#128C7E] p-2.5 pr-3 text-left text-white shadow-lg shadow-[#25D366]/20 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[#25D366]/30"
+                        >
+                          <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/25">
+                            <app-brand-icon name="whatsapp" [size]="20" />
+                          </span>
+                          <span class="flex min-w-0 flex-1 flex-col leading-tight">
+                            <span class="text-[11px] font-medium text-white/80">{{ "Chat on" | t }}</span>
+                            <span class="truncate text-sm font-bold">WhatsApp</span>
+                          </span>
+                          <app-icon name="arrow-up-right" [size]="15" class="hidden shrink-0 opacity-70 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100 sm:block" />
+                        </a>
+                      }
+                      @if (callHref(); as href) {
+                        <a
+                          [href]="href"
+                          class="group flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-2.5 pr-3 text-left text-foreground transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent"
+                        >
+                          <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25">
+                            <app-icon name="phone" [size]="18" />
+                          </span>
+                          <span class="flex min-w-0 flex-1 flex-col leading-tight">
+                            <span class="text-[11px] font-medium text-muted-foreground">{{ "Call me" | t }}</span>
+                            <span class="truncate text-sm font-bold tabular">{{ bundle()!.advisor.phoneDisplay ? formatPhone(bundle()!.advisor.phoneDisplay) : ('Call' | t) }}</span>
+                          </span>
+                          <app-icon name="arrow-up-right" [size]="15" class="hidden shrink-0 text-muted-foreground transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground sm:block" />
+                        </a>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
             </div>
           </section>
 
-          <!-- Showroom -->
-          @if (showroom(); as s) {
-            <section class="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm">
-              <div class="flex items-start gap-3">
+          <!-- Showroom and social links side by side on wider screens -->
+          @if (showroom() || socials().length) {
+            <div class="grid gap-4 md:gap-5" [ngClass]="showroom() && socials().length ? 'md:grid-cols-3' : ''">
+              @if (showroom(); as s) {
+                <section class="flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm md:col-span-2">
+                  <div class="flex items-start gap-3">
+                    <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <app-icon name="map-pin" [size]="18" />
+                    </span>
+                    <div class="flex min-w-0 flex-col gap-1">
+                      <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Visit the Showroom" | t }}</span>
+                      <span class="text-sm font-semibold">{{ s.name || ('Showroom' | t) }}</span>
+                      @if (s.address; as address) {
+                        <p class="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{{ address }}</p>
+                      }
+                    </div>
+                  </div>
+                  <div class="grid auto-cols-fr grid-flow-col gap-2">
+                    @if (showroomMapsHref(); as href) {
+                      <a
+                        [href]="href"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 text-sm font-medium transition-colors hover:bg-accent"
+                      >
+                        <app-brand-icon name="googlemaps" [size]="16" class="text-[#4285F4]" />
+                        {{ "Google Maps" | t }}
+                      </a>
+                    }
+                    @if (showroomWazeHref(); as href) {
+                      <a
+                        [href]="href"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 text-sm font-medium transition-colors hover:bg-accent"
+                      >
+                        <app-brand-icon name="waze" [size]="16" class="text-[#33CCFF]" />
+                        {{ "Waze" | t }}
+                      </a>
+                    }
+                  </div>
+                </section>
+              }
+
+              @if (socials().length) {
+                <section class="flex flex-col justify-center gap-4 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm">
+                  <span class="text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Follow Me" | t }}</span>
+                  <div class="flex flex-wrap justify-center gap-x-2 gap-y-4">
+                    @for (s of socials(); track s.id) {
+                      <a
+                        [href]="s.href"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        [attr.aria-label]="s.label + ' (opens in a new tab)'"
+                        class="group flex w-[4.5rem] flex-col items-center gap-1.5 rounded-xl p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <app-brand-icon [name]="s.id" [size]="52" [tile]="true" class="transition-transform group-hover:scale-105 group-active:scale-95" />
+                        <span class="w-full truncate text-center text-[11px] font-medium text-muted-foreground group-hover:text-foreground">{{ s.label | t }}</span>
+                      </a>
+                    }
+                  </div>
+                </section>
+              }
+            </div>
+          }
+
+          <!-- Shortcuts to the other sections -->
+          <div class="grid gap-3 pt-2 md:grid-cols-3 md:gap-4">
+            <button
+              type="button"
+              (click)="selectSection('quote')"
+              class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
+            >
+              <span class="flex items-center gap-3">
                 <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <app-icon name="map-pin" [size]="18" />
+                  <app-icon name="calculator" [size]="18" />
                 </span>
-                <div class="flex min-w-0 flex-col gap-1">
-                  <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Visit the Showroom" | t }}</span>
-                  <span class="text-sm font-semibold">{{ s.name || ('Showroom' | t) }}</span>
-                  @if (s.address; as address) {
-                    <p class="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{{ address }}</p>
-                  }
-                </div>
-              </div>
-              <div class="grid auto-cols-fr grid-flow-col gap-2">
-                @if (showroomMapsHref(); as href) {
-                  <a
-                    [href]="href"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 text-sm font-medium transition-colors hover:bg-accent"
-                  >
-                    <app-brand-icon name="googlemaps" [size]="16" class="text-[#4285F4]" />
-                    {{ "Google Maps" | t }}
-                  </a>
-                }
-                @if (showroomWazeHref(); as href) {
-                  <a
-                    [href]="href"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 text-sm font-medium transition-colors hover:bg-accent"
-                  >
-                    <app-brand-icon name="waze" [size]="16" class="text-[#33CCFF]" />
-                    {{ "Waze" | t }}
-                  </a>
-                }
-              </div>
-            </section>
-          }
+                <span class="flex flex-col gap-0.5">
+                  <span class="text-sm font-semibold">{{ "Build your own quote" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "See your monthly instalment in under a minute." | t }}</span>
+                </span>
+              </span>
+              <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground" />
+            </button>
 
-          <!-- Social media -->
-          @if (socials().length) {
-            <section class="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm">
-              <span class="text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Follow Me" | t }}</span>
-              <div class="flex flex-wrap justify-center gap-x-2 gap-y-4">
-                @for (s of socials(); track s.id) {
-                  <a
-                    [href]="s.href"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    [attr.aria-label]="s.label + ' (opens in a new tab)'"
-                    class="group flex w-[4.5rem] flex-col items-center gap-1.5 rounded-xl p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <app-brand-icon [name]="s.id" [size]="52" [tile]="true" class="transition-transform group-hover:scale-105 group-active:scale-95" />
-                    <span class="w-full truncate text-center text-[11px] font-medium text-muted-foreground group-hover:text-foreground">{{ s.label | t }}</span>
-                  </a>
-                }
-              </div>
-            </section>
-          }
+            <button
+              type="button"
+              (click)="selectSection('budget')"
+              class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
+            >
+              <span class="flex items-center gap-3">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <app-icon name="wallet" [size]="18" />
+                </span>
+                <span class="flex flex-col gap-0.5">
+                  <span class="text-sm font-semibold">{{ "Find a car for your budget" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "Tell us your monthly and see the deposit for every car." | t }}</span>
+                </span>
+              </span>
+              <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground" />
+            </button>
 
-          <button
-            type="button"
-            (click)="selectSection('cars')"
-            class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
-          >
-            <span class="flex items-center gap-3">
-              <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <app-icon name="car" [size]="18" />
+            <button
+              type="button"
+              (click)="selectSection('cars')"
+              class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
+            >
+              <span class="flex items-center gap-3">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <app-icon name="car" [size]="18" />
+                </span>
+                <span class="flex flex-col gap-0.5">
+                  <span class="text-sm font-semibold">{{ "Browse cars & brochures" | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "See every model and open its brochure." | t }}</span>
+                </span>
               </span>
-              <span class="flex flex-col gap-0.5">
-                <span class="text-sm font-semibold">{{ "Browse cars & brochures" | t }}</span>
-                <span class="text-xs text-muted-foreground">{{ "See every model and open its brochure." | t }}</span>
-              </span>
-            </span>
-            <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground" />
-          </button>
-
-          <button
-            type="button"
-            (click)="selectSection('budget')"
-            class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
-          >
-            <span class="flex items-center gap-3">
-              <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <app-icon name="wallet" [size]="18" />
-              </span>
-              <span class="flex flex-col gap-0.5">
-                <span class="text-sm font-semibold">{{ "Find a car for your budget" | t }}</span>
-                <span class="text-xs text-muted-foreground">{{ "Tell us your monthly and see the deposit for every car." | t }}</span>
-              </span>
-            </span>
-            <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground" />
-          </button>
-
-          <button
-            type="button"
-            (click)="selectSection('quote')"
-            class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
-          >
-            <span class="flex items-center gap-3">
-              <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <app-icon name="calculator" [size]="18" />
-              </span>
-              <span class="flex flex-col gap-0.5">
-                <span class="text-sm font-semibold">{{ "Build your own quote" | t }}</span>
-                <span class="text-xs text-muted-foreground">{{ "See your monthly instalment in under a minute." | t }}</span>
-              </span>
-            </span>
-            <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground" />
-          </button>
+              <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground" />
+            </button>
+          </div>
 
           <a routerLink="/privacy" [queryParams]="{ lang: pageLang() }" target="_blank" class="self-center py-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
             {{ "Privacy Policy" | t }}
@@ -737,7 +786,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
             <h1 class="text-xl font-bold tracking-tight">{{ "Find a car for your budget" | t }}</h1>
             <p class="text-sm text-muted-foreground">{{ "Start from the monthly you are comfortable with, and see the deposit for every car." | t }}</p>
           </div>
-          <app-budget-finder [vehicles]="budgetVehicles()" [brands]="carsBrands()" [primaryBrand]="bundle()!.defaultBrand" [rules]="budgetRules()" [doubtHref]="qualifyWhatsAppHref()" (pick)="quoteFromBudget($event)" />
+          <app-budget-finder [vehicles]="budgetVehicles()" [brands]="carsBrands()" [primaryBrand]="bundle()!.defaultBrand" [rules]="budgetRules()" [doubtHref]="qualifyWhatsAppHref()" (pick)="quoteFromBudget($event)" (searched)="activity?.record('budget_used', null, $event)" />
         </div>
       }
 
@@ -901,6 +950,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                             [href]="v.brochureUrl"
                             target="_blank"
                             rel="noopener"
+                            (click)="activity?.record('brochure_opened', v.id)"
                             class="flex flex-1 items-center justify-center gap-1 rounded-lg bg-muted py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
                           >
                             <app-icon name="file-text" [size]="13" />
@@ -916,6 +966,16 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                           {{ "Quote" | t }}
                         </button>
                       </div>
+                      @if (testDriveOn()) {
+                        <button
+                          type="button"
+                          (click)="openTestDrive(v)"
+                          class="flex items-center justify-center gap-1 rounded-lg border border-border py-1.5 text-xs font-semibold transition-colors hover:bg-accent"
+                        >
+                          <app-icon name="car" [size]="13" />
+                          {{ "Book test drive" | t }}
+                        </button>
+                      }
                     </div>
                   </article>
                 }
@@ -925,6 +985,47 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
         </div>
       }
       </div>
+
+      <!-- Book test drive: optional day preference, then a ready-written WhatsApp -->
+      @if (testDriveCar(); as car) {
+        <div class="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-4" role="dialog" [attr.aria-label]="'Book test drive' | t">
+          <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/60 backdrop-blur-sm" (click)="testDriveCar.set(null)"></button>
+          <div class="relative flex w-full max-w-md flex-col gap-4 rounded-t-2xl border border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-card-foreground shadow-xl sm:rounded-2xl">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-base font-bold">{{ "Book test drive" | t }}</span>
+                <span class="text-sm text-muted-foreground">{{ vehicleTitle(car.brand, modelVariantLabel(car.model, car.variant)) }}</span>
+              </div>
+              <button type="button" (click)="testDriveCar.set(null)" [attr.aria-label]="'Close' | t" class="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent">
+                <app-icon name="x" [size]="16" />
+              </button>
+            </div>
+            <div class="flex flex-col gap-2">
+              <span class="text-xs font-medium text-muted-foreground">{{ "When suits you? (optional)" | t }}</span>
+              <div class="flex flex-wrap gap-1.5">
+                @for (w of testDriveWhens; track w.id) {
+                  <button
+                    type="button"
+                    (click)="testDriveWhen.set(testDriveWhen() === w.id ? null : w.id)"
+                    class="rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
+                    [ngClass]="testDriveWhen() === w.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent'"
+                  >
+                    {{ w.label | t }}
+                  </button>
+                }
+              </div>
+            </div>
+            <button
+              type="button"
+              (click)="sendTestDrive(car)"
+              class="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-sm font-semibold text-white shadow-sm transition-[filter] hover:brightness-95"
+            >
+              <app-brand-icon name="whatsapp" [size]="18" />
+              {{ "Send on WhatsApp" | t }}
+            </button>
+          </div>
+        </div>
+      }
 
       <!-- Mobile/tablet bottom tab bar -->
       <nav
@@ -1027,7 +1128,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                   </div>
                 }
                 <div class="flex items-center justify-between bg-primary/10 px-3 py-2">
-                  <span class="font-semibold text-primary">{{ "Total Due" | t }} <span class="font-normal text-muted-foreground">(Rounded: {{ fmt(insuranceBreakdown().totalRounded) }})</span></span>
+                  <span class="font-semibold text-primary">{{ "Total Due" | t }}</span>
                   <span class="font-bold tabular text-primary">{{ insuranceBreakdown().totalDue.toFixed(2) }}</span>
                 </div>
               </div>
@@ -1162,7 +1263,7 @@ export class PublicQuoteComponent implements OnInit {
   socials = computed(() => socialEntries(this.bundle()?.advisor.socials));
 
   fmt = (v: number) => formatRM(v);
-  fmt2 = (v: number) => `RM ${v.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  fmt2 = formatRM2;
   modelVariantLabel = modelVariantLabel;
   formatPhone = formatMalaysianPhone;
   ncdOptions = NCD_OPTIONS;
@@ -1315,12 +1416,16 @@ export class PublicQuoteComponent implements OnInit {
   /** The car's saved itemized insurance quotation from the SA's own Car Database — read-only here,
    *  unlike the Calculator's own Insurance Breakdown, so there's no per-quote override layer on
    *  top of it. */
-  insuranceDetails = computed((): InsuranceQuotationDetails => {
-    const vehicle = this.selectedVehicle();
-    const saved = this.bundle()?.vehicleInsurance[vehicle.id];
-    if (!saved) return defaultInsuranceQuotation(vehicle, this.autoBasicPremium());
-    return { ...saved, epr: saved.epr ?? DEFAULT_EPR };
-  });
+  insuranceDetails = computed((): InsuranceQuotationDetails => this.insuranceFor(this.selectedVehicle(), this.autoBasicPremium()));
+
+  /** A car's quotation as the advisor has it, with the motor tariff applied the same way. */
+  insuranceFor(vehicle: Vehicle, fallbackBasicPremium: number): InsuranceQuotationDetails {
+    const d = this.bundle()?.salesDefaults;
+    const tariff = d?.motorTariff ?? DEFAULT_MOTOR_TARIFF;
+    const band = vehicle.ratingBand ?? guessBand(`${vehicle.model} ${vehicle.variant}`, tariff);
+    const tariffPremium = tariffBasicPremium(vehicle.sumInsured, band, d?.insuranceRegion ?? 'peninsular', tariff);
+    return resolveInsuranceDetails(vehicle, this.bundle()?.vehicleInsurance[vehicle.id], fallbackBasicPremium, tariffPremium);
+  }
   insuranceBreakdown = computed(() => computeInsuranceBreakdown(this.insuranceDetails(), this.ncd()));
   insurance = computed(() => this.insuranceBreakdown().totalDue);
   /** Same insurance quotation at 0% NCD — what the loan is sized against, so dialling in a better
@@ -1350,7 +1455,7 @@ export class PublicQuoteComponent implements OnInit {
   /** The advisor's Loan Rounding setting, so the customer's loan matches the advisor's own quote. */
   loanRounding = computed(() => this.bundle()?.salesDefaults.loanRounding ?? 'down');
   /** This variant's minimum downpayment (set by the advisor in Price Settings), before rebate; 0 = none. */
-  minDownpayment = computed(() => minDownpaymentCash(this.selectedVehicle().minDownpayment, this.basePrice()));
+  minDownpayment = computed(() => minDownpaymentCash(this.selectedVehicle().minDownpayment, this.basePrice() + this.insurance()));
   /** Cash still needed to meet the minimum once the rebate is counted towards it. */
   minCashNeeded = computed(() => roundCents(Math.max(0, this.minDownpayment() - this.effectiveRebate())));
   /** True when what was entered fell short of the minimum and the quote was raised to it. */
@@ -1467,7 +1572,68 @@ export class PublicQuoteComponent implements OnInit {
   /** The page's language (the advisor's poster language), passed on to the Privacy Policy link. */
   pageLang = computed(() => this.i18n.lang());
 
+  /** Quote link activity — set once the link has loaded (see link-activity-recorder.ts). */
+  activity: LinkActivityRecorder | null = null;
+
+  /** The quote as it stands, for the advisor's Activity feed. */
+  private quotePayload(): Record<string, unknown> {
+    return {
+      year: this.modelYear(),
+      deposit: Math.round(this.downpaymentCash()),
+      tenure: this.tenureYears(),
+      monthly: Math.round(this.monthlyInstalment() * 100) / 100,
+      cash: this.isCashPurchase(),
+    };
+  }
+
+  private activityCar = '';
+  private activityQuote = '';
+  private activityCompare = '';
+  private quoteTimer: ReturnType<typeof setTimeout> | null = null;
+  private compareTimer: ReturnType<typeof setTimeout> | null = null;
+
   constructor(private host: ElementRef) {
+    // Activity: a different car chosen (not the one the link opens on)
+    effect(() => {
+      const id = this.selectedVehicle().id;
+      const loaded = !this.loading() && this.vehicles().length > 0;
+      if (!loaded || !this.activity) return;
+      if (!this.activityCar) {
+        this.activityCar = id;
+        return;
+      }
+      if (id === this.activityCar) return;
+      this.activityCar = id;
+      this.activity.record('car_viewed', id, { year: this.modelYear() });
+    });
+    // Activity: a quote the customer settled on (after a pause), once they've changed something
+    effect(() => {
+      const key = [this.selectedVehicle().id, this.modelYear(), this.downpaymentType(), this.downpaymentValue(), this.tenureYears(), this.ncd()].join('|');
+      if (!this.activity || this.loading()) return;
+      if (!this.activityQuote) {
+        this.activityQuote = key;
+        return;
+      }
+      if (this.quoteTimer) clearTimeout(this.quoteTimer);
+      this.quoteTimer = setTimeout(() => {
+        if (key === this.activityQuote) return;
+        this.activityQuote = key;
+        this.activity?.record('quote_built', this.selectedVehicle().id, this.quotePayload());
+      }, 4000);
+    });
+    // Activity: two or three cars compared
+    effect(() => {
+      const ids = this.compareColumns().map((c) => c.vehicle.id);
+      if (!this.activity || ids.length < 2) return;
+      if (this.compareTimer) clearTimeout(this.compareTimer);
+      this.compareTimer = setTimeout(() => {
+        const key = ids.join(',');
+        if (key === this.activityCompare) return;
+        this.activityCompare = key;
+        this.activity?.record('compare_used', null, { cars: ids });
+      }, 3000);
+    });
+
     // Redraws whenever anything the poster depends on changes — including `bundle`/`vehicles`
     // flipping from empty to populated once ngOnInit's fetch resolves. Unlike the Calculator (whose
     // canvas is always in the DOM), this page's canvas sits behind an `@if(loading())`/`@else`
@@ -1514,6 +1680,8 @@ export class PublicQuoteComponent implements OnInit {
       this.ncd.set(bundle.salesDefaults.ncd);
       this.downpaymentType.set('percent');
       this.downpaymentValue.set(bundle.salesDefaults.downpaymentPct);
+      this.activity = new LinkActivityRecorder(this.token, this.singleBrandMode ? 'brand' : 'all');
+      this.activity.record('link_opened');
     } catch {
       this.notFound.set(true);
     } finally {
@@ -1635,8 +1803,40 @@ export class PublicQuoteComponent implements OnInit {
     { value: false, label: 'No' },
   ];
 
+  // ---------- Book test drive ----------
+
+  testDriveOn = computed(() => !!this.bundle()?.advisor.phoneWa && this.bundle()?.salesDefaults.testDriveEnabled !== false);
+  testDriveCar = signal<Vehicle | null>(null);
+  testDriveWhen = signal<'weekday' | 'weekend' | 'thisweek' | null>(null);
+  readonly testDriveWhens = [
+    { id: 'weekday' as const, label: 'Weekday' },
+    { id: 'weekend' as const, label: 'Weekend' },
+    { id: 'thisweek' as const, label: 'This week' },
+  ];
+
+  openTestDrive(car: Vehicle) {
+    this.testDriveWhen.set(null);
+    this.testDriveCar.set(car);
+  }
+
+  /** The advisor's own message (or the default) with the car filled in, plus the day the customer picked. */
+  sendTestDrive(car: Vehicle) {
+    const lang = this.waLang();
+    const name = this.bundle()!.advisor.name;
+    const carName = vehicleTitle(car.brand, modelVariantLabel(car.model, car.variant));
+    const template = translate(lang, "Hi {name}, I'd like to test drive the {car}. When is a good time?");
+    const when = this.testDriveWhen();
+    const whenText = when === 'weekday' ? 'Preferably on a weekday.' : when === 'weekend' ? 'Preferably on a weekend.' : when === 'thisweek' ? 'This week if possible.' : '';
+    const text = template.split('{name}').join(name).split('{car}').join(carName) + (whenText ? ' ' + translate(lang, whenText) : '');
+    this.activity?.record('test_drive_tapped', car.id);
+    const phone = this.bundle()!.advisor.phoneWa.replace(/[^0-9]/g, '');
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+    this.testDriveCar.set(null);
+  }
+
   openWhatsAppToAdvisor() {
     const vehicle = this.selectedVehicle();
+    this.activity?.record('whatsapp_tapped', vehicle.id, this.quotePayload());
     const W = (en: string, params?: Record<string, string | number>) => translate(this.waLang(), en, params);
     const dp = downpaymentDisplay(this.downpaymentCash());
     const lines = [
@@ -1697,10 +1897,7 @@ export class PublicQuoteComponent implements OnInit {
         effectiveRate: this.rateDefaults().effectiveRate,
         loanRounding: this.loanRounding(),
       },
-      insuranceFor: (v) => {
-        const saved = bundle.vehicleInsurance[v.id];
-        return saved ? { ...saved, epr: saved.epr ?? DEFAULT_EPR } : defaultInsuranceQuotation(v, v.basicPremium ?? basicPremiumDefault(v.price, this.insuranceRatePct()));
-      },
+      insuranceFor: (v) => this.insuranceFor(v, v.basicPremium ?? basicPremiumDefault(v.price, this.insuranceRatePct())),
       // Customer-facing: the base rebate only, never the additional rebate — that's an extra only
       // the advisor grants by hand (same rule as the Quote tab).
       includeAdditionalRebate: false,
@@ -1770,10 +1967,7 @@ export class PublicQuoteComponent implements OnInit {
       basicPremiumRatePct: d?.basicPremiumRatePct ?? 3.27,
       ncd: this.ncd(),
       loanRounding: d?.loanRounding,
-      insuranceFor: (vehicle, fallback) => {
-        const saved = this.bundle()?.vehicleInsurance[vehicle.id];
-        return saved ? { ...saved, epr: saved.epr ?? DEFAULT_EPR } : defaultInsuranceQuotation(vehicle, fallback);
-      },
+      insuranceFor: (vehicle, fallback) => this.insuranceFor(vehicle, fallback),
     };
   });
 
@@ -1816,6 +2010,7 @@ export class PublicQuoteComponent implements OnInit {
 
   /** Sends the advisor the cars being compared, with each one's monthly, as a WhatsApp message. */
   whatsAppComparison() {
+    this.activity?.record('whatsapp_tapped', null, {});
     const s = this.compareSetup();
     const dp = s.downpaymentType === 'percent' ? `${s.downpaymentValue}%` : this.fmt(s.downpaymentValue);
     const W = (en: string, params?: Record<string, string | number>) => translate(this.waLang(), en, params);

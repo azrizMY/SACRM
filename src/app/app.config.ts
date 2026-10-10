@@ -1,15 +1,20 @@
 import { ApplicationConfig, provideZoneChangeDetection, isDevMode, inject, provideAppInitializer } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { NavigationEnd, Router, provideRouter, withNavigationErrorHandler } from '@angular/router';
 import { provideHttpClient, withFetch } from '@angular/common/http';
 
 import { routes } from './app.routes';
 import { provideServiceWorker } from '@angular/service-worker';
 import { AuthService } from './shared/auth.service';
+import { clearStaleChunkFlag, reloadOnceForStaleChunk } from './shared/stale-chunk-reload';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
-    provideRouter(routes),
+    // A page whose code is gone after a deploy (an old open copy) reloads once into the new version.
+    provideRouter(routes, withNavigationErrorHandler((e) => void reloadOnceForStaleChunk(e.error))),
+    provideAppInitializer(() => {
+      inject(Router).events.subscribe((e) => e instanceof NavigationEnd && clearStaleChunkFlag());
+    }),
     provideHttpClient(withFetch()),
     // Resolves whether the browser's session cookie (if any) is still valid, and loads that
     // account's settings/advisor profile, before the router activates — so authGuard/guestGuard

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, computed, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, Output, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from './icon.component';
 import { I18nService, TranslatePipe } from './i18n';
@@ -28,34 +28,51 @@ const OVER_BUDGET_LIMIT = 200;
   selector: 'app-budget-finder',
   standalone: true,
   imports: [CommonModule, IconComponent, TranslatePipe, BrandMarkComponent, CarShadowPipe],
+  styles: `
+    /* The big amounts: inputs are forced to 16px on phones (no iOS zoom), so size them here instead */
+    .bf-amount {
+      font-size: 1.875rem;
+    }
+    @media (min-width: 768px) {
+      .bf-amount {
+        font-size: 2.25rem;
+      }
+    }
+    .bf-chips {
+      scrollbar-width: none;
+    }
+    .bf-chips::-webkit-scrollbar {
+      display: none;
+    }
+  `,
   template: `
     <div class="flex flex-col gap-4">
       <!-- The budget: two amounts side by side, then loan period and brand on one row -->
       <div class="flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm">
-        <div class="grid gap-px bg-border md:grid-cols-2">
+        <div class="grid grid-cols-1 gap-px bg-border md:grid-cols-2">
           <!-- Monthly -->
-          <label class="flex flex-col gap-3 bg-card p-5">
+          <label class="flex min-w-0 flex-col gap-3 bg-card p-5">
             <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ 'Monthly instalment' | t }}</span>
             <span class="flex items-baseline gap-2">
               <span class="text-lg font-semibold text-muted-foreground">RM</span>
               <input
                 type="text"
                 inputmode="numeric"
-                [value]="grouped(budget())"
+                [value]="budget() > 0 ? grouped(budget()) : ''"
                 (input)="budget.set(digits($event) ?? 0)"
-                (blur)="refresh($event, budget())"
+                (blur)="refresh($event, budget() > 0 ? budget() : null)"
+                [placeholder]="'Enter Amount' | t"
                 [attr.aria-label]="'Monthly instalment' | t"
-                style="font-size: 2.25rem"
-                class="w-full min-w-0 bg-transparent font-bold leading-tight tabular-nums text-foreground outline-none placeholder:text-muted-foreground/50"
+                class="bf-amount w-full min-w-0 bg-transparent font-bold leading-tight tabular-nums text-foreground outline-none placeholder:text-muted-foreground/40"
               />
               <span class="shrink-0 text-sm text-muted-foreground">/ {{ 'month' | t }}</span>
             </span>
-            <span class="flex flex-wrap gap-1.5">
+            <span class="bf-chips -mx-5 flex gap-1.5 overflow-x-auto px-5 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
               @for (b of quickBudgets; track b) {
                 <button
                   type="button"
                   (click)="budget.set(b)"
-                  class="rounded-full px-2.5 py-1 text-[11px] font-semibold tabular-nums transition-colors"
+                  class="shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors md:px-2.5 md:py-1 md:text-[11px]"
                   [ngClass]="budget() === b ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'"
                 >
                   {{ b.toLocaleString('en-MY') }}
@@ -65,7 +82,7 @@ const OVER_BUDGET_LIMIT = 200;
           </label>
 
           <!-- Maximum deposit (optional) -->
-          <label class="flex flex-col gap-3 bg-card p-5">
+          <label class="flex min-w-0 flex-col gap-3 bg-card p-5">
             <span class="flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               {{ 'Cash you can put down' | t }}
               <span class="font-medium normal-case tracking-normal">{{ 'Optional' | t }}</span>
@@ -80,16 +97,15 @@ const OVER_BUDGET_LIMIT = 200;
                 (blur)="refresh($event, cashAmount())"
                 [placeholder]="(maxDeposit() === 'fullLoan' ? 'Full loan' : 'Enter Amount') | t"
                 [attr.aria-label]="'Cash you can put down' | t"
-                style="font-size: 2.25rem"
-                class="w-full min-w-0 bg-transparent font-bold leading-tight tabular-nums text-foreground outline-none placeholder:text-muted-foreground/40"
+                class="bf-amount w-full min-w-0 bg-transparent font-bold leading-tight tabular-nums text-foreground outline-none placeholder:text-muted-foreground/40"
               />
             </span>
-            <span class="flex flex-wrap gap-1.5">
+            <span class="bf-chips -mx-5 flex gap-1.5 overflow-x-auto px-5 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
               @for (d of quickDeposits; track d) {
                 <button
                   type="button"
                   (click)="maxDeposit.set(maxDeposit() === d ? null : d)"
-                  class="rounded-full px-2.5 py-1 text-[11px] font-semibold tabular-nums transition-colors"
+                  class="shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors md:px-2.5 md:py-1 md:text-[11px]"
                   [ngClass]="maxDeposit() === d ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'"
                 >
                   {{ d === 'fullLoan' ? ('Full loan' | t) : d.toLocaleString('en-MY') }}
@@ -99,41 +115,44 @@ const OVER_BUDGET_LIMIT = 200;
           </label>
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-medium text-muted-foreground">{{ 'Loan period' | t }}</span>
-            <div class="flex gap-1 rounded-lg bg-muted p-1">
+        <!-- Loan period and NCD together (they shape the loan); Brand on its own (it filters the list) -->
+        <div class="flex flex-col gap-4 border-t border-border px-5 py-4 md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-3 md:py-3">
+          <div class="grid grid-cols-2 gap-3 md:flex md:items-center md:gap-6">
+          <div class="flex min-w-0 flex-col gap-1.5 md:flex-row md:items-center md:gap-2">
+            <span class="text-xs font-medium text-muted-foreground">{{ 'Loan period' | t }}<span class="md:hidden"> ({{ 'years' | t }})</span></span>
+            <div class="flex h-10 gap-1 rounded-lg bg-muted p-1 md:h-auto">
               @for (y of tenures; track y) {
                 <button
                   type="button"
                   (click)="tenureYears.set(y)"
-                  class="rounded-md px-3 py-1 text-xs font-semibold transition-colors"
+                  class="flex-1 rounded-md px-2 py-1.5 text-xs font-semibold tabular-nums transition-colors md:flex-none md:px-3 md:py-1"
                   [ngClass]="tenureYears() === y ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
                 >
-                  {{ y }} {{ 'years' | t }}
+                  {{ y }}<span class="hidden md:inline"> {{ 'years' | t }}</span>
                 </button>
               }
             </div>
           </div>
-          <label class="flex items-center gap-2">
+          <label class="flex min-w-0 flex-col gap-1.5 md:flex-row md:items-center md:gap-2">
             <span class="text-xs font-medium text-muted-foreground">{{ 'NCD' | t }}</span>
             <select
               [value]="ncd()"
               (change)="ncd.set(+$any($event.target).value)"
-              class="h-9 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring"
+              class="h-10 w-full min-w-0 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring md:h-9 md:w-auto"
             >
               @for (o of ncdOptions; track o.value) {
                 <option [value]="o.value" [selected]="o.value === ncd()">{{ o.label | t }}</option>
               }
             </select>
           </label>
+          </div>
           @if (brands.length > 1) {
-            <label class="flex items-center gap-2">
+            <label class="flex min-w-0 flex-col gap-1.5 border-t border-border pt-4 md:flex-row md:items-center md:gap-2 md:border-0 md:pt-0">
               <span class="text-xs font-medium text-muted-foreground">{{ 'Brand' | t }}</span>
               <select
                 [value]="brand()"
                 (change)="brand.set($any($event.target).value)"
-                class="h-9 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring"
+                class="h-10 w-full min-w-0 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring md:h-9 md:w-auto"
               >
                 @for (b of brandFilters(); track b) {
                   <option [value]="b">{{ b === '' ? ('All brands' | t) : b }}</option>
@@ -156,11 +175,21 @@ const OVER_BUDGET_LIMIT = 200;
         </a>
       }
 
+      <!-- Nothing to show until there's a monthly -->
+      @if (budget() <= 0) {
+        <div class="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border px-6 py-12 text-center">
+          <span class="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <app-icon name="wallet" [size]="22" />
+          </span>
+          <span class="max-w-xs text-pretty text-sm text-muted-foreground">{{ 'Enter a monthly instalment to see every car that fits it.' | t }}</span>
+        </div>
+      }
+
       <!-- Every car: within the maximum deposit first, then the rest at the maximum deposit -->
       @if (budget() > 0) {
         @if (maxDeposit() !== null) {
           <p class="text-sm">
-            <span class="font-semibold">{{ fitCount() }}</span> {{ 'cars fit both your monthly and your deposit.' | t }}
+            <span class="font-semibold">{{ fitCount() }}</span> {{ (fitCount() === 1 ? 'car fits both your monthly and your deposit.' : 'cars fit both your monthly and your deposit.') | t }}
             @if (matches().length > fitCount()) {
               <span class="text-muted-foreground">{{ (maxDeposit() === 'fullLoan' ? 'The others are shown on a full loan, up to RM 200 above your monthly.' : 'The others are shown at your maximum deposit, up to RM 200 above your monthly.') | t }}</span>
             }
@@ -172,7 +201,7 @@ const OVER_BUDGET_LIMIT = 200;
               <app-brand-mark [brand]="g.brand" class="size-8" />
               <h3 class="text-base font-bold">{{ g.brand }}</h3>
               <span class="text-xs text-muted-foreground">
-                {{ g.cars.length }} {{ 'cars' | t }}@if (maxDeposit() !== null) { · {{ g.fit }} {{ 'fit' | t }}}
+                {{ g.cars.length }} {{ (g.cars.length === 1 ? 'car' : 'cars') | t }}@if (maxDeposit() !== null) { · {{ g.fit }} {{ 'fit' | t }}}
               </span>
             </div>
             <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -257,6 +286,22 @@ export class BudgetFinderComponent {
   @Input() doubtHref: string | null = null;
   @Input() openLabel = 'See full quote';
   @Output() pick = new EventEmitter<BudgetPick>();
+  /** A search the customer settled on (after a pause) — the monthly and the cash they entered. */
+  @Output() searched = new EventEmitter<{ monthly: number; cash: number | null; fullLoan: boolean }>();
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastSearch = '';
+  private searchWatch = effect(() => {
+    const monthly = this.budget();
+    const limit = this.maxDeposit();
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    if (monthly <= 0) return;
+    this.searchTimer = setTimeout(() => {
+      const key = `${monthly}|${limit}`;
+      if (key === this.lastSearch) return;
+      this.lastSearch = key;
+      this.searched.emit({ monthly, cash: typeof limit === 'number' ? limit : null, fullLoan: limit === 'fullLoan' });
+    }, 2500);
+  });
 
   readonly Math = Math;
   private i18n = inject(I18nService);
@@ -267,7 +312,8 @@ export class BudgetFinderComponent {
 
   private vehicleList = signal<Vehicle[]>([]);
   private ruleSet = signal<BudgetRules | null>(null);
-  budget = signal(900);
+  /** 0 until a monthly is entered — nothing is assumed for the customer. */
+  budget = signal(0);
   /** The most cash the customer can put down — null means no limit. */
   maxDeposit = signal<CashLimit>(null);
   /** The typed amount for the box — empty for "No limit" and "Full loan", which show as its placeholder. */
@@ -323,6 +369,12 @@ export class BudgetFinderComponent {
 
   /** The little label on the photo. */
   badge(m: BudgetMatch): { text: string; tone: string } {
+    // No cash entered: the cash is unknown, not unlimited — say what each car needs instead of "fits".
+    if (this.maxDeposit() === null) {
+      return this.fullLoan(m)
+        ? { text: this.i18n.t('Full loan'), tone: 'bg-neutral-900/80 text-white' }
+        : { text: this.i18n.t('Needs {amount} deposit', { amount: this.rm(m.deposit) }), tone: 'bg-neutral-900/80 text-white' };
+    }
     if (this.overBudget(m)) return { text: `+${this.rm(m.monthly - this.budget())} ${this.i18n.t('above')}`, tone: 'bg-[var(--warning)] text-white' };
     if (!m.fits) return { text: this.i18n.t('Min. deposit'), tone: 'bg-neutral-900/80 text-white' };
     return { text: this.i18n.t('Fits your budget'), tone: 'bg-[var(--success)] text-white' };

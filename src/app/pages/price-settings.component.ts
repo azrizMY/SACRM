@@ -5,10 +5,14 @@ import { RouterLink } from '@angular/router';
 import { IconComponent } from '../shared/icon.component';
 import { NumberFieldComponent } from '../shared/number-field.component';
 import { InsuranceQuotationEditorComponent } from '../shared/insurance-quotation-editor.component';
+import { BulkEditSheetComponent, type BulkColumn, type BulkRow, type BulkSave } from '../shared/bulk-edit-sheet.component';
+import { BrandsHintComponent } from '../shared/brands-hint.component';
+import { PriceListImportComponent } from '../shared/price-list-import.component';
+import { bandKey, bandLabel } from '../data/motor-tariff';
 import { SettingsService } from '../shared/settings.service';
 import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
-import { brandInitials, brandLogo, brandStyle } from '../data/dashboard-data';
-import { basicPremiumDefault, computeInsuranceBreakdown, formatRM, minDownpaymentCash, modelVariantLabel, type Vehicle, type VehicleYear } from '../data/calculator-data';
+import { brandInitials, brandLogo, brandStyle, formatRM2 } from '../data/dashboard-data';
+import { basicPremiumDefault, computeInsuranceBreakdown, formatRM, minDownpaymentCash, modelVariantLabel, type InsuranceQuotationDetails, type Vehicle, type VehicleOverride, type VehicleYear } from '../data/calculator-data';
 
 /** Everything the editor panel can change for one variant — price and rates live here, since
  *  they're the same regardless of which year is in stock; Rebate and Additional Rebate both live
@@ -26,9 +30,18 @@ type PanelForm = {
   /** Working copy of the variant's model years — edited in place, newest first, only written back
    *  through VehicleCatalogService on Save. */
   years: VehicleYear[];
+  /** From the brand's price list; with the band, gives the tariff basic premium. */
+  sumInsured: number | null;
+  ratingBand: string | null;
+  /** Working copy of the car's insurance quotation — edited in place by the insurance editor. */
+  insurance: InsuranceQuotationDetails;
 };
 
-function pickForm(v: Vehicle): PanelForm {
+function cloneInsurance(d: InsuranceQuotationDetails): InsuranceQuotationDetails {
+  return { ...d, additionalCoverages: d.additionalCoverages.map((c) => ({ ...c })) };
+}
+
+function pickForm(v: Vehicle, insurance: InsuranceQuotationDetails, band: string | null): PanelForm {
   return {
     price: v.price,
     interestRate: v.interestRate ?? null,
@@ -36,14 +49,59 @@ function pickForm(v: Vehicle): PanelForm {
     minDpType: v.minDownpayment?.type ?? 'amount',
     minDpValue: v.minDownpayment?.value ?? 0,
     years: v.years.map((y) => ({ ...y })).sort((a, b) => b.year - a.year),
+    sumInsured: v.sumInsured ?? null,
+    ratingBand: band,
+    insurance: cloneInsurance(insurance),
   };
 }
 
-/** Order- and undefined/null-insensitive comparison key, so typing a value back to what it was
- *  clears the unsaved state. */
-function formKey(f: PanelForm): string {
+function cloneForm(f: PanelForm): PanelForm {
+  return { ...f, years: f.years.map((y) => ({ ...y })), insurance: cloneInsurance(f.insurance) };
+}
+
+/** Comparison key for the insurance quotation, ignoring fields its mode doesn't use. */
+function insuranceKey(d: InsuranceQuotationDetails): string {
+  return JSON.stringify(
+    d.mode === 'flat'
+      ? ['flat', d.flatPrice ?? 0]
+      : ['itemized', d.basicPremium, d.basicPremiumSource ?? null, d.premiumAllRider, d.additionalCoverages.map((c) => [c.label, c.amount]), d.stampDuty, d.serviceTaxPct, d.epr],
+  );
+}
+
+/** Each field that differs from what's saved counts as one change. */
+function changeCount(f: PanelForm, b: PanelForm): number {
   // The unit only matters once there is a minimum — 0 is "none" in either unit.
-  return JSON.stringify([f.price, f.interestRate, f.effectiveRate, f.minDpValue > 0 ? f.minDpType : null, f.minDpValue, yearsKey(f)]);
+  const minDp = (x: PanelForm) => JSON.stringify([x.minDpValue > 0 ? x.minDpType : null, x.minDpValue]);
+  let n = 0;
+  if (f.price !== b.price) n++;
+  if (f.interestRate !== b.interestRate) n++;
+  if (f.effectiveRate !== b.effectiveRate) n++;
+  if (minDp(f) !== minDp(b)) n++;
+  if ((f.sumInsured ?? null) !== (b.sumInsured ?? null)) n++;
+  if ((f.ratingBand ?? null) !== (b.ratingBand ?? null)) n++;
+  // Model years: each added, removed or edited year
+  const fy = new Map(f.years.map((y) => [y.year, y]));
+  const by = new Map(b.years.map((y) => [y.year, y]));
+  for (const [year, y] of fy) {
+    const old = by.get(year);
+    if (!old) n++;
+    else {
+      if ((y.rebate ?? null) !== (old.rebate ?? null)) n++;
+      if ((y.additionalRebate ?? null) !== (old.additionalRebate ?? null)) n++;
+    }
+  }
+  for (const year of by.keys()) if (!fy.has(year)) n++;
+  // Insurance: each line that differs
+  const fi = f.insurance;
+  const bi = b.insurance;
+  if ((fi.mode ?? 'itemized') !== (bi.mode ?? 'itemized')) n++;
+  if (fi.mode === 'flat') {
+    if ((fi.flatPrice ?? 0) !== (bi.flatPrice ?? 0)) n++;
+  } else {
+    for (const k of ['basicPremium', 'premiumAllRider', 'stampDuty', 'serviceTaxPct', 'epr'] as const) if (fi[k] !== bi[k]) n++;
+    if (JSON.stringify(fi.additionalCoverages) !== JSON.stringify(bi.additionalCoverages)) n++;
+  }
+  return n;
 }
 
 function yearsKey(f: PanelForm): string {
@@ -67,18 +125,18 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
  * The editor is a side panel on tablet/desktop (full-screen sheet on phones) that stages every
  * edit locally — price, rates, and the whole years list — and only writes through
  * VehicleCatalogService on Save; leaving with unsaved edits (closing, or switching to another car)
- * prompts save-or-discard. The itemized insurance quotation keeps its own Save button inside its
- * section, independent of the panel's Save/Reset.
+ * prompts save-or-discard. Insurance is part of the same draft, so the one Save, Reset and Discard
+ * cover it too. Each brand also has "Edit rebates" (every variant's rebates on one screen) and
+ * "Import price list".
  */
 @Component({
   selector: 'app-price-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent, NumberFieldComponent, InsuranceQuotationEditorComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, NumberFieldComponent, InsuranceQuotationEditorComponent, BulkEditSheetComponent, BrandsHintComponent, PriceListImportComponent],
   template: `
     <div class="mx-auto flex max-w-5xl flex-col gap-4 transition-[margin] duration-300" [ngClass]="selected() ? 'xl:mr-[476px]' : ''">
       <!-- Intro -->
       <div class="flex flex-col gap-1">
-        <h2 class="text-balance text-xl font-bold tracking-tight">Price Settings</h2>
         <p class="text-pretty text-sm text-muted-foreground">
           Prices, rates and rebates for every car you sell.
           <button type="button" (click)="showHelp.set(!showHelp())" [attr.aria-expanded]="showHelp()" class="font-medium text-primary hover:underline">
@@ -121,6 +179,8 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
         }
       </div>
 
+      <app-brands-hint />
+
       <!-- Filters (stick to the top while scrolling the list) -->
       <div class="sticky -top-4 z-20 -mx-4 flex flex-col gap-2 bg-background px-4 py-2 md:-top-6 md:-mx-6 md:px-6">
         <div class="relative">
@@ -134,16 +194,18 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
           />
         </div>
         <div class="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-0.5 md:mx-0 md:flex-wrap md:px-0">
-          <button
-            type="button"
-            [attr.aria-selected]="brandFilter() === 'All'"
-            (click)="brandFilter.set('All')"
-            class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
-            [ngClass]="brandFilter() === 'All' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-          >
-            All ({{ catalog.vehicles().length }})
-          </button>
-          @for (b of catalog.brands(); track b) {
+          @if (catalog.soldBrands().length > 1) {
+            <button
+              type="button"
+              [attr.aria-selected]="brandFilter() === 'All'"
+              (click)="brandFilter.set('All')"
+              class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
+              [ngClass]="brandFilter() === 'All' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+            >
+              All ({{ catalog.soldVehicles().length }})
+            </button>
+          }
+          @for (b of catalog.soldBrands(); track b) {
             <button
               type="button"
               [attr.aria-selected]="brandFilter() === b"
@@ -171,12 +233,18 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
 
         @for (brandGroup of groups(); track brandGroup.brand) {
           <div class="flex flex-col gap-2.5">
-            @if (brandFilter() === 'All') {
-              <div class="flex items-center gap-2">
-                <ng-container [ngTemplateOutlet]="brandMark" [ngTemplateOutletContext]="{ $implicit: brandGroup.brand, size: 'size-5 text-[9px]' }" />
-                <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">{{ brandGroup.brand }}</span>
-              </div>
-            }
+            <div class="flex flex-wrap items-center gap-2">
+              <ng-container [ngTemplateOutlet]="brandMark" [ngTemplateOutletContext]="{ $implicit: brandGroup.brand, size: 'size-5 text-[9px]' }" />
+              <span class="mr-auto text-xs font-bold uppercase tracking-wider text-muted-foreground">{{ brandGroup.brand }}</span>
+              <button type="button" (click)="importBrand.set(brandGroup.brand)" class="flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold transition-colors hover:bg-accent">
+                <app-icon name="upload" [size]="13" />
+                Import price list
+              </button>
+              <button type="button" (click)="openRebates(brandGroup.brand)" class="flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold transition-colors hover:bg-accent">
+                <app-icon name="tag" [size]="13" />
+                Edit rebates
+              </button>
+            </div>
             @for (modelGroup of brandGroup.models; track modelGroup.key) {
               <section class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
                 <button
@@ -223,7 +291,7 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
                             <span class="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular">
                               {{ y.year }}
                               @if (y.rebate > 0) {
-                                <span class="font-medium text-[var(--success)]">−{{ fmtCompact(y.rebate) }}</span>
+                                <span class="font-medium text-[var(--success)]">−{{ fmt(y.rebate) }}</span>
                               }
                             </span>
                           }
@@ -236,7 +304,7 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
                           </span>
                           <span class="@2xl:text-right">
                             <span class="@2xl:hidden">Insurance </span>
-                            <strong class="font-semibold text-foreground tabular">{{ fmt(savedInsuranceTotalFor(v)) }}</strong>
+                            <strong class="font-semibold text-foreground tabular">{{ fmt2(savedInsuranceTotalFor(v)) }}</strong>
                           </span>
                           <span class="flex flex-col @2xl:items-end">
                             <span>
@@ -380,7 +448,7 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
             <p class="text-[11px] text-muted-foreground">
               @if (form().minDpValue > 0) {
                 Downpayment is at least
-                <span class="font-semibold text-foreground">{{ fmt(minDpPreview()) }}</span>{{ form().minDpType === 'percent' ? ' (' + form().minDpValue + '% of the car price)' : '' }} before rebate — a rebate counts towards it, so one that covers it leaves only the RM100 loan rounding.
+                <span class="font-semibold text-foreground">{{ fmt(minDpPreview()) }}</span>{{ form().minDpType === 'percent' ? ' (' + form().minDpValue + '% of the selling price — car price plus insurance)' : '' }} before rebate — a rebate counts towards it, so one that covers it leaves only the RM100 loan rounding.
               } @else {
                 0 = no minimum — Full Loan allowed.
               }
@@ -452,8 +520,37 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
             </button>
           </section>
 
-          <!-- Itemized insurance quotation (saved by its own button, not the panel's Save) -->
+          <!-- Insurance: sum insured and band (for the tariff), then the quotation — all in this panel's Save -->
           <section class="flex flex-col gap-2">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Insurance</span>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Sum insured
+                <app-number-field prefix="RM" ariaLabel="Sum insured" [decimals]="0" [value]="form().sumInsured" placeholder="From price list" (valueChange)="setInsuranceField('sumInsured', $event)" />
+              </label>
+              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                Rating band
+                <select
+                  [value]="form().ratingBand ?? ''"
+                  (change)="setInsuranceField('ratingBand', $any($event.target).value || null)"
+                  class="h-10 rounded-lg border border-input bg-input px-2 text-sm text-foreground outline-none focus:border-ring"
+                >
+                  <option value="">Pick a band</option>
+                  @for (b of tariffBands(); track b.key) {
+                    <option [value]="b.key" [selected]="b.key === form().ratingBand">{{ b.label }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+            <p class="text-[11px] text-muted-foreground">
+              @if (draftTariffPremium() != null) {
+                Tariff basic premium: <span class="font-semibold tabular text-foreground">{{ fmt2(draftTariffPremium()!) }}</span> — an estimate; type the insurer's figure over it below if it differs.
+              } @else if (!form().ratingBand) {
+                Pick the engine band (EVs have no cc — pick the band your insurer uses) and add the sum insured to work out the basic premium from the tariff.
+              } @else {
+                Add the sum insured from the price list to work out the basic premium from the tariff.
+              }
+            </p>
             <button
               type="button"
               (click)="insuranceExpanded.set(!insuranceExpanded())"
@@ -462,16 +559,21 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
             >
               <app-icon name="shield-check" [size]="15" class="shrink-0 text-muted-foreground" />
               <span class="flex min-w-0 flex-1 flex-col">
-                <span class="text-xs font-semibold">Itemized insurance quotation</span>
-                <span class="text-[11px] text-muted-foreground tabular">Total due {{ fmt(savedInsuranceTotalFor(v)) }}</span>
+                <span class="text-xs font-semibold">Insurance quotation</span>
+                <span class="text-[11px] text-muted-foreground tabular">Total due {{ fmt2(draftInsuranceTotal()) }}</span>
               </span>
-              <span class="shrink-0 rounded-full bg-[var(--chart-4)]/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--chart-4)]">Saves separately</span>
               <app-icon name="chevron-down" [size]="14" [class]="'shrink-0 transition-transform duration-200 ' + (insuranceExpanded() ? '' : '-rotate-90')" />
             </button>
             @if (insuranceExpanded()) {
-              <p class="text-[11px] text-muted-foreground">Use the Save button inside this section — the panel's Save, Reset and Discard don't include insurance.</p>
               <div class="rounded-lg bg-muted/30 p-3">
-                <app-insurance-quotation-editor [vehicle]="v" [ncdPct]="ncdPct()" [fallbackBasicPremium]="fallbackBasicPremiumFor(v)" />
+                <app-insurance-quotation-editor
+                  [vehicle]="v"
+                  mode="draft"
+                  [draft]="form().insurance"
+                  [tariffPremium]="draftTariffPremium()"
+                  [ncdPct]="ncdPct()"
+                  [fallbackBasicPremium]="fallbackBasicPremiumFor(v)"
+                />
               </div>
             }
           </section>
@@ -481,7 +583,7 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
         <div class="flex items-center gap-2 border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <span class="flex min-w-0 flex-1 flex-col text-xs">
             @if (dirty()) {
-              <span class="flex items-center gap-1.5 font-semibold text-[var(--warning)]"><app-icon name="alert-triangle" [size]="13" /> Unsaved changes</span>
+              <span class="flex items-center gap-1.5 font-semibold text-[var(--warning)]"><app-icon name="alert-triangle" [size]="13" /> {{ unsavedCount() === 1 ? '1 unsaved change' : unsavedCount() + ' unsaved changes' }}</span>
             } @else if (savedFlash()) {
               <span class="flex items-center gap-1.5 font-semibold text-[var(--success)]"><app-icon name="check" [size]="13" /> Saved</span>
             } @else {
@@ -524,6 +626,25 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
           </div>
         </div>
       </div>
+    }
+
+    <!-- Edit rebates for a whole brand -->
+    @if (rebateBrand(); as brand) {
+      <app-bulk-edit-sheet
+        [title]="'Edit rebates — ' + brand"
+        subtitle="Every model and variant on one screen. Type down the Rebate column, then Save."
+        [columns]="rebateColumns"
+        [rows]="rebateRows()"
+        [busy]="rebateSaving()"
+        [error]="rebateError()"
+        (saved)="saveRebates($event)"
+        (closed)="rebateBrand.set(null)"
+      />
+    }
+
+    <!-- Import a brand's price list -->
+    @if (importBrand(); as brand) {
+      <app-price-list-import [brand]="brand" (closed)="importBrand.set(null)" />
     }
 
     <!-- Brand logo (or coloured initials) at a given size -->
@@ -571,9 +692,10 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
 export class PriceSettingsComponent {
   modelVariantLabel = modelVariantLabel;
   fmt = (v: number) => formatRM(v);
-  fmtCompact = (v: number) => formatRM(v, { compact: true });
+  fmt2 = formatRM2;
 
   search = signal('');
+  /** Opens on the Primary Brand, not All. */
   brandFilter = signal('All');
   onlyCustomRate = signal(false);
   showHelp = signal(false);
@@ -585,7 +707,9 @@ export class PriceSettingsComponent {
   constructor(
     public catalog: VehicleCatalogService,
     private settingsService: SettingsService,
-  ) {}
+  ) {
+    this.brandFilter.set(this.catalog.soldBrands()[0] ?? 'All');
+  }
 
   readonly minDpUnits = [
     { value: 'amount' as const, label: 'RM' },
@@ -623,7 +747,7 @@ export class PriceSettingsComponent {
     const brand = this.brandFilter();
     const onlyCustom = this.onlyCustomRate();
     return this.catalog
-      .vehicles()
+      .soldVehicles()
       .filter(
         (v) =>
           (brand === 'All' || v.brand === brand) &&
@@ -633,7 +757,7 @@ export class PriceSettingsComponent {
   });
 
   countForBrand(brand: string): number {
-    return this.catalog.vehicles().filter((v) => v.brand === brand).length;
+    return this.catalog.soldVehicles().filter((v) => v.brand === brand).length;
   }
 
   groups = computed((): BrandGroup[] => {
@@ -644,8 +768,9 @@ export class PriceSettingsComponent {
       if (!models.has(v.model)) models.set(v.model, []);
       models.get(v.model)!.push(v);
     }
+    const order = this.catalog.soldBrands();
     return Array.from(byBrand.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
+      .sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]))
       .map(([brand, models]) => ({
         brand,
         models: Array.from(models.entries())
@@ -678,7 +803,7 @@ export class PriceSettingsComponent {
 
   clearFilters() {
     this.search.set('');
-    this.brandFilter.set('All');
+    this.brandFilter.set(this.catalog.soldBrands().length > 1 ? 'All' : (this.catalog.soldBrands()[0] ?? 'All'));
     this.onlyCustomRate.set(false);
   }
 
@@ -705,11 +830,21 @@ export class PriceSettingsComponent {
 
   selectedId = signal<string | null>(null);
   selected = computed(() => this.catalog.vehicles().find((v) => v.id === this.selectedId()) ?? null);
-  form = signal<PanelForm>({ price: 0, interestRate: null, effectiveRate: null, minDpType: 'amount', minDpValue: 0, years: [] });
+  private static readonly EMPTY: PanelForm = {
+    price: 0, interestRate: null, effectiveRate: null, minDpType: 'amount', minDpValue: 0, years: [], sumInsured: null, ratingBand: null,
+    insurance: { basicPremium: 0, premiumAllRider: 0, additionalCoverages: [], stampDuty: 0, serviceTaxPct: 0, epr: 0 },
+  };
+  form = signal<PanelForm>(cloneForm(PriceSettingsComponent.EMPTY));
   /** Snapshot of the car as last loaded/saved. Compared against instead of selected(), because the
    *  catalog mutates vehicle objects in place, so selected() keeps the same reference after a save. */
-  baseline = signal<PanelForm>({ price: 0, interestRate: null, effectiveRate: null, minDpType: 'amount', minDpValue: 0, years: [] });
-  dirty = computed(() => formKey(this.form()) !== formKey(this.baseline()));
+  baseline = signal<PanelForm>(cloneForm(PriceSettingsComponent.EMPTY));
+  /** A method, not a computed: the insurance editor edits the draft in place. */
+  unsavedCount(): number {
+    return changeCount(this.form(), this.baseline());
+  }
+  dirty(): boolean {
+    return this.unsavedCount() > 0;
+  }
   yearsChanged = computed(() => yearsKey(this.form()) !== yearsKey(this.baseline()));
   savedFlash = signal(false);
   insuranceExpanded = signal(false);
@@ -720,8 +855,9 @@ export class PriceSettingsComponent {
     const v = this.catalog.vehicles().find((x) => x.id === id);
     if (!v) return;
     this.selectedId.set(id);
-    this.form.set(pickForm(v));
-    this.baseline.set(pickForm(v));
+    const loaded = pickForm(v, this.settingsService.getVehicleInsurance(v, this.fallbackBasicPremiumFor(v)), this.settingsService.bandFor(v));
+    this.form.set(cloneForm(loaded));
+    this.baseline.set(loaded);
     this.savedFlash.set(false);
     this.insuranceExpanded.set(false);
     document.getElementById('ps-row-' + id)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -777,7 +913,7 @@ export class PriceSettingsComponent {
   /** The minimum as RM for this car's current price — shown beside a % minimum. */
   minDpPreview(): number {
     const f = this.form();
-    return minDownpaymentCash({ type: f.minDpType, value: f.minDpValue }, f.price);
+    return minDownpaymentCash({ type: f.minDpType, value: f.minDpValue }, f.price + this.draftInsuranceTotal());
   }
 
   setRate(field: 'interestRate' | 'effectiveRate', value: number | null) {
@@ -828,30 +964,127 @@ export class PriceSettingsComponent {
   }
 
   resetForm() {
-    this.form.set(this.baseline());
+    this.form.set(cloneForm(this.baseline()));
   }
+
+  /** Sum insured / band: the tariff figure follows, and a premium set to follow it moves with it. */
+  setInsuranceField(field: 'sumInsured' | 'ratingBand', value: number | string | null) {
+    this.form.update((f) => {
+      const next = { ...f, [field]: value };
+      const premium = this.settingsService.tariffPremiumFor(this.selected()!, next.sumInsured ?? undefined, next.ratingBand);
+      if (premium != null && next.insurance.basicPremiumSource === 'tariff') next.insurance.basicPremium = premium;
+      return next;
+    });
+  }
+
+  /** Tariff basic premium for the draft's sum insured and band. */
+  draftTariffPremium(): number | null {
+    const v = this.selected();
+    if (!v) return null;
+    return this.settingsService.tariffPremiumFor(v, this.form().sumInsured ?? undefined, this.form().ratingBand);
+  }
+
+  draftInsuranceTotal(): number {
+    return computeInsuranceBreakdown(this.form().insurance, this.ncdPct()).totalDue;
+  }
+
+  tariffBands = computed(() => {
+    const tariff = this.settingsService.tariff();
+    return tariff.bands.map((b) => ({ key: bandKey(b), label: bandLabel(b, tariff) }));
+  });
 
   save() {
     const v = this.selected();
     if (!v || !this.canSave()) return;
     const f = this.form();
+    const b = this.baseline();
     this.catalog.updateVehicle(v.id, {
       price: f.price,
       interestRate: f.interestRate ?? undefined,
       effectiveRate: f.effectiveRate ?? undefined,
       minDownpayment: f.minDpValue > 0 ? { type: f.minDpType, value: f.minDpValue } : undefined,
       years: f.years.map((y) => ({ year: y.year, rebate: y.rebate ?? undefined, additionalRebate: y.additionalRebate ?? undefined })),
+      sumInsured: f.sumInsured ?? undefined,
+      ratingBand: f.ratingBand ?? undefined,
     });
-    this.baseline.set(f);
+    if (insuranceKey(f.insurance) !== insuranceKey(b.insurance)) this.settingsService.updateVehicleInsurance(v.id, cloneInsurance(f.insurance));
+    this.baseline.set(cloneForm(f));
     this.savedFlash.set(true);
     setTimeout(() => this.savedFlash.set(false), 2000);
+  }
+
+  // ---------- Edit rebates for a brand ----------
+
+  rebateBrand = signal<string | null>(null);
+  importBrand = signal<string | null>(null);
+  rebateSaving = signal(false);
+  rebateError = signal('');
+
+  readonly rebateColumns: BulkColumn[] = [
+    { key: 'price', label: 'Price', kind: 'readonly', money: true },
+    { key: 'rebate', label: 'Rebate (RM)', kind: 'edit' },
+    { key: 'additionalRebate', label: 'Additional (RM)', kind: 'edit' },
+    { key: 'total', label: 'Total off', kind: 'derived', money: true, derive: (v) => (v['rebate'] ?? 0) + (v['additionalRebate'] ?? 0) },
+  ];
+
+  /** One row per variant and model year, grouped by model, in catalog order. */
+  rebateRows = computed((): BulkRow[] => {
+    const brand = this.rebateBrand();
+    if (!brand) return [];
+    return this.catalog
+      .soldVehicles()
+      .filter((v) => v.brand === brand)
+      .flatMap((v) =>
+        [...v.years]
+          .sort((a, b) => b.year - a.year)
+          .map((y) => ({
+            id: `${v.id}|${y.year}`,
+            group: v.model,
+            label: v.variant || v.model,
+            sub: v.years.length > 1 ? String(y.year) : undefined,
+            values: { price: v.price, rebate: y.rebate ?? null, additionalRebate: y.additionalRebate ?? null },
+          })),
+      );
+  });
+
+  openRebates(brand: string) {
+    if (this.selectedId() && this.dirty()) {
+      this.pending.set({ kind: 'close' });
+      return;
+    }
+    this.selectedId.set(null);
+    this.rebateError.set('');
+    this.rebateBrand.set(brand);
+  }
+
+  async saveRebates(changes: BulkSave) {
+    const patches: Record<string, VehicleOverride> = {};
+    for (const { id, values } of changes) {
+      const [vehicleId, yearText] = id.split('|');
+      const v = this.catalog.vehicles().find((x) => x.id === vehicleId);
+      if (!v) continue;
+      const years = (patches[vehicleId]?.years ?? v.years).map((y) =>
+        y.year === Number(yearText) ? { ...y, rebate: values['rebate'] ?? undefined, additionalRebate: values['additionalRebate'] ?? undefined } : { ...y },
+      );
+      patches[vehicleId] = { years };
+    }
+    this.rebateSaving.set(true);
+    this.rebateError.set('');
+    try {
+      await this.catalog.updateVehicles(patches);
+      this.rebateBrand.set(null);
+    } catch {
+      this.rebateError.set("Couldn't save — check your connection and try again.");
+    } finally {
+      this.rebateSaving.set(false);
+    }
   }
 
   // ---------- Keyboard ----------
 
   @HostListener('document:keydown', ['$event'])
   onKeydown(e: KeyboardEvent) {
-    if (!this.selectedId()) return;
+    if (!this.selectedId() || this.rebateBrand() || this.importBrand()) return;
     if (this.pending()) {
       if (e.key === 'Escape') this.pending.set(null);
       return;

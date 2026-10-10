@@ -1,4 +1,6 @@
 import { Component, EventEmitter, HostListener, Input, Output, computed, signal, ElementRef, inject } from '@angular/core';
+import { SettingsService } from './settings.service';
+import { formatRM2 } from '../data/dashboard-data';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from './icon.component';
@@ -318,10 +320,18 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
         <!-- Cash back only makes sense on a full loan — a customer paying cash upfront would just
              take the rebate off that instead — so the downpayment is fixed while it's on. -->
         <div class="flex flex-col gap-1 rounded-lg border border-[var(--success)]/40 bg-[var(--success)]/10 px-3 py-3">
-          <span class="text-sm font-semibold">{{ "Full loan — cash back is on" | t }}</span>
-          <span class="text-xs leading-relaxed text-muted-foreground">
-            {{ "Loan {loan} · Cash back {cash}. Untick cash back in Price Setup to set a downpayment." | t: { loan: fmt(loanAmount()), cash: fmt(totals().cashback) } }}
-          </span>
+          @if (totals().downpaymentCash >= 100) {
+            <!-- A car with a minimum downpayment: that minimum is still paid in cash -->
+            <span class="text-sm font-semibold">{{ "Cash back is on" | t }}</span>
+            <span class="text-xs leading-relaxed text-muted-foreground">
+              {{ "Minimum downpayment {dp} · Loan {loan} · Cash back {cash}. Untick cash back in Price Setup to set a different downpayment." | t: { dp: fmt(totals().downpaymentCash), loan: fmt(loanAmount()), cash: fmt(totals().cashback) } }}
+            </span>
+          } @else {
+            <span class="text-sm font-semibold">{{ "Full loan — cash back is on" | t }}</span>
+            <span class="text-xs leading-relaxed text-muted-foreground">
+              {{ "Loan {loan} · Cash back {cash}. Untick cash back in Price Setup to set a downpayment." | t: { loan: fmt(loanAmount()), cash: fmt(totals().cashback) } }}
+            </span>
+          }
         </div>
       } @else {
       <div class="flex flex-col gap-2">
@@ -527,6 +537,7 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
               [ncdPct]="ncd()"
               [fallbackBasicPremium]="autoBasicPremium()"
               mode="quote"
+              [tariffPremium]="tariffPremium()"
               [initialDetails]="insuranceDetails()"
               (saved)="onInsuranceSaved($event)"
             />
@@ -543,6 +554,12 @@ export class QuoteControlsComponent {
   @Output() compare = new EventEmitter<void>();
 
   private host = inject(ElementRef);
+  private settingsService = inject(SettingsService);
+
+  /** Basic premium from the motor tariff for the selected car, or null when it can't be worked out. */
+  tariffPremium(): number | null {
+    return this.settingsService.tariffPremiumFor(this.selectedVehicle());
+  }
 
   ncdOptions = NCD_OPTIONS;
   brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
@@ -551,7 +568,7 @@ export class QuoteControlsComponent {
   vehicleTitle = vehicleTitle;
   fmt = (v: number) => formatRM(v);
   /** Always 2 decimals plus thousands separators — same as the Calculator's Quote Preview. */
-  fmt2 = (v: number) => `RM ${v.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  fmt2 = formatRM2;
 
   // ---------- Screen-only state ----------
 

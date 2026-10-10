@@ -13,6 +13,12 @@ export type VehicleYear = {
 };
 
 export type Vehicle = {
+  /** Sum insured from the brand's price list (not the OTR price) — with ratingBand, gives the
+   *  tariff basic premium (see motor-tariff.ts). */
+  sumInsured?: number;
+  /** Engine band for the motor tariff: a cc limit like "1650", or "over". Unset = guessed from the
+   *  variant name; EVs need one picked by hand. */
+  ratingBand?: string;
   id: string;
   brand: string;
   model: string;
@@ -130,7 +136,7 @@ export const VEHICLES: Vehicle[] = [
   // the account's default flat rate unless the SA sets its own in Price Settings. Tiggo 7 Pro and Tiggo 8 Pro
   // (ICE) are still sold alongside their PHEV siblings, not discontinued.
   { id: 'chery-o5-1-5t', brand: 'Chery', model: 'Chery O5', variant: '', price: 116800, basicPremium: 2789.07, addBenefits: 715.5, photoUrl: '/cars/chery-o5.png', brochureUrl: '/brochures/chery-o5.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Blood Stone Red'], years: [{ year: 2026 }] },
-  { id: 'chery-omoda-e5', brand: 'Chery', model: 'Omoda E5', variant: '', price: 146978, basicPremium: 3731.1, addBenefits: 775.5, photoUrl: '/cars/chery-omoda-e5.png', brochureUrl: '/brochures/chery-omoda-e5.pdf', years: [{ year: 2026 }] },
+  { id: 'chery-omoda-e5', brand: 'Chery', model: 'Omoda E5', variant: '', price: 146978, basicPremium: 3731.1, addBenefits: 775.5, photoUrl: '/cars/chery-omoda-e5.png', brochureUrl: '/brochures/chery-omoda-e5.pdf', colours: ['Aqua Green', 'Khaki White', 'Dark Black', 'Phantom Grey', 'Aqua Green + Black Roof', 'Khaki White + Black Roof'], years: [{ year: 2026 }] },
   { id: 'chery-tiggo-cross-turbo', brand: 'Chery', model: 'Tiggo Cross', variant: 'Turbo', price: 88800, basicPremium: 2206.67, addBenefits: 620.5, photoUrl: '/cars/chery-tiggo-cross-turbo.png', brochureUrl: '/brochures/chery-tiggo-cross.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Blood Stone Red'], years: [{ year: 2026 }] },
   { id: 'chery-tiggo-cross-hev', brand: 'Chery', model: 'Tiggo Cross', variant: 'Hybrid', price: 99800, basicPremium: 2435.47, addBenefits: 642.5, photoUrl: '/cars/chery-tiggo-cross-hybrid.png', brochureUrl: '/brochures/chery-tiggo-cross.pdf', colours: ['Carbon Black', 'Phantom Grey', 'Khaki White', 'Moonlight Silver'], years: [{ year: 2026 }] },
   { id: 'chery-tiggo7-pro', brand: 'Chery', model: 'Tiggo 7', variant: 'Pro', price: 123800, basicPremium: 2934.67, addBenefits: 820.5, photoUrl: '/cars/chery-tiggo7-pro.png', brochureUrl: '/brochures/chery-tiggo7-pro.pdf', colours: ['Khaki White', 'Phantom Grey', 'Nasdaq Silver', 'Carbon Black'], years: [{ year: 2026 }] },
@@ -155,41 +161,41 @@ export const VEHICLES: Vehicle[] = [
 
   // Honda Malaysia lineup — Honda's own "Retail Price Without Insurance" for each variant (5 Oct
   // 2026). Each model shares its e-brochure across variants. No photos or colour lists yet.
-  { id: 'honda-city-1-5-e', brand: 'Honda', model: 'City', variant: '1.5L E', price: 89900, brochureUrl: '/brochures/honda-city.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-city-1-5-v', brand: 'Honda', model: 'City', variant: '1.5L V', price: 94900, brochureUrl: '/brochures/honda-city.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-city-1-5-rs', brand: 'Honda', model: 'City', variant: '1.5L RS', price: 99900, brochureUrl: '/brochures/honda-city.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-city-1-5-ehev-rs', brand: 'Honda', model: 'City', variant: '1.5L e:HEV RS', price: 111900, brochureUrl: '/brochures/honda-city.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-city-hatchback-1-5-s', brand: 'Honda', model: 'City Hatchback', variant: '1.5L S', price: 85900, brochureUrl: '/brochures/honda-city-hatchback.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-city-hatchback-1-5-e', brand: 'Honda', model: 'City Hatchback', variant: '1.5L E', price: 90900, brochureUrl: '/brochures/honda-city-hatchback.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-city-hatchback-1-5-v', brand: 'Honda', model: 'City Hatchback', variant: '1.5L V', price: 95900, brochureUrl: '/brochures/honda-city-hatchback.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-city-hatchback-1-5-rs', brand: 'Honda', model: 'City Hatchback', variant: '1.5L RS', price: 100900, brochureUrl: '/brochures/honda-city-hatchback.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-city-hatchback-1-5-ehev-rs', brand: 'Honda', model: 'City Hatchback', variant: '1.5L e:HEV RS', price: 112900, brochureUrl: '/brochures/honda-city-hatchback.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-civic-1-5-e', brand: 'Honda', model: 'Civic', variant: '1.5L E', price: 133900, brochureUrl: '/brochures/honda-civic.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-civic-1-5-v', brand: 'Honda', model: 'Civic', variant: '1.5L V', price: 144900, brochureUrl: '/brochures/honda-civic.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-civic-1-5-rs', brand: 'Honda', model: 'Civic', variant: '1.5L RS', price: 149900, brochureUrl: '/brochures/honda-civic.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-civic-2-0-ehev-rs', brand: 'Honda', model: 'Civic', variant: '2.0L e:HEV RS', price: 167900, brochureUrl: '/brochures/honda-civic.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-wrv-1-5-e', brand: 'Honda', model: 'WR-V', variant: '1.5L E', price: 94900, brochureUrl: '/brochures/honda-wrv.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-wrv-1-5-v', brand: 'Honda', model: 'WR-V', variant: '1.5L V', price: 98900, brochureUrl: '/brochures/honda-wrv.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-wrv-1-5-rs', brand: 'Honda', model: 'WR-V', variant: '1.5L RS', price: 104900, brochureUrl: '/brochures/honda-wrv.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-hrv-1-5-s', brand: 'Honda', model: 'HR-V', variant: '1.5L S', price: 115900, brochureUrl: '/brochures/honda-hrv.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-hrv-1-5t-e', brand: 'Honda', model: 'HR-V', variant: '1.5L T E', price: 130900, brochureUrl: '/brochures/honda-hrv.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-hrv-1-5t-v', brand: 'Honda', model: 'HR-V', variant: '1.5L T V', price: 137900, brochureUrl: '/brochures/honda-hrv.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-hrv-1-5-ehev-rs', brand: 'Honda', model: 'HR-V', variant: '1.5L e:HEV RS', price: 143900, brochureUrl: '/brochures/honda-hrv.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-crv-2-0-ehev-e', brand: 'Honda', model: 'CR-V', variant: '2.0L e:HEV E', price: 178200, brochureUrl: '/brochures/honda-crv.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-crv-1-5-v', brand: 'Honda', model: 'CR-V', variant: '1.5L V', price: 181900, brochureUrl: '/brochures/honda-crv.pdf', years: [{ year: 2026 }] },
-  { id: 'honda-crv-2-0-ehev-rs', brand: 'Honda', model: 'CR-V', variant: '2.0L e:HEV RS', price: 195900, brochureUrl: '/brochures/honda-crv.pdf', years: [{ year: 2026 }] },
+  { id: 'honda-city-1-5-e', brand: 'Honda', model: 'City', variant: '1.5L E', price: 89900, brochureUrl: '/brochures/honda-city.pdf', colours: ['Blazing Red Pearl', 'Platinum White Pearl', 'Meteoroid Gray Metallic'], years: [{ year: 2026 }] },
+  { id: 'honda-city-1-5-v', brand: 'Honda', model: 'City', variant: '1.5L V', price: 94900, brochureUrl: '/brochures/honda-city.pdf', colours: ['Blazing Red Pearl', 'Platinum White Pearl', 'Meteoroid Gray Metallic', 'Stellar Diamond Pearl'], years: [{ year: 2026 }] },
+  { id: 'honda-city-1-5-rs', brand: 'Honda', model: 'City', variant: '1.5L RS', price: 99900, brochureUrl: '/brochures/honda-city.pdf', colours: ['Blazing Red Pearl', 'Platinum White Pearl', 'Meteoroid Gray Metallic', 'Stellar Diamond Pearl'], years: [{ year: 2026 }] },
+  { id: 'honda-city-1-5-ehev-rs', brand: 'Honda', model: 'City', variant: '1.5L e:HEV RS', price: 111900, brochureUrl: '/brochures/honda-city.pdf', colours: ['Blazing Red Pearl', 'Platinum White Pearl', 'Meteoroid Gray Metallic'], years: [{ year: 2026 }] },
+  { id: 'honda-city-hatchback-1-5-s', brand: 'Honda', model: 'City Hatchback', variant: '1.5L S', price: 85900, brochureUrl: '/brochures/honda-city-hatchback.pdf', colours: ['Ignite Red Metallic', 'Platinum White Pearl', 'Meteoroid Gray Metallic', 'Phoenix Orange Pearl', 'Lunar Silver Metallic'], years: [{ year: 2026 }] },
+  { id: 'honda-city-hatchback-1-5-e', brand: 'Honda', model: 'City Hatchback', variant: '1.5L E', price: 90900, brochureUrl: '/brochures/honda-city-hatchback.pdf', colours: ['Ignite Red Metallic', 'Platinum White Pearl', 'Meteoroid Gray Metallic', 'Phoenix Orange Pearl', 'Lunar Silver Metallic'], years: [{ year: 2026 }] },
+  { id: 'honda-city-hatchback-1-5-v', brand: 'Honda', model: 'City Hatchback', variant: '1.5L V', price: 95900, brochureUrl: '/brochures/honda-city-hatchback.pdf', colours: ['Ignite Red Metallic', 'Platinum White Pearl', 'Meteoroid Gray Metallic', 'Phoenix Orange Pearl', 'Lunar Silver Metallic'], years: [{ year: 2026 }] },
+  { id: 'honda-city-hatchback-1-5-rs', brand: 'Honda', model: 'City Hatchback', variant: '1.5L RS', price: 100900, brochureUrl: '/brochures/honda-city-hatchback.pdf', colours: ['Ignite Red Metallic', 'Platinum White Pearl', 'Meteoroid Gray Metallic', 'Phoenix Orange Pearl', 'Lunar Silver Metallic'], years: [{ year: 2026 }] },
+  { id: 'honda-city-hatchback-1-5-ehev-rs', brand: 'Honda', model: 'City Hatchback', variant: '1.5L e:HEV RS', price: 112900, brochureUrl: '/brochures/honda-city-hatchback.pdf', colours: ['Ignite Red Metallic', 'Platinum White Pearl', 'Meteoroid Gray Metallic', 'Phoenix Orange Pearl'], years: [{ year: 2026 }] },
+  { id: 'honda-civic-1-5-e', brand: 'Honda', model: 'Civic', variant: '1.5L E', price: 133900, brochureUrl: '/brochures/honda-civic.pdf', colours: ['Canyon River Blue Metallic', 'Platinum White Pearl', 'Meteoroid Gray Metallic', 'Crystal Black Pearl', 'Ignite Red Metallic'], years: [{ year: 2026 }] },
+  { id: 'honda-civic-1-5-v', brand: 'Honda', model: 'Civic', variant: '1.5L V', price: 144900, brochureUrl: '/brochures/honda-civic.pdf', colours: ['Canyon River Blue Metallic', 'Platinum White Pearl', 'Meteoroid Gray Metallic', 'Crystal Black Pearl', 'Ignite Red Metallic'], years: [{ year: 2026 }] },
+  { id: 'honda-civic-1-5-rs', brand: 'Honda', model: 'Civic', variant: '1.5L RS', price: 149900, brochureUrl: '/brochures/honda-civic.pdf', colours: ['Canyon River Blue Metallic', 'Platinum White Pearl', 'Meteoroid Gray Metallic', 'Crystal Black Pearl', 'Ignite Red Metallic'], years: [{ year: 2026 }] },
+  { id: 'honda-civic-2-0-ehev-rs', brand: 'Honda', model: 'Civic', variant: '2.0L e:HEV RS', price: 167900, brochureUrl: '/brochures/honda-civic.pdf', colours: ['Canyon River Blue Metallic', 'Platinum White Pearl', 'Meteoroid Gray Metallic', 'Ignite Red Metallic'], years: [{ year: 2026 }] },
+  { id: 'honda-wrv-1-5-e', brand: 'Honda', model: 'WR-V', variant: '1.5L E', price: 94900, brochureUrl: '/brochures/honda-wrv.pdf', colours: ['Platinum White Pearl', 'Meteoroid Gray Metallic', 'Stellar Diamond Pearl', 'Blazing Red Pearl'], years: [{ year: 2026 }] },
+  { id: 'honda-wrv-1-5-v', brand: 'Honda', model: 'WR-V', variant: '1.5L V', price: 98900, brochureUrl: '/brochures/honda-wrv.pdf', colours: ['Platinum White Pearl', 'Meteoroid Gray Metallic', 'Stellar Diamond Pearl', 'Blazing Red Pearl'], years: [{ year: 2026 }] },
+  { id: 'honda-wrv-1-5-rs', brand: 'Honda', model: 'WR-V', variant: '1.5L RS', price: 104900, brochureUrl: '/brochures/honda-wrv.pdf', colours: ['Platinum White Pearl', 'Meteoroid Gray Metallic', 'Stellar Diamond Pearl', 'Blazing Red Pearl', 'Blazing Red Pearl + Black Roof'], years: [{ year: 2026 }] },
+  { id: 'honda-hrv-1-5-s', brand: 'Honda', model: 'HR-V', variant: '1.5L S', price: 115900, brochureUrl: '/brochures/honda-hrv.pdf', colours: ['Platinum White Pearl', 'Stellar Diamond Pearl', 'Meteoroid Gray Metallic', 'Crystal Black Pearl', 'Phoenix Orange Pearl'], years: [{ year: 2026 }] },
+  { id: 'honda-hrv-1-5t-e', brand: 'Honda', model: 'HR-V', variant: '1.5L T E', price: 130900, brochureUrl: '/brochures/honda-hrv.pdf', colours: ['Platinum White Pearl', 'Stellar Diamond Pearl', 'Meteoroid Gray Metallic', 'Crystal Black Pearl', 'Phoenix Orange Pearl'], years: [{ year: 2026 }] },
+  { id: 'honda-hrv-1-5t-v', brand: 'Honda', model: 'HR-V', variant: '1.5L T V', price: 137900, brochureUrl: '/brochures/honda-hrv.pdf', colours: ['Platinum White Pearl', 'Stellar Diamond Pearl', 'Meteoroid Gray Metallic', 'Crystal Black Pearl', 'Phoenix Orange Pearl'], years: [{ year: 2026 }] },
+  { id: 'honda-hrv-1-5-ehev-rs', brand: 'Honda', model: 'HR-V', variant: '1.5L e:HEV RS', price: 143900, brochureUrl: '/brochures/honda-hrv.pdf', colours: ['Platinum White Pearl', 'Stellar Diamond Pearl', 'Meteoroid Gray Metallic', 'Crystal Black Pearl', 'Phoenix Orange Pearl'], years: [{ year: 2026 }] },
+  { id: 'honda-crv-2-0-ehev-e', brand: 'Honda', model: 'CR-V', variant: '2.0L e:HEV E', price: 178200, brochureUrl: '/brochures/honda-crv.pdf', colours: ['Canyon River Blue Metallic', 'Platinum White Pearl', 'Meteoroid Gray Metallic', 'Blazing Red Pearl'], years: [{ year: 2026 }] },
+  { id: 'honda-crv-1-5-v', brand: 'Honda', model: 'CR-V', variant: '1.5L V', price: 181900, brochureUrl: '/brochures/honda-crv.pdf', colours: ['Canyon River Blue Metallic', 'Platinum White Pearl', 'Meteoroid Gray Metallic', 'Blazing Red Pearl'], years: [{ year: 2026 }] },
+  { id: 'honda-crv-2-0-ehev-rs', brand: 'Honda', model: 'CR-V', variant: '2.0L e:HEV RS', price: 195900, brochureUrl: '/brochures/honda-crv.pdf', colours: ['Canyon River Blue Metallic', 'Platinum White Pearl', 'Meteoroid Gray Metallic', 'Blazing Red Pearl'], years: [{ year: 2026 }] },
 
   // GWM Malaysia lineup (WEY, HAVAL, ORA and TANK sold under the one GWM brand) — prices before
   // insurance, as supplied by the developer on 6 Oct 2026. Brochures are GWM Malaysia's own
   // (TANK 300 and TANK 300 HEV only publish a one-page specification sheet). No photos or colour lists yet.
-  { id: 'gwm-wey-g9-hi4-phev', brand: 'GWM', model: 'WEY G9', variant: 'Hi4 PHEV', price: 269800, brochureUrl: '/brochures/gwm-wey-g9.pdf', years: [{ year: 2026 }] },
-  { id: 'gwm-haval-h6-hev', brand: 'GWM', model: 'HAVAL H6', variant: 'HEV', price: 142960, brochureUrl: '/brochures/gwm-haval-h6-hev.pdf', years: [{ year: 2026 }] },
-  { id: 'gwm-ora-good-cat-ultra', brand: 'GWM', model: 'ORA Good Cat', variant: 'Ultra', price: 110500, brochureUrl: '/brochures/gwm-ora-good-cat.pdf', years: [{ year: 2026 }] },
-  { id: 'gwm-ora-good-cat-gt', brand: 'GWM', model: 'ORA Good Cat', variant: 'GT', price: 120500, brochureUrl: '/brochures/gwm-ora-good-cat.pdf', years: [{ year: 2026 }] },
+  { id: 'gwm-wey-g9-hi4-phev', brand: 'GWM', model: 'WEY G9', variant: 'Hi4 PHEV', price: 269800, brochureUrl: '/brochures/gwm-wey-g9.pdf', colours: ['Wisdom Grey', 'Aurora White', 'Nebula Black'], years: [{ year: 2026 }] },
+  { id: 'gwm-haval-h6-hev', brand: 'GWM', model: 'HAVAL H6', variant: 'HEV', price: 142960, brochureUrl: '/brochures/gwm-haval-h6-hev.pdf', colours: ['Energy Green', 'Ayers Silver', 'Crayon Grey', 'Sun Black', 'Hamilton White'], years: [{ year: 2026 }] },
+  { id: 'gwm-ora-good-cat-ultra', brand: 'GWM', model: 'ORA Good Cat', variant: 'Ultra', price: 110500, brochureUrl: '/brochures/gwm-ora-good-cat.pdf', colours: ['Hazel Wood Beige + Brown Roof', 'So Blue + Black Roof', 'Pistachio Green'], years: [{ year: 2026 }] },
+  { id: 'gwm-ora-good-cat-gt', brand: 'GWM', model: 'ORA Good Cat', variant: 'GT', price: 120500, brochureUrl: '/brochures/gwm-ora-good-cat.pdf', colours: ['Aqua Grey', 'Sun Black'], years: [{ year: 2026 }] },
   { id: 'gwm-tank-300-ultra', brand: 'GWM', model: 'TANK 300', variant: 'Ultra', price: 250000, brochureUrl: '/brochures/gwm-tank-300.pdf', years: [{ year: 2026 }] },
   { id: 'gwm-tank-300-hev-ultra', brand: 'GWM', model: 'TANK 300 HEV', variant: 'Ultra', price: 259800, brochureUrl: '/brochures/gwm-tank-300-hev.pdf', years: [{ year: 2026 }] },
-  { id: 'gwm-tank-500-hev-ultra', brand: 'GWM', model: 'TANK 500 HEV', variant: 'Ultra', price: 328800, brochureUrl: '/brochures/gwm-tank-500-hev.pdf', years: [{ year: 2026 }] },
-  { id: 'gwm-tank-500-hev-ultra-black', brand: 'GWM', model: 'TANK 500 HEV', variant: 'Ultra Black Edition', price: 336800, brochureUrl: '/brochures/gwm-tank-500-hev.pdf', years: [{ year: 2026 }] },
+  { id: 'gwm-tank-500-hev-ultra', brand: 'GWM', model: 'TANK 500 HEV', variant: 'Ultra', price: 328800, brochureUrl: '/brochures/gwm-tank-500-hev.pdf', colours: ['Crystal Grey', 'Hamilton White', 'Sun Black'], years: [{ year: 2026 }] },
+  { id: 'gwm-tank-500-hev-ultra-black', brand: 'GWM', model: 'TANK 500 HEV', variant: 'Ultra Black Edition', price: 336800, brochureUrl: '/brochures/gwm-tank-500-hev.pdf', colours: ['Sun Black'], years: [{ year: 2026 }] },
 ];
 
 /** Factory-default catalog, snapshotted before any account's saved overrides are applied on top —
@@ -203,14 +209,15 @@ export const DEFAULT_VEHICLES: Vehicle[] = VEHICLES.map((v) => ({ ...v, years: v
  *  API (`/api/vehicle-overrides`) and applied onto this hardcoded catalog by
  *  VehicleCatalogService.loadOverrides() once the signed-in account is known — never at module
  *  load, since which overrides apply depends on who's logged in. */
-export type VehicleOverride = Partial<Pick<Vehicle, 'price' | 'interestRate' | 'effectiveRate' | 'minDownpayment' | 'years'>>;
+export type VehicleOverride = Partial<Pick<Vehicle, 'price' | 'interestRate' | 'effectiveRate' | 'minDownpayment' | 'years' | 'sumInsured' | 'ratingBand'>>;
 
 export type MinDownpayment = { type: 'amount' | 'percent'; value: number };
 
-/** A variant's minimum downpayment in RM (a % is taken of `carPrice`, before rebate), or 0 for none. */
-export function minDownpaymentCash(min: MinDownpayment | undefined, carPrice: number): number {
+/** A car's minimum cash downpayment. A % minimum is a share of the total selling price — the car
+ *  price plus insurance, before rebate — not of the car price alone. */
+export function minDownpaymentCash(min: MinDownpayment | undefined, sellingPrice: number): number {
   if (!min || !(min.value > 0)) return 0;
-  return roundCents(min.type === 'percent' ? (min.value / 100) * carPrice : min.value);
+  return roundCents(min.type === 'percent' ? (min.value / 100) * sellingPrice : min.value);
 }
 
 /** Unique models for a brand, in catalog order — used to drive cascading brand→model selects. */
@@ -313,6 +320,10 @@ export type InsuranceQuotationDetails = {
    *  part in Flat mode (see computeInsuranceBreakdown). */
   flatPrice?: number;
   basicPremium: number;
+  /** 'tariff' = Basic Premium follows the motor tariff (recalculated from the car's sum insured);
+   *  'quote' = the insurer's own figure typed over it. Absent = 'quote', so quotations saved before
+   *  the tariff existed keep their figure. */
+  basicPremiumSource?: 'tariff' | 'quote';
   premiumAllRider: number;
   additionalCoverages: InsuranceCoverageItem[];
   stampDuty: number;
@@ -353,6 +364,27 @@ export function defaultInsuranceQuotation(vehicle: Vehicle, fallbackBasicPremium
     epr: DEFAULT_EPR,
   };
   return { ...itemized, mode: 'flat', flatPrice: Math.round(computeInsuranceBreakdown(itemized, 0).totalDue * 100) / 100 };
+}
+
+/**
+ * The quotation actually in effect for a car: its saved one (or the default), with Basic Premium
+ * taken from the motor tariff while it's set to follow the tariff. A car the tariff can work out
+ * (sum insured + band) and no saved quotation starts itemized on the tariff figure.
+ */
+export function resolveInsuranceDetails(
+  vehicle: Vehicle,
+  saved: InsuranceQuotationDetails | undefined,
+  fallbackBasicPremium: number,
+  tariffPremium: number | null,
+): InsuranceQuotationDetails {
+  if (!saved) {
+    const base = defaultInsuranceQuotation(vehicle, fallbackBasicPremium);
+    if (tariffPremium == null) return base;
+    return { ...base, mode: 'itemized', flatPrice: undefined, basicPremium: tariffPremium, basicPremiumSource: 'tariff' };
+  }
+  const details = { ...saved, epr: saved.epr ?? DEFAULT_EPR };
+  if (details.basicPremiumSource === 'tariff' && tariffPremium != null) details.basicPremium = tariffPremium;
+  return details;
 }
 
 /** Expands a saved quotation into the full labeled breakdown, at whatever NCD the quote is using.

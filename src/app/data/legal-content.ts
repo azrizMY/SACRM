@@ -7,7 +7,7 @@ export const OPERATOR = {
   email: 'ahmdazri65@gmail.com',
 };
 
-export const LEGAL_UPDATED = '2026-10-07';
+export const LEGAL_UPDATED = '2026-10-11';
 
 export type LegalLang = 'en' | 'ms';
 export type LegalDoc = 'privacy' | 'terms';
@@ -38,7 +38,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
           heading: '2. Data about your customers',
           body: [
             'None. Redline only works out and shares quotes. It does not ask for or store your customers’ names, phone numbers, IC numbers or any other personal details, and the quote link does not ask the people who open it for theirs.',
-            'What a customer enters on your quote link, such as their monthly budget, deposit or whether they have a car to trade in, is worked out in their own browser and is not sent to us. It only reaches you if they choose to send it to you on WhatsApp.',
+            'Your quote link records which cars and quotes were viewed on it, without personal details, so you can follow up: for example the cars looked at, the deposit, loan period and monthly instalment of a quote, the budget figures entered, and taps on WhatsApp. Each visitor is identified only by a random number stored in their browser. It never records names, phone numbers, IC numbers, IP addresses, locations or anything typed into text fields, and it is deleted after 90 days. Nothing is recorded when you open your own link while signed in.',
           ],
         },
         {
@@ -66,7 +66,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '6. Cookies and local storage',
           body: [
-            'We use one essential cookie to keep you signed in. Your browser also stores a few preferences on your device, such as light or dark mode, your Live Mode layout and dismissed tips. We do not use advertising or tracking cookies.',
+            'We use one essential cookie to keep you signed in. Your browser also stores a few preferences on your device, such as light or dark mode, your Live Mode layout and dismissed tips. A quote link stores a random visitor number in the visitor’s browser, so a return visit shows as one (see section 2). We do not use advertising cookies or track people across other websites.',
           ],
         },
         {
@@ -126,7 +126,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
           heading: '2. Data tentang pelanggan anda',
           body: [
             'Tiada. Redline hanya mengira dan berkongsi sebut harga. Ia tidak meminta atau menyimpan nama, nombor telefon, nombor IC atau sebarang butiran peribadi pelanggan anda, dan pautan sebut harga tidak meminta butiran orang yang membukanya.',
-            'Apa yang pelanggan masukkan pada pautan sebut harga anda, seperti bajet bulanan, deposit atau sama ada mereka ada kereta untuk tukar beli, dikira dalam pelayar mereka sendiri dan tidak dihantar kepada kami. Ia hanya sampai kepada anda jika mereka memilih untuk menghantarnya kepada anda melalui WhatsApp.',
+            'Pautan sebut harga anda merekodkan kereta dan sebut harga yang dilihat padanya, tanpa butiran peribadi, supaya anda boleh membuat susulan: contohnya kereta yang dilihat, deposit, tempoh pinjaman dan ansuran bulanan sesuatu sebut harga, angka bajet yang dimasukkan, dan tekanan pada WhatsApp. Setiap pelawat dikenal pasti hanya dengan nombor rawak yang disimpan dalam pelayar mereka. Ia tidak sekali-kali merekodkan nama, nombor telefon, nombor IC, alamat IP, lokasi atau apa-apa yang ditaip dalam ruang teks, dan ia dipadam selepas 90 hari. Tiada apa direkodkan apabila anda membuka pautan anda sendiri semasa log masuk.',
           ],
         },
         {
@@ -154,7 +154,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
         {
           heading: '6. Kuki dan storan setempat',
           body: [
-            'Kami menggunakan satu kuki penting untuk memastikan anda kekal log masuk. Pelayar anda juga menyimpan beberapa pilihan pada peranti anda, seperti mod cerah atau gelap, susun atur Mod Live anda dan tip yang telah ditutup. Kami tidak menggunakan kuki pengiklanan atau penjejakan.',
+            'Kami menggunakan satu kuki penting untuk memastikan anda kekal log masuk. Pelayar anda juga menyimpan beberapa pilihan pada peranti anda, seperti mod cerah atau gelap, susun atur Mod Live anda dan tip yang telah ditutup. Pautan sebut harga menyimpan nombor pelawat rawak dalam pelayar pelawat, supaya lawatan semula dikenali (lihat bahagian 2). Kami tidak menggunakan kuki pengiklanan atau menjejak orang merentasi laman web lain.',
           ],
         },
         {

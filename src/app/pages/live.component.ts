@@ -66,7 +66,6 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
       @if (!fullscreen()) {
         <div class="flex items-center justify-between gap-3">
           <div class="flex min-w-0 flex-col gap-1">
-            <h2 class="text-xl font-bold tracking-tight">{{ "Live Mode" | t }}</h2>
             <p class="hidden text-sm text-muted-foreground xl:block">{{ "A loan calculator for TikTok Live — capture only the Live Screen, keep the controls to yourself." | t }}</p>
           </div>
           <div class="flex shrink-0 items-center gap-2">

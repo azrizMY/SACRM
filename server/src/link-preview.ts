@@ -9,8 +9,8 @@ import type { Env } from './index';
 
 type Preview = { title: string; description: string; image: string; imageSize?: [number, number]; url: string };
 
-const SITE_TITLE = 'Redline — Dealership CRM for car sales consultants';
-const SITE_DESCRIPTION = 'Quote any car in seconds, send customers a poster or a live quote link, and track every deal from lead to delivery.';
+const SITE_TITLE = 'Redline — Car quotation for sales advisors';
+const SITE_DESCRIPTION = 'Quote any car in seconds, then send your customer a poster or a quote link they can play with.';
 
 const QUOTE_COPY = {
   en: {

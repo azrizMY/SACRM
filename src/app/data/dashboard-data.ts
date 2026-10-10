@@ -1,3 +1,8 @@
+/**
+ * The app's two money formats (posters draw their own):
+ * - formatRM: prices, rebates, deposits and loan amounts — whole ringgit, e.g. "RM 116,800".
+ * - formatRM2: insurance, monthly instalments and premiums — always 2 decimals, e.g. "RM 6,165.20".
+ */
 export function formatRM(value: number, opts?: { compact?: boolean }): string {
   if (opts?.compact && Math.abs(value) >= 1000) {
     const units = [
@@ -10,7 +15,11 @@ export function formatRM(value: number, opts?: { compact?: boolean }): string {
       }
     }
   }
-  return `RM ${value.toLocaleString('en-MY')}`;
+  return `RM ${Math.round(value).toLocaleString('en-MY')}`;
+}
+
+export function formatRM2(value: number): string {
+  return `RM ${value.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /** Malaysia-only app — normalizes a phone number typed in local format ("012-345 6789") to the

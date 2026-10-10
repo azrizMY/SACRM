@@ -59,6 +59,28 @@ function publicSocials(raw: unknown): Record<string, string> | undefined {
  *  bio, showroom and social links shown on the Profile tab (never email,
  *  never other customers, nothing write-capable — the page's "WhatsApp Advisor" button sends the
  *  quote as a plain wa.me message, so there's no lead-submission endpoint to guard here either). */
+/** The account's motor tariff table, only if it's well-formed numbers (it's shown to customers). */
+function validTariff(t: unknown): unknown {
+  if (!t || typeof t !== 'object') return undefined;
+  const tariff = t as { bands?: unknown; perThousand?: unknown };
+  const num = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 100000;
+  const region = (r: unknown) => !!r && typeof r === 'object' && num((r as Record<string, unknown>).peninsular) && num((r as Record<string, unknown>).east);
+  if (!Array.isArray(tariff.bands) || tariff.bands.length === 0 || tariff.bands.length > 20 || !region(tariff.perThousand)) return undefined;
+  const bands = tariff.bands.map((b: Record<string, unknown>) => {
+    if (!b || typeof b !== 'object' || !region(b.first) || !(b.ccLimit === null || num(b.ccLimit))) return null;
+    const first = b.first as Record<string, number>;
+    const per = b.perThousand && typeof b.perThousand === 'object' ? (b.perThousand as Record<string, unknown>) : undefined;
+    return {
+      ccLimit: b.ccLimit,
+      first: { peninsular: first.peninsular, east: first.east },
+      ...(per ? { perThousand: { ...(num(per.peninsular) ? { peninsular: per.peninsular } : {}), ...(num(per.east) ? { east: per.east } : {}) } } : {}),
+    };
+  });
+  if (bands.some((b) => b === null)) return undefined;
+  const per = tariff.perThousand as Record<string, number>;
+  return { bands, perThousand: { peninsular: per.peninsular, east: per.east } };
+}
+
 /** The poster colours the app offers (POSTER_ACCENTS in src/app/shared/poster-theme.ts). */
 const POSTER_ACCENT_IDS = ['red', 'blue', 'navy', 'teal', 'orange', 'purple', 'magenta', 'gold'];
 /** The festive frames the app offers (POSTER_FRAMES in src/app/shared/poster-frames.ts). */
@@ -116,6 +138,10 @@ async function getPublicQuoteBundle(env: Env, token: string): Promise<Response> 
     posterAccent: POSTER_ACCENT_IDS.includes(settingsData.salesDefaults?.posterAccent) ? settingsData.salesDefaults.posterAccent : undefined,
     posterFrame: POSTER_FRAME_IDS.includes(settingsData.salesDefaults?.posterFrame) ? settingsData.salesDefaults.posterFrame : undefined,
   };
+  (salesDefaults as Record<string, unknown>).testDriveEnabled = settingsData.salesDefaults?.testDriveEnabled !== false;
+  (salesDefaults as Record<string, unknown>).insuranceRegion = settingsData.salesDefaults?.insuranceRegion === 'east' ? 'east' : 'peninsular';
+  const tariff = validTariff(settingsData.salesDefaults?.motorTariff);
+  if (tariff) (salesDefaults as Record<string, unknown>).motorTariff = tariff;
   const vehicleInsurance = settingsData.vehicleInsurance ?? {};
   // Only the brand name, not the SA's sales target number — that figure is internal, the brand
   // is just what the page should default to showing this customer.

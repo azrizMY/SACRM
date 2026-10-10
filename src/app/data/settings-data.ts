@@ -1,5 +1,6 @@
 import type { InsuranceQuotationDetails, LoanRounding, RateType } from './calculator-data';
 import type { Lang } from '../shared/i18n-core';
+import type { MotorTariff, TariffRegion } from './motor-tariff';
 
 export type SalesDefaults = {
   interestRate: number;
@@ -32,6 +33,16 @@ export type SalesDefaults = {
   /** Show "Give rebate as cash back" in the Calculator. Optional; absent = off — only for dealers
    *  that pay rebates out as cash. */
   allowCashback?: boolean;
+  /** Settings → Quote Preferences → Brands I sell. Only these brands show in Price Settings,
+   *  Compare, Budget and the Catalog; the Primary Brand is always one of them. Absent = just the
+   *  Primary Brand (with a one-time hint pointing to the setting). */
+  brandsISell?: string[];
+  /** The customer link's "Book test drive" button. Absent = on. */
+  testDriveEnabled?: boolean;
+  /** Which motor tariff column applies: Peninsular, or Sabah & Sarawak. Absent = Peninsular. */
+  insuranceRegion?: TariffRegion;
+  /** The account's motor tariff table (Settings → Insurance tariff). Absent = the published schedule. */
+  motorTariff?: MotorTariff;
   /** Which 3 tenure years (of 1-9) the Calculator's repayment table starts on for every new quote. */
   defaultTenureYears: number[];
   /** The choices in every Lead Source dropdown (e.g. "Roadshow – Mid Valley"). Optional so settings
@@ -91,6 +102,8 @@ export type Onboarding = {
   quoteShared?: boolean;
   /** Closed the checklist before finishing it. */
   hidden?: boolean;
+  /** When Quote Links → Activity was last opened — newer visits show as a badge on the menu. */
+  activitySeenAt?: number;
 };
 
 // ---------- Live Mode (TikTok Live calculator) ----------

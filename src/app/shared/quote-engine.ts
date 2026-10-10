@@ -317,9 +317,9 @@ export class QuoteEngine {
   cashbackOn = computed(() => this.cashbackAllowed() && this.rebateAsCashback());
   /** How much of the rebate goes back as cash; null = all of it. The rest stays a discount. */
   private cashbackManual = signal<number | null>(null);
-  /** The most that can go back as cash: whatever the rebate has left after covering the car's
-   *  minimum downpayment, so the customer still pays nothing upfront. 0 = cash back not possible. */
-  cashbackMax = computed(() => Math.max(0, this.effectiveRebate() - this.minDownpayment()));
+  /** The most that can go back as cash: the whole rebate (base, plus Additional when ticked). A car
+   *  with a minimum downpayment still needs that minimum paid in cash; the loan covers the rest. */
+  cashbackMax = computed(() => Math.max(0, this.effectiveRebate()));
   cashbackAmount = computed(() => (this.cashbackOn() ? Math.min(this.cashbackMax(), this.cashbackManual() ?? this.cashbackMax()) : 0));
   /** Cash back is always a full loan — see quoteDp; the downpayment set before comes back once it's off. */
   setRebateAsCashback(on: boolean) {
@@ -348,7 +348,7 @@ export class QuoteEngine {
   /** Settings → Loan Rounding: which way the loan rounds to RM100. */
   loanRounding = computed(() => this.settingsService.settings().salesDefaults.loanRounding ?? 'down');
   /** This variant's minimum cash downpayment (Price Settings), 0 when it has none. */
-  minDownpayment = computed(() => minDownpaymentCash(this.selectedVehicle().minDownpayment, this.basePrice()));
+  minDownpayment = computed(() => minDownpaymentCash(this.selectedVehicle().minDownpayment, this.basePrice() + this.insurance()));
   /** Cash the customer must still put down to meet the minimum — the minimum is before rebate, so
    *  the rebate counts towards it. */
   minCashNeeded = computed(() => roundCents(Math.max(0, this.minDownpayment() - this.effectiveRebate())));

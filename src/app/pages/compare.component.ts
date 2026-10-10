@@ -11,8 +11,9 @@ import { CompareService } from '../shared/compare.service';
 import { CompareTableComponent, type CompareColumn } from '../shared/compare-table.component';
 import { renderComparePoster } from '../shared/compare-poster';
 import { downloadBlob } from '../shared/pdf-writer';
-import { NCD_OPTIONS, additionalRebateForYear, basicPremiumDefault, modelVariantLabel, type RateType, type Vehicle } from '../data/calculator-data';
+import { NCD_OPTIONS, additionalRebateForYear, basicPremiumDefault, modelVariantLabel, type Vehicle } from '../data/calculator-data';
 import { quoteForComparison, type CompareSetup } from '../data/compare-data';
+import { BrandsHintComponent } from '../shared/brands-hint.component';
 
 /**
  * The SA's Compare page: up to 3 cars side by side on one shared loan setup — price and loan
@@ -22,11 +23,13 @@ import { quoteForComparison, type CompareSetup } from '../data/compare-data';
 @Component({
   selector: 'app-compare',
   standalone: true,
-  imports: [NgClass, FormsModule, IconComponent, TranslatePipe, CompareTableComponent],
+  imports: [BrandsHintComponent, NgClass, FormsModule, IconComponent, TranslatePipe, CompareTableComponent],
   template: `
     <div class="mx-auto flex max-w-5xl flex-col pb-10">
       <!-- The top bar already titles the page; this just says what it does. -->
       <p class="px-2 pb-5 text-center text-sm text-muted-foreground sm:pb-8 sm:text-base">{{ 'Choose up to 3 cars. Every car is quoted on the same loan.' | t }}</p>
+
+      <app-brands-hint />
 
       <!-- Shared loan setup -->
       <section class="rounded-2xl bg-card p-4 text-card-foreground sm:p-5">
@@ -34,7 +37,7 @@ import { quoteForComparison, type CompareSetup } from '../data/compare-data';
           <span class="text-sm font-semibold">{{ 'Same loan for every car' | t }}</span>
           <span class="text-xs text-muted-foreground">{{ "Rebates, insurance and rates are each car's own." | t }}</span>
         </div>
-        <div class="grid grid-cols-2 gap-x-4 gap-y-4 lg:grid-cols-4">
+        <div class="grid grid-cols-2 gap-x-4 gap-y-4 lg:grid-cols-3">
           <div class="col-span-2 flex flex-col gap-1.5 sm:col-span-1">
             <span class="text-xs text-muted-foreground">{{ 'Downpayment' | t }}</span>
             <div class="flex gap-2">
@@ -70,16 +73,6 @@ import { quoteForComparison, type CompareSetup } from '../data/compare-data';
                 }
               </select>
               <app-icon name="chevron-down" [size]="14" class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            </div>
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <span class="text-xs text-muted-foreground">{{ 'Rate Type' | t }}</span>
-            <div class="flex rounded-full bg-muted/50 p-0.5 text-xs font-semibold">
-              @for (r of rateTypes; track r.id) {
-                <button type="button" (click)="patch({ rateType: r.id })" class="flex-1 rounded-full px-3 py-2 transition-colors" [ngClass]="setup().rateType === r.id ? 'bg-foreground text-background' : 'text-muted-foreground'">
-                  {{ r.label | t }}
-                </button>
-              }
             </div>
           </div>
           <div class="flex flex-col gap-1.5">
@@ -166,10 +159,6 @@ export class CompareComponent {
     { id: 'percent' as const, label: '%' },
     { id: 'amount' as const, label: 'RM' },
   ];
-  readonly rateTypes: { id: RateType; label: string }[] = [
-    { id: 'flat', label: 'Flat' },
-    { id: 'effective', label: 'EIR' },
-  ];
 
   sharing = signal(false);
   shareNotice = signal(false);
@@ -187,14 +176,15 @@ export class CompareComponent {
     }
   }
 
-  setup = computed(() => this.compare.setup()!);
+  /** The shared loan; the rate type is always the account's default (Compare has no switch for it). */
+  setup = computed(() => ({ ...this.compare.setup()!, rateType: this.settings.settings().salesDefaults.defaultRateType }));
   /** Where a car's own "Additional rebate" tick starts — the account's setting. */
   private additionalByDefault = computed(() => this.settings.settings().salesDefaults.additionalRebateByDefault ?? true);
 
   /** Every car, grouped by brand for the column dropdowns. */
   carGroups = computed(() => {
-    const vehicles = this.catalog.vehicles();
-    return this.catalog.brands().map((brand) => ({ brand, vehicles: vehicles.filter((v) => v.brand === brand) }));
+    const vehicles = this.catalog.soldVehicles();
+    return this.catalog.soldBrands().map((brand) => ({ brand, vehicles: vehicles.filter((v) => v.brand === brand) }));
   });
 
   columns = computed<CompareColumn[]>(() => {
@@ -306,7 +296,7 @@ export class CompareComponent {
     const s = this.setup();
     const dp = s.downpaymentType === 'percent' ? `${s.downpaymentValue}%` : `RM ${s.downpaymentValue.toLocaleString('en-MY')}`;
     const years = s.tenureMonths / 12;
-    const setupLine = [T('{dp} downpayment', { dp }), T('{n} years', { n: years }), s.rateType === 'flat' ? T('Flat rate') : 'EIR'].join('  ·  ');
+    const setupLine = [T('{dp} downpayment', { dp }), T('{n} years', { n: years })].join('  ·  ');
     const profile = this.advisor.profile();
 
     const canvas = document.createElement('canvas');

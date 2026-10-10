@@ -25,7 +25,6 @@ type NavItem = { id: string; label: string; icon: IconName };
   template: `
     <div class="mx-auto flex max-w-6xl flex-col gap-6">
       <div class="flex flex-col gap-1">
-        <h2 class="text-balance text-xl font-bold tracking-tight">{{ "Settings" | t }}</h2>
         <p class="text-pretty text-sm text-muted-foreground">{{ "Quote preferences, appearance, and account data." | t }}</p>
       </div>
 
@@ -233,33 +232,18 @@ type NavItem = { id: string; label: string; icon: IconName };
                 </div>
               </div>
 
-              <div class="flex items-center gap-2 border-t border-border px-5 py-4">
-                <button
-                  type="button"
-                  (click)="saveQuoteDefaults()"
-                  class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  {{ "Save Changes" | t }}
-                </button>
-                @if (savedFlash()) {
-                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]">
-                    <app-icon name="check" [size]="13" />
-                    {{ "Saved" | t }}
-                  </span>
-                }
-              </div>
             </div>
 
-            <!-- Primary Brand — the Calculator's starting car and the Catalog's brand filter -->
+            <!-- Primary Brand and Brands I sell -->
             <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
               <div class="flex items-center gap-3 px-5 py-4">
                 <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <app-icon name="star" [size]="18" />
                 </span>
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold leading-none">{{ "Primary Brand" | t }}</span>
+                  <span class="text-sm font-semibold leading-none">{{ "Your brands" | t }}</span>
                   <span class="text-xs text-muted-foreground">
-                    {{ "The Calculator's starting car and the brand filter on Brochures." | t }}
+                    {{ "Your Primary Brand comes first everywhere; only the brands you sell are shown." | t }}
                   </span>
                 </div>
               </div>
@@ -267,7 +251,8 @@ type NavItem = { id: string; label: string; icon: IconName };
               <div class="flex flex-col divide-y divide-border border-t border-border px-5">
                 <div class="flex items-center justify-between gap-4 py-4">
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium">{{ "Brand" | t }}</span>
+                    <span class="text-sm font-medium">{{ "Primary Brand" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "The Calculator's starting car." | t }}</span>
                   </div>
                   <select
                     [(ngModel)]="dashboardForm.brand"
@@ -277,22 +262,58 @@ type NavItem = { id: string; label: string; icon: IconName };
                   </select>
                 </div>
 
+                <div class="flex flex-col gap-3 py-4">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium">{{ "Brands I sell" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "Only these show in Price Settings, Compare, Budget and the Catalog." | t }}</span>
+                  </div>
+                  <div role="group" [attr.aria-label]="'Brands I sell' | t" class="flex flex-wrap gap-1.5">
+                    @for (b of brands; track b) {
+                      <button
+                        type="button"
+                        [attr.aria-pressed]="isSoldBrand(b)"
+                        [disabled]="b === dashboardForm.brand"
+                        (click)="toggleSoldBrand(b)"
+                        class="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-default"
+                        [ngClass]="isSoldBrand(b) ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                      >
+                        @if (isSoldBrand(b)) {
+                          <app-icon name="check" [size]="12" />
+                        }
+                        {{ b }}
+                        @if (b === dashboardForm.brand) {
+                          <span class="font-normal opacity-70">· {{ "Primary" | t }}</span>
+                        }
+                      </button>
+                    }
+                  </div>
+                </div>
               </div>
+            </div>
 
-              <div class="flex items-center gap-2 border-t border-border px-5 py-4">
+            <!-- Book test drive on the customer link -->
+            <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+              <div class="flex items-center justify-between gap-4 px-5 py-4">
+                <div class="flex items-center gap-3">
+                  <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <app-icon name="car" [size]="18" />
+                  </span>
+                  <div class="flex flex-col gap-0.5">
+                    <span class="text-sm font-semibold leading-none">{{ "Book test drive" | t }}</span>
+                    <span class="text-xs text-muted-foreground">{{ "A button on your quote link that WhatsApps you a test drive request for the car." | t }}</span>
+                  </div>
+                </div>
                 <button
                   type="button"
-                  (click)="saveDefaultBrand()"
-                  class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  role="switch"
+                  [attr.aria-label]="'Book test drive' | t"
+                  [attr.aria-checked]="salesForm.testDriveEnabled !== false"
+                  (click)="salesForm.testDriveEnabled = salesForm.testDriveEnabled === false"
+                  class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
+                  [ngClass]="salesForm.testDriveEnabled !== false ? 'bg-primary' : 'bg-muted'"
                 >
-                  {{ "Save Changes" | t }}
+                  <span class="inline-block size-4 transform rounded-full bg-white shadow transition-transform" [ngClass]="salesForm.testDriveEnabled !== false ? 'translate-x-6' : 'translate-x-1'"></span>
                 </button>
-                @if (brandSavedFlash()) {
-                  <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]">
-                    <app-icon name="check" [size]="13" />
-                    {{ "Saved" | t }}
-                  </span>
-                }
               </div>
             </div>
           </section>
@@ -301,7 +322,7 @@ type NavItem = { id: string; label: string; icon: IconName };
           <section id="appearance" data-section class="flex scroll-mt-20 flex-col gap-4">
             <div class="flex flex-col gap-0.5">
               <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ 'Appearance' | t }}</h3>
-              <p class="text-xs text-muted-foreground">{{ 'Light or dark screens. System follows your phone or computer. Posters and the Live Screen look the same either way.' | t }}</p>
+              <p class="text-xs text-muted-foreground">{{ 'Light or dark screens, and the colour and festive frame of your posters.' | t }}</p>
             </div>
             <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
               <div role="radiogroup" [attr.aria-label]="'Theme' | t" class="grid grid-cols-3 gap-2 p-4">
@@ -318,6 +339,104 @@ type NavItem = { id: string; label: string; icon: IconName };
                     {{ opt.label | t }}
                   </button>
                 }
+              </div>
+            </div>
+
+            <!-- Poster colour — one choice for every poster, offer sheet, the customer link and Live Mode -->
+            <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+              <div class="flex items-center gap-3 px-5 py-4">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <app-icon name="file-text" [size]="18" />
+                </span>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-sm font-semibold leading-none">{{ 'Poster colour' | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ 'Used on every poster and offer sheet, your customer link and the Live Screen.' | t }}</span>
+                </div>
+              </div>
+              <div class="flex flex-col gap-5 border-t border-border p-5 md:flex-row md:items-center">
+                <div role="radiogroup" [attr.aria-label]="'Poster colour' | t" class="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4">
+                  @for (opt of posterAccents; track opt.id) {
+                    <button
+                      type="button"
+                      role="radio"
+                      [attr.aria-checked]="posterAccentId() === opt.id"
+                      (click)="setPosterAccent(opt.id)"
+                      class="flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors"
+                      [ngClass]="posterAccentId() === opt.id ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                    >
+                      <span class="flex size-6 shrink-0 items-center justify-center rounded-full" [style.background-color]="opt.acc">
+                        @if (posterAccentId() === opt.id) {
+                          <app-icon name="check" [size]="13" class="text-white" />
+                        }
+                      </span>
+                      {{ opt.label | t }}
+                    </button>
+                  }
+                </div>
+
+                <!-- A slice of a poster in the chosen colour: the white header, the dark price panel, the lowest-tenure row -->
+                <div class="w-full shrink-0 overflow-hidden rounded-lg border border-border md:w-60" aria-hidden="true">
+                  <div class="bg-white px-4 pb-3 pt-3.5">
+                    <div class="flex items-center gap-1.5">
+                      <span class="h-3 w-[3px] -skew-x-12" [style.background-color]="accentPreview().acc"></span>
+                      <span class="text-[8px] font-bold uppercase tracking-[0.2em] text-neutral-500">{{ 'Vehicle loan estimate' | t }}</span>
+                    </div>
+                    <div class="mt-1 text-lg font-bold leading-tight text-neutral-900">Chery O5</div>
+                    <span class="mt-1 inline-block -skew-x-12 px-2 text-[9px] font-bold text-white" [style.background-color]="accentPreview().acc">2026</span>
+                  </div>
+                  <div class="h-[3px]" [style.background-color]="accentPreview().acc"></div>
+                  <div class="flex flex-col gap-2 bg-[#121214] px-4 py-3">
+                    <div class="flex items-baseline gap-1">
+                      <span class="text-xs font-bold" [style.color]="accentPreview().accBright">RM</span>
+                      <span class="text-2xl font-bold text-white">1,232</span>
+                      <span class="text-[10px] text-white/60">/{{ 'month' | t }}</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded px-2.5 py-1.5 text-[10px] font-bold text-white" [style.background-color]="accentPreview().acc">
+                      <span>9 {{ 'Yrs' | t }}</span>
+                      <span>RM 1,232</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded bg-white/[0.06] px-2.5 py-1.5 text-[10px] font-bold text-white/80">
+                      <span>7 {{ 'Yrs' | t }}</span>
+                      <span [style.color]="accentPreview().accBright">RM 1,519</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Festive frame — drawn around every poster, offer sheet and the customer link's poster -->
+            <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+              <div class="flex items-center gap-3 px-5 py-4">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <app-icon name="sparkles" [size]="18" />
+                </span>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-sm font-semibold leading-none">{{ 'Festive frame' | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ 'A border and greeting around your posters for the season. It never covers prices — remember to switch it off after the festival.' | t }}</span>
+                </div>
+              </div>
+              <div class="border-t border-border p-5">
+                <div role="radiogroup" [attr.aria-label]="'Festive frame' | t" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                  @for (opt of frameOptions(); track opt.id) {
+                    <button
+                      type="button"
+                      role="radio"
+                      [attr.aria-checked]="posterFrameId() === opt.id"
+                      (click)="setPosterFrame(opt.id)"
+                      class="flex flex-col items-center gap-2 rounded-lg border p-2 text-center text-xs font-medium transition-colors"
+                      [ngClass]="posterFrameId() === opt.id ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                    >
+                      @if (opt.thumb) {
+                        <img [src]="opt.thumb" alt="" class="aspect-[5/6] w-full rounded object-cover" />
+                      } @else {
+                        <span class="flex aspect-[5/6] w-full items-center justify-center rounded border border-dashed border-border text-muted-foreground">
+                          <app-icon name="x" [size]="18" />
+                        </span>
+                      }
+                      {{ opt.label | t }}
+                    </button>
+                  }
+                </div>
               </div>
             </div>
           </section>
@@ -410,94 +529,6 @@ type NavItem = { id: string; label: string; icon: IconName };
               @if (uiLanguage() === 'ms') {
                 <p class="border-t border-border px-5 py-3 text-[11px] text-muted-foreground">{{ 'Some pages are still being translated and will show in English for now.' | t }}</p>
               }
-            </div>
-          </section>
-
-          <!-- Poster colour — one choice for every poster, offer sheet, the customer link and Live Mode -->
-          <section id="poster-colour" data-section class="flex scroll-mt-20 flex-col gap-4">
-            <div class="flex flex-col gap-0.5">
-              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ 'Poster colour' | t }}</h3>
-              <p class="text-xs text-muted-foreground">{{ 'Used on every poster and offer sheet, your customer link and the Live Screen.' | t }}</p>
-            </div>
-            <div class="flex flex-col gap-5 overflow-hidden rounded-xl border border-border bg-card p-5 text-card-foreground shadow-sm md:flex-row md:items-center">
-              <div role="radiogroup" [attr.aria-label]="'Poster colour' | t" class="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4">
-                @for (opt of posterAccents; track opt.id) {
-                  <button
-                    type="button"
-                    role="radio"
-                    [attr.aria-checked]="posterAccentId() === opt.id"
-                    (click)="setPosterAccent(opt.id)"
-                    class="flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors"
-                    [ngClass]="posterAccentId() === opt.id ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                  >
-                    <span class="flex size-6 shrink-0 items-center justify-center rounded-full" [style.background-color]="opt.acc">
-                      @if (posterAccentId() === opt.id) {
-                        <app-icon name="check" [size]="13" class="text-white" />
-                      }
-                    </span>
-                    {{ opt.label | t }}
-                  </button>
-                }
-              </div>
-
-              <!-- A slice of a poster in the chosen colour: the white header, the dark price panel, the lowest-tenure row -->
-              <div class="w-full shrink-0 overflow-hidden rounded-lg border border-border md:w-60" aria-hidden="true">
-                <div class="bg-white px-4 pb-3 pt-3.5">
-                  <div class="flex items-center gap-1.5">
-                    <span class="h-3 w-[3px] -skew-x-12" [style.background-color]="accentPreview().acc"></span>
-                    <span class="text-[8px] font-bold uppercase tracking-[0.2em] text-neutral-500">{{ 'Vehicle loan estimate' | t }}</span>
-                  </div>
-                  <div class="mt-1 text-lg font-bold leading-tight text-neutral-900">Chery O5</div>
-                  <span class="mt-1 inline-block -skew-x-12 px-2 text-[9px] font-bold text-white" [style.background-color]="accentPreview().acc">2026</span>
-                </div>
-                <div class="h-[3px]" [style.background-color]="accentPreview().acc"></div>
-                <div class="flex flex-col gap-2 bg-[#121214] px-4 py-3">
-                  <div class="flex items-baseline gap-1">
-                    <span class="text-xs font-bold" [style.color]="accentPreview().accBright">RM</span>
-                    <span class="text-2xl font-bold text-white">1,232</span>
-                    <span class="text-[10px] text-white/60">/{{ 'month' | t }}</span>
-                  </div>
-                  <div class="flex items-center justify-between rounded px-2.5 py-1.5 text-[10px] font-bold text-white" [style.background-color]="accentPreview().acc">
-                    <span>9 {{ 'Yrs' | t }}</span>
-                    <span>RM 1,232</span>
-                  </div>
-                  <div class="flex items-center justify-between rounded bg-white/[0.06] px-2.5 py-1.5 text-[10px] font-bold text-white/80">
-                    <span>7 {{ 'Yrs' | t }}</span>
-                    <span [style.color]="accentPreview().accBright">RM 1,519</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Festive frame — drawn around every poster, offer sheet and the customer link's poster -->
-          <section id="festive-frame" data-section class="flex scroll-mt-20 flex-col gap-4">
-            <div class="flex flex-col gap-0.5">
-              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ 'Festive frame' | t }}</h3>
-              <p class="text-xs text-muted-foreground">{{ 'A border and greeting around your posters for the season. It never covers prices — remember to switch it off after the festival.' | t }}</p>
-            </div>
-            <div class="overflow-hidden rounded-xl border border-border bg-card p-5 text-card-foreground shadow-sm">
-              <div role="radiogroup" [attr.aria-label]="'Festive frame' | t" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                @for (opt of frameOptions(); track opt.id) {
-                  <button
-                    type="button"
-                    role="radio"
-                    [attr.aria-checked]="posterFrameId() === opt.id"
-                    (click)="setPosterFrame(opt.id)"
-                    class="flex flex-col items-center gap-2 rounded-lg border p-2 text-center text-xs font-medium transition-colors"
-                    [ngClass]="posterFrameId() === opt.id ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                  >
-                    @if (opt.thumb) {
-                      <img [src]="opt.thumb" alt="" class="aspect-[5/6] w-full rounded object-cover" />
-                    } @else {
-                      <span class="flex aspect-[5/6] w-full items-center justify-center rounded border border-dashed border-border text-muted-foreground">
-                        <app-icon name="x" [size]="18" />
-                      </span>
-                    }
-                    {{ opt.label | t }}
-                  </button>
-                }
-              </div>
             </div>
           </section>
 
@@ -640,7 +671,7 @@ type NavItem = { id: string; label: string; icon: IconName };
               </div>
               <div class="flex flex-col gap-3 border-t border-[var(--destructive)]/30 px-5 py-4">
                 <p class="text-xs text-muted-foreground">
-                  {{ "Deletes your profile, settings, customers, bankers, and pricing changes. You'll be signed out straight away. Export your data first (Data & Privacy above) if you want to keep a copy." | t }}
+                  {{ "Deletes your profile, settings and price changes. You'll be signed out straight away. Export your data first (Data & Privacy above) if you want to keep a copy." | t }}
                 </p>
                 <button
                   type="button"
@@ -657,6 +688,26 @@ type NavItem = { id: string; label: string; icon: IconName };
       </div>
     </div>
 
+    <!-- One Save for the whole page -->
+    @if (unsavedCount() > 0 || savedFlash()) {
+      <div class="pointer-events-none sticky bottom-4 z-30 mt-6 flex justify-end">
+        <div class="pointer-events-auto flex items-center gap-3 rounded-xl border border-border bg-card py-2 pl-4 pr-2 text-card-foreground shadow-[0_8px_30px_-6px_oklch(0_0_0/45%)]">
+          @if (unsavedCount() > 0) {
+            <span class="text-sm font-medium">{{ (unsavedCount() === 1 ? '1 unsaved change' : '{n} unsaved changes') | t: { n: unsavedCount() } }}</span>
+            <div class="flex items-center gap-2">
+              <button type="button" (click)="discardChanges()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">{{ "Discard" | t }}</button>
+              <button type="button" (click)="saveAll()" class="rounded-md bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90">{{ "Save Changes" | t }}</button>
+            </div>
+          } @else {
+            <span class="flex items-center gap-1.5 text-sm font-medium text-[var(--success)]">
+              <app-icon name="check" [size]="14" />
+              {{ "Saved" | t }}
+            </span>
+          }
+        </div>
+      </div>
+    }
+
     <!-- Delete account confirmation -->
     @if (confirmingDelete()) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -668,7 +719,7 @@ type NavItem = { id: string; label: string; icon: IconName };
               {{ "Delete your account?" | t }}
             </span>
             <p class="text-sm text-muted-foreground">
-              {{ 'Everything tied to {email} is erased permanently, including all {n} customer records. This can\'t be undone.' | t: { email: auth.currentUser()?.email ?? '', n: customers.records().length } }}
+              {{ 'Everything tied to {email} is erased permanently. This can\'t be undone.' | t: { email: auth.currentUser()?.email ?? '' } }}
             </p>
             <div class="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
               <span class="text-xs text-muted-foreground">
@@ -824,8 +875,6 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
     { id: 'defaults', label: 'Quote Preferences', icon: 'wallet' },
     { id: 'appearance', label: 'Appearance', icon: 'sun' },
     { id: 'language', label: 'Language', icon: 'languages' },
-    { id: 'poster-colour', label: 'Poster colour', icon: 'file-text' },
-    { id: 'festive-frame', label: 'Festive frame', icon: 'sparkles' },
     { id: 'data', label: 'Data & Privacy', icon: 'file-text' },
     { id: 'security', label: 'Account & Security', icon: 'lock' },
   ];
@@ -866,7 +915,6 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
   dashboardForm: DashboardTarget;
   posterYearOptions = Array.from({ length: 9 }, (_, i) => i + 1);
   savedFlash = signal(false);
-  brandSavedFlash = signal(false);
 
   passwordForm = { current: '', next: '', confirm: '' };
   passwordError = signal<string | null>(null);
@@ -934,33 +982,50 @@ export class AccountSettingsComponent implements AfterViewInit, OnDestroy {
   }
 
 
-  /** Every Quote Preferences card saves the same defaults object; `card` just picks which
-   *  card shows the "Saved" tick. */
-  saveQuoteDefaults(card: 'starting' | 'leads' = 'starting') {
+  /** The Quote Preferences fields the page's one Save covers (the other sections save as they're tapped). */
+  private static readonly SAVED_FIELDS: (keyof SalesDefaults)[] = [
+    'downpaymentPct', 'ncd', 'additionalRebateByDefault', 'loanRounding', 'allowCashback', 'defaultRateType',
+    'interestRate', 'effectiveRate', 'defaultTenureYears', 'brandsISell',
+    'testDriveEnabled',
+  ];
+
+
+  /** How many settings differ from what's saved — shown on the Save bar. */
+  unsavedCount(): number {
+    const saved = this.settingsService.settings();
+    const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+    let n = AccountSettingsComponent.SAVED_FIELDS.filter((k) => !same(this.salesForm[k], saved.salesDefaults[k])).length;
+    if (this.dashboardForm.brand !== saved.dashboardTarget.brand) n++;
+    return n;
+  }
+
+  saveAll() {
+    const brandChanged = this.dashboardForm.brand !== this.settingsService.settings().dashboardTarget.brand;
+    if (this.salesForm.brandsISell) this.salesForm.brandsISell = this.salesForm.brandsISell.filter((b) => b !== this.dashboardForm.brand);
     this.settingsService.updateSalesDefaults(this.salesForm);
-    if (card === 'starting') {
-      this.savedFlash.set(true);
-      setTimeout(() => this.savedFlash.set(false), 2000);
-    }
-    this.flash(card);
+    if (brandChanged) this.settingsService.updateDashboardTarget(this.dashboardForm);
+    this.savedFlash.set(true);
+    setTimeout(() => this.savedFlash.set(false), 2000);
   }
 
-  savedFlashFor = signal<string | null>(null);
-  private flash(card: string) {
-    this.savedFlashFor.set(card);
-    setTimeout(() => this.savedFlashFor() === card && this.savedFlashFor.set(null), 2000);
+  discardChanges() {
+    this.salesForm = { ...this.settingsService.settings().salesDefaults };
+    this.dashboardForm = { ...this.settingsService.settings().dashboardTarget };
   }
 
-  /** Working copies of the account's dropdown lists — saved only on each card's Save Changes. */
+  isSoldBrand(brand: string): boolean {
+    return brand === this.dashboardForm.brand || (this.salesForm.brandsISell ?? []).includes(brand);
+  }
+
+  toggleSoldBrand(brand: string) {
+    if (brand === this.dashboardForm.brand) return;
+    const current = (this.salesForm.brandsISell ?? []).filter((b) => b !== this.dashboardForm.brand);
+    this.salesForm.brandsISell = current.includes(brand) ? current.filter((b) => b !== brand) : [...current, brand];
+  }
+
   /** A typed rate within 0–30%, or null when cleared. */
   clampRate(v: number | null): number | null {
     return v == null ? null : Math.min(30, Math.max(0, v));
-  }
-
-  saveDefaultBrand() {
-    this.settingsService.updateDashboardTarget(this.dashboardForm);
-    this.brandSavedFlash.set(true);
-    setTimeout(() => this.brandSavedFlash.set(false), 2000);
   }
 
   /** Keeps the default tenure selection at exactly 3 years: toggles off if already picked (min 1

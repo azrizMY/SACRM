@@ -37,6 +37,6 @@
   // For local `wrangler dev` only. RESEND_API_KEY is a real secret — put it in a gitignored
   // `server/.dev.vars` file instead (RESEND_API_KEY=...), never here.
   "vars": {
-    "RESEND_FROM": "Redline CRM <onboarding@resend.dev>"
+    "RESEND_FROM": "Redline <onboarding@resend.dev>"
   }
 }

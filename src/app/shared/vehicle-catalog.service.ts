@@ -1,5 +1,7 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { inject } from '@angular/core';
+import { SettingsService } from './settings.service';
 import { firstValueFrom } from 'rxjs';
 import { DEFAULT_VEHICLES, VEHICLES, type VehicleOverride } from '../data/calculator-data';
 
@@ -32,6 +34,22 @@ export class VehicleCatalogService {
   brands = computed(() => {
     this.version();
     return Array.from(new Set(VEHICLES.map((v) => v.brand)));
+  });
+
+  private settings = inject(SettingsService);
+
+  /** Settings → Brands I sell, in catalog order with the Primary Brand first. Price Settings,
+   *  Compare, Budget and the Catalog show only these. */
+  soldBrands = computed(() => {
+    const sold = this.settings.brandsISell();
+    const all = this.brands().filter((b) => sold.includes(b));
+    const primary = sold[0];
+    return all.length ? [...all.filter((b) => b === primary), ...all.filter((b) => b !== primary)] : this.brands();
+  });
+  /** Every variant of the brands this account sells. */
+  soldVehicles = computed(() => {
+    const brands = this.soldBrands();
+    return this.vehicles().filter((v) => brands.includes(v.brand));
   });
 
   /** Whether this account has edited any variant's pricing (the Dashboard's setup checklist). */
@@ -68,6 +86,21 @@ export class VehicleCatalogService {
     }
     this.overridesById = new Map();
     this.version.update((v) => v + 1);
+  }
+
+  /** Saves several cars in one request (brand rebate editor, price list import). Resolves once the
+   *  server has them, so the caller can say "Saved"; rejects if it couldn't. */
+  async updateVehicles(patches: Record<string, VehicleOverride>): Promise<void> {
+    const merged: Record<string, VehicleOverride> = {};
+    for (const [id, patch] of Object.entries(patches)) {
+      const vehicle = VEHICLES.find((v) => v.id === id);
+      if (!vehicle) continue;
+      Object.assign(vehicle, patch);
+      merged[id] = { ...this.overridesById.get(id), ...patch };
+      this.overridesById.set(id, merged[id]);
+    }
+    this.version.update((v) => v + 1);
+    if (Object.keys(merged).length) await firstValueFrom(this.http.put('/api/vehicle-overrides', merged));
   }
 
   updateVehicle(id: string, patch: VehicleOverride) {

@@ -16,7 +16,7 @@
   // `wrangler pages secret put RESEND_API_KEY --project-name sacrm` (and separately for the
   // preview environment), never in this file.
   "vars": {
-    "RESEND_FROM": "Redline CRM <onboarding@resend.dev>"
+    "RESEND_FROM": "Redline <onboarding@resend.dev>"
   },
   "env": {
     // Only the "main" branch deploys as Production — this is the only place the real database is
@@ -30,7 +30,7 @@
         }
       ],
       "vars": {
-        "RESEND_FROM": "Redline CRM <onboarding@resend.dev>"
+        "RESEND_FROM": "Redline <onboarding@resend.dev>"
       }
     }
   }

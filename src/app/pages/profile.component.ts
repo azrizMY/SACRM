@@ -29,7 +29,6 @@ import {
   template: `
     <div class="mx-auto flex max-w-5xl flex-col gap-5">
       <div class="flex flex-col gap-1">
-        <h2 class="text-balance text-xl font-bold tracking-tight">My Profile</h2>
         <p class="text-pretty text-sm text-muted-foreground">What customers see on your quotes and shared links.</p>
       </div>
 
