@@ -51,6 +51,23 @@ const COLOUR_SWATCH_HEX: Record<string, string> = {
   'Aurora White': '#F2F2F0',
   'Nebula Black': '#141417',
   'Crystal Grey': '#899094',
+  // Perodua
+  'Coral Blue': '#2F7FB8',
+  'Lava Red': '#B3241F',
+  'Glittering Silver': '#C5C8CC',
+  'Granite Grey': '#5A5D62',
+  'Ivory White': '#F3F1EA',
+  'Garnet Red': '#7E1D24',
+  'Ocean Blue': '#1E4A73',
+  'Sugar Brown': '#8A6A4F',
+  'Electric Blue': '#1F5FBF',
+  'Electric Blue 2-Tone': '#1F5FBF',
+  'Glittering Silver 2-Tone': '#C5C8CC',
+  'Cranberry Red': '#8E1B2E',
+  'Pearl Delima Red': '#A3172A',
+  'Pearl Diamond White': '#F4F3EE',
+  'Vintage Brown': '#6B4E3A',
+  'Elegant Black': '#141416',
 };
 
 /** Neutral fallback dot for any colour name not in the table above — still shows *a* dot rather

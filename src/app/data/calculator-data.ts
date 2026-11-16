@@ -197,35 +197,38 @@ export const VEHICLES: Vehicle[] = [
   { id: 'gwm-tank-500-hev-ultra', brand: 'GWM', model: 'TANK 500 HEV', variant: 'Ultra', price: 328800, brochureUrl: '/brochures/gwm-tank-500-hev.pdf', colours: ['Crystal Grey', 'Hamilton White', 'Sun Black'], years: [{ year: 2026 }] },
   { id: 'gwm-tank-500-hev-ultra-black', brand: 'GWM', model: 'TANK 500 HEV', variant: 'Ultra Black Edition', price: 336800, brochureUrl: '/brochures/gwm-tank-500-hev.pdf', colours: ['Sun Black'], years: [{ year: 2026 }] },
 
-  // Perodua lineup — OTR without insurance, Peninsular Malaysia, as listed on 16 Nov 2026 (Axia
-  // after the 3 Aug 2026 price cut). Ativa prices are for metallic paint; its special metallic
-  // colours cost more but aren't listed here yet. The Myvi 1.3 G comes with or without Advanced
-  // Safety Assist (ASA). No photos, brochures, colour lists or logo yet — the brand shows its
-  // initials badge until a logo file is added.
-  { id: 'perodua-axia-1-0-e', brand: 'Perodua', model: 'Axia', variant: '1.0 E', price: 22000, years: [{ year: 2026 }] },
-  { id: 'perodua-axia-1-0-g', brand: 'Perodua', model: 'Axia', variant: '1.0 G', price: 33900, years: [{ year: 2026 }] },
-  { id: 'perodua-axia-1-0-x', brand: 'Perodua', model: 'Axia', variant: '1.0 X', price: 38500, years: [{ year: 2026 }] },
-  { id: 'perodua-axia-1-0-se', brand: 'Perodua', model: 'Axia', variant: '1.0 SE', price: 43000, years: [{ year: 2026 }] },
-  { id: 'perodua-axia-1-0-av', brand: 'Perodua', model: 'Axia', variant: '1.0 AV', price: 49000, years: [{ year: 2026 }] },
-  { id: 'perodua-bezza-1-0-g-mt', brand: 'Perodua', model: 'Bezza', variant: '1.0 G (MT)', price: 34580, years: [{ year: 2026 }] },
-  { id: 'perodua-bezza-1-0-g-at', brand: 'Perodua', model: 'Bezza', variant: '1.0 G (AT)', price: 36580, years: [{ year: 2026 }] },
-  { id: 'perodua-bezza-1-3-x', brand: 'Perodua', model: 'Bezza', variant: '1.3 X', price: 43980, years: [{ year: 2026 }] },
-  { id: 'perodua-bezza-1-3-av', brand: 'Perodua', model: 'Bezza', variant: '1.3 AV', price: 49980, years: [{ year: 2026 }] },
-  { id: 'perodua-myvi-1-3-g', brand: 'Perodua', model: 'Myvi', variant: '1.3 G', price: 46500, years: [{ year: 2026 }] },
-  { id: 'perodua-myvi-1-3-g-asa', brand: 'Perodua', model: 'Myvi', variant: '1.3 G (ASA)', price: 48500, years: [{ year: 2026 }] },
-  { id: 'perodua-myvi-1-5-x', brand: 'Perodua', model: 'Myvi', variant: '1.5 X', price: 50900, years: [{ year: 2026 }] },
-  { id: 'perodua-myvi-1-5-h', brand: 'Perodua', model: 'Myvi', variant: '1.5 H', price: 54900, years: [{ year: 2026 }] },
-  { id: 'perodua-myvi-1-5-av', brand: 'Perodua', model: 'Myvi', variant: '1.5 AV', price: 59900, years: [{ year: 2026 }] },
-  { id: 'perodua-ativa-1-0t-x', brand: 'Perodua', model: 'Ativa', variant: '1.0T X', price: 62500, years: [{ year: 2026 }] },
-  { id: 'perodua-ativa-1-0t-h', brand: 'Perodua', model: 'Ativa', variant: '1.0T H', price: 67300, years: [{ year: 2026 }] },
-  { id: 'perodua-ativa-1-0t-av', brand: 'Perodua', model: 'Ativa', variant: '1.0T AV', price: 72600, years: [{ year: 2026 }] },
-  { id: 'perodua-alza-1-5-x', brand: 'Perodua', model: 'Alza', variant: '1.5 X', price: 62500, years: [{ year: 2026 }] },
-  { id: 'perodua-alza-1-5-h', brand: 'Perodua', model: 'Alza', variant: '1.5 H', price: 68000, years: [{ year: 2026 }] },
-  { id: 'perodua-alza-1-5-av', brand: 'Perodua', model: 'Alza', variant: '1.5 AV', price: 75500, years: [{ year: 2026 }] },
-  { id: 'perodua-aruz-1-5-x', brand: 'Perodua', model: 'Aruz', variant: '1.5 X', price: 68900, years: [{ year: 2026 }] },
-  { id: 'perodua-aruz-1-5-av', brand: 'Perodua', model: 'Aruz', variant: '1.5 AV', price: 73900, years: [{ year: 2026 }] },
-  { id: 'perodua-traz-1-5-x', brand: 'Perodua', model: 'Traz', variant: '1.5 X', price: 76100, years: [{ year: 2026 }] },
-  { id: 'perodua-traz-1-5-h', brand: 'Perodua', model: 'Traz', variant: '1.5 H', price: 82000, years: [{ year: 2026 }] },
+  // Perodua lineup — official "on the road price with Sales Tax and without insurance", Peninsular
+  // Malaysia, from each model's page on perodua.com.my (checked 17 Nov 2026; Axia after the 3 Aug
+  // 2026 price cut). Colours are the ones each page lists; where a page marks a colour "H variant
+  // only" and the model has an H, only the H gets it. Paint that costs extra is a colour surcharge:
+  // Ativa H/AV Special Metallic (taken to be the two Pearl colours) +RM500, Traz H 2-Tone +RM900
+  // (the RM82,000 "1.5 H 2T"). The Ativa AV's 2-tone black-roof option (RM73,400) isn't listed as
+  // its own colour on the page, so it isn't here. Myvi 1.3 G (ASA) is Perodua's plain "1.3 G";
+  // the cheaper one is its "1.3 G (Without PSDA)". No photos or brochures yet.
+  { id: 'perodua-axia-1-0-e', brand: 'Perodua', model: 'Axia', variant: '1.0 E', price: 22000, colours: ['Coral Blue', 'Granite Grey', 'Lava Red', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-axia-1-0-g', brand: 'Perodua', model: 'Axia', variant: '1.0 G', price: 33900, colours: ['Coral Blue', 'Granite Grey', 'Lava Red', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-axia-1-0-x', brand: 'Perodua', model: 'Axia', variant: '1.0 X', price: 38500, colours: ['Coral Blue', 'Granite Grey', 'Lava Red', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-axia-1-0-se', brand: 'Perodua', model: 'Axia', variant: '1.0 SE', price: 43000, colours: ['Coral Blue', 'Granite Grey', 'Lava Red', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-axia-1-0-av', brand: 'Perodua', model: 'Axia', variant: '1.0 AV', price: 49000, colours: ['Coral Blue', 'Granite Grey', 'Lava Red', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-bezza-1-0-g-mt', brand: 'Perodua', model: 'Bezza', variant: '1.0 G (MT)', price: 34580, colours: ['Garnet Red', 'Glittering Silver', 'Granite Grey', 'Ivory White', 'Ocean Blue', 'Sugar Brown'], years: [{ year: 2026 }] },
+  { id: 'perodua-bezza-1-0-g-at', brand: 'Perodua', model: 'Bezza', variant: '1.0 G (AT)', price: 36580, colours: ['Garnet Red', 'Glittering Silver', 'Granite Grey', 'Ivory White', 'Ocean Blue', 'Sugar Brown'], years: [{ year: 2026 }] },
+  { id: 'perodua-bezza-1-3-x', brand: 'Perodua', model: 'Bezza', variant: '1.3 X', price: 43980, colours: ['Garnet Red', 'Glittering Silver', 'Granite Grey', 'Ivory White', 'Ocean Blue', 'Sugar Brown'], years: [{ year: 2026 }] },
+  { id: 'perodua-bezza-1-3-av', brand: 'Perodua', model: 'Bezza', variant: '1.3 AV', price: 49980, colours: ['Garnet Red', 'Glittering Silver', 'Granite Grey', 'Ivory White', 'Ocean Blue', 'Sugar Brown'], years: [{ year: 2026 }] },
+  { id: 'perodua-myvi-1-3-g', brand: 'Perodua', model: 'Myvi', variant: '1.3 G', price: 46500, colours: ['Electric Blue', 'Glittering Silver', 'Granite Grey', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-myvi-1-3-g-asa', brand: 'Perodua', model: 'Myvi', variant: '1.3 G (ASA)', price: 48500, colours: ['Electric Blue', 'Glittering Silver', 'Granite Grey', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-myvi-1-5-x', brand: 'Perodua', model: 'Myvi', variant: '1.5 X', price: 50900, colours: ['Electric Blue', 'Glittering Silver', 'Granite Grey', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-myvi-1-5-h', brand: 'Perodua', model: 'Myvi', variant: '1.5 H', price: 54900, colours: ['Cranberry Red', 'Electric Blue', 'Glittering Silver', 'Granite Grey', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-myvi-1-5-av', brand: 'Perodua', model: 'Myvi', variant: '1.5 AV', price: 59900, colours: ['Electric Blue', 'Glittering Silver', 'Granite Grey', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-ativa-1-0t-x', brand: 'Perodua', model: 'Ativa', variant: '1.0T X', price: 62500, colours: ['Granite Grey', 'Glittering Silver'], years: [{ year: 2026 }] },
+  { id: 'perodua-ativa-1-0t-h', brand: 'Perodua', model: 'Ativa', variant: '1.0T H', price: 67300, colours: ['Coral Blue', 'Pearl Delima Red', 'Pearl Diamond White', 'Granite Grey', 'Glittering Silver'], colourSurcharges: { 'Pearl Delima Red': 500, 'Pearl Diamond White': 500 }, years: [{ year: 2026 }] },
+  { id: 'perodua-ativa-1-0t-av', brand: 'Perodua', model: 'Ativa', variant: '1.0T AV', price: 72600, colours: ['Pearl Delima Red', 'Pearl Diamond White', 'Granite Grey', 'Glittering Silver'], colourSurcharges: { 'Pearl Delima Red': 500, 'Pearl Diamond White': 500 }, years: [{ year: 2026 }] },
+  { id: 'perodua-alza-1-5-x', brand: 'Perodua', model: 'Alza', variant: '1.5 X', price: 62500, colours: ['Elegant Black', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-alza-1-5-h', brand: 'Perodua', model: 'Alza', variant: '1.5 H', price: 68000, colours: ['Vintage Brown', 'Elegant Black', 'Garnet Red', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-alza-1-5-av', brand: 'Perodua', model: 'Alza', variant: '1.5 AV', price: 75500, colours: ['Elegant Black', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-aruz-1-5-x', brand: 'Perodua', model: 'Aruz', variant: '1.5 X', price: 68900, colours: ['Vintage Brown', 'Elegant Black', 'Garnet Red', 'Glittering Silver', 'Granite Grey', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-aruz-1-5-av', brand: 'Perodua', model: 'Aruz', variant: '1.5 AV', price: 73900, colours: ['Vintage Brown', 'Elegant Black', 'Garnet Red', 'Glittering Silver', 'Granite Grey', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-traz-1-5-x', brand: 'Perodua', model: 'Traz', variant: '1.5 X', price: 76100, colours: ['Granite Grey', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-traz-1-5-h', brand: 'Perodua', model: 'Traz', variant: '1.5 H', price: 81100, colours: ['Cranberry Red', 'Electric Blue 2-Tone', 'Glittering Silver 2-Tone', 'Granite Grey', 'Glittering Silver', 'Ivory White'], colourSurcharges: { 'Electric Blue 2-Tone': 900, 'Glittering Silver 2-Tone': 900 }, years: [{ year: 2026 }] },
 ];
 
 /** Factory-default catalog, snapshotted before any account's saved overrides are applied on top —
