@@ -22,6 +22,7 @@ import {
   type Vehicle,
 } from './calculator-data';
 import { guessBand } from './motor-tariff';
+import { brandLogo } from './dashboard-data';
 
 /** These figures go straight onto customer quotes and posters. Each expected value is worked out
  *  by hand in the comment beside it, so a failure points at the rule that changed. */
@@ -375,7 +376,12 @@ describe('car catalog', () => {
     const perodua = VEHICLES.filter((v) => v.brand === 'Perodua');
     expect(perodua.length).toBe(24);
     expect(modelsForBrand('Perodua')).toEqual(['Axia', 'Bezza', 'Myvi', 'Ativa', 'Alza', 'Aruz', 'Traz']);
-    for (const v of perodua) expect(guessBand(v.variant)).withContext(v.id).not.toBeNull();
+    for (const v of perodua) {
+      expect(guessBand(v.variant)).withContext(v.id).not.toBeNull();
+      expect(v.brochureUrl).withContext(v.id).toMatch(/^\/brochures\/perodua-[a-z-]+\.pdf$/);
+      expect(v.colours?.length).withContext(v.id).toBeGreaterThan(0);
+    }
+    expect(brandLogo('Perodua')).toBe('/brands/perodua.png');
   });
 
   it('colour surcharges only name colours the car actually comes in', () => {
