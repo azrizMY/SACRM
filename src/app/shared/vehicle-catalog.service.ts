@@ -128,6 +128,18 @@ export class VehicleCatalogService {
     this.applyAll();
   }
 
+  /** Renames a brand the owner added. The server moves its cars and every account's saved brand
+   *  choices with it; here the catalogue is reloaded, and this account's own choices are moved too
+   *  so they aren't saved back under the old name. */
+  async renameBrand(from: string, to: string): Promise<void> {
+    await firstValueFrom(this.http.post('/api/catalog/brands/rename', { from, to }));
+    const s = this.settings.settings();
+    if (s.dashboardTarget.brand === from) this.settings.updateDashboardTarget({ brand: to });
+    const sold = s.salesDefaults.brandsISell;
+    if (sold?.includes(from)) this.settings.updateSalesDefaults({ brandsISell: sold.map((b) => (b === from ? to : b)) });
+    await this.loadCatalog();
+  }
+
   async deleteBrand(name: string): Promise<void> {
     await firstValueFrom(this.http.delete(`/api/catalog/brands/${encodeURIComponent(name)}`));
     this.catalogBrands.update((list) => list.filter((b) => b.name !== name));

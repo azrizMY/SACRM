@@ -20,8 +20,8 @@
     }
   ],
   // Uploaded catalogue files (logos, car photos, brochures). This id is a placeholder that only
-  // `wrangler dev` uses, with its own local copy; the live site needs a real namespace created
-  // and its id set in the root wrangler.jsonc.
+  // `wrangler dev` uses, with its own local copy. The deployed site's real storage is set in the
+  // root wrangler.jsonc (redline-catalog-files-preview for Preview, redline-catalog-files live).
   "kv_namespaces": [{ "binding": "FILES", "id": "local-catalog-files" }],
   // The production database, reachable ONLY by passing `--env production` explicitly (see the
   // db:migrate:production script) — a plain command here still only ever touches preview. It exists

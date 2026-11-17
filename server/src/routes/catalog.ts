@@ -9,6 +9,7 @@ import type { Env } from '../index';
  *
  *   GET    /api/public/catalog              brands + variants, for everyone
  *   PUT    /api/catalog/brands              add a brand or change its logo        (owner)
+ *   POST   /api/catalog/brands/rename       rename a brand the owner added        (owner)
  *   DELETE /api/catalog/brands/:name        remove a brand row                    (owner)
  *   PUT    /api/catalog/vehicles/:id        add or edit one variant               (owner)
  *   DELETE /api/catalog/vehicles/:id        delete an added variant, or undo
@@ -77,6 +78,42 @@ export async function handleCatalogRoute(request: Request, env: Env, url: URL): 
     return json({ name, logoUrl });
   }
 
+  // Rename a brand the owner added. A brand's name is what ties things to it, so everything that
+  // holds the old name moves in one batch: its brand row, its cars, and every account's Primary
+  // Brand and "Brands I sell". (Built-in brands live in the app's code and aren't renamed; the
+  // Manage Cars page only offers this for brands the owner added.)
+  if (url.pathname === '/api/catalog/brands/rename' && request.method === 'POST') {
+    const body = await readJsonBody<{ from?: unknown; to?: unknown }>(request);
+    const from = cleanText(body?.from, 60);
+    const to = cleanText(body?.to, 60);
+    if (!from || !to) return json({ error: 'Give the brand its new name.' }, 400);
+    if (from === to) return json({ name: to });
+    const own = await env.DB.prepare('SELECT 1 FROM catalog_brands WHERE name = ?').bind(from).first();
+    if (!own) return json({ error: `${from} isn't a brand you added, so it can't be renamed.` }, 400);
+    const taken = await env.DB.prepare(
+      "SELECT 1 FROM catalog_brands WHERE lower(name) = lower(?) UNION ALL SELECT 1 FROM catalog_vehicles WHERE lower(json_extract(data, '$.brand')) = lower(?) LIMIT 1",
+    )
+      .bind(to, to)
+      .first();
+    if (taken && from.toLowerCase() !== to.toLowerCase()) return json({ error: `${to} is already a brand. Pick another name.` }, 409);
+    const now = Date.now();
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO catalog_brands (name, logo_url, updated_at) SELECT ?, logo_url, ? FROM catalog_brands WHERE name = ?').bind(to, now, from),
+      env.DB.prepare('DELETE FROM catalog_brands WHERE name = ?').bind(from),
+      env.DB.prepare("UPDATE catalog_vehicles SET data = json_set(data, '$.brand', ?), updated_at = ? WHERE json_extract(data, '$.brand') = ?").bind(to, now, from),
+      env.DB.prepare("UPDATE settings SET data = json_set(data, '$.dashboardTarget.brand', ?) WHERE json_extract(data, '$.dashboardTarget.brand') = ?").bind(to, from),
+      env.DB.prepare(
+        `UPDATE settings SET data = json_set(data, '$.salesDefaults.brandsISell', (
+           SELECT json_group_array(b) FROM (
+             SELECT CASE WHEN value = ? THEN ? ELSE value END AS b FROM json_each(settings.data, '$.salesDefaults.brandsISell') ORDER BY key
+           )
+         ))
+         WHERE EXISTS (SELECT 1 FROM json_each(settings.data, '$.salesDefaults.brandsISell') WHERE value = ?)`,
+      ).bind(from, to, from),
+    ]);
+    return json({ name: to });
+  }
+
   const brandMatch = url.pathname.match(/^\/api\/catalog\/brands\/([^/]+)$/);
   if (brandMatch && request.method === 'DELETE') {
     await env.DB.prepare('DELETE FROM catalog_brands WHERE name = ?').bind(decodeURIComponent(brandMatch[1])).run();
@@ -128,6 +165,8 @@ async function uploadFile(request: Request, env: Env, url: URL): Promise<Respons
  *  makes sure a brand-new car has its brand, model, variant and price. */
 function cleanVehicle(body: Record<string, unknown>): CatalogVehicleData | string {
   const out: CatalogVehicleData = {};
+  // A built-in variant the owner deleted: off every list, kept only so it can be restored.
+  if (body['hidden'] === true && body['deleted'] === true) return { hidden: true, deleted: true };
   if (body['hidden'] === true) return { hidden: true };
   for (const key of ['brand', 'model', 'variant'] as const) {
     if (body[key] === undefined) continue;
@@ -158,6 +197,19 @@ function cleanVehicle(body: Record<string, unknown>): CatalogVehicleData | strin
   if (body['colours'] !== undefined) {
     if (!Array.isArray(body['colours'])) return 'Colours must be a list.';
     out['colours'] = body['colours'].map((c) => cleanText(c, 40)).filter(Boolean).slice(0, 30);
+  }
+  // Each colour's poster dot, as #rrggbb, keyed by the colour name.
+  if (body['colourHex'] !== undefined) {
+    const raw = body['colourHex'];
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return 'Colour swatches must be a list of names and colours.';
+    const hex: Record<string, string> = {};
+    for (const [name, value] of Object.entries(raw as Record<string, unknown>).slice(0, 30)) {
+      const key = cleanText(name, 40);
+      if (!key) continue;
+      if (typeof value !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(value)) return `The colour for ${key} is not valid.`;
+      hex[key] = value.toLowerCase();
+    }
+    out['colourHex'] = hex;
   }
   if (body['years'] !== undefined) {
     if (!Array.isArray(body['years']) || body['years'].length === 0) return 'Give the car at least one model year.';

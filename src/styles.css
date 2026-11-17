@@ -320,6 +320,13 @@ button.bg-card[aria-selected='true'] {
   box-shadow: 0 1px 3px 0 var(--shadow-far);
 }
 
+/* A selected tile (e.g. the brand picked in Manage Cars): a red edge and a soft red ring, which
+   the card rules above would otherwise flatten back to the hairline. */
+button.bg-card[aria-pressed='true'].border-primary {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 40%, transparent);
+}
+
 /* Solid red buttons: one flat look everywhere. */
 button.bg-primary,
 a.bg-primary,

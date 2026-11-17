@@ -52,6 +52,9 @@ export type Vehicle = {
    *  top of `price` when that exact colour is selected. Not every colour has one; a colour absent
    *  from this map (or the map itself absent) means RM0 surcharge. */
   colourSurcharges?: Record<string, number>;
+  /** The dot colour (#rrggbb) for a factory colour, set by the owner in Manage Cars. A colour
+   *  without one uses the poster's built-in name lookup (poster-colour-swatches.ts). */
+  colourHex?: Record<string, string>;
   /** Every model year this variant is available in — e.g. an older year a showroom still has in
    *  stock — each with its own rebate and additional rebate (see VehicleYear); price, rates, and
    *  insurance are identical across a variant's model years, so they live once here instead.
@@ -254,6 +257,9 @@ export type CatalogVehicleData = Partial<Omit<Vehicle, 'id' | 'photoUrl' | 'broc
   photoUrl?: string | null;
   brochureUrl?: string | null;
   hidden?: boolean;
+  /** With `hidden`: the owner deleted this built-in variant. It's off every list like a hidden one,
+   *  and Manage Cars only shows it under "Deleted cars", where it can be restored. */
+  deleted?: boolean;
 };
 export type CatalogVehicleEntry = { id: string; data: CatalogVehicleData };
 
@@ -263,6 +269,7 @@ function cloneVehicle(v: Vehicle): Vehicle {
     years: v.years.map((y) => ({ ...y })),
     ...(v.colours ? { colours: [...v.colours] } : {}),
     ...(v.colourSurcharges ? { colourSurcharges: { ...v.colourSurcharges } } : {}),
+    ...(v.colourHex ? { colourHex: { ...v.colourHex } } : {}),
   };
 }
 
@@ -285,10 +292,11 @@ export function catalogWith(entries: readonly CatalogVehicleEntry[]): Vehicle[] 
 }
 
 function mergeVehicle(target: Vehicle, data: CatalogVehicleData): Vehicle {
-  const { hidden: _hidden, photoUrl, brochureUrl, ...rest } = data;
+  const { hidden: _hidden, deleted: _deleted, photoUrl, brochureUrl, ...rest } = data;
   Object.assign(target, rest);
   if (rest.years?.length) target.years = rest.years.map((y) => ({ ...y }));
   if (rest.colours) target.colours = [...rest.colours];
+  if (rest.colourHex) target.colourHex = { ...rest.colourHex };
   if (photoUrl !== undefined) {
     if (photoUrl) target.photoUrl = photoUrl;
     else delete target.photoUrl;

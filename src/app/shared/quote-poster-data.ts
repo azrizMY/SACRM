@@ -22,6 +22,7 @@ export function quotePosterData(q: QuoteEngine, advisor: AdvisorService, lang: L
     carImageUrl: vehicle.photoUrl ?? null,
     colours: vehicle.colours ?? [],
     colourSurcharges: vehicle.colourSurcharges ?? {},
+    colourHex: vehicle.colourHex,
 
     sellingPrice: q.allInPrice(),
     downpayment: q.downpaymentCash(),

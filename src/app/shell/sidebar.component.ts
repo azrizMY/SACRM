@@ -135,7 +135,7 @@ export class SidebarComponent {
   private auth = inject(AuthService);
   /** The menu, plus Manage Cars at the end for the site owner only. */
   visibleNav = computed<{ id: string; label: string; icon: IconName }[]>(() =>
-    this.auth.isOwner() ? [...this.nav, { id: 'manage-cars', label: 'Manage Cars', icon: 'shield-check' }] : this.nav,
+    this.auth.isOwner() ? [...this.nav, { id: 'manage-cars', label: 'Manage Cars', icon: 'database' }] : this.nav,
   );
 
   activity = inject(LinkActivityService);
