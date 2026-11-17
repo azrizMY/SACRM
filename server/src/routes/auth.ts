@@ -9,6 +9,7 @@ import {
   sessionCookieHeader,
   sha256Hex,
   verifyPassword,
+  type UserRole,
 } from '../auth';
 import { json, readJsonBody } from '../http';
 import { clientIp, isRateLimited } from '../rate-limit';
@@ -96,7 +97,7 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
     ]);
 
     const { token, expiresAt } = await createSession(env.DB, id);
-    return json({ id, email, name, publicToken }, 201, { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) });
+    return json({ id, email, name, publicToken, role: 'user' }, 201, { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) });
   }
 
   if (url.pathname === '/api/auth/login' && request.method === 'POST') {
@@ -106,9 +107,9 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
     const password = body?.password;
     if (!email || !password) return json({ error: 'Email and password are required.' }, 400);
 
-    const user = await env.DB.prepare('SELECT id, email, name, password_hash, public_token, failed_attempts, locked_until FROM users WHERE email = ?')
+    const user = await env.DB.prepare('SELECT id, email, name, password_hash, public_token, role, failed_attempts, locked_until FROM users WHERE email = ?')
       .bind(email)
-      .first<{ id: string; email: string; name: string; password_hash: string; public_token: string; failed_attempts: number; locked_until: number | null }>();
+      .first<{ id: string; email: string; name: string; password_hash: string; public_token: string; role: UserRole; failed_attempts: number; locked_until: number | null }>();
 
     if (user?.locked_until && user.locked_until > Date.now()) {
       const minutesLeft = Math.ceil((user.locked_until - Date.now()) / 60_000);
@@ -133,7 +134,7 @@ export async function handleAuthRoute(request: Request, env: Env, url: URL): Pro
 
     const { token, expiresAt } = await createSession(env.DB, user.id);
     return json(
-      { id: user.id, email: user.email, name: user.name, publicToken: user.public_token },
+      { id: user.id, email: user.email, name: user.name, publicToken: user.public_token, role: user.role },
       200,
       { 'Set-Cookie': sessionCookieHeader(token, expiresAt, secure) },
     );
