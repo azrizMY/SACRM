@@ -1,5 +1,7 @@
 import { CarShadowPipe } from '../shared/car-shadow';
-import { Component, ElementRef, HostListener, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { applyAppColour } from '../shared/app-colour';
+import { Component, DestroyRef, ElementRef, HostListener, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { SettingsService } from '../shared/settings.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -42,8 +44,9 @@ import {
   type VehicleOverride,
   vehicleTitle,
 } from '../data/calculator-data';
-import { applyPosterFrame } from '../shared/poster-frames';
 import { BudgetFinderComponent, type BudgetPick } from '../shared/budget-finder.component';
+import { BrandChipsComponent } from '../shared/brand-chips.component';
+import { ScrollRowComponent } from '../shared/scroll-row.component';
 import { LinkActivityRecorder } from '../shared/link-activity-recorder';
 import type { BudgetRules } from '../shared/budget-finder';
 
@@ -56,7 +59,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
 @Component({
   selector: 'app-public-quote',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent, BrandIconComponent, TranslatePipe, CarShadowPipe, CompareTableComponent, BudgetFinderComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, BrandIconComponent, TranslatePipe, CarShadowPipe, CompareTableComponent, BudgetFinderComponent, BrandChipsComponent, ScrollRowComponent],
   // Its own instance, pinned to the advisor's poster language rather than any UI language.
   providers: [I18nService],
   template: `
@@ -72,17 +75,18 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
       </div>
     } @else {
       <!-- Desktop side menu (mobile/tablet use the bottom tab bar) -->
-      <aside class="glass fixed inset-y-0 left-0 z-30 hidden w-60 flex-col gap-6 border-r border-border px-4 py-6 xl:flex">
-        <div class="flex flex-col items-center gap-2 px-2 text-center">
+      <aside class="glass fixed inset-y-0 left-0 z-30 hidden w-64 flex-col gap-6 px-4 py-6 text-sidebar-foreground xl:flex">
+        <!-- Hidden (space kept) on Profile, which already shows the advisor large. -->
+        <div class="flex flex-col items-center gap-2 px-2 text-center" [class.invisible]="section() === 'profile'">
           @if (bundle()!.advisor.photoUrl; as photo) {
-            <img [src]="photo" alt="" class="size-16 rounded-full object-cover ring-2 ring-primary/60 ring-offset-2 ring-offset-background" />
+            <img [src]="photo" alt="" class="size-16 rounded-full object-cover ring-2 ring-brand/60 ring-offset-2 ring-offset-background" />
           } @else {
-            <span class="flex size-16 items-center justify-center rounded-full text-xl font-bold text-white/90" [style.background]="avatarGradient">{{ advisorInitials() }}</span>
+            <span class="flex size-16 items-center justify-center rounded-full text-base font-semibold logo-chip">{{ advisorInitials() }}</span>
           }
           <div class="flex min-w-0 max-w-full flex-col gap-0.5">
-            <span class="truncate text-sm font-semibold">{{ bundle()!.advisor.name }}</span>
+            <span class="truncate text-base font-bold">{{ bundle()!.advisor.name }}</span>
             @if (bundle()!.advisor.role; as role) {
-              <span class="truncate text-xs text-muted-foreground">{{ role }}</span>
+              <span class="truncate text-sm text-sidebar-muted">{{ role }}</span>
             }
           </div>
         </div>
@@ -93,13 +97,14 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
               role="tab"
               [attr.aria-selected]="section() === t.id"
               (click)="selectSection(t.id)"
-              class="group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all duration-200"
-              [ngClass]="section() === t.id ? 'text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+              class="group relative flex min-h-12 items-center gap-3 rounded-lg px-3.5 text-base transition-colors"
+              [ngClass]="section() === t.id ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground' : 'font-medium text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'"
             >
+              <!-- Same "you are here" mark as the advisor's app menu: a grey row with a red bar -->
               @if (section() === t.id) {
-                <span class="absolute inset-y-2 -left-4 w-[3px] rounded-r-full bg-primary"></span>
+                <span class="absolute inset-y-2 -left-4 w-[3px] rounded-r-full bg-primary" aria-hidden="true"></span>
               }
-              <app-icon [name]="t.icon" [size]="18" />
+              <app-icon [name]="t.icon" [size]="20" [class]="section() === t.id ? 'text-brand' : ''" />
               {{ t.label | t }}
             </button>
           }
@@ -113,22 +118,25 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
         <!-- Pinned flush to the top (pulled up over the page's own top padding) so no strip of the
              background glow shows above it. -->
         <div class="sticky top-0 z-10 -mx-4 -mt-4 flex flex-col gap-2 border-b border-border bg-background px-4 pb-2 pt-4 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 xl:hidden">
-          <div class="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
+          <div class="flex items-center justify-between gap-3">
             @if (isCashPurchase()) {
-              <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{{ "Selling price" | t }}</span>
-              <span class="text-sm font-bold tabular">{{ fmt2(allInPrice()) }}</span>
+              <span class="text-base font-semibold text-muted-foreground">{{ "Selling price" | t }}</span>
+              <span class="fig whitespace-nowrap text-3xl">{{ fmt2(allInPrice()) }}</span>
             } @else {
-              <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Monthly · {{ tenureYears() }} {{ "yrs" | t }}</span>
-              <span class="text-sm font-bold tabular text-primary">{{ fmt2(monthlyInstalment()) }}</span>
+              <span class="flex flex-col text-base font-semibold leading-tight text-muted-foreground">
+                <span>{{ "Monthly instalment" | t }}</span>
+                <span class="text-sm font-medium">{{ tenureYears() }} {{ "yrs" | t }}</span>
+              </span>
+              <span class="fig whitespace-nowrap text-[2rem] sm:text-4xl"><span class="hl">{{ fmt2(monthlyInstalment()) }}</span></span>
             }
           </div>
-          <div role="tablist" [attr.aria-label]="'Quote view' | t" class="flex rounded-lg border border-border bg-muted/30 p-1">
+          <div role="tablist" [attr.aria-label]="'Quote view' | t" class="flex rounded-xl bg-muted p-1">
             <button
               type="button"
               role="tab"
               [attr.aria-selected]="mobileTab() === 'preview'"
               (click)="mobileTab.set('preview')"
-              class="flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+              class="flex-1 rounded-lg px-3 py-2.5 text-base font-semibold transition-colors"
               [ngClass]="mobileTab() === 'preview' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
             >
               {{ "Preview" | t }}
@@ -138,7 +146,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
               role="tab"
               [attr.aria-selected]="mobileTab() === 'customize'"
               (click)="mobileTab.set('customize')"
-              class="flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+              class="flex-1 rounded-lg px-3 py-2.5 text-base font-semibold transition-colors"
               [ngClass]="mobileTab() === 'customize' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
             >
               {{ "Customize" | t }}
@@ -162,7 +170,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                 (click)="openWhatsAppToAdvisor()"
                 class="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-3 text-sm font-semibold text-white shadow-sm transition-[filter] hover:brightness-95 xl:hidden"
               >
-                <app-brand-icon name="whatsapp" [size]="18" />
+                <app-brand-icon name="whatsapp" [size]="20" />
                 {{ "WhatsApp Me Here" | t }}
               </button>
             }
@@ -172,12 +180,12 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                 (click)="openTestDrive(selectedVehicle())"
                 class="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm font-semibold transition-colors hover:bg-accent xl:hidden"
               >
-                <app-icon name="car" [size]="17" />
+                <app-icon name="car" [size]="20" />
                 {{ "Book test drive" | t }}
               </button>
             }
-            <p class="shrink-0 text-balance text-center text-[10px] leading-relaxed text-muted-foreground">
-              <app-icon name="info" [size]="12" class="mr-1 inline-block align-[-2px]" />
+            <p class="shrink-0 text-balance text-center text-xs leading-relaxed text-muted-foreground">
+              <app-icon name="info" [size]="16" class="mr-1 inline-block align-[-2px]" />
               {{ "Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here." | t }}
             </p>
           </div>
@@ -186,7 +194,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
           <ng-template #tradeInCard>
             @if (bundle()!.advisor.phoneWa) {
               <section class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm 2xl:flex-1">
-                <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Trade-in" | t }}</span>
+                <span class="text-sm font-semibold text-foreground">{{ "Trade-in" | t }}</span>
                 <span class="text-sm font-medium">{{ "Do you have a car to trade in?" | t }}</span>
                 <div role="group" [attr.aria-label]="'Do you have a car to trade in?' | t" class="grid grid-cols-2 gap-1.5">
                   @for (o of tradeInOptions; track o.label) {
@@ -194,15 +202,15 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                       type="button"
                       (click)="tradeIn.set(o.value); activity?.record('trade_in', null, { tradeIn: o.value })"
                       [attr.aria-pressed]="tradeIn() === o.value"
-                      class="rounded-lg border px-2 py-2 text-xs font-semibold transition-colors"
-                      [ngClass]="tradeIn() === o.value ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                      class="rounded-lg border px-2 py-2.5 text-sm font-semibold transition-colors"
+                      [ngClass]="tradeIn() === o.value ? 'border-brand bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                     >
                       {{ o.label | t }}
                     </button>
                   }
                 </div>
                 @if (tradeIn()) {
-                  <span class="text-[11px] text-muted-foreground">{{ "This will be added to your WhatsApp message." | t }}</span>
+                  <span class="text-xs text-muted-foreground">{{ "This will be added to your WhatsApp message." | t }}</span>
                 }
               </section>
             }
@@ -213,30 +221,36 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
             class="flex-col gap-4 xl:sticky xl:top-4 xl:flex xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 2xl:static 2xl:max-h-none 2xl:overflow-visible 2xl:pr-0"
             [ngClass]="mobileTab() === 'customize' ? 'flex' : 'hidden'"
           >
-            <div class="flex items-center justify-between">
-              <h3 class="shrink-0 whitespace-nowrap text-base font-semibold leading-none">{{ "Customize Quote" | t }}</h3>
-              <div class="flex items-center gap-1">
+            <!-- Desktop: the contact buttons get their own row, so they never squeeze the heading
+                 or run off the edge on a laptop screen. -->
+            @if (bundle()!.advisor.phoneWa || testDriveOn()) {
+              <div class="hidden gap-2 xl:grid" [ngClass]="bundle()!.advisor.phoneWa && testDriveOn() ? 'grid-cols-2' : 'grid-cols-1'">
                 @if (bundle()!.advisor.phoneWa) {
                   <button
                     type="button"
                     data-tour="quote-whatsapp"
                     (click)="openWhatsAppToAdvisor()"
-                    class="mr-1 hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md bg-[#25D366] px-2.5 py-1 text-xs font-semibold text-white shadow-sm transition-[filter] hover:brightness-95 xl:flex"
+                    class="flex min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-[#25D366] px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition-[filter] hover:brightness-95"
                   >
-                    <app-brand-icon name="whatsapp" [size]="14" />
-                    {{ "WhatsApp Me Here" | t }}
+                    <app-brand-icon name="whatsapp" [size]="18" />
+                    <span class="truncate">{{ "WhatsApp Me Here" | t }}</span>
                   </button>
                 }
                 @if (testDriveOn()) {
                   <button
                     type="button"
                     (click)="openTestDrive(selectedVehicle())"
-                    class="mr-1 hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-border px-2.5 py-1 text-xs font-semibold transition-colors hover:bg-accent xl:flex"
+                    class="flex min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-border bg-card px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-accent"
                   >
-                    <app-icon name="car" [size]="13" />
-                    {{ "Book test drive" | t }}
+                    <app-icon name="car" [size]="16" />
+                    <span class="truncate">{{ "Book test drive" | t }}</span>
                   </button>
                 }
+              </div>
+            }
+            <div class="flex items-center justify-between gap-2">
+              <h3 class="min-w-0 truncate text-base font-semibold leading-none">{{ "Customize Quote" | t }}</h3>
+              <div class="flex shrink-0 items-center gap-1">
                 <button
                   type="button"
                   (click)="startTour()"
@@ -244,14 +258,14 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                   [title]="'How this page works' | t"
                   class="flex shrink-0 items-center rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
-                  <app-icon name="info" [size]="15" />
+                  <app-icon name="info" [size]="18" />
                 </button>
                 <button
                   type="button"
                   (click)="reset()"
-                  class="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                  class="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 text-sm font-semibold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
-                  <app-icon name="refresh-cw" [size]="13" />
+                  <app-icon name="refresh-cw" [size]="16" />
                   {{ "Reset" | t }}
                 </button>
               </div>
@@ -260,47 +274,38 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
             <div class="flex flex-col gap-4 2xl:grid 2xl:grid-cols-2 2xl:items-stretch 2xl:gap-4">
               <div class="flex flex-col gap-4">
               <!-- Select car -->
-              <div data-tour="quote-car" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+              <div data-tour="quote-car" class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
                 <div class="flex items-center justify-between gap-2">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Select Car" | t }}</span>
-                  <button type="button" (click)="openCompare()" class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10">
-                    <app-icon name="table" [size]="13" />
-                    {{ "Compare with other cars" | t }}
+                  <span class="text-sm font-semibold text-foreground">{{ "Select Car" | t }}</span>
+                  <button type="button" (click)="openCompare()" class="-my-1 flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold text-brand transition-colors hover:bg-brand-soft">
+                    <app-icon name="table" [size]="16" />
+                    {{ "Compare" | t }}
                   </button>
                 </div>
 
-              <div class="grid grid-cols-1 gap-3" [ngClass]="singleBrandMode ? '' : 'sm:grid-cols-2'">
-                @if (!singleBrandMode) {
-                  <div class="flex flex-col gap-2">
-                    <label for="brandSelect" class="text-xs font-medium text-muted-foreground">{{ "Brand" | t }}</label>
-                    <select
-                      id="brandSelect"
-                      [ngModel]="selectedBrand()"
-                      (ngModelChange)="onBrandChange($event)"
-                      class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
-                    >
-                      @for (b of brands(); track b) {
-                        <option [value]="b">{{ b }}</option>
-                      }
-                    </select>
-                  </div>
-                }
+              <!-- Brands as one row of chips (swipes sideways when they don't all fit); none on a one-brand link -->
+              @if (!singleBrandMode && chipBrands().length > 1) {
+                <app-brand-chips [brands]="chipBrands()" [selected]="selectedBrand()" (pick)="onBrandChange($event)" />
+              }
 
                 <div class="flex flex-col gap-2">
-                  <span class="text-xs font-medium text-muted-foreground">{{ "Model" | t }}</span>
                   <div class="relative">
                     <button
                       type="button"
                       (click)="toggleCarDropdown($event)"
-                      class="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
+                      [attr.aria-label]="('Model' | t) + ': ' + modelVariantLabel(selectedModelName(), selectedVariant())"
+                      class="flex h-11 w-full items-center justify-between gap-3 rounded-lg border border-input bg-input px-3 text-base text-foreground outline-none transition-colors focus:border-ring md:text-sm"
                     >
-                      <span class="truncate">{{ modelVariantLabel(selectedModelName(), selectedVariant()) }}</span>
-                      <app-icon name="chevron-down" [size]="16" class="shrink-0 text-muted-foreground" />
+                      <span class="truncate font-semibold">{{ modelVariantLabel(selectedModelName(), selectedVariant()) }}</span>
+                      <span class="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
+                        <span class="tabular">{{ fmt(selectedVehicle().price) }}</span>
+                        <app-icon name="chevron-down" [size]="18" />
+                      </span>
                     </button>
                     @if (carDropdownOpen) {
                       <div class="absolute left-0 top-full z-50 mt-1 max-h-80 w-full min-w-[220px] overflow-y-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg">
                         @for (group of carGroups(); track group.model; let first = $first) {
-                          <div class="px-3 pb-1 text-xs font-medium text-muted-foreground" [ngClass]="first ? 'pt-2' : 'pt-3'">{{ group.model }}</div>
+                          <div class="px-3 pb-1 text-sm font-semibold text-foreground" [ngClass]="first ? 'pt-2' : 'pt-3'">{{ group.model }}</div>
                           @for (item of group.items; track item.variant) {
                             <button
                               type="button"
@@ -309,7 +314,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                             >
                               {{ item.label | t }}
                               @if (group.model === selectedModelName() && item.variant === selectedVariant()) {
-                                <app-icon name="check" [size]="14" class="shrink-0 text-foreground" />
+                                <app-icon name="check" [size]="18" class="shrink-0 text-foreground" />
                               }
                             </button>
                           }
@@ -318,12 +323,10 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                     }
                   </div>
                 </div>
-              </div>
-              <span class="text-[11px] text-muted-foreground">{{ fmt(selectedVehicle().price) }} {{ "base price" | t }}</span>
 
               @if (availableYears().length > 1) {
                 <div class="flex flex-col gap-2">
-                  <span class="text-xs font-medium text-muted-foreground">{{ "Model Year" | t }}</span>
+                  <span class="text-sm font-semibold text-foreground">{{ "Model Year" | t }}</span>
                   <div role="radiogroup" [attr.aria-label]="'Model year' | t" class="flex flex-wrap gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
                     @for (y of availableYears(); track y) {
                       <button
@@ -343,14 +346,14 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
 
               @if (selectedVehicle().colours; as colours) {
                 <div class="flex flex-col gap-2">
-                  <label for="colourSelect" class="text-xs font-medium text-muted-foreground">{{ "Colour" | t }}</label>
+                  <label for="colourSelect" class="text-sm font-semibold text-foreground">{{ "Colour" | t }}</label>
                   <select
                     id="colourSelect"
                     [ngModel]="selectedColour()"
                     (ngModelChange)="selectedColour.set($event)"
                     class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
                   >
-                    <option [ngValue]="null">{{ "Not Confirmed" | t }}</option>
+                    <option [ngValue]="null">{{ "Not decided yet" | t }}</option>
                     @for (c of colours; track c) { <option [ngValue]="c">{{ colourOptionLabel(c) }}</option> }
                   </select>
                 </div>
@@ -359,10 +362,10 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
 
             <!-- Price setup -->
             <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Price Setup" | t }}</span>
+              <span class="text-sm font-semibold text-foreground">{{ "Price Setup" | t }}</span>
 
               <div class="flex flex-col gap-2">
-                <span class="text-xs font-medium text-muted-foreground">{{ "Rebate (RM)" | t }}</span>
+                <span class="text-sm font-semibold text-foreground">{{ "Rebate (RM)" | t }}</span>
                 <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 opacity-80">
                   <span class="text-sm font-medium text-muted-foreground">{{ "RM" | t }}</span>
                   <span class="text-sm font-medium tabular">{{ rebateInput() }}</span>
@@ -373,21 +376,21 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
             <!-- Insurance -->
             <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Insurance" | t }}</span>
+                <span class="text-sm font-semibold text-foreground">{{ "Insurance" | t }}</span>
                 <button
                   type="button"
                   (click)="openInsuranceBreakdown()"
-                  class="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-accent"
+                  class="flex items-center gap-1 rounded-md px-2 py-1.5 text-sm font-semibold text-brand transition-colors hover:bg-accent"
                 >
-                  <app-icon name="settings" [size]="12" />
+                  <app-icon name="settings" [size]="16" />
                   {{ "Insurance Breakdown" | t }}
                 </button>
               </div>
 
               <div class="flex flex-col gap-2">
-                <label for="ncdSelect" class="text-xs font-medium text-muted-foreground">
+                <label for="ncdSelect" class="text-sm font-semibold text-foreground">
                   <span class="inline-flex items-center gap-1">
-                    <app-icon name="percent" [size]="12" />
+                    <app-icon name="percent" [size]="16" />
                     {{ "NCD" | t }}
                   </span>
                 </label>
@@ -403,7 +406,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                 </select>
               </div>
 
-              <div class="flex flex-col gap-1 rounded-lg bg-muted/40 px-3 py-2.5 text-[11px] text-muted-foreground">
+              <div class="flex flex-col gap-1 rounded-lg bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
                 <span>{{ "Total Insurance Cost" | t }}</span>
                 <span class="text-sm font-semibold tabular text-foreground">{{ fmt2(insurance()) }}</span>
               </div>
@@ -416,10 +419,10 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
               <div class="flex flex-col gap-4">
             <!-- Interest Rate -->
             <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Interest Rate" | t }}</span>
+              <span class="text-sm font-semibold text-foreground">{{ "Interest Rate" | t }}</span>
 
               <div class="flex flex-col gap-2">
-                <span class="text-xs font-medium text-muted-foreground">{{ "Interest Rate" | t }}</span>
+                <span class="text-sm font-semibold text-foreground">{{ "Interest Rate" | t }}</span>
                 <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 opacity-80">
                   <span class="text-sm font-medium tabular">{{ interestRate() }}%</span>
                   <span class="text-xs text-muted-foreground">{{ rateType() === 'flat' ? ('Flat' | t) : 'EIR' }}</span>
@@ -429,24 +432,24 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
 
             <!-- Loan setup -->
             <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Loan Setup" | t }}</span>
+              <span class="text-sm font-semibold text-foreground">{{ "Loan Setup" | t }}</span>
 
               <div class="flex flex-col gap-2">
-                <span class="text-xs font-medium text-muted-foreground">{{ "Downpayment" | t }}</span>
+                <span class="text-sm font-semibold text-foreground">{{ "Downpayment" | t }}</span>
                 <div data-tour="quote-downpayment" role="group" [attr.aria-label]="'Quick downpayment presets' | t" class="grid grid-cols-2 gap-1.5">
                   <button
                     type="button"
                     (click)="applyDownpaymentPreset('tenPercent')"
-                    class="rounded-lg border px-2 py-2 text-xs font-semibold transition-colors"
-                    [ngClass]="isDownpaymentPreset('tenPercent') ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                    class="rounded-lg border px-2 py-2.5 text-sm font-semibold transition-colors"
+                    [ngClass]="isDownpaymentPreset('tenPercent') ? 'border-brand bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                   >
                     10%
                   </button>
                   <button
                     type="button"
                     (click)="applyDownpaymentPreset('fullLoan')"
-                    class="rounded-lg border px-2 py-2 text-xs font-semibold transition-colors"
-                    [ngClass]="isDownpaymentPreset('fullLoan') ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                    class="rounded-lg border px-2 py-2.5 text-sm font-semibold transition-colors"
+                    [ngClass]="isDownpaymentPreset('fullLoan') ? 'border-brand bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                   >
                     {{ minDownpayment() > 0 ? ('Minimum' | t) : ('Full Loan' | t) }}
                   </button>
@@ -467,7 +470,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                     <button
                       type="button"
                       (click)="downpaymentType.set('percent')"
-                      class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
+                      class="rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors"
                       [ngClass]="downpaymentType() === 'percent' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
                     >
                       %
@@ -475,7 +478,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                     <button
                       type="button"
                       (click)="downpaymentType.set('amount')"
-                      class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
+                      class="rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors"
                       [ngClass]="downpaymentType() === 'amount' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
                     >
                       {{ "Amt" | t }}
@@ -484,24 +487,24 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                 </div>
                 @if (minDownpayment() > 0) {
                   @if (downpaymentRaisedToMin()) {
-                    <div class="flex items-start gap-2 rounded-lg bg-[var(--warning)]/12 px-3 py-2 text-[11px] text-foreground">
-                      <app-icon name="alert-triangle" [size]="13" class="mt-px shrink-0 text-[var(--warning)]" />
+                    <div class="flex items-start gap-2 rounded-lg bg-[var(--warning)]/12 px-3 py-2 text-xs text-foreground">
+                      <app-icon name="alert-triangle" [size]="16" class="mt-px shrink-0 text-[var(--warning)]" />
                       <span>{{ "This car needs a" | t }} <strong>{{ fmt(minDownpayment()) }}</strong> {{ "minimum downpayment (rebate counts towards it) — raised to meet it." | t }}</span>
                     </div>
                   } @else {
-                    <span class="text-[11px] text-muted-foreground">Minimum downpayment for this car: {{ fmt(minDownpayment()) }} {{ "before rebate" | t }}</span>
+                    <span class="text-xs text-muted-foreground">Minimum downpayment for this car: {{ fmt(minDownpayment()) }} {{ "before rebate" | t }}</span>
                   }
                 }
               </div>
 
               <div class="flex items-center gap-3">
                 <div class="h-px flex-1 bg-border"></div>
-                <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "or" | t }}</span>
+                <span class="text-sm font-semibold text-foreground">{{ "or" | t }}</span>
                 <div class="h-px flex-1 bg-border"></div>
               </div>
 
               <div class="flex flex-col gap-2">
-                <label for="loanAmountInput" class="text-xs font-medium text-muted-foreground">{{ "Loan Amount (RM)" | t }}</label>
+                <label for="loanAmountInput" class="text-sm font-semibold text-foreground">{{ "Loan Amount (RM)" | t }}</label>
                 <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 focus-within:border-ring">
                   <span class="text-sm font-medium text-muted-foreground">{{ "RM" | t }}</span>
                   <input
@@ -517,17 +520,17 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                     class="w-full bg-transparent text-sm font-medium tabular outline-none"
                   />
                 </div>
-                <span class="text-[11px] text-muted-foreground">{{ "Rounds down to the nearest RM100 once you finish typing — any remainder goes to the downpayment." | t }}</span>
+                <span class="text-xs text-muted-foreground">{{ "Rounds down to the nearest RM100 once you finish typing — any remainder goes to the downpayment." | t }}</span>
               </div>
 
               <div class="flex items-center gap-3">
                 <div class="h-px flex-1 bg-border"></div>
-                <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "or" | t }}</span>
+                <span class="text-sm font-semibold text-foreground">{{ "or" | t }}</span>
                 <div class="h-px flex-1 bg-border"></div>
               </div>
 
               <div class="flex flex-col gap-2">
-                <label for="monthlyInstallmentInput" class="text-xs font-medium text-muted-foreground">{{ "Monthly Installment (RM)" | t }}</label>
+                <label for="monthlyInstallmentInput" class="text-sm font-semibold text-foreground">{{ "Monthly Installment (RM)" | t }}</label>
                 <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 focus-within:border-ring">
                   <span class="text-sm font-medium text-muted-foreground">{{ "RM" | t }}</span>
                   <input
@@ -543,16 +546,16 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                     class="w-full bg-transparent text-sm font-medium tabular outline-none"
                   />
                 </div>
-                <span class="text-[11px] text-muted-foreground">{{ 'Targets the {tenure} tenure and works backwards to the loan amount and deposit.' | t: { tenure: (tenureYears() + ' Yrs' | t) } }}</span>
+                <span class="text-xs text-muted-foreground">{{ 'Targets the {tenure} tenure and works backwards to the loan amount and deposit.' | t: { tenure: (tenureYears() + ' Yrs' | t) } }}</span>
               </div>
             </div>
 
             <!-- Tenure -->
             <div data-tour="quote-tenure" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm 2xl:flex-1">
-              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Tenure" | t }}</span>
+              <span class="text-sm font-semibold text-foreground">{{ "Tenure" | t }}</span>
               <div class="flex flex-col gap-2">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-medium text-muted-foreground">{{ "Tenure Selection" | t }}</span>
+                  <span class="text-sm font-semibold text-foreground">{{ "Tenure Selection" | t }}</span>
                   <span class="text-xs font-semibold tabular text-foreground">{{ tenureYears() }} {{ "Yrs" | t }}</span>
                 </div>
                 <div role="radiogroup" [attr.aria-label]="'Tenure (years)' | t" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
@@ -569,7 +572,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                     </button>
                   }
                 </div>
-                <span class="text-[11px] text-muted-foreground">{{ "Pick one tenure — this is what your monthly payment above is based on." | t }}</span>
+                <span class="text-xs text-muted-foreground">{{ "Pick one tenure — this is what your monthly payment above is based on." | t }}</span>
               </div>
             </div>
               </div>
@@ -589,7 +592,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                 @if (bundle()!.advisor.photoUrl; as photo) {
                   <img [src]="photo" alt="" class="size-24 shrink-0 rounded-full object-cover ring-1 ring-border sm:size-28 md:size-32" />
                 } @else {
-                  <span class="flex size-24 shrink-0 items-center justify-center rounded-full text-3xl font-bold text-white/90 ring-1 ring-border sm:size-28 md:size-32" [style.background]="avatarGradient">
+                  <span class="flex size-24 shrink-0 items-center justify-center rounded-full text-3xl font-bold ring-1 ring-border sm:size-28 md:size-32 logo-chip">
                     {{ advisorInitials() }}
                   </span>
                 }
@@ -597,7 +600,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                   <h1 class="text-balance text-xl font-semibold tracking-tight md:text-2xl">{{ bundle()!.advisor.name }}</h1>
                   <div class="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 md:justify-start">
                     @if (bundle()!.advisor.role; as role) {
-                      <span class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">{{ role }}</span>
+                      <span class="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-medium text-brand">{{ role }}</span>
                     }
                     @if (!callHref() && bundle()!.advisor.phoneDisplay) {
                       <span class="text-sm tabular text-muted-foreground">{{ formatPhone(bundle()!.advisor.phoneDisplay) }}</span>
@@ -610,7 +613,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                 <!-- Get in touch: two contact tiles, a panel of its own on the right on wider screens -->
                 @if (callHref() || profileWhatsAppHref()) {
                   <div class="flex w-full flex-col gap-2.5 md:w-64 md:shrink-0 md:self-stretch md:justify-center md:border-l md:border-border md:pl-6">
-                    <span class="hidden text-[11px] font-semibold uppercase tracking-wide text-muted-foreground md:block">{{ "Get in touch" | t }}</span>
+                    <span class="hidden text-sm font-semibold text-foreground md:block">{{ "Get in touch" | t }}</span>
                     <div class="grid gap-2.5 sm:grid-cols-2 md:grid-cols-1">
                       @if (profileWhatsAppHref(); as href) {
                         <a
@@ -624,25 +627,25 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                             <app-brand-icon name="whatsapp" [size]="20" />
                           </span>
                           <span class="flex min-w-0 flex-1 flex-col leading-tight">
-                            <span class="text-[11px] font-medium text-white/80">{{ "Chat on" | t }}</span>
+                            <span class="text-xs font-medium text-white/80">{{ "Chat on" | t }}</span>
                             <span class="truncate text-sm font-bold">WhatsApp</span>
                           </span>
-                          <app-icon name="arrow-up-right" [size]="15" class="hidden shrink-0 opacity-70 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100 sm:block" />
+                          <app-icon name="arrow-up-right" [size]="18" class="hidden shrink-0 opacity-70 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100 sm:block" />
                         </a>
                       }
                       @if (callHref(); as href) {
                         <a
                           [href]="href"
-                          class="group flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-2.5 pr-3 text-left text-foreground transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent"
+                          class="group flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-2.5 pr-3 text-left text-foreground transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:bg-accent"
                         >
-                          <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25">
-                            <app-icon name="phone" [size]="18" />
+                          <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md ">
+                            <app-icon name="phone" [size]="20" />
                           </span>
                           <span class="flex min-w-0 flex-1 flex-col leading-tight">
-                            <span class="text-[11px] font-medium text-muted-foreground">{{ "Call me" | t }}</span>
+                            <span class="text-sm font-semibold text-foreground">{{ "Call me" | t }}</span>
                             <span class="truncate text-sm font-bold tabular">{{ bundle()!.advisor.phoneDisplay ? formatPhone(bundle()!.advisor.phoneDisplay) : ('Call' | t) }}</span>
                           </span>
-                          <app-icon name="arrow-up-right" [size]="15" class="hidden shrink-0 text-muted-foreground transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground sm:block" />
+                          <app-icon name="arrow-up-right" [size]="18" class="hidden shrink-0 text-muted-foreground transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground sm:block" />
                         </a>
                       }
                     </div>
@@ -658,11 +661,11 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
               @if (showroom(); as s) {
                 <section class="flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm md:col-span-2">
                   <div class="flex items-start gap-3">
-                    <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <app-icon name="map-pin" [size]="18" />
+                    <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
+                      <app-icon name="map-pin" [size]="20" />
                     </span>
                     <div class="flex min-w-0 flex-col gap-1">
-                      <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Visit the Showroom" | t }}</span>
+                      <span class="text-sm font-semibold text-foreground">{{ "Visit the Showroom" | t }}</span>
                       <span class="text-sm font-semibold">{{ s.name || ('Showroom' | t) }}</span>
                       @if (s.address; as address) {
                         <p class="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{{ address }}</p>
@@ -677,7 +680,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                         rel="noopener noreferrer"
                         class="flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 text-sm font-medium transition-colors hover:bg-accent"
                       >
-                        <app-brand-icon name="googlemaps" [size]="16" class="text-[#4285F4]" />
+                        <app-brand-icon name="googlemaps" [size]="18" class="text-[#4285F4]" />
                         {{ "Google Maps" | t }}
                       </a>
                     }
@@ -688,7 +691,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                         rel="noopener noreferrer"
                         class="flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 text-sm font-medium transition-colors hover:bg-accent"
                       >
-                        <app-brand-icon name="waze" [size]="16" class="text-[#33CCFF]" />
+                        <app-brand-icon name="waze" [size]="18" class="text-[#33CCFF]" />
                         {{ "Waze" | t }}
                       </a>
                     }
@@ -698,7 +701,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
 
               @if (socials().length) {
                 <section class="flex flex-col justify-center gap-4 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm">
-                  <span class="text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Follow Me" | t }}</span>
+                  <span class="text-center text-sm font-semibold text-foreground">{{ "Follow Me" | t }}</span>
                   <div class="flex flex-wrap justify-center gap-x-2 gap-y-4">
                     @for (s of socials(); track s.id) {
                       <a
@@ -709,13 +712,52 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                         class="group flex w-[4.5rem] flex-col items-center gap-1.5 rounded-xl p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <app-brand-icon [name]="s.id" [size]="52" [tile]="true" class="transition-transform group-hover:scale-105 group-active:scale-95" />
-                        <span class="w-full truncate text-center text-[11px] font-medium text-muted-foreground group-hover:text-foreground">{{ s.label | t }}</span>
+                        <span class="w-full truncate text-center text-sm font-semibold text-foreground group-hover:text-foreground">{{ s.label | t }}</span>
                       </a>
                     }
                   </div>
                 </section>
               }
             </div>
+          }
+
+          <!-- A few of the advisor's cars, so the link opens on cars and prices, not just a contact card.
+               A tap starts a quote for that car. -->
+          @if (featuredModels().length) {
+            <section class="flex flex-col gap-3">
+              <div class="flex items-baseline justify-between gap-3">
+                <h2 class="text-base font-semibold tracking-tight">{{ "Cars I sell" | t }}</h2>
+                <button type="button" (click)="selectSection('cars')" class="flex items-center gap-1 text-sm font-semibold text-brand hover:underline">
+                  {{ "See all" | t }}
+                  <app-icon name="chevron-right" [size]="16" />
+                </button>
+              </div>
+              <div class="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+                @for (f of featuredModels(); track f.key) {
+                  <button
+                    type="button"
+                    (click)="quoteThisCar(f.car)"
+                    class="group flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left text-card-foreground shadow-sm transition-shadow hover:shadow-md"
+                  >
+                    <span class="flex aspect-[16/10] items-center justify-center overflow-hidden bg-gradient-to-b from-white to-[oklch(0.9_0.005_280)]">
+                      @if (f.car.photoUrl) {
+                        <img [src]="f.car.photoUrl | carShadow" [alt]="vehicleTitle(f.brand, f.model)" loading="lazy" class="h-full min-h-0 w-full object-contain p-2.5 transition-transform duration-300 group-hover:scale-[1.03]" />
+                      } @else {
+                        <app-icon name="car" [size]="28" class="text-muted-foreground" />
+                      }
+                    </span>
+                    <span class="flex flex-col gap-0.5 p-3">
+                      <span class="truncate text-sm font-bold">{{ vehicleTitle(f.brand, f.model) }}</span>
+                      <span class="text-xs text-muted-foreground">{{ "from" | t }} <span class="font-semibold tabular text-foreground">{{ fmt(f.fromPrice) }}</span></span>
+                      <span class="mt-1.5 flex items-center gap-1 text-xs font-semibold text-brand">
+                        <app-icon name="calculator" [size]="14" />
+                        {{ "Get my monthly" | t }}
+                      </span>
+                    </span>
+                  </button>
+                }
+              </div>
+            </section>
           }
 
           <!-- Shortcuts to the other sections -->
@@ -726,15 +768,15 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
               class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
             >
               <span class="flex items-center gap-3">
-                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <app-icon name="calculator" [size]="18" />
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
+                  <app-icon name="calculator" [size]="20" />
                 </span>
                 <span class="flex flex-col gap-0.5">
                   <span class="text-sm font-semibold">{{ "Build your own quote" | t }}</span>
                   <span class="text-xs text-muted-foreground">{{ "See your monthly instalment in under a minute." | t }}</span>
                 </span>
               </span>
-              <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground" />
+              <app-icon name="chevron-right" [size]="20" class="shrink-0 text-muted-foreground" />
             </button>
 
             <button
@@ -743,15 +785,15 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
               class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
             >
               <span class="flex items-center gap-3">
-                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <app-icon name="wallet" [size]="18" />
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
+                  <app-icon name="wallet" [size]="20" />
                 </span>
                 <span class="flex flex-col gap-0.5">
                   <span class="text-sm font-semibold">{{ "Find a car for your budget" | t }}</span>
                   <span class="text-xs text-muted-foreground">{{ "Tell us your monthly and see the deposit for every car." | t }}</span>
                 </span>
               </span>
-              <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground" />
+              <app-icon name="chevron-right" [size]="20" class="shrink-0 text-muted-foreground" />
             </button>
 
             <button
@@ -760,15 +802,15 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
               class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
             >
               <span class="flex items-center gap-3">
-                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <app-icon name="car" [size]="18" />
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
+                  <app-icon name="car" [size]="20" />
                 </span>
                 <span class="flex flex-col gap-0.5">
                   <span class="text-sm font-semibold">{{ "Browse cars & brochures" | t }}</span>
                   <span class="text-xs text-muted-foreground">{{ "See every model and open its brochure." | t }}</span>
                 </span>
               </span>
-              <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground" />
+              <app-icon name="chevron-right" [size]="20" class="shrink-0 text-muted-foreground" />
             </button>
           </div>
 
@@ -783,10 +825,10 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
       @if (section() === 'budget') {
         <div class="mx-auto flex w-full max-w-5xl flex-col p-4 pb-28 md:p-6 md:pb-28 xl:py-8">
           <div class="flex flex-col gap-1 pb-5">
-            <h1 class="text-xl font-bold tracking-tight">{{ "Find a car for your budget" | t }}</h1>
+            <h1 class="text-base font-semibold tracking-tight">{{ "Find a car for your budget" | t }}</h1>
             <p class="text-sm text-muted-foreground">{{ "Start from the monthly you are comfortable with, and see the deposit for every car." | t }}</p>
           </div>
-          <app-budget-finder [vehicles]="budgetVehicles()" [brands]="carsBrands()" [primaryBrand]="bundle()!.defaultBrand" [rules]="budgetRules()" [doubtHref]="qualifyWhatsAppHref()" (pick)="quoteFromBudget($event)" (searched)="activity?.record('budget_used', null, $event)" />
+          <app-budget-finder [vehicles]="budgetVehicles()" [brands]="carsBrands()" [primaryBrand]="bundle()!.defaultBrand" [rules]="budgetRules()" [doubtHref]="qualifyWhatsAppHref()" stickyBottom="bottom-24" (pick)="quoteFromBudget($event)" (searched)="activity?.record('budget_used', null, $event)" />
         </div>
       }
 
@@ -795,7 +837,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
       @if (section() === 'compare') {
         <div class="mx-auto flex w-full max-w-5xl flex-col p-4 pb-28 md:p-6 md:pb-28 xl:py-8">
           <div class="flex flex-col gap-1 pb-5">
-            <h1 class="text-xl font-bold tracking-tight">{{ "Compare cars" | t }}</h1>
+            <h1 class="text-base font-semibold tracking-tight">{{ "Compare cars" | t }}</h1>
             <p class="text-sm text-muted-foreground">{{ "Choose up to 3 cars. Every car is quoted on the same loan." | t }}</p>
           </div>
 
@@ -836,7 +878,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                       <option [ngValue]="y">{{ y }} {{ (y === 1 ? "year" : "years") | t }}</option>
                     }
                   </select>
-                  <app-icon name="chevron-down" [size]="14" class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <app-icon name="chevron-down" [size]="18" class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 </div>
               </div>
               <div class="flex flex-col gap-1.5">
@@ -852,7 +894,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                       <option [ngValue]="o.value">{{ o.label | t }}</option>
                     }
                   </select>
-                  <app-icon name="chevron-down" [size]="14" class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <app-icon name="chevron-down" [size]="18" class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 </div>
               </div>
             </div>
@@ -879,11 +921,11 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                   (click)="whatsAppComparison()"
                   class="flex items-center justify-center gap-2 rounded-full bg-[var(--success)] px-6 py-3 text-sm font-semibold text-[var(--success-foreground)] transition-transform active:scale-95"
                 >
-                  <app-icon name="message-circle" [size]="16" />
+                  <app-icon name="message-circle" [size]="18" />
                   {{ "WhatsApp me about these cars" | t }}
                 </button>
               }
-              <p class="max-w-md text-pretty text-[11px] text-muted-foreground">{{ "Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here." | t }}</p>
+              <p class="max-w-md text-pretty text-xs text-muted-foreground">{{ "Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here." | t }}</p>
             </div>
           }
         </div>
@@ -894,7 +936,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
       @if (section() === 'cars') {
         <div class="mx-auto flex w-full max-w-7xl flex-col gap-5 p-4 pb-28 md:p-6 md:pb-28 xl:py-8">
           <div class="flex flex-col gap-1">
-            <h1 class="text-xl font-bold tracking-tight">{{ "Cars & brochures" | t }}</h1>
+            <h1 class="text-base font-semibold tracking-tight">{{ "Cars & brochures" | t }}</h1>
             <p class="text-sm text-muted-foreground">{{ "Browse the lineup, open a brochure, or get a quote for any car." | t }}</p>
           </div>
 
@@ -906,8 +948,8 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                   role="tab"
                   [attr.aria-selected]="carsBrand() === b"
                   (click)="selectCarsBrand(b)"
-                  class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
-                  [ngClass]="carsBrand() === b ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                  class="shrink-0 rounded-full border px-3 py-2 text-sm font-semibold transition-colors"
+                  [ngClass]="carsBrand() === b ? 'border-brand bg-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                 >
                   {{ b }}
                 </button>
@@ -915,73 +957,88 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
             </div>
           }
 
-          @for (g of carGroupsForBrowse(); track g.key) {
-            <section class="flex flex-col gap-3">
-              <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <h2 class="text-lg font-bold tracking-tight">{{ vehicleTitle(g.brand, g.model) }}</h2>
-                <span class="text-xs text-muted-foreground">
-                  {{ g.cars.length }} {{ g.cars.length === 1 ? 'variant' : 'variants' }} · from
-                  <span class="font-semibold text-foreground tabular">{{ fmt(g.fromPrice) }}</span>
-                </span>
-              </div>
-              <div class="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-2 md:mx-0 md:scroll-px-0 md:px-0">
-                @for (v of g.cars; track v.id) {
-                  <article class="w-[44%] shrink-0 snap-start sm:w-[30%] lg:w-[220px] flex flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
-                    <div class="relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-gradient-to-b from-white to-[oklch(0.9_0.005_280)]">
-                      @if (v.photoUrl) {
-                        <img [src]="v.photoUrl | carShadow" [alt]="modelVariantLabel(v.model, v.variant)" loading="lazy" class="h-full w-full object-contain p-2.5" />
-                      } @else {
-                        <app-icon name="car" [size]="28" class="text-muted-foreground" />
-                      }
-                      @if (browseRebate(v) > 0) {
-                        <span class="absolute right-2 top-2 rounded-md bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground shadow">
-                          {{ 'Rebate {amount}' | t: { amount: fmt(browseRebate(v)) } }}
-                        </span>
-                      }
+          @for (run of carsRuns(); track run.key) {
+            @if (run.kind === 'model') {
+              <section class="flex flex-col gap-3">
+                <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <h2 class="text-base font-semibold tracking-tight">{{ vehicleTitle(run.group.brand, run.group.model) }}</h2>
+                  <span class="text-xs text-muted-foreground">
+                    {{ run.group.cars.length }} {{ 'variants' | t }} · {{ 'from' | t }}
+                    <span class="font-semibold text-foreground tabular">{{ fmt(run.group.fromPrice) }}</span>
+                  </span>
+                </div>
+                <!-- One sideways row per model: the next card peeks in, with an arrow when more are hidden -->
+                <app-scroll-row>
+                  @for (v of run.group.cars; track v.id) {
+                    <div class="grid w-[42%] shrink-0 snap-start sm:w-[30%] lg:w-[calc((100%-2.25rem)/4)] 2xl:w-[calc((100%-3rem)/5)]">
+                      <ng-container *ngTemplateOutlet="browseCard; context: { $implicit: v, full: false }" />
                     </div>
-                    <div class="flex flex-1 flex-col gap-2.5 p-3">
-                      <div class="flex min-w-0 flex-col gap-1">
-                        <span class="truncate text-sm font-bold">{{ variantText(v.variant) || v.model }}</span>
-                        <span class="text-xs text-muted-foreground"><span class="font-semibold text-foreground tabular">{{ fmt(v.price) }}</span> {{ "OTR" | t }}</span>
-                      </div>
-                      <div class="mt-auto flex gap-2">
-                        @if (v.brochureUrl) {
-                          <a
-                            [href]="v.brochureUrl"
-                            target="_blank"
-                            rel="noopener"
-                            (click)="activity?.record('brochure_opened', v.id)"
-                            class="flex flex-1 items-center justify-center gap-1 rounded-lg bg-muted py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
-                          >
-                            <app-icon name="file-text" [size]="13" />
-                            {{ "Brochure" | t }}
-                          </a>
-                        }
-                        <button
-                          type="button"
-                          (click)="quoteThisCar(v)"
-                          class="flex flex-1 items-center justify-center gap-1 rounded-lg bg-primary/12 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
-                        >
-                          <app-icon name="calculator" [size]="13" />
-                          {{ "Quote" | t }}
-                        </button>
-                      </div>
-                      @if (testDriveOn()) {
-                        <button
-                          type="button"
-                          (click)="openTestDrive(v)"
-                          class="flex items-center justify-center gap-1 rounded-lg border border-border py-1.5 text-xs font-semibold transition-colors hover:bg-accent"
-                        >
-                          <app-icon name="car" [size]="13" />
-                          {{ "Book test drive" | t }}
-                        </button>
-                      }
-                    </div>
-                  </article>
+                  }
+                </app-scroll-row>
+              </section>
+            } @else {
+              <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+                @for (v of run.cars; track v.id) {
+                  <ng-container *ngTemplateOutlet="browseCard; context: { $implicit: v, full: true }" />
                 }
               </div>
-            </section>
+            }
           }
+
+          <ng-template #browseCard let-v let-full="full">
+          <article class="flex flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
+            <div class="relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-gradient-to-b from-white to-[oklch(0.9_0.005_280)]">
+              @if (v.photoUrl) {
+                <img [src]="v.photoUrl | carShadow" [alt]="modelVariantLabel(v.model, v.variant)" loading="lazy" class="h-full w-full object-contain p-2.5" />
+              } @else {
+                <app-icon name="car" [size]="28" class="text-muted-foreground" />
+              }
+              @if (browseRebate(v) > 0) {
+                <span class="absolute right-2 top-2 rounded-md bg-primary px-1.5 py-0.5 text-xs font-bold text-primary-foreground shadow">
+                  {{ 'Rebate {amount}' | t: { amount: fmt(browseRebate(v)) } }}
+                </span>
+              }
+            </div>
+            <div class="flex flex-1 flex-col gap-2.5 p-3">
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="truncate text-sm font-bold">{{ full ? modelVariantLabel(v.model, v.variant) : (variantText(v.variant) || v.model) }}</span>
+                <span class="text-xs text-muted-foreground"><span class="font-semibold text-foreground tabular">{{ fmt(v.price) }}</span> {{ "OTR" | t }}</span>
+              </div>
+              <div class="mt-auto flex gap-2">
+                @if (v.brochureUrl) {
+                  <a
+                    [href]="v.brochureUrl"
+                    target="_blank"
+                    rel="noopener"
+                    (click)="activity?.record('brochure_opened', v.id)"
+                    class="flex flex-1 items-center justify-center gap-1 rounded-lg bg-muted py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+                  >
+                    <app-icon name="file-text" [size]="16" />
+                    {{ "Brochure" | t }}
+                  </a>
+                }
+                <button
+                  type="button"
+                  (click)="quoteThisCar(v)"
+                  class="flex flex-1 items-center justify-center gap-1 rounded-lg bg-brand-soft py-2 text-sm font-semibold text-brand transition-colors hover:bg-brand-soft"
+                >
+                  <app-icon name="calculator" [size]="16" />
+                  {{ "Quote" | t }}
+                </button>
+              </div>
+              @if (testDriveOn()) {
+                <button
+                  type="button"
+                  (click)="openTestDrive(v)"
+                  class="flex items-center justify-center gap-1 rounded-lg border border-border py-2 text-sm font-semibold transition-colors hover:bg-accent"
+                >
+                  <app-icon name="car" [size]="16" />
+                  {{ "Book test drive" | t }}
+                </button>
+              }
+            </div>
+          </article>
+          </ng-template>
         </div>
       }
       </div>
@@ -997,18 +1054,18 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                 <span class="text-sm text-muted-foreground">{{ vehicleTitle(car.brand, modelVariantLabel(car.model, car.variant)) }}</span>
               </div>
               <button type="button" (click)="testDriveCar.set(null)" [attr.aria-label]="'Close' | t" class="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent">
-                <app-icon name="x" [size]="16" />
+                <app-icon name="x" [size]="18" />
               </button>
             </div>
             <div class="flex flex-col gap-2">
-              <span class="text-xs font-medium text-muted-foreground">{{ "When suits you? (optional)" | t }}</span>
+              <span class="text-sm font-semibold text-foreground">{{ "When suits you? (optional)" | t }}</span>
               <div class="flex flex-wrap gap-1.5">
                 @for (w of testDriveWhens; track w.id) {
                   <button
                     type="button"
                     (click)="testDriveWhen.set(testDriveWhen() === w.id ? null : w.id)"
-                    class="rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
-                    [ngClass]="testDriveWhen() === w.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent'"
+                    class="rounded-full border px-3 py-2 text-sm font-semibold transition-colors"
+                    [ngClass]="testDriveWhen() === w.id ? 'border-brand bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent'"
                   >
                     {{ w.label | t }}
                   </button>
@@ -1020,7 +1077,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
               (click)="sendTestDrive(car)"
               class="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-sm font-semibold text-white shadow-sm transition-[filter] hover:brightness-95"
             >
-              <app-brand-icon name="whatsapp" [size]="18" />
+              <app-brand-icon name="whatsapp" [size]="20" />
               {{ "Send on WhatsApp" | t }}
             </button>
           </div>
@@ -1030,7 +1087,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
       <!-- Mobile/tablet bottom tab bar -->
       <nav
         [attr.aria-label]="'Page sections' | t"
-        class="glass fixed inset-x-0 bottom-0 z-40 border-t border-border pb-[env(safe-area-inset-bottom)] xl:hidden"
+        class="glass fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)] xl:hidden"
       >
         <div role="tablist" class="mx-auto flex max-w-md">
           @for (t of sections; track t.id) {
@@ -1039,10 +1096,10 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
               role="tab"
               [attr.aria-selected]="section() === t.id"
               (click)="selectSection(t.id)"
-              class="flex flex-1 flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-medium transition-colors"
-              [ngClass]="section() === t.id ? 'text-primary' : 'text-muted-foreground'"
+              class="flex min-w-0 flex-1 flex-col items-center gap-1 pb-2 pt-2 text-xs font-semibold transition-colors"
+              [ngClass]="section() === t.id ? 'text-[var(--shell-accent)]' : 'text-sidebar-muted'"
             >
-              <span class="flex h-8 w-14 items-center justify-center rounded-full transition-all duration-300" [ngClass]="section() === t.id ? 'logo-chip scale-105' : ''">
+              <span class="flex h-8 w-14 items-center justify-center rounded-full transition-all duration-300" [ngClass]="section() === t.id ? 'logo-chip' : ''">
                 <app-icon [name]="t.icon" [size]="20" />
               </span>
               {{ t.label | t }}
@@ -1058,14 +1115,14 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
             <div class="flex items-center gap-3 border-b border-border p-4">
               <div class="flex flex-col">
                 <span class="text-sm font-semibold">{{ "Insurance Breakdown" | t }}</span>
-                <span class="text-[11px] text-muted-foreground">{{ vehicleTitle(selectedVehicle().brand, modelVariantLabel(selectedVehicle().model, selectedVehicle().variant)) }}</span>
+                <span class="text-xs text-muted-foreground">{{ vehicleTitle(selectedVehicle().brand, modelVariantLabel(selectedVehicle().model, selectedVehicle().variant)) }}</span>
               </div>
               <button type="button" (click)="closeInsuranceBreakdown()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                <app-icon name="x" [size]="16" />
+                <app-icon name="x" [size]="18" />
               </button>
             </div>
             <div class="flex flex-col gap-3 overflow-y-auto p-4">
-              <p class="text-[11px] text-muted-foreground">{{ "View only — set by your advisor." | t }}</p>
+              <p class="text-xs text-muted-foreground">{{ "View only — set by your advisor." | t }}</p>
               <div class="overflow-hidden rounded-lg border border-border text-xs">
                 <div class="flex items-center justify-between bg-muted/40 px-3 py-1.5 font-semibold">
                   <span>{{ "Premium Pricing" | t }}</span>
@@ -1127,9 +1184,9 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                     </div>
                   </div>
                 }
-                <div class="flex items-center justify-between bg-primary/10 px-3 py-2">
-                  <span class="font-semibold text-primary">{{ "Total Due" | t }}</span>
-                  <span class="font-bold tabular text-primary">{{ insuranceBreakdown().totalDue.toFixed(2) }}</span>
+                <div class="flex items-center justify-between bg-brand-soft px-3 py-2">
+                  <span class="font-semibold text-brand">{{ "Total Due" | t }}</span>
+                  <span class="font-bold tabular text-brand">{{ insuranceBreakdown().totalDue.toFixed(2) }}</span>
                 </div>
               </div>
             </div>
@@ -1198,6 +1255,30 @@ export class PublicQuoteComponent implements OnInit {
     return groups;
   });
 
+  /** Up to 4 models of the Primary Brand for the Profile page, each starting from its cheapest variant. */
+  featuredModels = computed(() =>
+    this.carGroupsForBrowse()
+      .slice(0, 4)
+      .map((g) => ({ ...g, car: g.cars.reduce((a, b) => (b.price < a.price ? b : a)) })),
+  );
+
+  /** The Cars section laid out: a model with several variants keeps its own titled, swipeable row;
+   *  one-variant models next to each other share one grid instead of a lonely card per row. */
+  carsRuns = computed(() => {
+    type Group = { key: string; brand: string; model: string; cars: Vehicle[]; fromPrice: number };
+    const runs: ({ kind: 'model'; key: string; group: Group } | { kind: 'singles'; key: string; cars: Vehicle[] })[] = [];
+    for (const g of this.carGroupsForBrowse()) {
+      if (g.cars.length > 1) {
+        runs.push({ kind: 'model', key: g.key, group: g });
+        continue;
+      }
+      const last = runs[runs.length - 1];
+      if (last?.kind === 'singles') last.cars.push(g.cars[0]);
+      else runs.push({ kind: 'singles', key: 'singles:' + g.key, cars: [g.cars[0]] });
+    }
+    return runs;
+  });
+
   /** The base rebate for this variant's newest model year — the same rebate the Quote applies
    *  (Additional Rebate never applies on the public link). */
   browseRebate(v: Vehicle): number {
@@ -1220,17 +1301,10 @@ export class PublicQuoteComponent implements OnInit {
     }
     this.section.set(id);
     window.scrollTo({ top: 0, behavior: changed ? 'instant' : 'smooth' });
-    // First visit to the Quote tab on this device gets the walkthrough.
-    if (id === 'quote' && changed && !this.tour.hasSeen('quote')) {
-      // Only if they're still on Quote once the delay is up — not over whichever section they moved to.
-      setTimeout(() => {
-        if (this.section() === 'quote') void this.startTour();
-      }, 400);
-    }
+    // No walkthrough pops up by itself: a customer came for a price, and the page already shows
+    // one. The (i) button next to Reset starts it for anyone who wants it.
   }
 
-  avatarGradient =
-    'radial-gradient(circle at 30% 20%, var(--primary), transparent 70%), linear-gradient(145deg, var(--primary), color-mix(in oklch, var(--primary), black 55%))';
 
   callHref = computed(() => {
     const advisor = this.bundle()?.advisor;
@@ -1282,6 +1356,12 @@ export class PublicQuoteComponent implements OnInit {
    *  whichever account is actually logged in, if any, in this same browser tab). */
   vehicles = signal<Vehicle[]>([]);
   brands = computed(() => Array.from(new Set(this.vehicles().map((v) => v.brand))));
+  /** The brand chips: the advisor's Primary Brand first, then the rest in catalog order. */
+  chipBrands = computed(() => {
+    const all = this.brands();
+    const first = this.bundle()?.defaultBrand;
+    return first && all.includes(first) ? [first, ...all.filter((b) => b !== first)] : all;
+  });
 
   selectedBrand = signal('');
   selectedModelName = signal('');
@@ -1593,6 +1673,14 @@ export class PublicQuoteComponent implements OnInit {
   private compareTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private host: ElementRef) {
+    // The page takes the advisor's colour; leaving it puts back the signed-in account's own.
+    effect(() => {
+      const bundle = this.bundle();
+      if (bundle) applyAppColour(bundle.salesDefaults.posterAccent);
+    });
+    const ownSettings = inject(SettingsService);
+    inject(DestroyRef).onDestroy(() => applyAppColour(ownSettings.settings().salesDefaults.posterAccent));
+
     // Activity: a different car chosen (not the one the link opens on)
     effect(() => {
       const id = this.selectedVehicle().id;
@@ -1740,7 +1828,7 @@ export class PublicQuoteComponent implements OnInit {
         doneLabel: this.i18n.t('Got it'),
       },
     ];
-    const labels = { next: this.i18n.t('Next'), back: this.i18n.t('Back'), skip: this.i18n.t('Skip') };
+    const labels = { next: this.i18n.t('Next'), back: this.i18n.t('Back'), skip: this.i18n.t('Skip'), step: this.i18n.t('Step {n} of {total}') };
     return this.tour.start('quote', steps.map((s) => ({ ...s, labels })));
   }
 
@@ -1752,7 +1840,6 @@ export class PublicQuoteComponent implements OnInit {
     return {
       lang,
       accent: this.bundle()!.salesDefaults.posterAccent,
-      frame: this.bundle()!.salesDefaults.posterFrame,
       brand: vehicle.brand,
       modelTitle: modelVariantLabel(vehicle.model, vehicle.variant),
       year: this.modelYear(),
@@ -1790,7 +1877,6 @@ export class PublicQuoteComponent implements OnInit {
     if (!canvas) return;
     const generation = ++this.drawGeneration;
     await classicTemplate.render(canvas, data, PublicQuoteComponent.PREVIEW_SCALE, () => generation !== this.drawGeneration);
-    if (generation === this.drawGeneration) applyPosterFrame(canvas, data.frame, data.lang, PublicQuoteComponent.PREVIEW_SCALE);
   }
 
   /** No name/phone form at all — the customer's own WhatsApp number reaches the SA automatically

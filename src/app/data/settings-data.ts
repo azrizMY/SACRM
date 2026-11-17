@@ -15,16 +15,14 @@ export type SalesDefaults = {
   defaultRateType: RateType;
   /** Language of the app's own screens (Settings → Language). Absent = English. */
   uiLanguage?: Lang;
-  /** Language of everything customers see — quote posters, offer sheets and the customer link —
+  /** Language of everything customers see — quote posters and the customer link —
    *  chosen separately from the UI language. Absent = English. */
   posterLanguage?: Lang;
   /** Language of every WhatsApp message — what the advisor sends customers and what customers send
    *  them from the quote link. Absent = same as posterLanguage. */
   whatsappLanguage?: Lang;
-  /** Colour of every poster, offer sheet and the Live Screen (an id from POSTER_ACCENTS). Absent = Redline red. */
+  /** Colour of every poster and the Live Screen (an id from POSTER_ACCENTS). Absent = Redline red. */
   posterAccent?: string;
-  /** Festive frame around every poster and offer sheet (an id from POSTER_FRAMES). Absent = none. */
-  posterFrame?: string;
   /** Whether a new quote starts with Additional Rebate ticked (for cars that have one). Optional —
    *  absent means ticked, the original behaviour. */
   additionalRebateByDefault?: boolean;
@@ -100,6 +98,8 @@ export type DashboardTarget = {
 export type Onboarding = {
   /** Copied a customer link, or copied/shared/downloaded a quote poster. */
   quoteShared?: boolean;
+  /** Opened Price Settings at least once — ticks "Check your prices and rates" in First steps. */
+  pricesReviewed?: boolean;
   /** Closed the checklist before finishing it. */
   hidden?: boolean;
   /** When Quote Links → Activity was last opened — newer visits show as a badge on the menu. */

@@ -32,7 +32,7 @@ const MAX_ZOOM = 4;
             aria-label="Close"
             class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
-            <app-icon name="x" [size]="16" />
+            <app-icon name="x" [size]="18" />
           </button>
         </div>
 
@@ -61,7 +61,7 @@ const MAX_ZOOM = 4;
           </div>
 
           <div class="flex w-full items-center gap-2">
-            <app-icon name="zoom-out" [size]="15" class="shrink-0 text-muted-foreground" />
+            <app-icon name="zoom-out" [size]="18" class="shrink-0 text-muted-foreground" />
             <input
               type="range"
               min="1"
@@ -71,16 +71,16 @@ const MAX_ZOOM = 4;
               (ngModelChange)="setZoom($event)"
               class="h-1.5 w-full accent-primary"
             />
-            <app-icon name="zoom-in" [size]="15" class="shrink-0 text-muted-foreground" />
+            <app-icon name="zoom-in" [size]="18" class="shrink-0 text-muted-foreground" />
           </div>
-          <span class="text-[11px] text-muted-foreground">Drag to move &middot; pinch or use the slider to zoom</span>
+          <span class="text-xs text-muted-foreground">Drag to move &middot; pinch or use the slider to zoom</span>
         </div>
 
         <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-          <button type="button" (click)="cancel.emit()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+          <button type="button" (click)="cancel.emit()" class="rounded-md px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
             Cancel
           </button>
-          <button type="button" (click)="save()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+          <button type="button" (click)="save()" class="rounded-md bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
             Use Photo
           </button>
         </div>

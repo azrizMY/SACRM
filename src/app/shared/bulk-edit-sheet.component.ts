@@ -9,9 +9,18 @@ export type BulkColumn = {
   label: string;
   /** 'edit' = a number input; 'readonly' = shown for reference; 'derived' = worked out live from the row. */
   kind: 'edit' | 'readonly' | 'derived';
+  /** A few words under the heading saying what the column does (e.g. "Always taken off"). */
+  hint?: string;
+  /** Edit columns: a unit shown inside the box (e.g. "RM"); an empty box then reads as 0. */
+  prefix?: string;
   /** Shown as RM with thousands separators (no decimals). */
   money?: boolean;
   derive?: (values: BulkValues) => number | null;
+  /** Derived columns: a small second line under the figure (e.g. "−RM 2,000"), or null for none. */
+  note?: (values: BulkValues) => string | null;
+  /** Derived columns: 'success' (green, the default) or 'plain' — a figure that's bold only when
+   *  the note says something changed it. */
+  tone?: 'success' | 'plain';
 };
 
 export type BulkRow = {
@@ -39,6 +48,13 @@ export type BulkSave = { id: string; values: BulkValues }[];
   selector: 'app-bulk-edit-sheet',
   standalone: true,
   imports: [CommonModule, IconComponent],
+  styles: `
+    /* A row with unsaved edits: a red edge on the left and a faint tint, like the draft. */
+    .row-changed {
+      box-shadow: inset 3px 0 0 var(--primary);
+      background-color: color-mix(in srgb, var(--brand-soft) 45%, transparent);
+    }
+  `,
   template: `
     <div class="fixed inset-0 z-[60] flex flex-col bg-background text-foreground" role="dialog" [attr.aria-label]="title">
       <!-- Header -->
@@ -46,11 +62,11 @@ export type BulkSave = { id: string; values: BulkValues }[];
         <div class="flex min-w-0 flex-1 flex-col">
           <span class="truncate text-base font-bold">{{ title }}</span>
           @if (subtitle) {
-            <span class="truncate text-xs text-muted-foreground">{{ subtitle }}</span>
+            <span class="text-xs text-muted-foreground">{{ subtitle }}</span>
           }
         </div>
         <button type="button" (click)="requestClose()" aria-label="Close" class="flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-          <app-icon name="x" [size]="18" />
+          <app-icon name="x" [size]="20" />
         </button>
       </div>
 
@@ -61,36 +77,56 @@ export type BulkSave = { id: string; values: BulkValues }[];
             <p class="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">{{ note }}</p>
           }
           <!-- Column headings (table layout) -->
-          <div class="sticky -top-4 z-10 hidden gap-3 bg-background py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground md:-top-6 md:grid" [style.grid-template-columns]="gridColumns()">
+          <div class="sticky -top-4 z-10 hidden items-end gap-3 bg-background px-3 py-2 text-sm font-semibold text-muted-foreground md:-top-6 md:grid" [style.grid-template-columns]="gridColumns()">
             @if (selectable) {
               <span></span>
             }
-            <span>Model · Variant</span>
+            <span>Variant</span>
             @for (c of columns; track c.key) {
-              <span class="text-right">{{ c.label }}</span>
+              <span class="flex flex-col text-right leading-tight">
+                <span [class.text-foreground]="!!c.hint">{{ c.label }}</span>
+                @if (c.hint) {
+                  <span class="text-xs font-normal">{{ c.hint }}</span>
+                }
+              </span>
             }
           </div>
 
           @for (g of groups(); track g.group) {
             <section class="flex flex-col">
-              <span class="pb-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">{{ g.group }}</span>
+              <div class="flex items-baseline justify-between gap-3 pb-1.5">
+                <span class="text-sm font-semibold text-foreground">
+                  {{ g.group }} <span class="font-normal text-muted-foreground">· {{ g.rows.length }} {{ g.rows.length === 1 ? 'variant' : 'variants' }}</span>
+                </span>
+                @if (groupFill && g.rows.length > 1) {
+                  <button
+                    type="button"
+                    (click)="fillGroup(g.rows)"
+                    [title]="'Copies the first row\\'s figures to every ' + g.group"
+                    class="-my-1 flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-brand transition-colors hover:bg-brand-soft"
+                  >
+                    <app-icon name="arrow-down" [size]="14" />
+                    Same for all {{ g.group }}
+                  </button>
+                }
+              </div>
               <div class="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
                 @for (r of g.rows; track r.id) {
                   <div
                     class="flex flex-col gap-2 px-3 py-3 md:grid md:items-center md:gap-3 md:py-2"
                     [style.grid-template-columns]="gridColumns()"
-                    [ngClass]="{ 'opacity-50': selectable && !isSelected(r.id) }"
+                    [ngClass]="{ 'opacity-50': selectable && !isSelected(r.id), 'row-changed': rowChanged(r) }"
                   >
                     @if (selectable) {
-                      <input type="checkbox" class="hidden size-4 accent-[var(--primary)] md:block" [checked]="isSelected(r.id)" (change)="toggleSelected(r.id)" [attr.aria-label]="'Apply ' + r.label" />
+                      <input type="checkbox" class="hidden size-4 accent-[var(--brand-ink)] md:block" [checked]="isSelected(r.id)" (change)="toggleSelected(r.id)" [attr.aria-label]="'Apply ' + r.label" />
                     }
                     <span class="flex min-w-0 items-center gap-2">
                       @if (selectable) {
-                        <input type="checkbox" class="size-4 shrink-0 accent-[var(--primary)] md:hidden" [checked]="isSelected(r.id)" (change)="toggleSelected(r.id)" [attr.aria-label]="'Apply ' + r.label" />
+                        <input type="checkbox" class="size-4 shrink-0 accent-[var(--brand-ink)] md:hidden" [checked]="isSelected(r.id)" (change)="toggleSelected(r.id)" [attr.aria-label]="'Apply ' + r.label" />
                       }
                       <span class="truncate text-sm font-semibold">{{ r.label }}</span>
                       @if (r.sub) {
-                        <span class="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums">{{ r.sub }}</span>
+                        <span class="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-xs font-semibold tabular-nums">{{ r.sub }}</span>
                       }
                     </span>
 
@@ -100,9 +136,14 @@ export type BulkSave = { id: string; values: BulkValues }[];
                     <span class="flex flex-wrap justify-between gap-x-3 text-xs text-muted-foreground md:contents">
                       @for (c of columns; track c.key; let ci = $index) {
                         @if (c.kind !== 'edit') {
-                          <span class="md:text-right" [style.order]="ci + 2">
-                            <span class="md:hidden">{{ c.label }} </span>
-                            <span class="font-semibold tabular-nums" [ngClass]="c.kind === 'derived' ? 'text-[var(--success)]' : 'text-foreground'">{{ show(cellValue(r, c), c) }}</span>
+                          <span class="md:flex md:flex-col md:items-end md:text-right" [style.order]="ci + 2">
+                            <span>
+                              <span class="md:hidden">{{ c.label }} </span>
+                              <span class="font-semibold tabular-nums" [ngClass]="cellTone(r, c)">{{ show(cellValue(r, c), c) }}</span>
+                            </span>
+                            @if (noteFor(r, c); as n) {
+                              <span class="ml-1 text-xs font-semibold tabular-nums text-[var(--success)] md:ml-0">{{ n }}</span>
+                            }
                           </span>
                         }
                       }
@@ -111,23 +152,34 @@ export type BulkSave = { id: string; values: BulkValues }[];
                       @for (c of columns; track c.key; let ci = $index) {
                         @if (c.kind === 'edit') {
                           <label class="flex min-w-0 flex-col gap-1 md:items-end" [style.order]="ci + 2">
-                            <span class="text-[11px] font-medium text-muted-foreground md:hidden">{{ c.label }}</span>
-                            <input
-                              type="text"
-                              inputmode="decimal"
-                              [attr.data-col]="c.key"
-                              [attr.data-row]="rowIndex(r.id)"
-                              [attr.aria-label]="c.label + ' — ' + r.label + (r.sub ? ' ' + r.sub : '')"
-                              [value]="inputText(r.id, c.key)"
-                              (focus)="typed = null; focusing.set(r.id + '|' + c.key)"
-                              (input)="commit(r.id, c.key, $any($event.target).value, true)"
-                              (blur)="commit(r.id, c.key, $any($event.target).value)"
-                              (keydown)="onKey($event, c.key, rowIndex(r.id))"
-                              class="h-10 w-full rounded-lg border bg-input px-3 text-right text-sm tabular-nums text-foreground outline-none transition-colors focus:border-ring md:h-9"
-                              [ngClass]="changed(r, c.key) ? 'border-[var(--warning)] bg-[var(--warning)]/10' : 'border-input'"
-                            />
+                            <span class="flex flex-col text-sm font-semibold leading-tight text-foreground md:hidden">
+                              {{ c.label }}
+                              @if (c.hint) {
+                                <span class="text-xs font-normal text-muted-foreground">{{ c.hint }}</span>
+                              }
+                            </span>
+                            <span class="relative flex w-full">
+                              @if (c.prefix) {
+                                <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">{{ c.prefix }}</span>
+                              }
+                              <input
+                                type="text"
+                                inputmode="decimal"
+                                [attr.data-col]="c.key"
+                                [attr.data-row]="rowIndex(r.id)"
+                                [attr.aria-label]="c.label + ' — ' + r.label + (r.sub ? ' ' + r.sub : '')"
+                                [placeholder]="c.prefix ? '0' : ''"
+                                [value]="inputText(r.id, c.key)"
+                                (focus)="typed = null; focusing.set(r.id + '|' + c.key)"
+                                (input)="commit(r.id, c.key, $any($event.target).value, true)"
+                                (blur)="commit(r.id, c.key, $any($event.target).value)"
+                                (keydown)="onKey($event, c.key, rowIndex(r.id))"
+                                class="h-10 w-full rounded-lg border bg-input px-3 text-right text-sm tabular-nums text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-ring md:h-9"
+                                [ngClass]="[changed(r, c.key) ? 'border-brand' : 'border-input', c.prefix ? 'pl-10' : '']"
+                              />
+                            </span>
                             @if (changed(r, c.key)) {
-                              <span class="text-[10px] text-muted-foreground">was <span class="tabular-nums line-through">{{ show(r.values[c.key] ?? null, c) }}</span></span>
+                              <span class="text-xs text-muted-foreground">was <span class="tabular-nums line-through">{{ wasText(r, c) }}</span></span>
                             }
                           </label>
                         }
@@ -152,9 +204,11 @@ export type BulkSave = { id: string; values: BulkValues }[];
             <span class="hidden md:inline">Tab or Enter moves down the column · Shift goes back up</span>
           }
         </span>
-        <button type="button" (click)="requestClose()" class="rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
-        <button type="button" (click)="save()" [disabled]="changedRows().length === 0 || busy" class="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
-          {{ busy ? 'Saving…' : changedRows().length === 0 ? 'No changes' : changedRows().length === 1 ? 'Save 1 change' : 'Save ' + changedRows().length + ' changes' }}
+        <!-- How many rows will be saved, beside a plain Save — a normal button once there's something to save -->
+        <span class="text-sm text-muted-foreground">{{ changedRows().length === 0 ? 'No changes yet' : changedRows().length === 1 ? '1 change' : changedRows().length + ' changes' }}</span>
+        <button type="button" (click)="requestClose()" class="btn">Cancel</button>
+        <button type="button" (click)="save()" [disabled]="changedRows().length === 0 || busy" class="btn" [ngClass]="changedRows().length ? 'btn-primary' : 'btn-outline'">
+          {{ busy ? 'Saving…' : 'Save' }}
         </button>
       </div>
 
@@ -164,13 +218,13 @@ export type BulkSave = { id: string; values: BulkValues }[];
           <button type="button" aria-label="Keep editing" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="confirmingClose.set(false)"></button>
           <div class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
             <div class="flex flex-col gap-2 p-5">
-              <span class="flex items-center gap-2 text-sm font-semibold"><app-icon name="alert-triangle" [size]="15" /> Save changes first?</span>
+              <span class="flex items-center gap-2 text-sm font-semibold"><app-icon name="alert-triangle" [size]="18" /> Save changes first?</span>
               <p class="text-sm text-muted-foreground">{{ changedRows().length === 1 ? '1 row has' : changedRows().length + ' rows have' }} unsaved changes.</p>
             </div>
             <div class="flex items-center justify-end gap-2 border-t border-border p-4">
-              <button type="button" (click)="confirmingClose.set(false)" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Keep editing</button>
-              <button type="button" (click)="discard()" class="rounded-md border border-[var(--destructive)] px-3 py-2 text-xs font-semibold text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)]/10">Discard</button>
-              <button type="button" (click)="confirmingClose.set(false); save()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Save</button>
+              <button type="button" (click)="confirmingClose.set(false)" class="rounded-md px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Keep editing</button>
+              <button type="button" (click)="discard()" class="rounded-md border border-[var(--destructive)] px-3 py-2.5 text-sm font-semibold text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)]/10">Discard</button>
+              <button type="button" (click)="confirmingClose.set(false); save()" class="rounded-md bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground">Save</button>
             </div>
           </div>
         </div>
@@ -193,8 +247,11 @@ export class BulkEditSheetComponent implements OnChanges {
   @Output() saved = new EventEmitter<BulkSave>();
   @Output() closed = new EventEmitter<void>();
 
+  /** Rebates: a "Same for all {model}" action on each model with more than one row. */
+  @Input() groupFill = false;
+
   /** Working values per row id. */
-  private working = signal<Record<string, BulkValues>>({});
+  working = signal<Record<string, BulkValues>>({});
   private selected = signal<Set<string>>(new Set());
   private rowList = signal<BulkRow[]>([]);
   focusing = signal<string | null>(null);
@@ -237,6 +294,45 @@ export class BulkEditSheetComponent implements OnChanges {
 
   changed(r: BulkRow, key: string): boolean {
     return (this.value(r.id, key) ?? 0) !== (r.values[key] ?? 0);
+  }
+
+  /** Any of this row's boxes differs from what's saved — the row gets a red edge. */
+  rowChanged(r: BulkRow): boolean {
+    return this.isSelected(r.id) && this.columns.some((c) => c.kind === 'edit' && this.changed(r, c.key));
+  }
+
+  /** Colour of a read-only or worked-out figure. A 'plain' derived figure is bold only when its
+   *  note says something changed it (e.g. a rebate brought the price down), muted otherwise. */
+  cellTone(r: BulkRow, c: BulkColumn): string {
+    if (c.kind === 'readonly') return 'text-foreground';
+    if (c.tone === 'plain') return c.note?.(this.working()[r.id] ?? {}) ? 'text-foreground' : 'font-medium text-muted-foreground';
+    return 'text-[var(--success)]';
+  }
+
+  /** The saved figure under a changed box: "was RM 0" for an empty one in an RM column, not a dash. */
+  wasText(r: BulkRow, c: BulkColumn): string {
+    const v = r.values[c.key] ?? null;
+    if (v == null && !c.prefix) return '—';
+    const n = (v ?? 0).toLocaleString('en-MY', { maximumFractionDigits: 2 });
+    return c.prefix ? `${c.prefix} ${n}` : n;
+  }
+
+  /** A derived column's small second line for this row, if it has one. */
+  noteFor(r: BulkRow, c: BulkColumn): string | null {
+    return c.note ? c.note(this.working()[r.id] ?? {}) : null;
+  }
+
+  /** "Same for all": copies the first row's editable figures to every other row of the model. */
+  fillGroup(rows: BulkRow[]) {
+    const [first, ...rest] = rows;
+    if (!first || !rest.length) return;
+    const src = this.working()[first.id] ?? {};
+    const keys = this.columns.filter((c) => c.kind === 'edit').map((c) => c.key);
+    this.working.update((w) => {
+      const next = { ...w };
+      for (const r of rest) next[r.id] = { ...next[r.id], ...Object.fromEntries(keys.map((k) => [k, src[k] ?? null])) };
+      return next;
+    });
   }
 
   isSelected(id: string): boolean {

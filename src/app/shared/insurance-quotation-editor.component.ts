@@ -57,32 +57,32 @@ import {
       </div>
 
       @if (form.mode === 'flat') {
-        <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+        <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
           Insurance Price
           <app-number-field prefix="RM" ariaLabel="Insurance price" [value]="form.flatPrice ?? null" (valueChange)="form.flatPrice = $event ?? 0" />
         </label>
-        <p class="text-[11px] text-muted-foreground">The whole insurer-quoted price — NCD is deducted straight from it, nothing else added.</p>
+        <p class="text-xs text-muted-foreground">The whole insurer-quoted price — NCD is deducted straight from it, nothing else added.</p>
       } @else {
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+          <div class="flex flex-col gap-1 text-sm font-semibold text-foreground">
             <span class="flex items-center justify-between gap-2">
               Basic Premium
               @if (tariffPremium != null) {
                 @if (followsTariff()) {
-                  <span class="rounded-full bg-[var(--success)]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--success)]">From tariff</span>
+                  <span class="rounded-full bg-[var(--success)]/15 px-1.5 py-0.5 text-xs font-semibold text-[var(--success)]">From tariff</span>
                 } @else {
-                  <span class="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-foreground">Insurer quote</span>
+                  <span class="rounded-full bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">Insurer quote</span>
                 }
               }
             </span>
             <app-number-field prefix="RM" ariaLabel="Basic premium" [value]="form.basicPremium" (valueChange)="setBasicPremium($event)" />
             @if (tariffPremium != null && !followsTariff()) {
-              <button type="button" (click)="useTariff()" class="w-fit text-[11px] font-medium text-primary hover:underline">
+              <button type="button" (click)="useTariff()" class="w-fit text-xs font-medium text-brand hover:underline">
                 Use tariff figure ({{ money(tariffPremium) }})
               </button>
             }
           </div>
-          <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+          <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
             Premium All Rider
             <app-number-field prefix="RM" ariaLabel="Premium all rider" [value]="form.premiumAllRider" (valueChange)="form.premiumAllRider = $event ?? 0" />
           </label>
@@ -90,9 +90,9 @@ import {
 
         <div class="flex flex-col gap-2">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-medium text-muted-foreground">Additional Coverages</span>
-            <button type="button" (click)="addCoverage()" class="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-accent">
-              <app-icon name="plus" [size]="12" />
+            <span class="text-sm font-semibold text-foreground">Additional Coverages</span>
+            <button type="button" (click)="addCoverage()" class="flex items-center gap-1 rounded-md px-2 py-1.5 text-sm font-semibold text-brand transition-colors hover:bg-accent">
+              <app-icon name="plus" [size]="16" />
               Add Coverage
             </button>
           </div>
@@ -107,24 +107,24 @@ import {
               />
               <app-number-field class="w-32 shrink-0" prefix="RM" ariaLabel="Coverage amount" [value]="item.amount" (valueChange)="item.amount = $event ?? 0" />
               <button type="button" (click)="removeCoverage($index)" aria-label="Remove coverage" class="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-[var(--destructive)]">
-                <app-icon name="trash" [size]="13" />
+                <app-icon name="trash" [size]="16" />
               </button>
             </div>
           } @empty {
-            <p class="text-[11px] text-muted-foreground">No additional coverages yet.</p>
+            <p class="text-xs text-muted-foreground">No additional coverages yet.</p>
           }
         </div>
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+          <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
             Stamp Duty
             <app-number-field prefix="RM" ariaLabel="Stamp duty" [value]="form.stampDuty" (valueChange)="form.stampDuty = $event ?? 0" />
           </label>
-          <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+          <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
             Service Tax
             <app-number-field suffix="%" ariaLabel="Service tax" [value]="form.serviceTaxPct" (valueChange)="form.serviceTaxPct = $event ?? 0" />
           </label>
-          <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+          <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
             EPR
             <app-number-field prefix="RM" ariaLabel="EPR" [value]="form.epr" (valueChange)="form.epr = $event ?? 0" />
           </label>
@@ -193,35 +193,35 @@ import {
             </div>
           </div>
         }
-        <div class="flex items-center justify-between bg-primary/10 px-3 py-2">
-          <span class="font-semibold text-primary">Total Due</span>
-          <span class="font-bold tabular text-primary">{{ plain(breakdown().totalDue) }}</span>
+        <div class="flex items-center justify-between bg-brand-soft px-3 py-2">
+          <span class="font-semibold text-brand">Total Due</span>
+          <span class="font-bold tabular text-brand">{{ plain(breakdown().totalDue) }}</span>
         </div>
       </div>
 
       @if (mode !== 'draft') {
         <div class="flex flex-wrap items-center gap-2">
-          <button type="button" (click)="save()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+          <button type="button" (click)="save()" class="rounded-md bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
             {{ mode === 'quote' ? 'Use for This Quote' : 'Save Quotation' }}
           </button>
           @if (mode === 'quote') {
-            <button type="button" (click)="reloadFromDatabase()" class="rounded-md border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+            <button type="button" (click)="reloadFromDatabase()" class="rounded-md border border-border px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
               Reload Car Database Default
             </button>
           } @else {
-            <button type="button" (click)="resetToDefault()" class="rounded-md border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+            <button type="button" (click)="resetToDefault()" class="rounded-md border border-border px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
               Reset to Default
             </button>
           }
           @if (savedFlash()) {
             <span class="flex items-center gap-1 text-xs font-medium text-[var(--success)]">
-              <app-icon name="check" [size]="13" />
+              <app-icon name="check" [size]="16" />
               {{ mode === 'quote' ? 'Applied to this quote' : 'Saved' }}
             </span>
           }
         </div>
         @if (mode === 'quote') {
-          <p class="text-[11px] text-muted-foreground">This applies to this quotation only — the car's database default won't change.</p>
+          <p class="text-xs text-muted-foreground">This applies to this quotation only — the car's database default won't change.</p>
         }
       }
     </div>

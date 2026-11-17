@@ -52,10 +52,12 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
   host: { class: 'block md:h-full' },
   template: `
     <!-- Phones -->
+    <!-- Phones: the phone is the camera, so the Live Screen runs on a tablet or computer. Say what
+         Live Mode does rather than just "too small". -->
     <div class="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center md:hidden">
-      <span class="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><app-icon name="live" [size]="28" /></span>
-      <h2 class="text-lg font-bold">{{ "Live Mode needs a bigger screen." | t }}</h2>
-      <p class="max-w-xs text-sm text-muted-foreground">{{ "Open it on a tablet or computer to go live." | t }}</p>
+      <span class="flex size-14 items-center justify-center rounded-2xl bg-brand-soft text-brand"><app-icon name="live" [size]="28" /></span>
+      <h2 class="text-base font-semibold">{{ "Live Mode runs on a tablet or computer" | t }}</h2>
+      <p class="max-w-xs text-pretty text-sm text-muted-foreground">{{ "It puts a big, clear quote on your TikTok Live while you change the car and deposit off camera. Your phone stays free to film." | t }}</p>
     </div>
 
     <!-- Tablet and PC. Full screen lifts this whole workspace over the app's menu and top bar. -->
@@ -68,14 +70,14 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
           <div class="flex min-w-0 flex-col gap-1">
             <p class="hidden text-sm text-muted-foreground xl:block">{{ "A loan calculator for TikTok Live — capture only the Live Screen, keep the controls to yourself." | t }}</p>
           </div>
-          <div class="flex shrink-0 items-center gap-2">
+          <div data-tour="live-open" class="flex shrink-0 items-center gap-2">
             <ng-container *ngTemplateOutlet="resetBtn" />
-            <button type="button" (click)="enterFullscreen()" class="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold hover:bg-accent">
-              <app-icon name="maximize" [size]="13" />
+            <button type="button" (click)="enterFullscreen()" class="btn btn-outline">
+              <app-icon name="maximize" [size]="16" />
               {{ "Full screen" | t }}
             </button>
-            <button type="button" (click)="openPopout()" class="hidden items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground lg:flex">
-              <app-icon name="arrow-up-right" [size]="13" />
+            <button type="button" (click)="openPopout()" class="btn btn-primary hidden lg:inline-flex">
+              <app-icon name="arrow-up-right" [size]="16" />
               {{ "Open Live Screen window" | t }}
             </button>
           </div>
@@ -102,10 +104,10 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
         <section class="col-start-1 row-start-1 min-h-0 min-w-0 border border-border bg-muted/40 xl:col-start-2">
           @if (popoutOpen()) {
             <div class="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-              <span class="flex size-12 items-center justify-center bg-primary/10 text-primary"><app-icon name="arrow-up-right" [size]="22" /></span>
+              <span class="flex size-12 items-center justify-center bg-brand-soft text-brand"><app-icon name="arrow-up-right" [size]="20" /></span>
               <span class="text-sm font-semibold">{{ "Showing in the Live Screen window" | t }}</span>
               <span class="max-w-sm text-xs text-muted-foreground">{{ "Everything you change here appears there straight away. The preview comes back when you close the window." | t }}</span>
-              <button type="button" (click)="closePopout()" class="mt-1 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-semibold hover:bg-accent">
+              <button type="button" (click)="closePopout()" class="mt-1 rounded-lg border border-border bg-card px-3.5 py-2.5 text-sm font-semibold hover:bg-accent">
                 {{ "Close the window" | t }}
               </button>
             </div>
@@ -123,8 +125,8 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
           @if (fullscreen()) {
             <div class="flex shrink-0 items-center justify-end gap-2">
               <ng-container *ngTemplateOutlet="resetBtn" />
-              <button type="button" (click)="exitFullscreen()" class="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold hover:bg-accent">
-                <app-icon name="x" [size]="13" />
+              <button type="button" (click)="exitFullscreen()" class="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2.5 text-sm font-semibold hover:bg-accent">
+                <app-icon name="x" [size]="16" />
                 {{ "Exit full screen" | t }}
               </button>
             </div>
@@ -133,14 +135,14 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
           <!-- Quick picks: one tap while live -->
           <div class="flex shrink-0 flex-col gap-2.5 rounded-xl border border-border bg-card p-3">
             <div class="flex items-center justify-between gap-2">
-              <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Favourites" | t }}</span>
+              <span class="text-sm font-semibold text-foreground">{{ "Favourites" | t }}</span>
               <button
                 type="button"
                 (click)="toggleFavourite()"
-                class="flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors"
+                class="flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-sm font-semibold transition-colors"
                 [ngClass]="isFavourite() ? 'bg-[var(--warning)]/15 text-[var(--warning)]' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'"
               >
-                <app-icon name="star" [size]="12" />
+                <app-icon name="star" [size]="16" />
                 {{ (isFavourite() ? 'Pinned' : 'Pin this car') | t }}
               </button>
             </div>
@@ -149,31 +151,31 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
                 <button
                   type="button"
                   (click)="pickFavourite(v)"
-                  class="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
+                  class="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold transition-colors"
                   [ngClass]="v.id === q.selectedVehicle().id ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-accent'"
                 >
-                  <span class="rounded bg-black/15 px-1 font-mono text-[10px]">{{ i + 1 }}</span>
+                  <span class="rounded bg-black/15 px-1 font-mono text-xs">{{ i + 1 }}</span>
                   {{ carLabel(v) }}
                 </button>
               } @empty {
                 <span class="text-xs text-muted-foreground">{{ "Pin the cars you talk about most — then switch with one tap or keys 1–9." | t }}</span>
               }
             </div>
-            <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "Down payment" | t }}</span>
+            <span class="text-sm font-semibold text-foreground">{{ "Down payment" | t }}</span>
             <div class="flex flex-wrap gap-1.5">
               @for (amount of dpChips; track amount) {
                 <button
                   type="button"
                   (click)="setDownpayment(amount)"
                   [disabled]="q.cashbackOn()"
-                  class="rounded-full px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors disabled:opacity-40"
+                  class="rounded-full px-3 py-2 text-sm font-semibold tabular-nums transition-colors disabled:opacity-40"
                   [ngClass]="isDownpayment(amount) ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-accent'"
                 >
                   {{ amount === 0 ? ((q.minDownpayment() > 0 ? 'Minimum' : 'Full Loan') | t) : fmtK(amount) }}
                 </button>
               }
             </div>
-            <span class="hidden text-[11px] text-muted-foreground xl:block">{{ "Keys: 1–9 favourites · ↑ ↓ down payment ±RM 1,000" | t }}</span>
+            <span class="hidden text-xs text-muted-foreground xl:block">{{ "Keys: 1–9 favourites · ↑ ↓ down payment ±RM 1,000" | t }}</span>
           </div>
 
           <!-- Tablets: the quote and the display settings share this space, one tab at a time -->
@@ -185,14 +187,14 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
                 class="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors"
                 [ngClass]="panel() === tab.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
               >
-                <app-icon [name]="tab.icon" [size]="14" />
+                <app-icon [name]="tab.icon" [size]="18" />
                 {{ tab.label | t }}
               </button>
             }
           </div>
 
           <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
-            <div class="flex-col gap-4 xl:flex" [ngClass]="panel() === 'quote' ? 'flex' : 'hidden'">
+            <div data-tour="live-controls" class="flex-col gap-4 xl:flex" [ngClass]="panel() === 'quote' ? 'flex' : 'hidden'">
               <app-quote-controls [q]="q" />
             </div>
             <div class="flex-col gap-4 xl:hidden" [ngClass]="panel() === 'display' ? 'flex' : 'hidden'">
@@ -204,8 +206,8 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
     </div>
 
     <ng-template #resetBtn>
-      <button type="button" (click)="q.reset()" class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground">
-        <app-icon name="refresh-cw" [size]="13" />
+      <button type="button" (click)="q.reset()" class="flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-foreground">
+        <app-icon name="refresh-cw" [size]="16" />
         {{ "Reset quote" | t }}
       </button>
     </ng-template>
@@ -214,28 +216,35 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
     <ng-template #displaySettings>
       <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
         <div class="flex flex-col gap-0.5">
-          <span class="flex items-center gap-2 text-sm font-semibold"><app-icon name="settings" [size]="14" class="text-muted-foreground" />{{ "Advanced settings" | t }}</span>
-          <span class="text-[11px] text-muted-foreground">{{ "How the Live Screen looks — saved for next time" | t }}</span>
+          <span class="flex items-center gap-2 text-sm font-semibold"><app-icon name="settings" [size]="18" class="text-muted-foreground" />{{ "Advanced settings" | t }}</span>
+          <span class="text-xs text-muted-foreground">{{ "How the Live Screen looks — saved for next time" | t }}</span>
         </div>
 
         <div class="flex flex-col gap-1.5">
           <span class="text-xs font-semibold text-muted-foreground">{{ "Screen size" | t }}</span>
+          <div role="radiogroup" [attr.aria-label]="'Screen size' | t" class="flex flex-col gap-1.5">
           @for (s of sizes; track s.id) {
             <button
               type="button"
+              role="radio"
+              [attr.aria-checked]="live().size === s.id"
               (click)="update({ size: s.id })"
               class="flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-colors"
-              [ngClass]="live().size === s.id ? 'border-primary bg-primary/10' : 'border-border hover:bg-accent'"
+              [ngClass]="live().size === s.id ? 'border-brand bg-brand-soft' : 'border-border hover:bg-accent'"
             >
-              <span class="flex h-8 w-8 shrink-0 items-center justify-center">
-                <span class="block border-2" [ngClass]="live().size === s.id ? 'border-primary' : 'border-muted-foreground/50'" [style.width.px]="s.width / 45" [style.height.px]="s.height / 45"></span>
+              <!-- A tiny phone screen: the filled top is the Live Screen, the rest is your camera -->
+              <span class="flex h-9 w-8 shrink-0 items-center justify-center" aria-hidden="true">
+                <span class="flex h-9 w-5 flex-col overflow-hidden rounded-[3px] border-[1.5px]" [ngClass]="live().size === s.id ? 'border-brand' : 'border-muted-foreground/60'">
+                  <span class="block w-full" [ngClass]="live().size === s.id ? 'bg-brand' : 'bg-muted-foreground/60'" [style.height.%]="(s.height / 1920) * 100"></span>
+                </span>
               </span>
               <span class="flex min-w-0 flex-col">
                 <span class="text-[13px] font-semibold">{{ s.label | t }}</span>
-                <span class="text-[11px] leading-snug text-muted-foreground">{{ s.hint | t }}</span>
+                <span class="text-xs leading-snug text-muted-foreground">{{ s.hint | t }}</span>
               </span>
             </button>
           }
+          </div>
         </div>
 
         <div class="flex flex-col gap-1.5">
@@ -245,7 +254,7 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
               <button
                 type="button"
                 (click)="update({ lang: l.id })"
-                class="rounded-md px-4 py-1.5 text-xs font-semibold transition-colors"
+                class="rounded-md px-4 py-2 text-sm font-semibold transition-colors"
                 [ngClass]="live().lang === l.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
               >
                 {{ l.label }}
@@ -267,13 +276,13 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
               />
               <span class="flex flex-col">
                 <span class="text-[13px] font-medium">{{ tg.label | t }}</span>
-                <span class="text-[11px] leading-snug text-muted-foreground">{{ tg.hint | t }}</span>
+                <span class="text-xs leading-snug text-muted-foreground">{{ tg.hint | t }}</span>
               </span>
             </label>
           }
         </div>
 
-        <p class="rounded-lg bg-[var(--warning)]/10 px-3 py-2 text-[11px] text-foreground">
+        <p class="rounded-lg bg-[var(--warning)]/10 px-3 py-2 text-xs text-foreground">
           {{ "Phone and WhatsApp start off — TikTok can restrict LIVEs that share contact details or send viewers elsewhere. Anything that looks like a phone number or link is also filtered out of your name and showroom." | t }}
         </p>
       </div>

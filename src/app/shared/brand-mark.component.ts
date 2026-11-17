@@ -6,7 +6,7 @@ import { brandInitials, brandLogo, brandStyle } from '../data/dashboard-data';
   standalone: true,
   template: `
     @if (logo(); as src) {
-      <img [src]="src" [alt]="brand" class="size-7 shrink-0 rounded-md object-cover" [class]="class" />
+      <img [src]="src" [alt]="brand" class="size-7 shrink-0 rounded-md object-contain" [class]="class" />
     } @else {
       <span
         aria-hidden="true"

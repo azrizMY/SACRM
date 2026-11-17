@@ -3,8 +3,15 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Geist throughout: Redline's own face. Money figures use its heavy weights with tabular digits. */
   --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, monospace;
+  --font-display: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+
+  /* The smallest step is a touch above Tailwind's 12px so captions stay readable; everything is
+     rem-based, so Settings → Make it yours → Layout (Comfortable / Compact) scales the lot. */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.4;
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -13,6 +20,7 @@
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
   --color-sidebar: var(--sidebar);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
@@ -22,6 +30,7 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
+  --color-control: var(--control-border);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
@@ -31,6 +40,10 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  /* The app colour as text and outlines (readable on the page), and as a soft tint behind a
+     selected item. --primary itself is a fill: it only ever sits under --primary-foreground. */
+  --color-brand: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -52,11 +65,23 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Dark-first "solid premium" automotive theme: opaque charcoal surfaces separated by
-   elevation (lighter fill + soft shadow) rather than outlines, with a single faint red glow
-   at the top of the page. Borders are hairlines kept for table rows and dividers. */
+/* ---------------------------------------------------------------------------
+   "Redline Dark": opaque charcoal surfaces, hairline edges, one automotive red.
+   Dark is the default; Light (white cards, the same red) is in Settings.
+   --------------------------------------------------------------------------- */
+
+/* The app colour follows the account's one Colour (Settings → Appearance → Colour; red by default).
+   ThemeService overwrites these four from the chosen poster colour: a fill, the text that sits on
+   it, and the colour to use as text on light and on dark surfaces. */
+:root {
+  --acc-fill: oklch(0.58 0.235 25.5);
+  --acc-on: oklch(0.99 0 0);
+  --acc-ink-light: oklch(0.53 0.22 25.5);
+  --acc-ink-dark: oklch(0.7 0.19 23);
+}
+
 :root,
-.dark {
+:root.dark {
   color-scheme: dark;
   --background: oklch(0.13 0.004 280);
   --foreground: oklch(0.97 0.003 280);
@@ -68,21 +93,21 @@
   --popover: oklch(0.215 0.006 280);
   --popover-foreground: oklch(0.97 0.003 280);
 
-  /* Bold automotive red accent (~#e00012), with a warm companion for gradients */
-  --primary: oklch(0.6 0.235 25.5);
-  --primary-foreground: oklch(0.99 0 0);
-  --primary-glow: oklch(0.7 0.19 45);
+  --primary: var(--acc-fill);
+  --primary-foreground: var(--acc-on);
+  --brand-ink: var(--acc-ink-dark);
+  --brand-soft: color-mix(in srgb, var(--acc-fill) 16%, var(--card));
 
   --secondary: oklch(0.24 0.006 280);
   --secondary-foreground: oklch(0.97 0 0);
 
   --muted: oklch(0.24 0.006 280);
-  --muted-foreground: oklch(0.7 0.012 280);
+  --muted-foreground: oklch(0.74 0.012 280);
 
   --accent: oklch(0.27 0.007 280);
   --accent-foreground: oklch(0.98 0 0);
 
-  --destructive: oklch(0.64 0.22 22);
+  --destructive: oklch(0.66 0.21 22);
   --destructive-foreground: oklch(0.99 0 0);
 
   --success: oklch(0.76 0.17 155);
@@ -91,117 +116,112 @@
   --warning: oklch(0.8 0.15 78);
   --warning-foreground: oklch(0.2 0.03 78);
 
-  --border: oklch(1 0 0 / 6%);
-  --input: oklch(0.235 0.006 280);
-  --ring: oklch(0.6 0.235 25.5);
+  --border: oklch(1 0 0 / 8%);
+  /* The outline of anything you can type in or press. */
+  --control-border: oklch(1 0 0 / 14%);
+  --input: oklch(0.21 0.005 280);
+  --ring: var(--acc-fill);
 
-  --chart-1: oklch(0.6 0.235 25.5);
+  --chart-1: var(--acc-fill);
   --chart-2: oklch(0.76 0.17 155);
   --chart-3: oklch(0.8 0.15 78);
   --chart-4: oklch(0.66 0.14 255);
   --chart-5: oklch(0.58 0.02 280);
 
-  --radius: 0.8rem;
+  --radius: 0.75rem;
 
+  /* The shell: menu rail, top bar, the customer page's menus. */
   --sidebar: oklch(0.155 0.005 280);
-  --sidebar-foreground: oklch(0.92 0 0);
-  --sidebar-primary: oklch(0.6 0.235 25.5);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-foreground: oklch(0.94 0 0);
+  --sidebar-muted: oklch(0.72 0.012 280);
+  --sidebar-primary: var(--acc-fill);
+  --sidebar-primary-foreground: var(--acc-on);
   --sidebar-accent: oklch(0.22 0.006 280);
   --sidebar-accent-foreground: oklch(0.98 0 0);
-  --sidebar-border: oklch(1 0 0 / 5%);
-  --sidebar-ring: oklch(0.6 0.235 25.5);
+  --sidebar-border: oklch(1 0 0 / 6%);
+  --sidebar-ring: var(--acc-fill);
+  /* The app colour as text on the shell. */
+  --shell-accent: var(--acc-ink-dark);
 
-  /* Surface details that differ by theme: the faint top highlight on cards, drop shadows, hover
-     and selected fills, the table header band, scrollbars and the backdrop dot grid. */
   --edge-highlight: oklch(1 0 0 / 4%);
-  --edge-highlight-strong: oklch(1 0 0 / 7%);
   --shadow-near: oklch(0 0 0 / 40%);
-  --shadow-mid: oklch(0 0 0 / 50%);
-  --shadow-far: oklch(0 0 0 / 70%);
-  --shadow-deep: oklch(0 0 0 / 80%);
+  --shadow-far: oklch(0 0 0 / 55%);
+  --shadow-deep: oklch(0 0 0 / 75%);
   --card-hover: oklch(0.215 0.006 280);
   --segment-active: oklch(0.3 0.008 280);
   --table-head: oklch(1 0 0 / 2.5%);
   --scrollbar: oklch(1 0 0 / 14%);
-  --backdrop-dot: oklch(1 0 0 / 7%);
-  --gradient-end: oklch(0.85 0.12 70);
-  /* WhatsApp green as text, and the Booked badge purple — both deepened in light mode to stay readable on white. */
   --whatsapp-text: #25d366;
   --booked: oklch(0.7 0.17 300);
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Light: white cards on a soft grey page, dark text, the same red. Cards still separate by
-   elevation — a light hairline-free shadow instead of the dark theme's deep one. */
+/* Light: white cards on a soft grey page, dark text, the same red. */
 :root.light {
   color-scheme: light;
   --background: oklch(0.97 0.002 280);
   --foreground: oklch(0.2 0.006 280);
 
   --card: oklch(1 0 0);
-  --card-solid: var(--card);
   --card-foreground: oklch(0.2 0.006 280);
 
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.2 0.006 280);
 
-  --primary: oklch(0.57 0.235 25.5);
-  --primary-foreground: oklch(0.99 0 0);
-  --primary-glow: oklch(0.66 0.2 42);
+  --brand-ink: var(--acc-ink-light);
+  --brand-soft: color-mix(in srgb, var(--acc-fill) 12%, var(--card));
 
   --secondary: oklch(0.945 0.003 280);
   --secondary-foreground: oklch(0.22 0.006 280);
 
   --muted: oklch(0.945 0.003 280);
-  --muted-foreground: oklch(0.47 0.012 280);
+  --muted-foreground: oklch(0.45 0.012 280);
 
   --accent: oklch(0.93 0.004 280);
   --accent-foreground: oklch(0.2 0.006 280);
 
-  --destructive: oklch(0.56 0.22 25);
+  --destructive: oklch(0.54 0.22 25);
   --destructive-foreground: oklch(0.99 0 0);
 
-  --success: oklch(0.55 0.15 155);
+  --success: oklch(0.52 0.15 155);
   --success-foreground: oklch(0.99 0 0);
 
-  --warning: oklch(0.6 0.15 62);
+  --warning: oklch(0.55 0.14 62);
   --warning-foreground: oklch(0.99 0 0);
 
   --border: oklch(0 0 0 / 9%);
-  --input: oklch(0.955 0.003 280);
-  --ring: oklch(0.57 0.235 25.5);
+  --control-border: oklch(0 0 0 / 22%);
+  --input: oklch(1 0 0);
 
-  --chart-1: oklch(0.57 0.235 25.5);
   --chart-2: oklch(0.6 0.15 155);
   --chart-3: oklch(0.7 0.15 70);
   --chart-4: oklch(0.55 0.15 255);
   --chart-5: oklch(0.6 0.02 280);
 
   --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.25 0.006 280);
-  --sidebar-primary: oklch(0.57 0.235 25.5);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-foreground: oklch(0.22 0.006 280);
+  --sidebar-muted: oklch(0.45 0.012 280);
   --sidebar-accent: oklch(0.95 0.003 280);
   --sidebar-accent-foreground: oklch(0.2 0.006 280);
-  --sidebar-border: oklch(0 0 0 / 7%);
-  --sidebar-ring: oklch(0.57 0.235 25.5);
+  --sidebar-border: oklch(0 0 0 / 8%);
+  --shell-accent: var(--acc-ink-light);
 
   --edge-highlight: oklch(1 0 0 / 0%);
-  --edge-highlight-strong: oklch(1 0 0 / 0%);
   --shadow-near: oklch(0.25 0.01 280 / 7%);
-  --shadow-mid: oklch(0.25 0.01 280 / 10%);
   --shadow-far: oklch(0.25 0.01 280 / 12%);
   --shadow-deep: oklch(0.25 0.01 280 / 22%);
   --card-hover: oklch(0.975 0.002 280);
   --segment-active: oklch(1 0 0);
   --table-head: oklch(0 0 0 / 3%);
   --scrollbar: oklch(0 0 0 / 20%);
-  --backdrop-dot: oklch(0 0 0 / 6%);
-  --gradient-end: oklch(0.68 0.16 55);
-  --whatsapp-text: oklch(0.52 0.14 152);
+  --whatsapp-text: oklch(0.5 0.14 152);
   --booked: oklch(0.5 0.2 300);
+}
+
+/* Settings → Make it yours → Layout. */
+html.density-compact {
+  font-size: 93.75%;
 }
 
 @layer base {
@@ -214,153 +234,145 @@
   }
   html {
     background-color: var(--background);
+    -webkit-text-size-adjust: 100%;
   }
   body {
     margin: 0;
-    /* Transparent so the aurora layers (z-index -1) show; html carries the base colour. */
-    background-color: transparent;
+    background-color: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
   .tabular {
     font-variant-numeric: tabular-nums;
   }
-  /* Native <option> popups render on their own surface and ignore the
-     select's background utility class, so they must be styled directly
-     or they fall back to the OS default (white-on-white until hover). */
+  /* Native <option> popups render on their own surface and ignore the select's background
+     utility class, so they must be styled directly. */
   option {
     background-color: var(--popover);
     color: var(--popover-foreground);
   }
   ::selection {
-    background: color-mix(in oklch, var(--primary), transparent 55%);
+    background: color-mix(in oklch, var(--acc-fill), transparent 55%);
   }
-  /* Table headers read as small caps labels on a faint band. */
+  ::placeholder {
+    color: var(--muted-foreground);
+    opacity: 0.8;
+  }
   thead tr {
     background-color: var(--table-head);
   }
   thead th {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
     color: var(--muted-foreground);
-  }
-  tbody tr {
-    transition: background-color 0.15s;
   }
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar) transparent;
   }
+  a {
+    text-underline-offset: 0.2em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
 }
 
-/* Backdrop: a faint dot grid near the top of the screen that fades to plain near-black further
-   down. Fixed to the viewport, so the content scrolls over it. Page roots keep a transparent
-   background so it shows. */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-image: radial-gradient(var(--backdrop-dot) 1px, transparent 1.3px);
-  background-size: 22px 22px;
-  mask-image: linear-gradient(to bottom, #000 0%, transparent 60%);
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 60%);
+/* Touch: everything you can press is at least 44px tall on a phone or tablet. */
+@media (pointer: coarse) {
+  button:not([role='switch'], .tap-auto, .absolute.inset-0),
+  select,
+  a[role='button'],
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color']) {
+    min-height: 2.75rem;
+  }
+  button:not([role='switch'], .tap-auto):has(> app-icon:only-child) {
+    min-width: 2.75rem;
+  }
 }
 
-/* Cards separate from the page by fill and a soft shadow, not an outline: the border stays
-   (so layouts don't shift by 1px) but goes transparent. Unlayered so it beats the templates'
-   border-border / shadow-sm utilities. */
-.bg-card:is(.rounded-lg, .rounded-xl, .rounded-2xl),
-/* Grey-filled wells (segmented-control tracks, secondary buttons, stat boxes) likewise
-   read by their fill alone. */
-:is([class*='bg-muted'], [class*='bg-secondary']).border:is(.rounded-md, .rounded-lg, .rounded-xl) {
-  border-color: transparent;
-}
-:root.light .bg-card:is(.rounded-lg, .rounded-xl, .rounded-2xl) {
-  border-color: oklch(0 0 0 / 6%);
+/* ---------------------------------------------------------------------------
+   Surfaces
+   --------------------------------------------------------------------------- */
+
+/* Cards separate from the page by fill and a soft shadow, with a hairline edge. */
+.bg-card:is(.rounded-lg, .rounded-xl, .rounded-2xl) {
+  border-color: var(--border);
 }
 .bg-card.rounded-xl,
 .bg-card.rounded-2xl {
   box-shadow:
     inset 0 1px 0 0 var(--edge-highlight),
     0 1px 2px 0 var(--shadow-near),
-    0 10px 28px -14px var(--shadow-far);
+    0 10px 28px -16px var(--shadow-far);
 }
-/* Selected segment in a segmented control (Preview / Customize, Specs / Offers): a raised,
-   lighter pill so the active option is obvious without an outline. */
+
+/* Selected segment in a segmented control (Preview / Customize, Specs / Offers). */
 button.bg-card[aria-selected='true'] {
   background-color: var(--segment-active);
-  box-shadow:
-    inset 0 1px 0 0 var(--edge-highlight-strong),
-    0 1px 3px 0 var(--shadow-mid);
+  box-shadow: 0 1px 3px 0 var(--shadow-far);
 }
-/* Every solid primary button across the app inherits the gradient + glow of .btn-glow. */
+
+/* Solid red buttons: one flat look everywhere. */
 button.bg-primary,
-a.bg-primary {
-  background-image: linear-gradient(135deg, var(--primary), color-mix(in oklch, var(--primary), var(--primary-glow) 45%));
-  box-shadow:
-    inset 0 1px 0 0 oklch(1 0 0 / 22%),
-    0 8px 22px -10px color-mix(in oklch, var(--primary), transparent 30%);
+a.bg-primary,
+.btn-glow {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: inset 0 1px 0 0 oklch(1 0 0 / 18%);
   transition:
-    filter 0.2s,
-    box-shadow 0.2s;
-}
-button.bg-primary:disabled {
-  box-shadow: none;
+    filter 0.15s,
+    transform 0.15s;
 }
 button.bg-primary:hover:not(:disabled),
-a.bg-primary:hover {
+a.bg-primary:hover,
+.btn-glow:hover:not(:disabled) {
   filter: brightness(1.08);
 }
-/* Modal panels and the tour tooltip sit above a dimmed page, so they read better solid. */
+button.bg-primary:active:not(:disabled),
+a.bg-primary:active,
+.btn-glow:active:not(:disabled) {
+  transform: translateY(1px);
+}
+button.bg-primary:disabled,
+.btn-glow:disabled {
+  box-shadow: none;
+}
+
+/* Outlined buttons and tiles. */
+:is(button, a, select).border.border-border {
+  border-color: var(--control-border);
+}
+
+/* Modal panels and the tour card sit above a dimmed page. */
 .fixed .bg-card,
 .fixed.bg-card {
   background-color: var(--card-solid);
 }
-
-/* ---------------------------------------------------------------------------
-   App-wide motion, applied by selector so every page (including the customer
-   quote link) behaves the same without per-template classes.
-   --------------------------------------------------------------------------- */
-
-/* Top-level content cards rise in, staggered by their position among siblings. Skips cards
-   nested in another card, anything inside a fixed overlay, and cards that already opt into
-   .animate-rise with their own --i. Fill is backwards only, so once finished the card's own transform
-   (e.g. .lift:hover) applies again and no containing block is left behind for modals. */
-:is(.bg-card.rounded-xl, .bg-card.rounded-2xl):not(.animate-rise, .bg-card *, .fixed *) {
-  animation: rl-rise 0.55s var(--ease-out-expo) backwards;
-}
-:is(.bg-card.rounded-xl, .bg-card.rounded-2xl):not(.animate-rise, .bg-card *, .fixed *):nth-child(2) { animation-delay: 60ms; }
-:is(.bg-card.rounded-xl, .bg-card.rounded-2xl):not(.animate-rise, .bg-card *, .fixed *):nth-child(3) { animation-delay: 120ms; }
-:is(.bg-card.rounded-xl, .bg-card.rounded-2xl):not(.animate-rise, .bg-card *, .fixed *):nth-child(4) { animation-delay: 180ms; }
-:is(.bg-card.rounded-xl, .bg-card.rounded-2xl):not(.animate-rise, .bg-card *, .fixed *):nth-child(5) { animation-delay: 240ms; }
-:is(.bg-card.rounded-xl, .bg-card.rounded-2xl):not(.animate-rise, .bg-card *, .fixed *):nth-child(n + 6) { animation-delay: 300ms; }
-
-/* Modals: the dimmed backdrop fades, the panel pops. Matches the shared markup
-   <div class="fixed inset-0 ..."><button class="absolute inset-0 ..."/><div class="relative ... bg-card"> */
 .fixed.inset-0 > button.absolute.inset-0 {
-  animation: rl-fade 0.2s ease-out both;
+  animation: rl-fade 0.18s ease-out both;
 }
 .fixed.inset-0 > .relative.bg-card {
-  animation: rl-pop 0.32s var(--ease-out-expo) backwards;
-  box-shadow:
-    inset 0 1px 0 0 var(--edge-highlight-strong),
-    0 30px 80px -20px var(--shadow-deep);
+  animation: rl-pop 0.22s var(--ease-out-expo) backwards;
+  box-shadow: 0 30px 80px -20px var(--shadow-deep);
 }
 @keyframes rl-pop {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.96);
+    transform: translateY(8px) scale(0.98);
   }
 }
 
-/* Dropdowns and popovers fade down into place. */
+/* Dropdowns and popovers. */
 .absolute.bg-popover:not(.pointer-events-none) {
-  animation: rl-drop 0.18s var(--ease-out-expo) backwards;
+  animation: rl-drop 0.16s var(--ease-out-expo) backwards;
   box-shadow: 0 18px 50px -12px var(--shadow-deep);
 }
 @keyframes rl-drop {
@@ -370,148 +382,213 @@ a.bg-primary:hover {
   }
 }
 
-/* Clickable cards (brochure tiles, settings rows, quote options) lighten on hover. */
+/* Clickable cards (brochure tiles, settings rows, quote options). */
 button.bg-card,
 a.bg-card {
-  transition:
-    background-color 0.2s,
-    box-shadow 0.2s;
+  transition: background-color 0.15s;
 }
 button.bg-card:hover:not(:disabled, [aria-selected='true']),
 a.bg-card:hover {
   background-color: var(--card-hover);
 }
 
-/* Form fields share the soft red focus halo used on the auth pages. */
+/* Fields: a visible outline, and a soft red halo while you type. */
 .border-input {
+  border-color: var(--control-border);
   transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 .border-input:focus,
 .border-input:focus-within {
   border-color: var(--ring);
-  box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary), transparent 80%);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--acc-fill), transparent 78%);
+  outline: none;
+}
+.border-input :focus-visible {
+  outline: none;
 }
 
-
 @layer components {
-  /* Solid chrome surface (sidebar, quote-page menus, hero panels). */
+  /* Shell chrome (menu rail, quote-page menus). */
   .glass {
     background-color: var(--sidebar);
   }
 
-  /* 1px gradient border via a masked pseudo-element; pair with a rounded-* class. */
-  .glow-border {
-    position: relative;
-    isolation: isolate;
+  /* The monthly instalment: set in the app colour. */
+  .hl {
+    color: var(--brand-ink);
   }
-  .glow-border::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    padding: 1px;
-    border-radius: inherit;
-    background: linear-gradient(
-      180deg,
-      color-mix(in oklch, var(--primary), transparent 50%),
-      transparent 30%
-    );
-    mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-    mask-composite: exclude;
-    pointer-events: none;
-    z-index: -1;
-  }
-
-  .btn-glow {
-    background-image: linear-gradient(135deg, var(--primary), color-mix(in oklch, var(--primary), var(--primary-glow) 45%));
+  /* A filled label (numbered steps). */
+  .hl-solid {
+    background-color: var(--primary);
     color: var(--primary-foreground);
-    box-shadow:
-      inset 0 1px 0 0 oklch(1 0 0 / 22%),
-      0 8px 24px -8px color-mix(in oklch, var(--primary), transparent 30%);
-    transition:
-      transform 0.2s var(--ease-out-expo),
-      box-shadow 0.2s var(--ease-out-expo),
-      filter 0.2s;
-  }
-  .btn-glow:hover:not(:disabled) {
-    transform: translateY(-1px);
-    filter: brightness(1.08);
-    box-shadow:
-      inset 0 1px 0 0 oklch(1 0 0 / 25%),
-      0 14px 34px -10px color-mix(in oklch, var(--primary), transparent 15%);
-  }
-  .btn-glow:active:not(:disabled) {
-    transform: translateY(0) scale(0.98);
   }
 
+  /* Money figures. */
+  .fig {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+
+  /* An emphasised word in a headline: the app colour, no gradient. */
   .text-gradient {
-    background: linear-gradient(100deg, var(--primary) 10%, var(--primary-glow) 60%, var(--gradient-end));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    color: var(--brand-ink);
   }
 
+  /* The app mark and initials avatars. */
   .logo-chip {
-    background-image: linear-gradient(135deg, var(--primary), var(--primary-glow));
+    background-color: var(--primary);
     color: var(--primary-foreground);
-    box-shadow:
-      inset 0 1px 0 0 oklch(1 0 0 / 30%),
-      0 6px 18px -6px color-mix(in oklch, var(--primary), transparent 20%);
   }
 
-  /* Hover lift + glow for cards. The transform exists only while hovered, so it never
-     becomes a containing block for fixed-position content opened from inside. */
   .lift {
-    transition:
-      transform 0.35s var(--ease-out-expo),
-      box-shadow 0.35s var(--ease-out-expo);
+    transition: box-shadow 0.2s;
   }
   .lift:hover {
-    transform: translateY(-3px);
-    box-shadow:
-      inset 0 1px 0 0 var(--edge-highlight),
-      0 20px 40px -18px var(--shadow-deep);
+    box-shadow: 0 16px 34px -18px var(--shadow-deep);
   }
 
-  /* Gradient progress fill that sweeps in from the left; set --i to stagger. */
   .bar-fill {
-    background-image: linear-gradient(90deg, var(--primary), var(--primary-glow));
+    background-color: var(--primary);
     transform-origin: left;
-    animation: rl-grow-x 1s var(--ease-out-expo) both;
-    animation-delay: calc(var(--i, 0) * 80ms + 150ms);
+  }
+
+  /* A plain-language hint under a field or beside a heading. */
+  .hint {
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    color: var(--muted-foreground);
+    text-wrap: pretty;
   }
 }
 
-/* Animation helpers */
+/* ---------------------------------------------------------------------------
+   Buttons, as three plain kinds. `.btn` alone is the quiet text button.
+   --------------------------------------------------------------------------- */
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 2.5rem;
+    padding: 0.45rem 0.875rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid transparent;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    transition:
+      background-color 0.15s,
+      filter 0.15s,
+      transform 0.15s;
+  }
+  .btn:hover:not(:disabled) {
+    background-color: var(--accent);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  /* The one main action on a screen. */
+  .btn-primary {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    box-shadow: inset 0 1px 0 0 oklch(1 0 0 / 18%);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--primary);
+    filter: brightness(1.08);
+  }
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  /* Everything else you can press. */
+  .btn-outline {
+    background-color: var(--card);
+    color: var(--foreground);
+    border-color: var(--control-border);
+  }
+  .btn-outline:hover:not(:disabled) {
+    background-color: var(--card-hover);
+  }
+  /* WhatsApp keeps its own green everywhere, whatever the app colour. */
+  .btn-whatsapp {
+    background-color: #25d366;
+    color: #06270f;
+  }
+  .btn-whatsapp:hover:not(:disabled) {
+    background-color: #25d366;
+    filter: brightness(0.95);
+  }
+  .btn-sm {
+    min-height: 2rem;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+  .btn-lg {
+    min-height: 2.75rem;
+    padding-inline: 1.125rem;
+    font-size: 0.9375rem;
+  }
+
+  /* An empty screen that says what will be here and what to do first. */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2rem 1rem;
+    text-align: center;
+    border: 1px dashed var(--control-border);
+    border-radius: var(--radius-xl);
+  }
+  .empty-state > .empty-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: var(--radius-xl);
+    background-color: var(--brand-soft);
+    color: var(--brand-ink);
+  }
+  .empty-state > h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+  .empty-state > p {
+    max-width: 30rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--muted-foreground);
+    text-wrap: pretty;
+  }
+}
+
+/* Animation helpers. Motion only marks a change of state. */
 @keyframes rl-rise {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
 }
-@keyframes rl-grow-x {
-  from {
-    transform: scaleX(0);
-  }
-}
-/* Fade-and-rise on mount. Set --i on siblings for a staggered cascade. */
 .animate-rise {
-  animation: rl-rise 0.6s var(--ease-out-expo) backwards;
-  animation-delay: calc(var(--i, 0) * 70ms);
+  animation: rl-rise 0.3s var(--ease-out-expo) backwards;
 }
-/* Route transition: the component the outlet inserts rises in. Opacity only — a transform
-   here would trap the pages' position:fixed modals for the duration of the animation. */
 @keyframes rl-fade {
   from {
     opacity: 0;
   }
 }
+/* Opacity only — a transform here would trap the pages' position:fixed modals. */
 .route-host > router-outlet + * {
   display: block;
-  animation: rl-fade 0.35s ease-out both;
+  animation: rl-fade 0.2s ease-out both;
 }
 @keyframes rl-slide-in-left {
   from {
@@ -522,7 +599,18 @@ a.bg-card:hover {
   }
 }
 .animate-slide-in-left {
-  animation: rl-slide-in-left 0.25s var(--ease-out-expo);
+  animation: rl-slide-in-left 0.22s var(--ease-out-expo);
+}
+@keyframes rl-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.animate-slide-up {
+  animation: rl-slide-up 0.24s var(--ease-out-expo);
 }
 @keyframes rl-ping {
   75%,
@@ -535,6 +623,7 @@ a.bg-card:hover {
   animation: rl-ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
+/* Reduced motion: the device's own setting, or Settings → Make it yours → Reduce motion. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -544,9 +633,33 @@ a.bg-card:hover {
     transition-duration: 0.01ms !important;
   }
 }
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Every dropdown gets the same chevron as the app's own pickers (the browser's arrow differs per
+   system and looked out of place next to them). Selects that draw their own icon over the box use
+   appearance-none and are left alone. Unlayered, so the arrow's room beats a px-* utility. */
+select:not(.appearance-none):not([multiple]) {
+  appearance: none;
+  padding-right: 2.25rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23898993' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 18px 18px;
+}
+select option,
+select optgroup {
+  background-color: var(--popover);
+  color: var(--popover-foreground);
+}
 
 /* iOS Safari zooms the page in when a focused field's font is under 16px and never zooms back
-   out. Kept unlayered so it beats Tailwind's text-sm/text-xs utilities; desktop is unaffected. */
+   out. Kept unlayered so it beats Tailwind's text utilities; desktop is unaffected. */
 @media (max-width: 767px) {
   input,
   select,

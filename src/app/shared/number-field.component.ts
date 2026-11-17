@@ -78,7 +78,9 @@ export class NumberFieldComponent {
     if (this.focused()) return this.draft();
     const v = this.current();
     if (v == null) return '';
-    return v.toLocaleString('en-US', { maximumFractionDigits: this.decimals, useGrouping: this.grouping });
+    // Ringgit with sen always shows both digits (406.80, not 406.8); whole amounts stay whole.
+    const fixedSen = this.prefix === 'RM' && !Number.isInteger(v);
+    return v.toLocaleString('en-US', { minimumFractionDigits: fixedSen ? this.decimals : 0, maximumFractionDigits: this.decimals, useGrouping: this.grouping });
   }
 
   onFocus() {
