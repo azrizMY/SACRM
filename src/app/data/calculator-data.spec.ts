@@ -11,6 +11,7 @@ import {
   downpaymentDisplay,
   loanForMonthlyPayment,
   minDownpaymentCash,
+  modelsForBrand,
   monthlyEffective,
   monthlyFlat,
   monthlyPayment,
@@ -20,6 +21,8 @@ import {
   type QuotationTotalsInput,
   type Vehicle,
 } from './calculator-data';
+import { guessBand } from './motor-tariff';
+import { brandLogo } from './dashboard-data';
 
 /** These figures go straight onto customer quotes and posters. Each expected value is worked out
  *  by hand in the comment beside it, so a failure points at the rule that changed. */
@@ -367,6 +370,18 @@ describe('car catalog', () => {
       expect(v.years.length).withContext(v.id).toBeGreaterThan(0);
       expect(new Set(v.years.map((y) => y.year)).size).withContext(`${v.id} repeats a model year`).toBe(v.years.length);
     }
+  });
+
+  it('Perodua has its 24 variants across seven models, each with an engine band the tariff can use', () => {
+    const perodua = VEHICLES.filter((v) => v.brand === 'Perodua');
+    expect(perodua.length).toBe(24);
+    expect(modelsForBrand('Perodua')).toEqual(['Axia', 'Bezza', 'Myvi', 'Ativa', 'Alza', 'Aruz', 'Traz']);
+    for (const v of perodua) {
+      expect(guessBand(v.variant)).withContext(v.id).not.toBeNull();
+      expect(v.brochureUrl).withContext(v.id).toMatch(/^\/brochures\/perodua-[a-z-]+\.pdf$/);
+      expect(v.colours?.length).withContext(v.id).toBeGreaterThan(0);
+    }
+    expect(brandLogo('Perodua')).toBe('/brands/perodua.png');
   });
 
   it('colour surcharges only name colours the car actually comes in', () => {

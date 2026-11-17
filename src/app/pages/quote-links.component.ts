@@ -36,7 +36,7 @@ const QR_QUIET = 4;
   template: `
     <div class="mx-auto flex max-w-5xl flex-col gap-6">
       <div class="flex flex-col gap-1">
-        <p class="text-pretty text-sm text-muted-foreground">
+        <p class="max-w-3xl text-pretty text-sm text-muted-foreground">
           {{
             'Send a link and your customer builds their own quote — no login, and they never have to give you their details.'
               | t
@@ -47,20 +47,21 @@ const QR_QUIET = 4;
       <div class="grid gap-4 lg:grid-cols-2">
         @for (link of links(); track link.id) {
           <div
+            [attr.data-tour]="link.id === 'all' ? 'links-all' : null"
             class="flex flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm"
           >
             <div class="flex items-start gap-3 px-5 pt-5">
               <span
-                class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+                class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-foreground"
               >
                 <app-icon
                   [name]="link.id === 'all' ? 'share' : 'star'"
-                  [size]="18"
+                  [size]="20"
                 />
               </span>
               <div class="flex min-w-0 flex-col gap-0.5">
-                <span class="text-sm font-semibold">{{ link.title }}</span>
-                <span class="text-xs text-muted-foreground">{{
+                <h2 class="text-base font-semibold leading-tight">{{ link.title }}</h2>
+                <span class="text-sm text-muted-foreground">{{
                   link.hint
                 }}</span>
               </div>
@@ -70,13 +71,13 @@ const QR_QUIET = 4;
             />
             @if (link.id === 'brand') {
               <p
-                class="border-t border-border px-5 py-3 text-[11px] text-muted-foreground"
+                class="border-t border-border px-5 py-3 text-sm text-muted-foreground"
               >
                 {{ 'Locked to your Primary Brand.' | t }}
                 <a
-                  routerLink="/settings"
-                  class="font-medium text-primary hover:underline"
-                  >{{ 'Change it in Settings' | t }}</a
+                  routerLink="/profile"
+                  class="font-bold text-foreground underline"
+                  >{{ 'Change it in My Profile' | t }}</a
                 >
               </p>
             }
@@ -90,15 +91,15 @@ const QR_QUIET = 4;
       <div
         class="rounded-xl border border-border bg-card p-5 text-card-foreground shadow-sm"
       >
-        <h3 class="text-sm font-semibold">
+        <h2 class="text-base font-semibold">
           {{ 'What your customer sees' | t }}
-        </h3>
+        </h2>
         <ul class="mt-3 grid gap-3 sm:grid-cols-2">
           @for (item of customerSees; track item.text) {
-            <li class="flex items-start gap-3 text-sm">
+            <li class="flex items-start gap-3 text-base">
               <span
-                class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
-                ><app-icon [name]="item.icon" [size]="15"
+                class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-foreground"
+                ><app-icon [name]="item.icon" [size]="18"
               /></span>
               <span class="pt-1.5 text-muted-foreground">{{
                 item.text | t
@@ -106,16 +107,16 @@ const QR_QUIET = 4;
             </li>
           }
         </ul>
-        <p class="mt-4 text-[11px] text-muted-foreground">
+        <p class="mt-4 text-sm text-muted-foreground">
           {{ 'Your name, photo and contact come from' | t }}
           <a
             routerLink="/profile"
-            class="font-medium text-primary hover:underline"
+            class="font-bold text-foreground underline"
             >{{ 'My Profile' | t }}</a
           >{{ ', and prices from' | t }}
           <a
             routerLink="/price-settings"
-            class="font-medium text-primary hover:underline"
+            class="font-bold text-foreground underline"
             >{{ 'Price Settings' | t }}</a
           >.
         </p>
@@ -130,22 +131,22 @@ const QR_QUIET = 4;
         <img
           [src]="link.qr"
           [attr.alt]="'QR code for' | t"
-          class="size-32 shrink-0 rounded-lg bg-white p-2"
+          class="size-36 shrink-0 rounded-lg border border-border bg-white p-2"
         />
         <div class="flex w-full min-w-0 flex-col gap-2.5">
           <code
-            class="block truncate rounded-md bg-muted/40 px-3 py-2 text-xs text-foreground"
+            class="block truncate rounded-md bg-muted px-3 py-2.5 font-mono text-sm text-foreground"
             >{{ link.url }}</code
           >
           <div class="grid grid-cols-2 gap-2">
             <button
               type="button"
               (click)="copy(link)"
-              class="flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-semibold transition-colors hover:bg-accent"
+              class="btn btn-outline"
             >
               <app-icon
                 [name]="copied() === link.id ? 'check' : 'clipboard-check'"
-                [size]="13"
+                [size]="16"
               />
               {{ (copied() === link.id ? 'Copied!' : 'Copy link') | t }}
             </button>
@@ -153,9 +154,9 @@ const QR_QUIET = 4;
               [href]="link.url"
               target="_blank"
               rel="noopener"
-              class="flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-semibold transition-colors hover:bg-accent"
+              class="btn btn-outline"
             >
-              <app-icon name="arrow-up-right" [size]="13" />
+              <app-icon name="arrow-up-right" [size]="16" />
               {{ 'Open' | t }}
             </a>
             <a
@@ -163,17 +164,17 @@ const QR_QUIET = 4;
               (click)="markShared()"
               target="_blank"
               rel="noopener"
-              class="flex items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+              class="btn btn-whatsapp col-span-2 order-first"
             >
-              <app-icon name="message-circle" [size]="13" />
+              <app-icon name="message-circle" [size]="16" />
               {{ 'Share on WhatsApp' | t }}
             </a>
             <button
               type="button"
               (click)="downloadQr(link)"
-              class="flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-semibold transition-colors hover:bg-accent"
+              class="btn btn-outline col-span-2"
             >
-              <app-icon name="download" [size]="13" />
+              <app-icon name="download" [size]="16" />
               {{ 'Download QR' | t }}
             </button>
           </div>

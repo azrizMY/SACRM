@@ -18,11 +18,11 @@ import { BrandsHintComponent } from '../shared/brands-hint.component';
   standalone: true,
   imports: [BrandsHintComponent, TranslatePipe, BudgetFinderComponent],
   template: `
-    <div class="mx-auto flex max-w-6xl flex-col gap-6">
+    <div class="mx-auto flex max-w-5xl flex-col gap-6">
       <div class="flex flex-col gap-1">
-        <p class="text-pretty text-sm text-muted-foreground">{{ 'Start from the monthly your customer can manage and see the deposit every car needs. Your customers get the same on your quote link.' | t }}</p>
+        <p class="max-w-3xl text-pretty text-sm text-muted-foreground">{{ 'Start from the monthly your customer can manage and see the deposit every car needs. Your customers get the same on your quote link.' | t }}</p>
       </div>
-      <app-brands-hint />
+      <app-brands-hint class="block empty:hidden" />
       <app-budget-finder [vehicles]="catalog.soldVehicles()" [brands]="catalog.soldBrands()" [primaryBrand]="primaryBrand()" [rules]="rules()" openLabel="Open in Calculator" (pick)="open($event)" />
     </div>
   `,

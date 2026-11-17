@@ -40,39 +40,45 @@ import { compactMyTemplate } from '../shared/poster-template-my';
 import { promoTemplate, squareTemplate } from '../shared/poster-template-social';
 import type { PosterData } from '../shared/poster-data';
 import { quotePosterData } from '../shared/quote-poster-data';
+import { quoteShareText } from '../shared/quote-share-text';
 import type { PosterTemplate, PosterTemplateId } from '../shared/poster-templates';
 import { TranslatePipe, translate } from '../shared/i18n';
 import { QuoteEngine } from '../shared/quote-engine';
 import { QuoteControlsComponent } from '../shared/quote-controls.component';
-import { applyPosterFrame } from '../shared/poster-frames';
+import { GuideService } from '../shared/guide.service';
 
 @Component({
   selector: 'app-calculator',
   standalone: true,
   imports: [CommonModule, FormsModule, IconComponent, QuoteControlsComponent, TranslatePipe],
   template: `
-    <div class="mx-auto flex max-w-7xl flex-col gap-6">
+    <div
+      class="mx-auto flex max-w-7xl flex-col gap-3 xl:h-[calc(100dvh-7rem)] xl:gap-6"
+      [ngClass]="mobileTab() === 'preview' ? 'max-md:h-[calc(100dvh-5.5rem)] md:max-xl:h-[calc(100dvh-7rem)]' : ''"
+    >
       <!-- Mobile Preview/Customize switcher -->
       <div class="sticky -top-4 z-10 -mx-4 -mt-4 flex flex-col gap-2 border-b border-border bg-background px-4 pb-2 pt-4 md:-top-6 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 xl:hidden">
         <!-- Live monthly (same as the customer link), so changes on Customize show without switching to Preview -->
-        <div class="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
+        <div data-tour="calc-monthly" class="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2">
           @if (isCashPurchase()) {
-            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{{ "Selling price" | t }}</span>
-            <span class="text-sm font-bold tabular">{{ fmt2(allInPrice()) }}</span>
+            <span class="text-sm font-medium text-muted-foreground">{{ "Selling price" | t }}</span>
+            <span class="fig whitespace-nowrap text-lg">{{ fmt2(allInPrice()) }}</span>
           } @else {
-            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Monthly · {{ selectedTenureLabel() }}</span>
-            <span class="text-sm font-bold tabular" [ngClass]="rateMissing() ? 'text-[var(--warning)]' : 'text-primary'">
-              {{ rateMissing() ? ('Rate needed' | t) : fmt2(selectedTenureMonthly()) }}
-            </span>
+            <span class="text-sm font-medium text-muted-foreground">{{ "Monthly" | t }} · {{ selectedTenureLabel() }}</span>
+            @if (rateMissing()) {
+              <span class="text-base font-bold text-[var(--warning)]">{{ 'Rate needed' | t }}</span>
+            } @else {
+              <span class="fig hl whitespace-nowrap text-lg">{{ fmt2(selectedTenureMonthly()) }}</span>
+            }
           }
         </div>
-        <div role="tablist" [attr.aria-label]="'Quote view' | t" class="flex rounded-lg border border-border bg-muted/30 p-1">
+        <div data-tour="calc-tabs" role="tablist" [attr.aria-label]="'Quote view' | t" class="flex rounded-lg bg-muted p-1">
           <button
             type="button"
             role="tab"
             [attr.aria-selected]="mobileTab() === 'preview'"
             (click)="mobileTab.set('preview')"
-            class="flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+            class="flex-1 rounded-md px-3 py-2 text-sm font-semibold transition-colors"
             [ngClass]="mobileTab() === 'preview' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
           >
             {{ "Preview" | t }}
@@ -82,7 +88,7 @@ import { applyPosterFrame } from '../shared/poster-frames';
             role="tab"
             [attr.aria-selected]="mobileTab() === 'customize'"
             (click)="mobileTab.set('customize')"
-            class="flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+            class="flex-1 rounded-md px-3 py-2 text-sm font-semibold transition-colors"
             [ngClass]="mobileTab() === 'customize' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
           >
             {{ "Customize" | t }}
@@ -90,23 +96,26 @@ import { applyPosterFrame } from '../shared/poster-frames';
         </div>
       </div>
 
-      <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
-        <!-- Quote preview — no internal scroll cap, same as the Brochures offer sheet preview: the
+      <div
+        class="grid grid-cols-1 items-start gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-3 xl:grid-rows-[minmax(0,1fr)]"
+        [ngClass]="mobileTab() === 'preview' ? 'max-xl:min-h-0 max-xl:flex-1 max-xl:grid-rows-[minmax(0,1fr)]' : ''"
+      >
+        <!-- Quote preview — no internal scroll cap, so the poster shows at its natural height: the
              poster is a fixed shape, so it just renders at its natural height and the page scrolls
              as a whole instead of a scrollbar sitting on the preview column itself. -->
         <div
-          class="flex-col gap-2 xl:sticky xl:top-0 xl:col-span-2 xl:flex"
+          class="h-full min-h-0 flex-col gap-2 self-stretch xl:col-span-2 xl:flex"
           [ngClass]="mobileTab() === 'preview' ? 'flex' : 'hidden'"
         >
           @if (availableTemplates().length > 1) {
-            <div role="radiogroup" [attr.aria-label]="'Poster template' | t" class="flex w-full shrink-0 gap-1.5 overflow-x-auto rounded-xl border border-border bg-muted/40 p-1.5">
+            <div role="radiogroup" [attr.aria-label]="'Poster template' | t" class="flex w-full shrink-0 gap-1 overflow-x-auto rounded-lg bg-muted p-1">
               @for (t of availableTemplates(); track t.id) {
                 <button
                   type="button"
                   role="radio"
                   [attr.aria-checked]="selectedTemplateId() === t.id"
                   (click)="selectedTemplateId.set(t.id)"
-                  class="flex-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold text-center transition-colors"
+                  class="flex-1 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold text-center transition-colors"
                   [ngClass]="selectedTemplateId() === t.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                 >
                   {{ t.label | t }}
@@ -114,7 +123,8 @@ import { applyPosterFrame } from '../shared/poster-frames';
               }
             </div>
           }
-          <div class="relative mx-auto w-full shrink-0 overflow-hidden rounded-xl shadow-md" [ngClass]="previewWidthClass()">
+          <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain rounded-xl">
+          <div data-tour="calc-poster" class="relative mx-auto w-full shrink-0 overflow-hidden rounded-xl border border-border shadow-md" [ngClass]="previewWidthClass()">
             <canvas #posterCanvas class="block w-full h-auto" [class.blur-sm]="rateMissing()"></canvas>
             @if (rateMissing()) {
               <!-- The poster would otherwise show a 0% EIR and an instalment that isn't real -->
@@ -130,7 +140,7 @@ import { applyPosterFrame } from '../shared/poster-frames';
 
           @if (rateMissing()) {
             <div class="flex items-start gap-2.5 rounded-lg bg-[var(--warning)]/12 px-4 py-3 text-sm text-foreground">
-              <app-icon name="alert-triangle" [size]="16" class="mt-0.5 shrink-0 text-[var(--warning)]" />
+              <app-icon name="alert-triangle" [size]="18" class="mt-0.5 shrink-0 text-[var(--warning)]" />
               <span class="flex-1">
                 {{ "No EIR is set for this car — enter the bank's effective rate under" | t }} <strong>{{ "Interest Rate" | t }}</strong> {{ "before sharing. The monthly figures above aren't real until you do." | t }}
               </span>
@@ -138,53 +148,55 @@ import { applyPosterFrame } from '../shared/poster-frames';
           }
 
           @if (posterShareFallbackNotice()) {
-            <div class="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/8 px-4 py-2.5 text-sm">
-              <app-icon name="download" [size]="14" class="shrink-0" />
-              {{ "Your browser can't hand files to WhatsApp directly — quote downloaded. Attach it in WhatsApp Desktop/Web." | t }}
+            <div class="flex items-center gap-2 rounded-lg border border-brand/30 bg-brand-soft px-4 py-2.5 text-sm">
+              <app-icon name="download" [size]="18" class="shrink-0" />
+              {{ "Your browser can't hand files to WhatsApp directly — quote downloaded and its message copied. Attach the picture in WhatsApp Desktop/Web and paste the message." | t }}
             </div>
           }
 
-          <div class="flex shrink-0 gap-2">
+          </div>
+
+          <div data-tour="calc-share" class="flex shrink-0 gap-2">
             <button
               type="button"
               (click)="savePosterImage()"
               [disabled]="savingPoster() || rateMissing()"
-              class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+              class="btn btn-outline btn-lg flex-1"
             >
-              <app-icon [name]="posterSaved() ? 'check' : 'download'" [size]="15" />
+              <app-icon [name]="posterSaved() ? 'check' : 'download'" [size]="20" />
               {{ savingPoster() ? ('Saving…' | t) : posterSaved() ? ('Saved!' | t) : ('Save' | t) }}
             </button>
             <button
               type="button"
               (click)="sharePosterImage()"
               [disabled]="sharingPoster() || rateMissing()"
-              class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+              class="btn btn-primary btn-lg flex-1"
             >
-              <app-icon name="share" [size]="15" />
+              <app-icon name="share" [size]="20" />
               {{ sharingPoster() ? ('Sharing…' | t) : ('Share' | t) }}
             </button>
           </div>
 
-          <p class="flex shrink-0 items-center justify-center gap-1.5 text-center text-[10px] leading-relaxed text-muted-foreground">
-            <app-icon name="info" [size]="12" class="shrink-0" />
+          <p class="flex shrink-0 items-start justify-center gap-1.5 text-center text-xs leading-relaxed text-muted-foreground">
+            <app-icon name="info" [size]="16" class="shrink-0" />
             {{ "Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here." | t }}
           </p>
         </div>
 
         <!-- Customize quote -->
         <div
-          class="flex-col gap-4 xl:sticky xl:top-0 xl:col-span-1 xl:flex xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1"
+          class="flex-col gap-4 xl:col-span-1 xl:flex xl:h-full xl:min-h-0 xl:overflow-y-auto xl:overscroll-contain xl:pr-1"
           [ngClass]="mobileTab() === 'customize' ? 'flex' : 'hidden'"
         >
           <div class="flex items-center justify-between">
-            <h3 class="text-base font-semibold leading-none">{{ "Customize Quote" | t }}</h3>
+            <h2 class="text-base font-semibold leading-none">{{ "Customize Quote" | t }}</h2>
             <div class="flex items-center gap-1">
               <button
                 type="button"
                 (click)="reset()"
-                class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                class="btn"
               >
-                <app-icon name="refresh-cw" [size]="13" />
+                <app-icon name="refresh-cw" [size]="18" />
                 {{ "Reset" | t }}
               </button>
             </div>
@@ -255,6 +267,13 @@ export class CalculatorComponent implements AfterViewInit {
   // ---------- Screen-only state (not part of the quote) ----------
 
   mobileTab = signal<'preview' | 'customize'>('preview');
+  /** The guided tour asks for a part of the page before pointing at it: show the phone tab it is on. */
+  private guide = inject(GuideService);
+  private revealForGuide = effect(() => {
+    const target = this.guide.reveal();
+    if (target === 'calc-car' || target === 'calc-loan') this.mobileTab.set('customize');
+    else if (target === 'calc-poster' || target === 'calc-share' || target === 'calc-tabs') this.mobileTab.set('preview');
+  });
 
   // ---------- The quote (from QuoteEngine) ----------
 
@@ -428,7 +447,7 @@ export class CalculatorComponent implements AfterViewInit {
    *  reads a component signal directly, so every figure on the poster traces back to here. */
   private buildPosterData(): PosterData {
     const defaults = this.settingsService.settings().salesDefaults;
-    return quotePosterData(this.q, this.advisor, defaults.posterLanguage ?? 'en', defaults.posterAccent, defaults.posterFrame);
+    return quotePosterData(this.q, this.advisor, defaults.posterLanguage ?? 'en', defaults.posterAccent);
   }
 
   /** Bumped on every draw call so an in-flight async redraw (image loads for the logo/car photo)
@@ -448,7 +467,6 @@ export class CalculatorComponent implements AfterViewInit {
     if (!canvas) return;
     const generation = ++this.drawGeneration;
     await this.currentTemplate().render(canvas, data, CalculatorComponent.PREVIEW_SCALE, () => generation !== this.drawGeneration);
-    if (generation === this.drawGeneration) applyPosterFrame(canvas, data.frame, data.lang, CalculatorComponent.PREVIEW_SCALE);
   }
 
   ngAfterViewInit() {
@@ -469,7 +487,6 @@ export class CalculatorComponent implements AfterViewInit {
     const canvas = document.createElement('canvas');
     // A fresh, never-visible canvas with no concurrent redraw risk — isStale can just say "never".
     await this.currentTemplate().render(canvas, data, CalculatorComponent.EXPORT_SCALE, () => false);
-    applyPosterFrame(canvas, data.frame, data.lang, CalculatorComponent.EXPORT_SCALE);
     return canvas;
   }
 
@@ -533,15 +550,21 @@ export class CalculatorComponent implements AfterViewInit {
     try {
       const blob = await this.renderPosterPngBlob();
       const file = new File([blob], this.posterFileName(), { type: 'image/png' });
+      // The figures as text too, so the customer can read them in the chat (WhatsApp puts it under
+      // the picture). Figures only — no name or role.
+      const lang = this.settingsService.whatsappLang();
+      const text = quoteShareText(this.buildPosterData(), this.q.rateType(), lang);
       if (this.canShareFile(file)) {
-        const advisorProfile = this.advisor.profile();
         try {
-          await navigator.share({ files: [file], title: translate(this.settingsService.whatsappLang(), 'Vehicle Quote') });
+          await navigator.share({ files: [file], title: translate(lang, 'Vehicle Quote'), text });
         } catch {
           /* cancelled or failed — nothing actionable here, same as the brochure share */
         }
         return;
       }
+      // No share sheet (most desktop browsers): download the picture and copy the message, so both
+      // can go into WhatsApp Desktop/Web.
+      await navigator.clipboard?.writeText(text).catch(() => undefined);
       await this.downloadPosterBlob(blob);
       this.posterShareFallbackNotice.set(true);
       setTimeout(() => this.posterShareFallbackNotice.set(false), 5000);

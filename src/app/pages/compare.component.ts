@@ -27,23 +27,23 @@ import { BrandsHintComponent } from '../shared/brands-hint.component';
   template: `
     <div class="mx-auto flex max-w-5xl flex-col pb-10">
       <!-- The top bar already titles the page; this just says what it does. -->
-      <p class="px-2 pb-5 text-center text-sm text-muted-foreground sm:pb-8 sm:text-base">{{ 'Choose up to 3 cars. Every car is quoted on the same loan.' | t }}</p>
+      <p class="max-w-3xl pb-5 text-pretty text-sm text-muted-foreground">{{ 'Choose up to 3 cars. Every car is quoted on the same loan.' | t }}</p>
 
-      <app-brands-hint />
+      <app-brands-hint class="block [&:not(:empty)]:mb-4" />
 
       <!-- Shared loan setup -->
-      <section class="rounded-2xl bg-card p-4 text-card-foreground sm:p-5">
+      <section class="rounded-2xl border border-border bg-card p-4 text-card-foreground sm:p-5">
         <div class="mb-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <span class="text-sm font-semibold">{{ 'Same loan for every car' | t }}</span>
-          <span class="text-xs text-muted-foreground">{{ "Rebates, insurance and rates are each car's own." | t }}</span>
+          <h2 class="text-base font-semibold">{{ 'Same loan for every car' | t }}</h2>
+          <span class="text-sm text-muted-foreground">{{ "Rebates, insurance and rates are each car's own." | t }}</span>
         </div>
         <div class="grid grid-cols-2 gap-x-4 gap-y-4 lg:grid-cols-3">
           <div class="col-span-2 flex flex-col gap-1.5 sm:col-span-1">
-            <span class="text-xs text-muted-foreground">{{ 'Downpayment' | t }}</span>
+            <span class="text-sm font-semibold">{{ 'Downpayment' | t }}</span>
             <div class="flex gap-2">
-              <div class="flex shrink-0 rounded-full bg-muted/50 p-0.5 text-xs font-semibold">
+              <div class="flex shrink-0 rounded-lg bg-muted p-1 text-base font-semibold">
                 @for (k of dpKinds; track k.id) {
-                  <button type="button" (click)="setDownpaymentType(k.id)" class="rounded-full px-3 py-1.5 transition-colors" [ngClass]="setup().downpaymentType === k.id ? 'bg-foreground text-background' : 'text-muted-foreground'">
+                  <button type="button" (click)="setDownpaymentType(k.id)" class="rounded-md px-3.5 py-1.5 transition-colors" [ngClass]="setup().downpaymentType === k.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'">
                     {{ k.label }}
                   </button>
                 }
@@ -55,45 +55,46 @@ import { BrandsHintComponent } from '../shared/brands-hint.component';
                 [ngModel]="setup().downpaymentValue"
                 (ngModelChange)="patch({ downpaymentValue: Math.max(0, +$event || 0) })"
                 [attr.aria-label]="'Downpayment' | t"
-                class="h-9 w-full min-w-0 rounded-full border border-input bg-input px-4 text-sm tabular text-foreground outline-none focus:border-ring"
+                class="h-10 w-full min-w-0 rounded-lg border border-input bg-input px-3 text-sm tabular text-foreground"
               />
             </div>
           </div>
           <div class="col-span-2 flex flex-col gap-1.5 sm:col-span-1">
-            <label for="compareTenure" class="text-xs text-muted-foreground">{{ 'Tenure' | t }}</label>
+            <label for="compareTenure" class="text-sm font-semibold">{{ 'Tenure' | t }}</label>
             <div class="relative">
               <select
                 id="compareTenure"
                 [ngModel]="setup().tenureMonths"
                 (ngModelChange)="patch({ tenureMonths: +$event })"
-                class="h-9 w-full appearance-none rounded-full border border-input bg-input pl-3 pr-8 text-xs text-foreground sm:pl-4 sm:text-sm outline-none focus:border-ring"
+                class="h-10 w-full appearance-none rounded-lg border border-input bg-input pl-3 pr-9 text-sm text-foreground"
               >
                 @for (y of tenureYears; track y) {
                   <option [ngValue]="y * 12">{{ y }} {{ (y === 1 ? 'year' : 'years') | t }}</option>
                 }
               </select>
-              <app-icon name="chevron-down" [size]="14" class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <app-icon name="chevron-down" [size]="18" class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             </div>
           </div>
-          <div class="flex flex-col gap-1.5">
-            <label for="compareNcd" class="text-xs text-muted-foreground">NCD</label>
+          <div class="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
+            <label for="compareNcd" class="text-sm font-semibold">NCD</label>
             <div class="relative">
               <select
                 id="compareNcd"
                 [ngModel]="setup().ncd"
                 (ngModelChange)="patch({ ncd: +$event })"
-                class="h-9 w-full appearance-none rounded-full border border-input bg-input pl-3 pr-8 text-xs text-foreground sm:pl-4 sm:text-sm outline-none focus:border-ring"
+                class="h-10 w-full appearance-none rounded-lg border border-input bg-input pl-3 pr-9 text-sm text-foreground"
               >
                 @for (o of ncdOptions; track o.value) {
                   <option [ngValue]="o.value">{{ o.label | t }}</option>
                 }
               </select>
-              <app-icon name="chevron-down" [size]="14" class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <app-icon name="chevron-down" [size]="18" class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             </div>
           </div>
         </div>
       </section>
 
+      <div data-tour="compare-slots"></div>
       <app-compare-table
         [columns]="columns()"
         [carGroups]="carGroups()"
@@ -116,31 +117,31 @@ import { BrandsHintComponent } from '../shared/brands-hint.component';
               type="button"
               (click)="save()"
               [disabled]="columns().length < 2 || saving()"
-              class="flex items-center justify-center gap-2 rounded-full border border-border bg-card px-6 py-3 text-sm font-semibold transition-colors hover:bg-accent disabled:opacity-50"
+              class="btn btn-outline btn-lg"
             >
-              <app-icon [name]="saved() ? 'check' : 'download'" [size]="15" />
+              <app-icon [name]="saved() ? 'check' : 'download'" [size]="18" />
               {{ (saving() ? 'Saving…' : saved() ? 'Saved!' : 'Save') | t }}
             </button>
             <button
               type="button"
               (click)="share()"
               [disabled]="columns().length < 2 || sharing()"
-              class="btn-glow flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold disabled:opacity-50"
+              class="btn btn-primary btn-lg"
             >
-              <app-icon name="share" [size]="15" />
+              <app-icon name="share" [size]="18" />
               {{ (sharing() ? 'Preparing…' : 'Share comparison') | t }}
             </button>
           </div>
           @if (columns().length < 2) {
-            <p class="text-xs text-muted-foreground">{{ 'Choose at least 2 cars to share a comparison.' | t }}</p>
+            <p class="text-sm text-muted-foreground">{{ 'Choose at least 2 cars to share a comparison.' | t }}</p>
           }
           @if (shareNotice()) {
             <p class="text-xs text-muted-foreground">{{ 'Saved the image to your downloads. Attach it in WhatsApp.' | t }}</p>
           }
-          <p class="max-w-md text-pretty text-[11px] text-muted-foreground">{{ 'Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here.' | t }}</p>
+          <p class="max-w-md text-pretty text-xs text-muted-foreground">{{ 'Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here.' | t }}</p>
         </div>
       } @else {
-        <p class="mt-10 text-center text-sm text-muted-foreground">{{ 'Add 2 or 3 cars to compare their price, downpayment and monthly instalment.' | t }}</p>
+        <p class="mt-5 text-pretty text-center text-sm text-muted-foreground">{{ 'Add 2 or 3 cars to compare their price, downpayment and monthly instalment.' | t }}</p>
       }
     </div>
   `,
@@ -303,7 +304,6 @@ export class CompareComponent {
     await renderComparePoster(canvas, {
       lang,
       accent: this.settings.settings().salesDefaults.posterAccent,
-      frame: this.settings.settings().salesDefaults.posterFrame,
       setupLine,
       tenureYears: years,
       cars: this.columns().map((c) => ({

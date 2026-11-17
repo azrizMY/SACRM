@@ -1,7 +1,7 @@
 import { Component, ElementRef, HostListener, NgZone, OnDestroy, OnInit, ViewChild, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from './icon.component';
-import { TranslatePipe } from './i18n';
+import { I18nService, TranslatePipe } from './i18n';
 import { TourService, findTourTarget } from './tour.service';
 
 type Box = { top: number; left: number; width: number; height: number };
@@ -22,10 +22,10 @@ type Box = { top: number; left: number; width: number; height: number };
             [style.left.px]="b.left - 6"
             [style.width.px]="b.width + 12"
             [style.height.px]="b.height + 12"
-            style="box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.78)"
+            style="box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.72)"
           ></div>
         } @else {
-          <div class="absolute inset-0 bg-black/80"></div>
+          <div class="absolute inset-0 bg-black/70"></div>
         }
 
         <div
@@ -33,40 +33,38 @@ type Box = { top: number; left: number; width: number; height: number };
           role="dialog"
           aria-modal="true"
           [attr.aria-label]="step.title"
-          class="fixed flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-2xl"
+          class="fixed flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-2xl"
           [style.width.px]="cardWidth()"
           [style.top.px]="pos().top"
           [style.left.px]="pos().left"
         >
           <div class="flex items-start justify-between gap-3">
-            <h2 class="text-sm font-semibold leading-snug">{{ step.title }}</h2>
+            <div class="flex flex-col gap-1">
+              <span class="text-sm font-semibold text-muted-foreground">{{ stepLabel(step.labels?.step) }}</span>
+              <h2 class="text-base font-semibold leading-snug">{{ step.title }}</h2>
+            </div>
             <button
               type="button"
               (click)="tour.finish()"
-              class="-mr-1 -mt-1 flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              aria-label="Skip tutorial"
+              class="-mr-2 -mt-2 flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              [attr.aria-label]="'Close the guide' | t"
             >
-              <app-icon name="x" [size]="15" />
+              <app-icon name="x" [size]="20" />
             </button>
           </div>
-          <p class="text-pretty text-sm leading-relaxed text-muted-foreground">{{ step.body }}</p>
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-1" aria-hidden="true">
-              @for (i of dots(); track i) {
-                <span class="h-1.5 rounded-full transition-all" [ngClass]="i === tour.index() ? 'w-4 bg-primary' : 'w-1.5 bg-muted-foreground/40'"></span>
-              }
-            </div>
-            <div class="flex items-center gap-2">
+          <p class="text-pretty text-base leading-relaxed text-foreground">{{ step.body }}</p>
+          <div class="flex items-center justify-end gap-2 pt-1">
+            <div class="contents">
               @if (tour.index() > 0) {
-                <button type="button" (click)="tour.back()" class="rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">{{ step.labels?.back ?? ("Back" | t) }}</button>
+                <button type="button" (click)="tour.back()" class="h-11 rounded-lg px-4 text-base font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">{{ step.labels?.back ?? ("Back" | t) }}</button>
               } @else {
-                <button type="button" (click)="tour.finish()" class="rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">{{ step.labels?.skip ?? ("Skip" | t) }}</button>
+                <button type="button" (click)="tour.finish()" class="h-11 rounded-lg px-4 text-base font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">{{ step.labels?.skip ?? ("Skip" | t) }}</button>
               }
               <button
                 #primary
                 type="button"
                 (click)="tour.next()"
-                class="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                class="h-11 min-w-24 rounded-lg bg-primary px-5 text-base font-bold text-primary-foreground"
               >
                 {{ tour.isLast() ? (step.doneLabel ?? ('Got it' | t)) : (step.labels?.next ?? ('Next' | t)) }}
               </button>
@@ -80,13 +78,14 @@ type Box = { top: number; left: number; width: number; height: number };
 export class TourOverlayComponent implements OnInit, OnDestroy {
   tour = inject(TourService);
   private zone = inject(NgZone);
+  private i18n = inject(I18nService);
 
   @ViewChild('card') cardRef?: ElementRef<HTMLElement>;
   @ViewChild('primary') primaryRef?: ElementRef<HTMLButtonElement>;
 
   box = signal<Box | null>(null);
   pos = signal({ top: 0, left: 0 });
-  cardWidth = signal(340);
+  cardWidth = signal(380);
   private frame = 0;
   private scrolledFor = -1;
 
@@ -124,8 +123,11 @@ export class TourOverlayComponent implements OnInit, OnDestroy {
     cancelAnimationFrame(this.frame);
   }
 
-  dots() {
-    return Array.from({ length: this.tour.total() }, (_, i) => i);
+  /** "Step 2 of 6", in the page's own language when it passes one. */
+  stepLabel(custom?: string): string {
+    const params = { n: this.tour.index() + 1, total: this.tour.total() };
+    if (custom) return custom.replace('{n}', String(params.n)).replace('{total}', String(params.total));
+    return this.i18n.t('Step {n} of {total}', params);
   }
 
   private measure() {
@@ -133,9 +135,9 @@ export class TourOverlayComponent implements OnInit, OnDestroy {
     if (!step) return;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const width = Math.min(340, vw - 24);
+    const width = Math.min(380, vw - 24);
     if (this.cardWidth() !== width) this.cardWidth.set(width);
-    const cardH = this.cardRef?.nativeElement.offsetHeight ?? 170;
+    const cardH = this.cardRef?.nativeElement.offsetHeight ?? 220;
 
     const el = step.target ? findTourTarget(step.target) : null;
     if (!el) {

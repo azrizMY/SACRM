@@ -22,7 +22,7 @@ const SHOWCASES: Showcase[] = [
     eyebrow: 'Ready-to-post posters',
     title: 'A quote your customer can read at a glance',
     body: 'Every quote becomes a clean poster with the car, the monthly instalment and the full price breakdown, ready for WhatsApp, Instagram and TikTok.',
-    points: ['Full Quotation, Monthly Estimate, Compact and Rebate Deal layouts', 'Your own poster colour, plus festive frames for Raya, CNY, Deepavali and more', 'Your name, photo and WhatsApp number on every poster'],
+    points: ['Full Quotation, Monthly Estimate, Compact and Rebate Deal layouts', 'Your own poster colour, used across the app, posters and your quote link', 'Your name, photo and WhatsApp number on every poster'],
     visual: 'poster',
   },
   {
@@ -81,11 +81,11 @@ const FAQS: { q: string; a: string }[] = [
         <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <button type="button" (click)="scrollTo('top')" class="flex items-center gap-2.5 text-left">
             <span class="logo-chip flex size-9 items-center justify-center rounded-xl">
-              <app-icon name="car" [size]="18" />
+              <app-icon name="car" [size]="20" />
             </span>
             <span class="flex flex-col leading-tight">
               <span class="text-sm font-bold tracking-tight">Redline</span>
-              <span class="text-[11px] text-muted-foreground">Car Quotation</span>
+              <span class="text-xs text-muted-foreground">Car Quotation</span>
             </span>
           </button>
           <nav class="hidden items-center gap-1 md:flex" aria-label="Sections">
@@ -107,32 +107,31 @@ const FAQS: { q: string; a: string }[] = [
       <main id="top" class="flex flex-1 flex-col items-center">
         <!-- Hero -->
         <section class="relative flex w-full flex-col items-center px-4 pt-10 sm:px-6 sm:pt-16">
-          <div class="hero-grid pointer-events-none absolute inset-0 -z-10" aria-hidden="true"></div>
-          <div class="flex max-w-4xl flex-col items-center gap-6 text-center">
-            <span class="animate-rise rounded-full border border-border bg-card px-3.5 py-1 text-xs font-semibold text-muted-foreground">
+                    <div class="flex max-w-4xl flex-col items-center gap-6 text-center">
+            <span class="animate-rise rounded-full border border-border bg-card px-3.5 py-1.5 text-sm font-semibold text-muted-foreground">
               For car sales advisors in Malaysia
             </span>
             <h1 class="animate-rise text-balance text-[2.75rem] font-extrabold leading-[1.05] tracking-tight sm:text-7xl" style="--i: 1">
               Quote it. Post it.
               <span class="text-gradient">Close it.</span>
             </h1>
-            <p class="animate-rise max-w-2xl text-pretty text-base text-muted-foreground sm:text-lg" style="--i: 2">
+            <p class="animate-rise max-w-2xl text-pretty text-sm text-muted-foreground sm:text-lg" style="--i: 2">
               Turn a car price into a full loan quotation in seconds. Share it as a poster, send a link your customer can play with, or show it on TikTok Live.
             </p>
             <div class="animate-rise flex w-full flex-col items-stretch justify-center gap-3 pt-2 sm:w-auto sm:flex-row sm:items-center" style="--i: 3">
               <a [routerLink]="primaryCta().link" class="btn-glow group flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-semibold">
                 {{ primaryCta().label }}
-                <app-icon name="arrow-up-right" [size]="16" class="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                <app-icon name="arrow-up-right" [size]="18" class="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </a>
-              <button type="button" (click)="scrollTo('posters')" class="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-6 py-3.5 text-sm font-semibold text-foreground transition-colors hover:border-primary/40">
+              <button type="button" (click)="scrollTo('posters')" class="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-6 py-3.5 text-sm font-semibold text-foreground transition-colors hover:border-brand/40">
                 See how it works
-                <app-icon name="chevron-down" [size]="16" />
+                <app-icon name="chevron-down" [size]="18" />
               </button>
             </div>
             <ul class="animate-rise flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground" style="--i: 4">
               @for (t of trust; track t) {
                 <li class="flex items-center gap-1.5">
-                  <app-icon name="check" [size]="14" class="text-[var(--success)]" />
+                  <app-icon name="check" [size]="18" class="text-[var(--success)]" />
                   {{ t }}
                 </li>
               }
@@ -141,7 +140,7 @@ const FAQS: { q: string; a: string }[] = [
 
           <!-- Product shot: the advisor's Calculator, with the customer's quote link on a phone -->
           <div class="animate-rise relative mt-14 w-full max-w-5xl pb-8 sm:pb-16" style="--i: 5">
-            <div class="absolute inset-x-16 top-16 -z-10 h-2/3 rounded-full bg-primary/15 blur-3xl" aria-hidden="true"></div>
+            <div class="absolute inset-x-16 top-16 -z-10 h-2/3 rounded-full bg-brand-soft blur-3xl" aria-hidden="true"></div>
             <figure class="overflow-hidden rounded-xl border border-border bg-card shadow-2xl sm:rounded-2xl">
               <div class="flex items-center gap-1.5 border-b border-border px-4 py-2.5" aria-hidden="true">
                 <span class="size-2.5 rounded-full bg-muted-foreground/30"></span>
@@ -175,13 +174,13 @@ const FAQS: { q: string; a: string }[] = [
           @for (s of showcases; track s.id; let i = $index) {
             <section [id]="s.id" class="grid scroll-mt-24 items-center gap-10 md:grid-cols-2 md:gap-16">
               <div class="reveal flex flex-col gap-5" [ngClass]="{ 'md:order-2': i % 2 === 1 }">
-                <span class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{{ s.eyebrow }}</span>
+                <span class="text-sm font-semibold text-brand">{{ s.eyebrow }}</span>
                 <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-4xl">{{ s.title }}</h2>
                 <p class="text-pretty leading-relaxed text-muted-foreground">{{ s.body }}</p>
                 <ul class="flex flex-col gap-3 pt-1">
                   @for (p of s.points; track p) {
                     <li class="flex gap-3 text-sm">
-                      <span class="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary"><app-icon name="check" [size]="12" /></span>
+                      <span class="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand"><app-icon name="check" [size]="16" /></span>
                       <span>{{ p }}</span>
                     </li>
                   }
@@ -189,7 +188,7 @@ const FAQS: { q: string; a: string }[] = [
               </div>
 
               <div class="reveal relative flex justify-center" [ngClass]="{ 'md:order-1': i % 2 === 1 }">
-                <div class="absolute inset-10 -z-10 rounded-full bg-primary/12 blur-3xl" aria-hidden="true"></div>
+                <div class="absolute inset-10 -z-10 rounded-full bg-brand-soft blur-3xl" aria-hidden="true"></div>
                 @switch (s.visual) {
                   @case ('poster') {
                     <img src="/landing/poster.webp" width="1800" height="2336" loading="lazy" alt="A Full Quotation poster for a Chery O5" class="block h-auto w-full max-w-md rounded-xl shadow-2xl" />
@@ -211,7 +210,7 @@ const FAQS: { q: string; a: string }[] = [
                   }
                   @case ('live') {
                     <figure class="relative w-full max-w-md">
-                      <span class="absolute -top-3 right-4 z-10 flex items-center gap-1.5 rounded-md bg-[#fe2c55] px-2 py-1 text-[11px] font-bold tracking-wide text-white shadow">
+                      <span class="absolute -top-3 right-4 z-10 flex items-center gap-1.5 rounded-md bg-[#fe2c55] px-2 py-1 text-xs font-bold tracking-wide text-white shadow">
                         <span class="size-1.5 rounded-full bg-white"></span>LIVE
                       </span>
                       <img src="/landing/live-screen.webp" width="1053" height="1053" loading="lazy" alt="The Live Screen in Bahasa Melayu showing a monthly of RM 1,214" class="block h-auto w-full rounded-xl shadow-2xl" />
@@ -230,7 +229,7 @@ const FAQS: { q: string; a: string }[] = [
             <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               @for (v of values; track v.title) {
                 <div class="reveal flex flex-col gap-3 rounded-2xl border border-border bg-card p-6">
-                  <span class="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><app-icon [name]="v.icon" [size]="18" /></span>
+                  <span class="flex size-10 items-center justify-center rounded-xl bg-brand-soft text-brand"><app-icon [name]="v.icon" [size]="20" /></span>
                   <span class="text-base font-bold">{{ v.title }}</span>
                   <span class="text-pretty text-sm leading-relaxed text-muted-foreground">{{ v.blurb }}</span>
                 </div>
@@ -244,10 +243,10 @@ const FAQS: { q: string; a: string }[] = [
           <h2 class="reveal text-center text-3xl font-extrabold tracking-tight sm:text-4xl">Questions, answered</h2>
           <div class="mt-10 flex flex-col gap-3">
             @for (f of faqs; track f.q) {
-              <details class="reveal group rounded-2xl border border-border bg-card px-5 open:border-primary/30">
+              <details class="reveal group rounded-2xl border border-border bg-card px-5 open:border-brand/30">
                 <summary class="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-left text-sm font-semibold sm:text-base">
                   {{ f.q }}
-                  <app-icon name="chevron-down" [size]="18" class="shrink-0 text-muted-foreground transition-transform duration-300 group-open:rotate-180" />
+                  <app-icon name="chevron-down" [size]="20" class="shrink-0 text-muted-foreground transition-transform duration-300 group-open:rotate-180" />
                 </summary>
                 <p class="pb-5 text-pretty text-sm leading-relaxed text-muted-foreground">{{ f.a }}</p>
               </details>
@@ -258,16 +257,16 @@ const FAQS: { q: string; a: string }[] = [
         <!-- Final CTA -->
         <section class="w-full px-4 pb-20 sm:px-6">
           <div class="reveal relative mx-auto flex max-w-5xl flex-col items-center gap-6 overflow-hidden rounded-3xl border border-border bg-card px-6 py-14 text-center sm:py-20">
-            <div class="pointer-events-none absolute -bottom-24 left-1/2 -z-10 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-primary/25 blur-3xl" aria-hidden="true"></div>
+            <div class="pointer-events-none absolute -bottom-24 left-1/2 -z-10 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-brand-soft blur-3xl" aria-hidden="true"></div>
             <h2 class="text-balance text-3xl font-extrabold tracking-tight sm:text-5xl">Your next quote starts <span class="text-gradient">here.</span></h2>
             <p class="max-w-lg text-pretty text-muted-foreground">{{ signedIn() ? 'Pick up where you left off.' : 'Set up your account and send your first quote today.' }}</p>
             <div class="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row">
               <a [routerLink]="primaryCta().link" class="btn-glow flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-semibold">
                 {{ primaryCta().label }}
-                <app-icon name="arrow-up-right" [size]="16" />
+                <app-icon name="arrow-up-right" [size]="18" />
               </a>
               @if (!signedIn()) {
-                <a routerLink="/login" class="flex items-center justify-center rounded-xl border border-border px-6 py-3.5 text-sm font-semibold transition-colors hover:border-primary/40">I already have an account</a>
+                <a routerLink="/login" class="flex items-center justify-center rounded-xl border border-border px-6 py-3.5 text-sm font-semibold transition-colors hover:border-brand/40">I already have an account</a>
               }
             </div>
           </div>
@@ -277,7 +276,7 @@ const FAQS: { q: string; a: string }[] = [
       <footer class="border-t border-border">
         <div class="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:px-6">
           <span class="flex items-center gap-2">
-            <span class="logo-chip flex size-6 items-center justify-center rounded-md"><app-icon name="car" [size]="12" /></span>
+            <span class="logo-chip flex size-6 items-center justify-center rounded-md"><app-icon name="car" [size]="16" /></span>
             Redline Car Quotation © {{ year }}
           </span>
           <span class="flex gap-4">
@@ -296,13 +295,6 @@ const FAQS: { q: string; a: string }[] = [
   `,
   host: { '(window:scroll)': 'onScroll()' },
   styles: `
-    .hero-grid {
-      background-image:
-        linear-gradient(to right, color-mix(in oklch, var(--border), transparent 40%) 1px, transparent 1px),
-        linear-gradient(to bottom, color-mix(in oklch, var(--border), transparent 40%) 1px, transparent 1px);
-      background-size: 48px 48px;
-      mask-image: radial-gradient(ellipse 70% 55% at 50% 20%, #000 30%, transparent 75%);
-    }
     /* A plain phone body around a phone-sized screenshot */
     .phone {
       padding: 6px;

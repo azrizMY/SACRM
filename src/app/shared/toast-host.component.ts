@@ -13,7 +13,7 @@ import { ToastService } from './toast.service';
         <div class="pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-xl border border-border bg-popover px-4 py-3 text-sm text-popover-foreground shadow-lg">
           <span class="min-w-0 flex-1">{{ t.message | t }}</span>
           @if (t.actionLabel) {
-            <button type="button" (click)="toasts.run(t)" class="shrink-0 rounded-md px-2 py-1 text-xs font-bold text-primary hover:bg-primary/10">{{ t.actionLabel | t }}</button>
+            <button type="button" (click)="toasts.run(t)" class="shrink-0 rounded-md px-2 py-1 text-sm font-bold text-brand hover:bg-brand-soft">{{ t.actionLabel | t }}</button>
           }
         </div>
       }

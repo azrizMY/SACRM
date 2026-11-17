@@ -9,6 +9,7 @@ import { vehicleTitle } from '../data/calculator-data';
 import type { AdvisorProfile } from '../data/advisor-data';
 import { formatMalaysianPhone, toMalaysianWhatsAppNumber } from '../data/dashboard-data';
 import { BrandIconComponent } from '../shared/brand-icon.component';
+import { MyBrandsComponent } from '../shared/my-brands.component';
 import {
   SOCIAL_PLATFORMS,
   displayLink,
@@ -25,7 +26,7 @@ import {
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, ImageCropModalComponent, BrandIconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, ImageCropModalComponent, BrandIconComponent, MyBrandsComponent],
   template: `
     <div class="mx-auto flex max-w-5xl flex-col gap-5">
       <div class="flex flex-col gap-1">
@@ -41,8 +42,7 @@ import {
                 <img [src]="photo" alt="" class="size-20 shrink-0 rounded-full border border-border object-cover" />
               } @else {
                 <div
-                  class="flex size-20 shrink-0 items-center justify-center rounded-full border border-border text-2xl font-bold text-white/90"
-                  [style.background]="avatarGradient"
+                  class="flex size-20 shrink-0 items-center justify-center rounded-full border border-border text-2xl font-bold logo-chip"
                 >
                   {{ advisor.initials() }}
                 </div>
@@ -54,7 +54,7 @@ import {
                   aria-label="Change photo"
                   class="absolute -bottom-1.5 -right-1.5 flex size-7 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition-colors hover:bg-accent"
                 >
-                  <app-icon name="upload" [size]="13" />
+                  <app-icon name="upload" [size]="16" />
                 </button>
                 <input #photoInput type="file" accept="image/*" class="hidden" (change)="onPhotoFileChange($event)" />
               }
@@ -64,23 +64,23 @@ import {
                 <button
                   type="button"
                   (click)="removePhoto()"
-                  class="w-fit text-[11px] font-medium text-muted-foreground underline-offset-2 hover:text-destructive hover:underline"
+                  class="w-fit text-sm font-semibold text-foreground underline-offset-2 hover:text-destructive hover:underline"
                 >
                   Remove photo
                 </button>
               }
               @if (photoError(); as err) {
-                <span class="text-[11px] font-medium text-destructive">{{ err }}</span>
+                <span class="text-xs font-medium text-destructive">{{ err }}</span>
               }
               @if (!editing()) {
                 <h3 class="text-xl font-semibold tracking-tight">{{ advisor.profile().name }}</h3>
-                <span class="w-fit rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{{ advisor.profile().role }}</span>
+                <span class="w-fit rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand">{{ advisor.profile().role }}</span>
               } @else {
                 <input
                   type="text"
                   [(ngModel)]="form.name"
                   placeholder="Name"
-                  class="h-9 w-full rounded-lg border border-input bg-input px-3 text-base font-semibold text-foreground outline-none focus:border-ring sm:w-56"
+                  class="h-9 w-full rounded-lg border border-input bg-input px-3 text-sm font-semibold text-foreground outline-none focus:border-ring sm:w-56"
                 />
                 <input
                   type="text"
@@ -96,15 +96,15 @@ import {
             <button
               type="button"
               (click)="startEdit()"
-              class="flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
+              class="flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
             >
-              <app-icon name="pencil" [size]="13" />
+              <app-icon name="pencil" [size]="16" />
               Edit Profile
             </button>
           } @else {
             <div class="flex shrink-0 items-center gap-2">
-              <button type="button" (click)="cancelEdit()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
-              <button type="button" (click)="saveEdit()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90">Save</button>
+              <button type="button" (click)="cancelEdit()" class="rounded-md px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
+              <button type="button" (click)="saveEdit()" class="rounded-md bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">Save</button>
             </div>
           }
         </div>
@@ -113,7 +113,7 @@ import {
           @if (!editing()) {
             <p class="max-w-2xl text-pretty text-sm leading-relaxed text-muted-foreground">{{ advisor.profile().bio }}</p>
           } @else {
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+            <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
               Bio
               <textarea
                 rows="2"
@@ -125,7 +125,7 @@ import {
 
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div class="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
-              <app-icon name="mail" [size]="16" class="shrink-0 text-primary" />
+              <app-icon name="mail" [size]="18" class="shrink-0 text-brand" />
               @if (!editing()) {
                 <span class="truncate text-sm">{{ advisor.profile().email }}</span>
               } @else {
@@ -133,7 +133,7 @@ import {
               }
             </div>
             <div class="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
-              <app-icon name="phone" [size]="16" class="shrink-0 text-primary" />
+              <app-icon name="phone" [size]="18" class="shrink-0 text-brand" />
               @if (!editing()) {
                 <span class="truncate text-sm">{{ formatPhone(advisor.profile().phoneDisplay) }}</span>
               } @else {
@@ -146,13 +146,13 @@ import {
         <!-- Showroom -->
         <div class="flex flex-col gap-3 border-t border-border p-6">
           <div class="flex flex-col gap-0.5">
-            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Showroom</span>
+            <span class="text-sm font-semibold text-foreground">Showroom</span>
             <span class="text-xs text-muted-foreground">Shown on the Profile tab of your customer link, with directions.</span>
           </div>
           @if (!editing()) {
             @if (hasShowroom(advisor.profile().showroom)) {
               <div class="flex items-start gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
-                <app-icon name="map-pin" [size]="16" class="mt-0.5 shrink-0 text-primary" />
+                <app-icon name="map-pin" [size]="18" class="mt-0.5 shrink-0 text-brand" />
                 <div class="flex min-w-0 flex-col gap-0.5">
                   @if (advisor.profile().showroom?.name; as name) {
                     <span class="text-sm font-medium">{{ name }}</span>
@@ -161,7 +161,7 @@ import {
                     <span class="whitespace-pre-line text-xs leading-relaxed text-muted-foreground">{{ address }}</span>
                   }
                   @if (showroomMapsHref(advisor.profile().showroom); as href) {
-                    <a [href]="href" target="_blank" rel="noopener noreferrer" class="mt-1 w-fit text-xs font-medium text-primary underline-offset-2 hover:underline">Open in Google Maps</a>
+                    <a [href]="href" target="_blank" rel="noopener noreferrer" class="mt-1 w-fit text-xs font-medium text-brand underline-offset-2 hover:underline">Open in Google Maps</a>
                   }
                 </div>
               </div>
@@ -170,7 +170,7 @@ import {
             }
           } @else {
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
                 Showroom Name
                 <input
                   type="text"
@@ -180,7 +180,7 @@ import {
                   class="h-9 rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none focus:border-ring"
                 />
               </label>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
                 Google Maps Link <span class="font-normal">(optional)</span>
                 <input
                   type="url"
@@ -191,10 +191,10 @@ import {
                   [ngClass]="mapsError() ? 'border-destructive' : 'border-input'"
                 />
                 @if (mapsError(); as err) {
-                  <span class="text-[11px] font-medium text-destructive">{{ err }}</span>
+                  <span class="text-xs font-medium text-destructive">{{ err }}</span>
                 }
               </label>
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground sm:col-span-2">
+              <label class="flex flex-col gap-1 text-sm font-semibold text-foreground sm:col-span-2">
                 Address
                 <textarea
                   rows="2"
@@ -205,14 +205,14 @@ import {
                 ></textarea>
               </label>
             </div>
-            <p class="text-[11px] text-muted-foreground">Without a Maps link, directions search for the showroom name and address.</p>
+            <p class="text-xs text-muted-foreground">Without a Maps link, directions search for the showroom name and address.</p>
           }
         </div>
 
         <!-- Social media -->
         <div class="flex flex-col gap-3 border-t border-border p-6">
           <div class="flex flex-col gap-0.5">
-            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Social Media</span>
+            <span class="text-sm font-semibold text-foreground">Social Media</span>
             <span class="text-xs text-muted-foreground">Only the ones you fill in are shown to customers.</span>
           </div>
           @if (!editing()) {
@@ -229,7 +229,7 @@ import {
                       <app-brand-icon [name]="s.id" [size]="28" [tile]="true" />
                       <div class="flex min-w-0 flex-col">
                         <span class="text-sm font-medium leading-tight">{{ s.label }}</span>
-                        <span class="truncate text-[11px] text-muted-foreground">{{ displayLink(s.href) }}</span>
+                        <span class="truncate text-xs text-muted-foreground">{{ displayLink(s.href) }}</span>
                       </div>
                     </a>
                   }
@@ -257,7 +257,7 @@ import {
                     />
                   </label>
                   @if (socialErrors()[p.id]; as err) {
-                    <span class="text-[11px] font-medium text-destructive">{{ err }}</span>
+                    <span class="text-xs font-medium text-destructive">{{ err }}</span>
                   }
                 </div>
               }
@@ -268,13 +268,16 @@ import {
         @if (editing()) {
           <div class="flex items-center justify-end gap-2 border-t border-border px-6 py-4">
             @if (hasFormErrors()) {
-              <span class="mr-auto text-[11px] font-medium text-destructive">Fix the highlighted fields to save.</span>
+              <span class="mr-auto text-xs font-medium text-destructive">Fix the highlighted fields to save.</span>
             }
-            <button type="button" (click)="cancelEdit()" class="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
-            <button type="button" (click)="saveEdit()" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90">Save</button>
+            <button type="button" (click)="cancelEdit()" class="rounded-md px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
+            <button type="button" (click)="saveEdit()" class="rounded-md bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">Save</button>
           </div>
         }
       </div>
+
+      <!-- Your brands and the customer link's test drive button (moved here from Settings) -->
+      <app-my-brands />
     </div>
 
     @if (cropFile(); as file) {
@@ -285,8 +288,6 @@ import {
 export class ProfileComponent {
   vehicleTitle = vehicleTitle;
   fmt = (v: number) => `RM ${v.toLocaleString('en-MY')}`;
-  avatarGradient =
-    'radial-gradient(circle at 30% 20%, var(--primary), transparent 70%), linear-gradient(145deg, var(--primary), color-mix(in oklch, var(--primary), black 55%))';
 
   editing = signal(false);
   photoError = signal<string | null>(null);

@@ -32,8 +32,6 @@ export type PublicQuoteBundle = {
     loanRounding?: 'down' | 'up';
     /** The advisor's poster colour, so the customer's poster matches theirs. */
     posterAccent?: string;
-    /** The advisor's festive frame, so the customer's poster matches theirs. */
-    posterFrame?: string;
     /** Motor tariff column and table, so the customer sees the same tariff insurance. */
     insuranceRegion?: 'peninsular' | 'east';
     /** "Book test drive": on unless the advisor turned it off. */

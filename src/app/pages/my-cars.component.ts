@@ -1,73 +1,57 @@
 import { CarShadowPipe } from '../shared/car-shadow';
-import { AfterViewInit, Component, computed, effect, ElementRef, inject, OnDestroy, signal, TemplateRef, ViewChild } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { IconComponent } from '../shared/icon.component';
-import { brandLogo, brandStyle } from '../data/dashboard-data';
+import { brandStyle } from '../data/dashboard-data';
 import { AdvisorService } from '../shared/advisor.service';
 import { SettingsService } from '../shared/settings.service';
 import { translate } from '../shared/i18n-core';
-import type { SalesDefaults } from '../data/settings-data';
+import { TranslatePipe } from '../shared/i18n';
 import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
-import { TopbarExtraService } from '../shared/topbar-extra.service';
 import {
-  VEHICLES,
   additionalRebateForYear,
-  basicPremiumDefault,
-  computeInsuranceBreakdown,
-  computeQuotationTotals,
-  minDownpaymentCash,
-  defaultRateFor,
   formatRM,
   modelVariantLabel,
-  monthlyPayment,
   rebateForYear,
   variantLabel,
   vehicleTitle,
-  type RateType,
   type Vehicle,
 } from '../data/calculator-data';
-import { assembleImagePdfBytes, downloadBlob as downloadPdfBytes, type PdfImagePage } from '../shared/pdf-writer';
-import { posterFontsReady } from '../shared/poster-theme';
-import { simpleBrochureTemplate } from '../shared/poster-brochure-template-simple';
-import { groupedBrochureTemplate } from '../shared/poster-brochure-template-grouped';
-import type { BrochureTemplate, BrochureTemplateId } from '../shared/poster-brochure-templates';
-import type { BrochureData, BrochureRow } from '../shared/poster-brochure-data';
-import { applyPosterFrame } from '../shared/poster-frames';
 import { BrandsHintComponent } from '../shared/brands-hint.component';
-
-type OfferTab = 'preview' | 'settings';
+import { ScrollRowComponent } from '../shared/scroll-row.component';
 
 @Component({
   selector: 'app-my-cars',
   standalone: true,
-  imports: [BrandsHintComponent, CommonModule, FormsModule, IconComponent, CarShadowPipe],
+  imports: [BrandsHintComponent, CommonModule, FormsModule, IconComponent, CarShadowPipe, TranslatePipe, ScrollRowComponent],
   template: `
     <div class="mx-auto flex max-w-7xl flex-col gap-5 pb-16">
 
-      @if (pageMode() === 'specs') {
         @if (shareFallbackNotice()) {
-          <div class="flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2.5 text-sm">
-            <app-icon name="download" [size]="14" class="shrink-0" />
+          <div class="flex items-center gap-2 rounded-lg bg-brand-soft px-4 py-2.5 text-sm">
+            <app-icon name="download" [size]="18" class="shrink-0" />
             Your browser can't hand files to WhatsApp directly — brochure downloaded. Attach it in WhatsApp Desktop/Web.
           </div>
         }
 
-        <app-brands-hint />
+        <app-brands-hint class="block empty:hidden" />
 
         <!-- Search + brand filter -->
         <div class="flex flex-col gap-3">
-          <div class="relative sm:max-w-sm">
-            <app-icon name="search" [size]="14" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <div data-tour="catalog-search" class="relative sm:max-w-md">
+            <app-icon name="search" [size]="18" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="search"
-              placeholder="Search model or variant…"
+              [placeholder]="'Search model or variant…' | t"
               [ngModel]="search()"
               (ngModelChange)="search.set($event)"
-              class="h-10 w-full rounded-lg border border-input bg-input pl-9 pr-3 text-sm text-foreground outline-none"
+              class="h-10 w-full rounded-lg border border-input bg-input pl-10 pr-3 text-sm text-foreground"
             />
           </div>
+          <!-- Brand chips only when there's more than one brand to pick between -->
+          @if (brandFilters.length > 1) {
           <div role="tablist" aria-label="Filter by brand" class="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-0.5 md:mx-0 md:flex-wrap md:px-0">
             @for (b of brandFilters; track b) {
               <button
@@ -75,273 +59,110 @@ type OfferTab = 'preview' | 'settings';
                 role="tab"
                 [attr.aria-selected]="b === brandFilter()"
                 (click)="brandFilter.set(b)"
-                class="flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
-                [ngClass]="b === brandFilter() ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                class="flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-semibold transition-colors"
+                [ngClass]="b === brandFilter() ? 'border-brand bg-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
               >
                 {{ b }}
                 <span class="tabular opacity-70">{{ countForBrand(b) }}</span>
               </button>
             }
           </div>
+          }
         </div>
 
         <!-- Car cards -->
         @if (filteredCars().length) {
-          <!-- One section per model, so a row never mixes models (Saga, then S70, then X50…) -->
+          <!-- A model with several variants gets its own titled row that scrolls sideways (the next card
+               peeks in, with an arrow when more are hidden); one-variant models share one grid, so
+               the page isn't one lonely card per row. -->
           <div class="flex flex-col gap-8">
-          @for (g of modelGroups(); track g.key) {
-          <section class="flex flex-col gap-3">
-            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h3 class="text-lg font-bold tracking-tight">{{ vehicleTitle(g.brand, g.model) }}</h3>
-              <span class="text-xs text-muted-foreground">
-                {{ g.cars.length }} {{ g.cars.length === 1 ? 'variant' : 'variants' }} · from
-                <span class="font-semibold text-foreground tabular">{{ fmt(g.fromPrice) }}</span>
-              </span>
-            </div>
-          <div class="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-2 md:mx-0 md:scroll-px-0 md:px-0">
-            @for (v of g.cars; track v.id) {
-              <article class="w-[44%] shrink-0 snap-start sm:w-[30%] lg:w-[220px] lift group flex flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
-                <!-- Photo on a light stage, like a showroom shot -->
-                <div class="relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-gradient-to-b from-white to-[oklch(0.9_0.005_280)]">
-                  @if (v.photoUrl) {
-                    <img
-                      [src]="v.photoUrl | carShadow"
-                      [alt]="modelVariantLabel(v.model, v.variant)"
-                      loading="lazy"
-                      class="h-full w-full object-contain p-2.5 transition-transform duration-500 group-hover:scale-105"
-                    />
-                  } @else {
-                    <div class="flex h-full w-full items-center justify-center" [style.background]="tileGradient(v.brand)">
-                      <app-icon name="car" [size]="28" class="text-white/80" />
+          @for (run of catalogRuns(); track run.key) {
+            @if (run.kind === 'model') {
+              <section class="flex flex-col gap-3">
+                <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <h3 class="text-base font-semibold tracking-tight">{{ vehicleTitle(run.group.brand, run.group.model) }}</h3>
+                  <span class="text-xs text-muted-foreground">
+                    {{ run.group.cars.length }} {{ 'variants' | t }} · {{ 'from' | t }}
+                    <span class="font-semibold text-foreground tabular">{{ fmt(run.group.fromPrice) }}</span>
+                  </span>
+                </div>
+                <app-scroll-row>
+                  @for (v of run.group.cars; track v.id) {
+                    <div class="grid w-[42%] shrink-0 snap-start sm:w-[30%] lg:w-[calc((100%-1.5rem)/3)] 2xl:w-[calc((100%-2.25rem)/4)]">
+                      <ng-container *ngTemplateOutlet="carCard; context: { $implicit: v, full: false }" />
                     </div>
                   }
-                  @if (currentRebate(v) > 0) {
-                    <span class="absolute right-2 top-2 rounded-md bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground shadow">
-                      Rebate {{ fmt(currentRebate(v)) }}
-                    </span>
-                  }
-                </div>
-
-                <div class="flex flex-1 flex-col gap-2.5 p-3">
-                  <div class="flex min-w-0 flex-col gap-1">
-                    <span class="truncate text-sm font-bold">{{ variantLabel(v.variant) || v.model }}</span>
-                    <span class="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                      <span class="font-semibold text-foreground tabular">{{ fmt(v.price) }}</span>
-                      <span>OTR</span>
-                      @for (y of yearsOf(v); track y) {
-                        <span class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular text-foreground">{{ y }}</span>
-                      }
-                    </span>
-                  </div>
-
-                  <div class="mt-auto flex gap-2">
-                    @if (brochureFor(v)) {
-                      <button type="button" (click)="openBrochure(v)" class="flex flex-1 items-center justify-center gap-1 rounded-lg bg-muted py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent">
-                        <app-icon name="file-text" [size]="13" />
-                        View
-                      </button>
-                      <button type="button" (click)="sendBrochureFile(v)" class="flex flex-1 items-center justify-center gap-1 rounded-lg bg-[#25D366]/12 py-1.5 text-xs font-semibold text-[var(--whatsapp-text)] transition-colors hover:bg-[#25D366]/20">
-                        <app-icon name="share" [size]="13" />
-                        Share
-                      </button>
-                    } @else {
-                      <span class="flex flex-1 items-center justify-center rounded-lg bg-muted/40 py-2 text-xs text-muted-foreground">No brochure yet</span>
-                    }
-                  </div>
-                </div>
-              </article>
-            }
-          </div>
-          </section>
-          }
-          </div>
-        } @else {
-          <div class="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border p-10 text-center">
-            <p class="text-sm font-semibold">No cars match</p>
-            <button type="button" (click)="search.set(''); brandFilter.set('All')" class="rounded-lg bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent">Clear filters</button>
-          </div>
-        }
-      }
-
-      @if (pageMode() === 'offers') {
-        @if (offerShareFallbackNotice()) {
-          <div class="flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2.5 text-sm">
-            <app-icon name="download" [size]="14" class="shrink-0" />
-            Your browser can't hand files to WhatsApp directly — offer sheet downloaded. Attach it in WhatsApp Desktop/Web.
-          </div>
-        }
-
-        <!-- Phones: switch between the sheet and its settings instead of scrolling past every page -->
-        <div role="tablist" aria-label="Offer sheet view" class="flex rounded-lg bg-card p-1 xl:hidden">
-          @for (t of offerTabs; track t.id) {
-            <button
-              type="button"
-              role="tab"
-              [attr.aria-selected]="offerMobileTab() === t.id"
-              (click)="offerMobileTab.set(t.id)"
-              class="flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
-              [ngClass]="offerMobileTab() === t.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
-            >
-              {{ t.label }}
-            </button>
-          }
-        </div>
-
-        <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
-          <!-- Offer sheet preview — an A5 page renders at its natural height, no inner scroll. -->
-          <div class="flex-col gap-3 xl:sticky xl:top-0 xl:col-span-2 xl:flex" [ngClass]="offerMobileTab() === 'preview' ? 'flex' : 'hidden'">
-            @if (offerSheetTemplates.length > 1) {
-              <div role="radiogroup" aria-label="Offer sheet template" class="flex w-full shrink-0 gap-1.5 rounded-xl bg-card p-1.5">
-                @for (t of offerSheetTemplates; track t.id) {
-                  <button
-                    type="button"
-                    role="radio"
-                    [attr.aria-checked]="selectedOfferTemplateId() === t.id"
-                    (click)="selectedOfferTemplateId.set(t.id)"
-                    class="flex-1 rounded-lg px-3 py-1.5 text-center text-xs font-semibold transition-colors"
-                    [ngClass]="selectedOfferTemplateId() === t.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                  >
-                    {{ t.label }}
-                  </button>
+                </app-scroll-row>
+              </section>
+            } @else {
+              <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-4">
+                @for (v of run.cars; track v.id) {
+                  <ng-container *ngTemplateOutlet="carCard; context: { $implicit: v, full: true }" />
                 }
               </div>
             }
-            @if (offerRows().length === 0) {
-              <p class="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                {{ offerBrand() }} has no cars in the Car Database yet — add some in Price Settings first.
-              </p>
-            }
-
-            <div #offerContainer class="flex flex-col gap-4" [class.opacity-60]="offerRendering()"></div>
-
-            <div class="flex shrink-0 gap-2">
-              <button
-                type="button"
-                (click)="downloadOfferSheetPdf()"
-                [disabled]="offerBusy() || offerRows().length === 0"
-                class="flex flex-1 items-center justify-center gap-2 rounded-lg bg-muted px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
-              >
-                <app-icon name="download" [size]="15" />
-                {{ offerRendering() ? 'Updating…' : downloadingOfferSheet() ? 'Preparing…' : 'Save' }}
-              </button>
-              <button
-                type="button"
-                (click)="shareOfferSheetPdf()"
-                [disabled]="offerBusy() || offerRows().length === 0"
-                class="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-              >
-                <app-icon name="share" [size]="15" />
-                {{ sharingOfferSheet() ? 'Sharing…' : 'Share' }}
-              </button>
-            </div>
+          }
           </div>
 
-          <!-- Offer sheet settings -->
-          <div class="flex-col gap-4 xl:sticky xl:top-0 xl:col-span-1 xl:flex" [ngClass]="offerMobileTab() === 'settings' ? 'flex' : 'hidden'">
-            <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground">
-              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sheet</span>
-              <div class="flex flex-col gap-2">
-                <label for="offerTitleInput" class="text-xs font-medium text-muted-foreground">Title</label>
-                <input
-                  id="offerTitleInput"
-                  type="text"
-                  [ngModel]="offerTitle()"
-                  (ngModelChange)="offerTitle.set($event)"
-                  placeholder="e.g. September 2026 Offers"
-                  class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none"
+          <ng-template #carCard let-v let-full="full">
+          <article class="lift group flex flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
+            <!-- Photo on a light stage, like a showroom shot -->
+            <div class="relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-gradient-to-b from-white to-[oklch(0.9_0.005_280)]">
+              @if (v.photoUrl) {
+                <img
+                  [src]="v.photoUrl | carShadow"
+                  [alt]="modelVariantLabel(v.model, v.variant)"
+                  loading="lazy"
+                  class="h-full w-full object-contain p-2.5 transition-transform duration-500 group-hover:scale-105"
                 />
-              </div>
-
-              <div class="flex flex-col gap-2">
-                <span class="text-xs font-medium text-muted-foreground">Brand</span>
-                <div class="flex flex-wrap gap-1.5">
-                  @for (b of brands; track b) {
-                    <button
-                      type="button"
-                      [attr.aria-pressed]="offerBrand() === b"
-                      (click)="offerBrand.set(b)"
-                      class="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
-                      [ngClass]="offerBrand() === b ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                    >
-                      {{ b }}
-                    </button>
-                  }
+              } @else {
+                <div class="flex h-full w-full items-center justify-center" [style.background]="tileGradient(v.brand)">
+                  <app-icon name="car" [size]="28" class="text-white/80" />
                 </div>
-                <span class="text-[11px] text-muted-foreground">Every model, variant, and year of this brand gets its own row.</span>
-              </div>
-            </div>
-
-            <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground">
-              <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pricing</span>
-              <div class="flex flex-col gap-2">
-                <div class="flex items-center justify-between">
-                  <span class="text-xs font-medium text-muted-foreground">Compare 3 tenures</span>
-                  <span class="text-xs font-semibold tabular text-foreground">{{ offerTenureSummary() }}</span>
-                </div>
-                <div role="group" aria-label="Offer sheet tenures" class="grid grid-cols-9 gap-1">
-                  @for (y of tenureYearOptions; track y) {
-                    <button
-                      type="button"
-                      [attr.aria-pressed]="offerTenureYears().includes(y)"
-                      (click)="toggleOfferTenureYear(y)"
-                      class="flex aspect-square items-center justify-center rounded-full text-xs font-semibold transition-colors"
-                      [ngClass]="offerTenureYears().includes(y) ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                    >
-                      {{ y }}
-                    </button>
-                  }
-                </div>
-                <span class="text-[11px] text-muted-foreground">Each row's "from" monthly figure is the lowest instalment among these tenures.</span>
-              </div>
-
-              <label class="flex items-center justify-between gap-3 rounded-lg bg-muted/40 px-3 py-2.5">
-                <span class="flex flex-col">
-                  <span class="text-xs font-semibold text-foreground">Include Additional Rebate</span>
-                  <span class="text-[11px] text-muted-foreground">Adds each car's promo top-up to its rebate.</span>
+              }
+              @if (currentRebate(v) > 0) {
+                <span class="absolute right-2 top-2 rounded-md bg-primary px-1.5 py-0.5 text-xs font-bold text-primary-foreground shadow">
+                  {{ 'Rebate' | t }} {{ fmt(currentRebate(v)) }}
                 </span>
-                <input
-                  type="checkbox"
-                  [ngModel]="offerIncludeAdditionalRebate()"
-                  (ngModelChange)="offerIncludeAdditionalRebate.set($event)"
-                  class="size-4 shrink-0 rounded border-input accent-primary"
-                />
-              </label>
-
-              <p class="text-[11px] text-muted-foreground">
-                Monthly figures use your default down payment and rate (Price Settings). Insurance is quoted at 0% NCD.
-              </p>
+              }
             </div>
-          </div>
-        </div>
-      }
-    </div>
 
-    <!-- Brochures / Offer Sheet switcher — projected into the topbar (see TopbarExtraService)
-         instead of rendered here, so it sits beside the page title up top. -->
-    <ng-template #modeSwitcherTpl>
-      <div role="tablist" aria-label="Brochures mode" class="flex w-fit shrink-0 rounded-lg border border-border bg-muted/40 p-1">
-        <button
-          type="button"
-          role="tab"
-          [attr.aria-selected]="pageMode() === 'specs'"
-          (click)="pageMode.set('specs')"
-          class="rounded-md px-3 py-1 text-xs font-semibold transition-colors"
-          [ngClass]="pageMode() === 'specs' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
-        >
-          Brochures
-        </button>
-        <button
-          type="button"
-          role="tab"
-          [attr.aria-selected]="pageMode() === 'offers'"
-          (click)="pageMode.set('offers')"
-          class="rounded-md px-3 py-1 text-xs font-semibold transition-colors"
-          [ngClass]="pageMode() === 'offers' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
-        >
-          Offers
-        </button>
-      </div>
-    </ng-template>
+            <div class="flex flex-1 flex-col gap-2.5 p-3">
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="truncate text-base font-semibold" [title]="full ? modelVariantLabel(v.model, v.variant) : (variantLabel(v.variant) || v.model)">{{ full ? modelVariantLabel(v.model, v.variant) : (variantLabel(v.variant) || v.model) }}</span>
+                <span class="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+                  <span class="text-sm font-semibold text-foreground tabular">{{ fmt(v.price) }}</span>
+                  <span>OTR</span>
+                  @for (y of yearsOf(v); track y) {
+                    <span class="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold tabular text-foreground">{{ y }}</span>
+                  }
+                </span>
+              </div>
+
+              <div class="mt-auto flex gap-2">
+                @if (brochureFor(v)) {
+                  <button type="button" (click)="openBrochure(v)" class="btn btn-outline min-w-0 flex-1 gap-1.5 px-1.5">
+                    <app-icon name="file-text" [size]="20" />
+                    {{ 'View' | t }}
+                  </button>
+                  <button type="button" (click)="sendBrochureFile(v)" class="btn btn-whatsapp min-w-0 flex-1 gap-1.5 px-1.5">
+                    <app-icon name="share" [size]="20" />
+                    {{ 'Share' | t }}
+                  </button>
+                } @else {
+                  <span class="flex min-h-11 flex-1 items-center justify-center rounded-lg bg-muted text-sm text-muted-foreground">{{ 'No brochure yet' | t }}</span>
+                }
+              </div>
+            </div>
+          </article>
+          </ng-template>
+        } @else {
+          <div class="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border p-10 text-center">
+            <p class="text-sm font-semibold">No cars match</p>
+            <button type="button" (click)="search.set(''); brandFilter.set('All')" class="rounded-lg bg-muted px-3 py-2 text-sm font-semibold text-foreground hover:bg-accent">Clear filters</button>
+          </div>
+        }
+    </div>
 
     <!-- Brochure modal -->
     @if (openVehicle(); as v) {
@@ -350,16 +171,16 @@ type OfferTab = 'preview' | 'settings';
         <button type="button" aria-label="Close brochure" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="closeBrochure()"></button>
 
         <div class="relative flex h-[94vh] w-[94vw] max-w-6xl flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-          <div class="flex items-center gap-3 border-b border-border bg-gradient-to-br from-primary/12 via-card to-card p-4">
+          <div class="flex items-center gap-3 border-b border-border bg-gradient-to-br from-brand-soft via-card to-card p-4">
             <div
-              class="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border"
+              class="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border"
               [style.background]="tileGradient(v.brand)"
             >
               <app-icon name="car" [size]="20" class="text-white/90" />
             </div>
             <div class="flex min-w-0 flex-col">
               <span class="truncate text-sm font-semibold">{{ vehicleTitle(v.brand, v.model) }}</span>
-              <span class="truncate text-[11px] text-muted-foreground">{{ variantLabel(v.variant) ? variantLabel(v.variant) + ' · ' : '' }}{{ fmt(v.price) }}</span>
+              <span class="truncate text-xs text-muted-foreground">{{ variantLabel(v.variant) ? variantLabel(v.variant) + ' · ' : '' }}{{ fmt(v.price) }}</span>
             </div>
             <button
               type="button"
@@ -368,7 +189,7 @@ type OfferTab = 'preview' | 'settings';
               title="Download"
               class="ml-auto flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             >
-              <app-icon name="download" [size]="16" />
+              <app-icon name="download" [size]="18" />
             </button>
             <button
               type="button"
@@ -376,7 +197,7 @@ type OfferTab = 'preview' | 'settings';
               aria-label="Close"
               class="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             >
-              <app-icon name="x" [size]="16" />
+              <app-icon name="x" [size]="18" />
             </button>
           </div>
 
@@ -389,7 +210,7 @@ type OfferTab = 'preview' | 'settings';
     }
   `,
 })
-export class MyCarsComponent implements AfterViewInit, OnDestroy {
+export class MyCarsComponent {
   fmt = (v: number) => formatRM(v);
   modelVariantLabel = modelVariantLabel;
   variantLabel = variantLabel;
@@ -414,10 +235,6 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
 
   private settingsService = inject(SettingsService);
 
-  /** "Brochures" is the existing per-car brochure table below; "Offer Sheet" is a combined,
-   *  generated multi-model page for a whole brand — different enough (many vehicles, print-
-   *  resolution A5 pages, no single-car context) that it gets its own top-level mode. */
-  pageMode = signal<'specs' | 'offers'>('specs');
 
   /** Starts on the account's Primary Brand (Profile & Settings → Quote Preferences), not "All". */
   private readonly initialBrandFilter = this.settingsService.settings().dashboardTarget.brand;
@@ -426,37 +243,12 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
   openKey = signal<string | null>(null);
   shareFallbackNotice = signal(false);
 
-  @ViewChild('offerContainer') offerContainerRef?: ElementRef<HTMLDivElement>;
-  @ViewChild('modeSwitcherTpl') private modeSwitcherTpl?: TemplateRef<unknown>;
-  private topbarExtra = inject(TopbarExtraService);
 
-  /** Set once fonts.google.com's Barlow Semi Condensed + Inter are ready to paint — the draw
-   *  effect waits on this so the very first frame never falls back to a system font. */
-  private fontsReady = signal(false);
 
   constructor(
     private sanitizer: DomSanitizer,
     public advisor: AdvisorService,
   ) {
-    posterFontsReady().then(() => this.fontsReady.set(true));
-
-    // Redraws every offer-sheet page whenever its own settings (brand/tenure/rebate toggle) or the
-    // underlying vehicle data changes — only while the Offer Sheet tab is actually open, since
-    // rendering N print-resolution A5 canvases isn't free and the Brochures tab doesn't need it.
-    effect(() => {
-      if (!this.fontsReady() || this.pageMode() !== 'offers') return;
-      this.selectedOfferTemplateId(); // tracked so switching templates alone triggers a redraw
-      const data = this.buildOfferSheetData();
-      this.renderOfferSheet(data);
-    });
-  }
-
-  ngAfterViewInit() {
-    this.topbarExtra.content.set(this.modeSwitcherTpl ?? null);
-  }
-
-  ngOnDestroy() {
-    this.topbarExtra.content.set(null);
   }
 
   /** Kept in catalog declaration order — the catalog is hand-ordered by spec (e.g. Lite → Prime →
@@ -471,6 +263,23 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
 
   /** Filtered cars split into one group per brand + model, in catalog order, so each model gets
    *  its own section (and row) instead of models running together in one grid. */
+  /** The catalog as rows to lay out: a model with several variants keeps its own titled section
+   *  (so a row never mixes its variants with another model), while one-variant models next to
+   *  each other share a single grid instead of each taking a whole row. */
+  catalogRuns = computed(() => {
+    const runs: ({ kind: 'model'; key: string; group: { key: string; brand: string; model: string; cars: Vehicle[]; fromPrice: number } } | { kind: 'singles'; key: string; cars: Vehicle[] })[] = [];
+    for (const g of this.modelGroups()) {
+      if (g.cars.length > 1) {
+        runs.push({ kind: 'model', key: g.key, group: g });
+        continue;
+      }
+      const last = runs[runs.length - 1];
+      if (last?.kind === 'singles') last.cars.push(g.cars[0]);
+      else runs.push({ kind: 'singles', key: 'singles:' + g.key, cars: [g.cars[0]] });
+    }
+    return runs;
+  });
+
   modelGroups = computed(() => {
     const groups: { key: string; brand: string; model: string; cars: Vehicle[]; fromPrice: number }[] = [];
     for (const v of this.filteredCars()) {
@@ -495,9 +304,9 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
     return v.years.map((y) => y.year).sort((a, b) => b - a);
   }
 
-  /** This variant's rebate (plus any additional rebate) for the year an offer sheet would quote. */
+  /** This variant's rebate (plus any additional rebate) for its current model year. */
   currentRebate(v: Vehicle): number {
-    const year = this.offerYearFor(v);
+    const year = this.rebateYearFor(v);
     return rebateForYear(v, year) + additionalRebateForYear(v, year);
   }
 
@@ -586,256 +395,11 @@ export class MyCarsComponent implements AfterViewInit, OnDestroy {
     if (url) this.downloadUrlBlob(url, this.brochureFileName(v));
   }
 
-  // ---------- Offer Sheet ----------
-
-  tenureYearOptions = Array.from({ length: 9 }, (_, i) => i + 1);
-
-  offerBrand = signal(this.initialBrandFilter);
-  private readonly posterLang = this.settingsService.settings().salesDefaults.posterLanguage ?? 'en';
-  /** Defaults to e.g. "September 2026 Offers" / "Tawaran September 2026" in the poster language. */
-  offerTitle = signal(
-    translate(this.posterLang, '{month} Offers', {
-      month: new Date().toLocaleDateString(this.posterLang === 'ms' ? 'ms-MY' : 'en-MY', { month: 'long', year: 'numeric' }),
-    }),
-  );
-  /** Exactly 3 tenure years, each getting its own monthly-instalment column on the offer sheet. */
-  offerTenureYears = signal<number[]>([5, 7, 9]);
-  offerIncludeAdditionalRebate = signal(this.settingsService.settings().salesDefaults.additionalRebateByDefault ?? true);
-  downloadingOfferSheet = signal(false);
-  sharingOfferSheet = signal(false);
-  offerShareFallbackNotice = signal(false);
-  /** True while the pages are being rebuilt after a settings change — Download/Share wait for it,
-   *  so a half-rebuilt sheet can never be saved or sent. */
-  offerRendering = signal(false);
-  offerBusy = computed(() => this.offerRendering() || this.downloadingOfferSheet() || this.sharingOfferSheet());
-
-  offerTabs: { id: OfferTab; label: string }[] = [
-    { id: 'preview', label: 'Preview' },
-    { id: 'settings', label: 'Settings' },
-  ];
-  offerMobileTab = signal<OfferTab>('preview');
-  offerTenureSummary = computed(() => [...this.offerTenureYears()].sort((a, b) => a - b).map((y) => `${y}y`).join(' · '));
-
-  /** Toggles one tenure year in/out of the 3 compared on the offer sheet. Below 3 selected, a
-   *  click just adds the year; at 3 already selected, the oldest pick is bumped out (FIFO) so
-   *  there's always a click that does something instead of the button going dead. */
-  toggleOfferTenureYear(year: number): void {
-    const current = this.offerTenureYears();
-    if (current.includes(year)) {
-      if (current.length > 1) this.offerTenureYears.set(current.filter((y) => y !== year).sort((a, b) => a - b));
-    } else if (current.length < 3) {
-      this.offerTenureYears.set([...current, year].sort((a, b) => a - b));
-    } else {
-      this.offerTenureYears.set([...current.slice(1), year].sort((a, b) => a - b));
-    }
-  }
-
-  /** Which model year an offer sheet quotes for one variant: the current calendar year when the
-   *  catalog lists it, otherwise whichever year is the latest on file (e.g. a model still only has
-   *  last year's listing) — an offer sheet should never show a stale year next to a current one
-   *  just because every variant happened to get its catalog entry refreshed at a different time. */
-  private offerYearFor(v: Vehicle): number {
+  /** The model year whose rebate the card shows: this calendar year when the catalog lists it,
+   *  otherwise the latest year on file (e.g. a model that still only has last year's listing). */
+  private rebateYearFor(v: Vehicle): number {
     const currentYear = new Date().getFullYear();
     const years = v.years.map((y) => y.year);
     return years.includes(currentYear) ? currentYear : Math.max(...years);
-  }
-
-  /** Shared per-vehicle row builder for both offer-sheet row sets below. `noRebate: true`
-   *  (Financing Price List only) prices the whole row — selling price, downpayment, loan, monthly —
-   *  with zero rebate applied: it's a plain full-price list, not a promo sheet. With rebate at 0 the
-   *  normal 'percent' downpayment formula already lands on the flat default-% of OTR with nothing
-   *  to subtract, so no special-casing is needed there. */
-  private buildOfferRow(v: Vehicle, defaults: SalesDefaults, includeAdditional: boolean, tenureYears: number[], noRebate: boolean): BrochureRow {
-    const basicPremiumFallback = basicPremiumDefault(v.price, defaults.basicPremiumRatePct);
-    const insuranceDetails = this.settingsService.getVehicleInsurance(v, basicPremiumFallback);
-    // Forced to 0% regardless of any saved customer quote's NCD — a general offer sheet quotes
-    // the sticker insurance figure, not whichever NCD the last customer happened to have.
-    const insurance = computeInsuranceBreakdown(insuranceDetails, 0).totalDue;
-    const year = this.offerYearFor(v);
-    const rebate = noRebate ? 0 : rebateForYear(v, year) + (includeAdditional ? additionalRebateForYear(v, year) : 0);
-    const totals = computeQuotationTotals({
-      basePrice: v.price,
-      effectiveRebate: rebate,
-      insuranceAmount: insurance,
-      downpaymentType: 'percent',
-      downpaymentValue: defaults.downpaymentPct,
-      minDownpaymentCash: minDownpaymentCash(v.minDownpayment, v.price + insurance),
-      loanRounding: defaults.loanRounding,
-    });
-    // Same rule as the Calculator and the customer link: EIR only when an EIR actually exists (the
-    // car's own or the account default); otherwise this row is quoted — and computed — as flat,
-    // never a flat figure run through the EIR formula, which would understate the monthly.
-    const eir = defaults.defaultRateType === 'effective' ? defaultRateFor(v, 'effective', defaults) : null;
-    const rateType: RateType = eir !== null ? 'effective' : 'flat';
-    const interestRate = eir ?? defaultRateFor(v, 'flat', defaults) ?? defaults.interestRate;
-    const monthlyByTenure = tenureYears.map((y) => monthlyPayment(totals.loanAmount, interestRate, y * 12, rateType));
-    return {
-      model: v.model,
-      modelTitle: modelVariantLabel(v.model, v.variant),
-      variantText: variantLabel(v.variant),
-      year,
-      carImageUrl: v.photoUrl ?? null,
-      otrPrice: v.price,
-      insurance,
-      sellingPrice: totals.totalAmountDue,
-      rebate,
-      downpayment: totals.downpaymentCash,
-      loanAmount: totals.loanAmount,
-      monthlyByTenure,
-    };
-  }
-
-  /** Just the rows — read by the template to show/hide the "no cars" empty state without
-   *  re-triggering a full BrochureData rebuild (brand logo lookup, advisor profile, etc). Feeds
-   *  the Current Offers and Price List templates. */
-  offerRows = computed<BrochureRow[]>(() => {
-    const brand = this.offerBrand();
-    const defaults = this.settingsService.settings().salesDefaults;
-    const includeAdditional = this.offerIncludeAdditionalRebate();
-    const tenureYears = this.offerTenureYears();
-    return this.allVehicles()
-      .filter((v) => v.brand === brand)
-      .map((v) => this.buildOfferRow(v, defaults, includeAdditional, tenureYears, false));
-  });
-
-  /** Same rows as offerRows(), but with rebate zeroed out entirely — see buildOfferRow. Feeds the
-   *  Financing Price List template only. */
-  groupedOfferRows = computed<BrochureRow[]>(() => {
-    const brand = this.offerBrand();
-    const defaults = this.settingsService.settings().salesDefaults;
-    const includeAdditional = this.offerIncludeAdditionalRebate();
-    const tenureYears = this.offerTenureYears();
-    return this.allVehicles()
-      .filter((v) => v.brand === brand)
-      .map((v) => this.buildOfferRow(v, defaults, includeAdditional, tenureYears, true));
-  });
-
-  private buildOfferSheetData(): BrochureData {
-    const brand = this.offerBrand();
-    const advisorProfile = this.advisor.profile();
-    return {
-      lang: this.posterLang,
-      accent: this.settingsService.settings().salesDefaults.posterAccent,
-      frame: this.settingsService.settings().salesDefaults.posterFrame,
-      waLang: this.settingsService.whatsappLang(),
-      brand,
-      logoUrl: brandLogo(brand),
-      title: this.offerTitle(),
-      tenureYears: this.offerTenureYears(),
-      rows: this.selectedOfferTemplateId() === 'grouped' ? this.groupedOfferRows() : this.offerRows(),
-      advisor: {
-        name: advisorProfile.name,
-        role: advisorProfile.role,
-        phoneDisplay: advisorProfile.phoneDisplay,
-        phoneWa: advisorProfile.phoneWa,
-        photoUrl: advisorProfile.photoUrl ?? null,
-      },
-    };
-  }
-
-  private async renderOfferSheet(data: BrochureData): Promise<void> {
-    let container = this.offerContainerRef?.nativeElement;
-    if (!container) {
-      // The very first time pageMode flips to 'offers', this effect can run before Angular has
-      // finished creating the @if block's DOM, so the ViewChild isn't resolved yet on this same
-      // synchronous tick — nothing else changes afterward to naturally retry it, so wait one tick
-      // for change detection to catch up and look again.
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      container = this.offerContainerRef?.nativeElement;
-      if (!container) return;
-    }
-    const generation = ++this.offerRenderGeneration;
-    this.offerRendering.set(true);
-    const template = this.currentOfferTemplate();
-    const pages = template.paginateRows(data.rows);
-    container.innerHTML = '';
-    const canvases = pages.map(() => {
-      const canvas = document.createElement('canvas');
-      canvas.className = 'w-full h-auto rounded-xl shadow-lg bg-white';
-      container.appendChild(canvas);
-      return canvas;
-    });
-    try {
-      for (let i = 0; i < pages.length; i++) {
-        await template.renderPage(canvases[i], data, pages[i], i, pages.length);
-        if (generation !== this.offerRenderGeneration) return;
-        applyPosterFrame(canvases[i], data.frame, data.lang);
-      }
-    } finally {
-      // Only the newest rebuild clears the flag — an older one bailing out mustn't unlock the buttons.
-      if (generation === this.offerRenderGeneration) this.offerRendering.set(false);
-    }
-  }
-
-  /** Every offer-sheet layout this tab can render — all consuming the same BrochureData, so adding
-   *  one is purely a new layout/renderer pair (see poster-brochure-templates.ts). */
-  readonly offerSheetTemplates: BrochureTemplate[] = [simpleBrochureTemplate, groupedBrochureTemplate];
-  selectedOfferTemplateId = signal<BrochureTemplateId>('simple');
-  currentOfferTemplate = computed(() => this.offerSheetTemplates.find((t) => t.id === this.selectedOfferTemplateId()) ?? this.offerSheetTemplates[0]);
-
-  private offerRenderGeneration = 0;
-
-  /** Renders straight from the canvases already in the preview — they're already at print
-   *  resolution (unlike a single quote poster's screen preview vs. higher-resolution export
-   *  split), so there's no separate higher-quality render pass needed here. */
-  private offerSheetFileName(): string {
-    return `${this.offerBrand()}-Offer-Sheet.pdf`.replace(/\s*\|\s*/g, '-').replace(/\s+/g, '-');
-  }
-
-  /** Assembles the PDF from the canvases already in the preview, or null if there's nothing to export. */
-  private async offerSheetPdfBytes(): Promise<Uint8Array | null> {
-    const container = this.offerContainerRef?.nativeElement;
-    const canvases = container ? Array.from(container.querySelectorAll('canvas')) : [];
-    if (canvases.length === 0) return null;
-    const pages: PdfImagePage[] = [];
-    for (const canvas of canvases) {
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
-      if (!blob) continue;
-      pages.push({
-        jpegBytes: new Uint8Array(await blob.arrayBuffer()),
-        widthPx: canvas.width,
-        heightPx: canvas.height,
-        widthPt: (canvas.width / 300) * 72,
-        heightPt: (canvas.height / 300) * 72,
-      });
-    }
-    return assembleImagePdfBytes(pages);
-  }
-
-  async downloadOfferSheetPdf() {
-    if (this.offerBusy()) return;
-    this.downloadingOfferSheet.set(true);
-    try {
-      const bytes = await this.offerSheetPdfBytes();
-      if (bytes) downloadPdfBytes(bytes, this.offerSheetFileName(), 'application/pdf');
-    } finally {
-      this.downloadingOfferSheet.set(false);
-    }
-  }
-
-  /** Hands the offer sheet PDF to the OS share sheet (WhatsApp, Telegram, email…) — same pattern
-   *  as a brochure share; falls back to a download with a notice where file sharing isn't supported. */
-  async shareOfferSheetPdf() {
-    if (this.offerBusy()) return;
-    this.sharingOfferSheet.set(true);
-    try {
-      const bytes = await this.offerSheetPdfBytes();
-      if (!bytes) return;
-      const file = new File([bytes], this.offerSheetFileName(), { type: 'application/pdf' });
-      if (this.canShareFile(file)) {
-        const advisor = this.advisor.profile();
-        try {
-          await navigator.share({ files: [file], title: this.offerTitle() });
-        } catch {
-          /* cancelled or failed — nothing actionable, same as the brochure share */
-        }
-        return;
-      }
-      downloadPdfBytes(bytes, this.offerSheetFileName(), 'application/pdf');
-      this.offerShareFallbackNotice.set(true);
-      setTimeout(() => this.offerShareFallbackNotice.set(false), 5000);
-    } finally {
-      this.sharingOfferSheet.set(false);
-    }
   }
 }

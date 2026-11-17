@@ -1,52 +1,63 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { CommonModule, NgTemplateOutlet } from '@angular/common';
 import { IconComponent } from '../shared/icon.component';
-import { AdvisorService } from '../shared/advisor.service';
+import { GuideService } from '../shared/guide.service';
 import { TopbarExtraService } from '../shared/topbar-extra.service';
 import { TranslatePipe } from '../shared/i18n';
 
+/** The page title bar: the menu (hamburger) button on a phone, the page title, and Help. */
 @Component({
   selector: 'app-topbar',
   standalone: true,
   imports: [CommonModule, NgTemplateOutlet, IconComponent, TranslatePipe],
   template: `
-    <header class="flex h-16 shrink-0 items-center gap-3 border-b border-border bg-background px-4 md:px-6">
+    <header class="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background px-3 md:h-16 md:gap-3 md:px-6">
       <button
         type="button"
-        class="flex size-9 items-center justify-center rounded-md text-foreground transition-colors hover:bg-accent md:hidden"
+        class="-ml-1 flex size-10 items-center justify-center rounded-md text-foreground transition-colors hover:bg-accent md:hidden"
         [attr.aria-label]="'Open menu' | t"
         (click)="openMobile.emit()"
       >
         <app-icon name="menu" [size]="20" />
       </button>
 
-      <div class="flex items-center gap-2">
-        <h1 class="text-lg font-bold tracking-tight text-balance">{{ title | t }}</h1>
-        @if (brand) {
-          <span class="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">{{ brand }}</span>
-        }
-      </div>
+      <h1 class="min-w-0 truncate text-lg font-bold tracking-tight md:text-xl">{{ title | t }}</h1>
 
       @if (topbarExtra.content(); as extra) {
-        <ng-container [ngTemplateOutlet]="extra"></ng-container>
+        <div class="hidden md:block">
+          <ng-container [ngTemplateOutlet]="extra"></ng-container>
+        </div>
       }
 
+      <!-- No "Welcome, name" here: the account button at the foot of the menu already shows who's signed in. -->
       <div class="ml-auto flex items-center gap-3">
-        <span class="hidden text-sm text-muted-foreground sm:inline">
-          {{ "Welcome," | t }} <span class="font-medium text-foreground">{{ advisor.profile().name }}</span>
-        </span>
-
+        <button
+          type="button"
+          data-tour="nav-help"
+          (click)="guide.openHelp()"
+          class="relative flex h-9 items-center gap-1.5 rounded-full border border-control px-3 text-sm font-semibold transition-colors hover:bg-accent"
+        >
+          <app-icon name="help-circle" [size]="18" />
+          {{ 'Help' | t }}
+          @if (guide.helpDot()) {
+            <span class="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-primary ring-2 ring-background" aria-hidden="true"></span>
+          }
+        </button>
       </div>
     </header>
+
+    <!-- On a phone, a page's own switch (e.g. Brochures / Offers) sits under the bar. -->
+    @if (topbarExtra.content(); as extra) {
+      <div class="flex shrink-0 border-b border-border bg-background px-3 py-2 md:hidden">
+        <ng-container [ngTemplateOutlet]="extra"></ng-container>
+      </div>
+    }
   `,
 })
 export class TopbarComponent {
   @Input({ required: true }) title!: string;
-  @Input() brand?: string | null;
   @Output() openMobile = new EventEmitter<void>();
 
-  constructor(
-    public advisor: AdvisorService,
-    public topbarExtra: TopbarExtraService,
-  ) {}
+  topbarExtra = inject(TopbarExtraService);
+  guide = inject(GuideService);
 }

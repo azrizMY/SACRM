@@ -196,6 +196,41 @@ export const VEHICLES: Vehicle[] = [
   { id: 'gwm-tank-300-hev-ultra', brand: 'GWM', model: 'TANK 300 HEV', variant: 'Ultra', price: 259800, brochureUrl: '/brochures/gwm-tank-300-hev.pdf', years: [{ year: 2026 }] },
   { id: 'gwm-tank-500-hev-ultra', brand: 'GWM', model: 'TANK 500 HEV', variant: 'Ultra', price: 328800, brochureUrl: '/brochures/gwm-tank-500-hev.pdf', colours: ['Crystal Grey', 'Hamilton White', 'Sun Black'], years: [{ year: 2026 }] },
   { id: 'gwm-tank-500-hev-ultra-black', brand: 'GWM', model: 'TANK 500 HEV', variant: 'Ultra Black Edition', price: 336800, brochureUrl: '/brochures/gwm-tank-500-hev.pdf', colours: ['Sun Black'], years: [{ year: 2026 }] },
+
+  // Perodua lineup — official "on the road price with Sales Tax and without insurance", Peninsular
+  // Malaysia, from each model's page on perodua.com.my (checked 17 Nov 2026; Axia after the 3 Aug
+  // 2026 price cut). Colours are the ones each page lists; where a page marks a colour "H variant
+  // only" and the model has an H, only the H gets it. Paint that costs extra is a colour surcharge
+  // (shown as a note by the colour, never added to the quoted price — see QuoteEngine.basePrice):
+  // Ativa H/AV Special Metallic (taken to be the two Pearl colours) +RM500, Traz H 2-Tone +RM900
+  // (the RM82,000 "1.5 H 2T"). The Ativa AV's 2-tone black-roof option (RM73,400) isn't listed as
+  // its own colour on the page, so it isn't here. Myvi 1.3 G (ASA) is Perodua's plain "1.3 G";
+  // the cheaper one is its "1.3 G (Without PSDA)". Brochures are Perodua's own (the Axia E has its
+  // own); no photos yet.
+  { id: 'perodua-axia-1-0-e', brand: 'Perodua', model: 'Axia', variant: '1.0 E', price: 22000, brochureUrl: '/brochures/perodua-axia-e.pdf', colours: ['Coral Blue', 'Granite Grey', 'Lava Red', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-axia-1-0-g', brand: 'Perodua', model: 'Axia', variant: '1.0 G', price: 33900, brochureUrl: '/brochures/perodua-axia.pdf', colours: ['Coral Blue', 'Granite Grey', 'Lava Red', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-axia-1-0-x', brand: 'Perodua', model: 'Axia', variant: '1.0 X', price: 38500, brochureUrl: '/brochures/perodua-axia.pdf', colours: ['Coral Blue', 'Granite Grey', 'Lava Red', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-axia-1-0-se', brand: 'Perodua', model: 'Axia', variant: '1.0 SE', price: 43000, brochureUrl: '/brochures/perodua-axia.pdf', colours: ['Coral Blue', 'Granite Grey', 'Lava Red', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-axia-1-0-av', brand: 'Perodua', model: 'Axia', variant: '1.0 AV', price: 49000, brochureUrl: '/brochures/perodua-axia.pdf', colours: ['Coral Blue', 'Granite Grey', 'Lava Red', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-bezza-1-0-g-mt', brand: 'Perodua', model: 'Bezza', variant: '1.0 G (MT)', price: 34580, brochureUrl: '/brochures/perodua-bezza.pdf', colours: ['Garnet Red', 'Glittering Silver', 'Granite Grey', 'Ivory White', 'Ocean Blue', 'Sugar Brown'], years: [{ year: 2026 }] },
+  { id: 'perodua-bezza-1-0-g-at', brand: 'Perodua', model: 'Bezza', variant: '1.0 G (AT)', price: 36580, brochureUrl: '/brochures/perodua-bezza.pdf', colours: ['Garnet Red', 'Glittering Silver', 'Granite Grey', 'Ivory White', 'Ocean Blue', 'Sugar Brown'], years: [{ year: 2026 }] },
+  { id: 'perodua-bezza-1-3-x', brand: 'Perodua', model: 'Bezza', variant: '1.3 X', price: 43980, brochureUrl: '/brochures/perodua-bezza.pdf', colours: ['Garnet Red', 'Glittering Silver', 'Granite Grey', 'Ivory White', 'Ocean Blue', 'Sugar Brown'], years: [{ year: 2026 }] },
+  { id: 'perodua-bezza-1-3-av', brand: 'Perodua', model: 'Bezza', variant: '1.3 AV', price: 49980, brochureUrl: '/brochures/perodua-bezza.pdf', colours: ['Garnet Red', 'Glittering Silver', 'Granite Grey', 'Ivory White', 'Ocean Blue', 'Sugar Brown'], years: [{ year: 2026 }] },
+  { id: 'perodua-myvi-1-3-g', brand: 'Perodua', model: 'Myvi', variant: '1.3 G', price: 46500, brochureUrl: '/brochures/perodua-myvi.pdf', colours: ['Electric Blue', 'Glittering Silver', 'Granite Grey', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-myvi-1-3-g-asa', brand: 'Perodua', model: 'Myvi', variant: '1.3 G (ASA)', price: 48500, brochureUrl: '/brochures/perodua-myvi.pdf', colours: ['Electric Blue', 'Glittering Silver', 'Granite Grey', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-myvi-1-5-x', brand: 'Perodua', model: 'Myvi', variant: '1.5 X', price: 50900, brochureUrl: '/brochures/perodua-myvi.pdf', colours: ['Electric Blue', 'Glittering Silver', 'Granite Grey', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-myvi-1-5-h', brand: 'Perodua', model: 'Myvi', variant: '1.5 H', price: 54900, brochureUrl: '/brochures/perodua-myvi.pdf', colours: ['Cranberry Red', 'Electric Blue', 'Glittering Silver', 'Granite Grey', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-myvi-1-5-av', brand: 'Perodua', model: 'Myvi', variant: '1.5 AV', price: 59900, brochureUrl: '/brochures/perodua-myvi.pdf', colours: ['Electric Blue', 'Glittering Silver', 'Granite Grey', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-ativa-1-0t-x', brand: 'Perodua', model: 'Ativa', variant: '1.0T X', price: 62500, brochureUrl: '/brochures/perodua-ativa.pdf', colours: ['Granite Grey', 'Glittering Silver'], years: [{ year: 2026 }] },
+  { id: 'perodua-ativa-1-0t-h', brand: 'Perodua', model: 'Ativa', variant: '1.0T H', price: 67300, brochureUrl: '/brochures/perodua-ativa.pdf', colours: ['Coral Blue', 'Pearl Delima Red', 'Pearl Diamond White', 'Granite Grey', 'Glittering Silver'], colourSurcharges: { 'Pearl Delima Red': 500, 'Pearl Diamond White': 500 }, years: [{ year: 2026 }] },
+  { id: 'perodua-ativa-1-0t-av', brand: 'Perodua', model: 'Ativa', variant: '1.0T AV', price: 72600, brochureUrl: '/brochures/perodua-ativa.pdf', colours: ['Pearl Delima Red', 'Pearl Diamond White', 'Granite Grey', 'Glittering Silver'], colourSurcharges: { 'Pearl Delima Red': 500, 'Pearl Diamond White': 500 }, years: [{ year: 2026 }] },
+  { id: 'perodua-alza-1-5-x', brand: 'Perodua', model: 'Alza', variant: '1.5 X', price: 62500, brochureUrl: '/brochures/perodua-alza.pdf', colours: ['Elegant Black', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-alza-1-5-h', brand: 'Perodua', model: 'Alza', variant: '1.5 H', price: 68000, brochureUrl: '/brochures/perodua-alza.pdf', colours: ['Vintage Brown', 'Elegant Black', 'Garnet Red', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-alza-1-5-av', brand: 'Perodua', model: 'Alza', variant: '1.5 AV', price: 75500, brochureUrl: '/brochures/perodua-alza.pdf', colours: ['Elegant Black', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-aruz-1-5-x', brand: 'Perodua', model: 'Aruz', variant: '1.5 X', price: 68900, brochureUrl: '/brochures/perodua-aruz.pdf', colours: ['Vintage Brown', 'Elegant Black', 'Garnet Red', 'Glittering Silver', 'Granite Grey', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-aruz-1-5-av', brand: 'Perodua', model: 'Aruz', variant: '1.5 AV', price: 73900, brochureUrl: '/brochures/perodua-aruz.pdf', colours: ['Vintage Brown', 'Elegant Black', 'Garnet Red', 'Glittering Silver', 'Granite Grey', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-traz-1-5-x', brand: 'Perodua', model: 'Traz', variant: '1.5 X', price: 76100, brochureUrl: '/brochures/perodua-traz.pdf', colours: ['Granite Grey', 'Glittering Silver', 'Ivory White'], years: [{ year: 2026 }] },
+  { id: 'perodua-traz-1-5-h', brand: 'Perodua', model: 'Traz', variant: '1.5 H', price: 81100, brochureUrl: '/brochures/perodua-traz.pdf', colours: ['Cranberry Red', 'Electric Blue 2-Tone', 'Glittering Silver 2-Tone', 'Granite Grey', 'Glittering Silver', 'Ivory White'], colourSurcharges: { 'Electric Blue 2-Tone': 900, 'Glittering Silver 2-Tone': 900 }, years: [{ year: 2026 }] },
 ];
 
 /** Factory-default catalog, snapshotted before any account's saved overrides are applied on top —

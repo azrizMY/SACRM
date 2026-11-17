@@ -13,7 +13,7 @@ export type TourStep = {
   doneLabel?: string;
   /** Button labels in another language — the overlay lives at the app root, so a page speaking a
    *  different language from the app (the customer link) passes its own. */
-  labels?: { next: string; back: string; skip: string };
+  labels?: { next: string; back: string; skip: string; step?: string };
 };
 
 type ActiveTour = { id: string; scope: string; steps: TourStep[] };
@@ -55,6 +55,11 @@ export class TourService {
     } catch {
       return true; // storage blocked: never nag on every visit
     }
+  }
+
+  /** Records a tour as seen without running it (e.g. the welcome was closed). */
+  markSeenNow(id: string, scope = 'device') {
+    this.markSeen(id, scope);
   }
 
   private markSeen(id: string, scope: string) {

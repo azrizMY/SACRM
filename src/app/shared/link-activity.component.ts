@@ -34,14 +34,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
   standalone: true,
   imports: [CommonModule, IconComponent, TranslatePipe],
   template: `
-    <section class="flex flex-col gap-4">
+    <section data-tour="links-activity" class="flex flex-col gap-4">
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div class="flex flex-col gap-0.5">
-          <h3 class="text-base font-semibold">{{ 'Activity' | t }}</h3>
-          <p class="text-xs text-muted-foreground">{{ 'What people did on your links — no names or numbers, just the cars and quotes.' | t }}</p>
+          <h2 class="text-base font-semibold">{{ 'Activity' | t }}</h2>
+          <p class="hint">{{ 'What people did on your links — no names or numbers, just the cars and quotes.' | t }}</p>
         </div>
-        <button type="button" (click)="reload()" class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-          <app-icon name="refresh-cw" [size]="13" [class.animate-spin]="activity.loading()" />
+        <button type="button" (click)="reload()" class="btn btn-outline">
+          <app-icon name="refresh-cw" [size]="16" [class.animate-spin]="activity.loading()" />
           {{ 'Refresh' | t }}
         </button>
       </div>
@@ -50,8 +50,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
         @for (s of stats(); track s.label) {
           <div class="flex flex-col gap-1 rounded-xl border border-border bg-card p-4 text-card-foreground">
-            <span class="text-[11px] font-medium text-muted-foreground">{{ s.label | t }}</span>
-            <span class="truncate font-bold tabular-nums" [ngClass]="s.big ? 'text-2xl' : 'text-sm leading-7'">{{ s.value }}</span>
+            <span class="text-sm font-semibold text-foreground">{{ s.label | t }}</span>
+            <span class="truncate font-bold tabular-nums" [ngClass]="s.big ? 'fig text-2xl' : 'text-base leading-8'">{{ s.value }}</span>
           </div>
         }
       </div>
@@ -60,14 +60,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
       <div class="flex flex-wrap items-center gap-2">
         <div class="flex gap-1 rounded-lg bg-muted p-1">
           @for (p of periods; track p.id) {
-            <button type="button" (click)="period.set(p.id)" class="rounded-md px-3 py-1 text-xs font-semibold transition-colors" [ngClass]="period() === p.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'">
+            <button type="button" (click)="period.set(p.id)" class="rounded-md px-3 py-1.5 text-sm font-semibold transition-colors" [ngClass]="period() === p.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'">
               {{ p.label | t }}
             </button>
           }
         </div>
         <div class="flex gap-1 rounded-lg bg-muted p-1">
           @for (l of linkFilters(); track l.id) {
-            <button type="button" (click)="linkFilter.set(l.id)" class="rounded-md px-3 py-1 text-xs font-semibold transition-colors" [ngClass]="linkFilter() === l.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'">
+            <button type="button" (click)="linkFilter.set(l.id)" class="rounded-md px-3 py-1.5 text-sm font-semibold transition-colors" [ngClass]="linkFilter() === l.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'">
               {{ l.label }}
             </button>
           }
@@ -83,7 +83,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
             <article class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
               <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                 @if (v.returning) {
-                  <span class="rounded-full bg-primary/15 px-2 py-0.5 font-semibold text-primary">{{ 'Returning visitor' | t }}</span>
+                  <span class="rounded-full bg-brand-soft px-2 py-0.5 font-semibold text-brand">{{ 'Returning visitor' | t }}</span>
                 } @else {
                   <span class="rounded-full bg-muted px-2 py-0.5 font-semibold">{{ 'New visitor' | t }}</span>
                 }
@@ -93,9 +93,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
               @for (c of cars(v); track c.id) {
                 <div class="flex flex-col gap-1">
-                  <button type="button" (click)="openQuote(c)" class="group flex w-fit items-center gap-1 text-left text-sm font-semibold text-foreground hover:text-primary">
+                  <button type="button" (click)="openQuote(c)" class="group flex w-fit items-center gap-1 text-left text-sm font-semibold text-foreground hover:text-brand">
                     {{ c.name }}
-                    <app-icon name="arrow-up-right" [size]="13" class="text-muted-foreground group-hover:text-primary" />
+                    <app-icon name="arrow-up-right" [size]="16" class="text-muted-foreground group-hover:text-brand" />
                   </button>
                   <span class="text-xs text-muted-foreground">
                     @if (c.quote) {
@@ -123,11 +123,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
               }
             </article>
           } @empty {
-            <div class="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-6 py-10 text-center">
-              <app-icon name="share" [size]="20" class="text-muted-foreground" />
-              <p class="text-sm font-semibold">{{ (activity.loading() ? 'Loading…' : 'No visits yet') | t }}</p>
+            <div class="empty-state">
+              <span class="empty-icon"><app-icon name="share" [size]="28" /></span>
+              <h3>{{ (activity.loading() ? 'Loading…' : 'No visits yet') | t }}</h3>
               @if (!activity.loading()) {
-                <p class="max-w-sm text-xs text-muted-foreground">{{ "Share your link — you'll see which cars people look at and the quotes they build here." | t }}</p>
+                <p>{{ "Share your link — you'll see which cars people look at and the quotes they build here." | t }}</p>
               }
             </div>
           }
