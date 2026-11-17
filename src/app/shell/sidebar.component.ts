@@ -1,4 +1,5 @@
-import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, Output, computed, inject } from '@angular/core';
+import { AuthService } from '../shared/auth.service';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IconComponent, IconName } from '../shared/icon.component';
@@ -17,6 +18,8 @@ const NAV: NavItem[] = [
   { id: 'links', label: 'Quote Links', icon: 'share' },
   { id: 'cars', label: 'Catalog', icon: 'car' },
   { id: 'price-settings', label: 'Price Settings', icon: 'tag' },
+  // Owner only: shown when the signed-in account is the site owner (see visibleNav).
+  { id: 'manage-cars', label: 'Manage Cars', icon: 'shield-check' },
 ];
 
 @Component({
@@ -63,7 +66,7 @@ const NAV: NavItem[] = [
       <!-- Nav -->
       <nav class="flex-1 overflow-y-auto px-3 py-3">
         <ul class="flex flex-col gap-1">
-          @for (item of nav; track item.id) {
+          @for (item of visibleNav(); track item.id) {
             <li>
               <!-- Real links, so a page can be opened in a new tab (Ctrl-click, long-press) -->
               <a
@@ -140,7 +143,9 @@ export class SidebarComponent {
   @Output() navigate = new EventEmitter<string>();
   @Output() toggle = new EventEmitter<void>();
 
-  nav = NAV;
+  private auth = inject(AuthService);
+  /** Every page, with Manage Cars only for the site owner. */
+  visibleNav = computed(() => NAV.filter((item) => item.id !== 'manage-cars' || this.auth.isOwner()));
 
   activity = inject(LinkActivityService);
 

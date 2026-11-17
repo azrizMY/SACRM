@@ -19,6 +19,10 @@
       "database_id": "6c0b28ac-1ce7-4573-a1e7-83e64095074d"
     }
   ],
+  // Uploaded catalogue files (logos, car photos, brochures). This id is a placeholder that only
+  // `wrangler dev` uses, with its own local copy; the live site needs a real namespace created
+  // and its id set in the root wrangler.jsonc.
+  "kv_namespaces": [{ "binding": "FILES", "id": "local-catalog-files" }],
   // The production database, reachable ONLY by passing `--env production` explicitly (see the
   // db:migrate:production script) — a plain command here still only ever touches preview. It exists
   // so schema migrations can be applied to the real database; the Pages deploy pipeline itself still

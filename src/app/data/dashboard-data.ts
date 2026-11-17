@@ -83,8 +83,22 @@ const BRAND_LOGOS: Record<string, string> = {
   Jaecoo: '/brands/jaecoo.svg',
 };
 
+/** The logos above, before the owner's shared catalogue adds or replaces any. */
+const BUILT_IN_BRAND_LOGOS: Readonly<Record<string, string>> = { ...BRAND_LOGOS };
+/** Logos the owner set from Manage Cars, applied over the built-in ones. */
+let catalogBrandLogos: Record<string, string> = {};
+
 export function brandLogo(brand: string): string | null {
-  return BRAND_LOGOS[brand] ?? null;
+  return catalogBrandLogos[brand] ?? BRAND_LOGOS[brand] ?? null;
+}
+
+export function builtInBrandLogo(brand: string): string | null {
+  return BUILT_IN_BRAND_LOGOS[brand] ?? null;
+}
+
+/** Replaces the owner's logos (brand → file path); a brand left out falls back to its built-in one. */
+export function setCatalogBrandLogos(logos: Record<string, string>): void {
+  catalogBrandLogos = { ...logos };
 }
 
 /** Won/Lost — the deal outcome badge used on the Recent Deals table. */

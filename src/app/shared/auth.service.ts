@@ -27,6 +27,8 @@ function extractError(err: unknown, fallback: string): string {
 export class AuthService {
   currentUser = signal<AuthUser | null>(null);
   isAuthenticated = computed(() => this.currentUser() !== null);
+  /** The site owner, who alone sees Manage Cars. The server checks this again on every change. */
+  isOwner = computed(() => this.currentUser()?.role === 'owner');
 
   constructor(
     private http: HttpClient,
@@ -38,6 +40,9 @@ export class AuthService {
   /** Checks whether the browser's session cookie (if any) still points at a valid session —
    *  called once at app bootstrap, before routing/guards evaluate, and never again. */
   async restoreSession(): Promise<void> {
+    // The owner's shared catalogue first, for everyone (quote links included), so this account's
+    // own price edits land on top of it rather than under it.
+    await this.vehicleCatalogService.loadCatalog();
     try {
       const user = await firstValueFrom(this.http.get<AuthUser>('/api/auth/me'));
       this.currentUser.set(user);

@@ -17,6 +17,7 @@ const TITLES: Record<string, string> = {
   links: 'Quote Links',
   cars: 'Catalog',
   'price-settings': 'Price Settings',
+  'manage-cars': 'Manage Cars',
   profile: 'My Profile',
   settings: 'Settings',
 };
