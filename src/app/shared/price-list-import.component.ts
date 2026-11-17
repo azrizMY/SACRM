@@ -42,26 +42,26 @@ const MAX_BYTES = 10 * 1024 * 1024;
               <span class="text-xs text-muted-foreground">Pick the brand's official digital price list (PDF, up to 10 MB). You can pick several — one per model is fine.</span>
             </div>
             <button type="button" (click)="closed.emit()" aria-label="Close" class="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent">
-              <app-icon name="x" [size]="16" />
+              <app-icon name="x" [size]="18" />
             </button>
           </div>
 
           <label
-            class="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border px-4 py-8 text-center transition-colors hover:border-primary/50"
+            class="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border px-4 py-8 text-center transition-colors hover:border-brand/50"
             [class.pointer-events-none]="step() === 'reading'"
           >
-            <app-icon [name]="step() === 'reading' ? 'refresh-cw' : 'upload'" [size]="22" class="text-muted-foreground" [class.animate-spin]="step() === 'reading'" />
+            <app-icon [name]="step() === 'reading' ? 'refresh-cw' : 'upload'" [size]="20" class="text-muted-foreground" [class.animate-spin]="step() === 'reading'" />
             <span class="text-sm font-semibold">{{ step() === 'reading' ? 'Reading…' : 'Choose PDF' }}</span>
             <input type="file" accept="application/pdf,.pdf" multiple class="sr-only" (change)="read($any($event.target).files); $any($event.target).value = ''" />
           </label>
 
           @if (error()) {
-            <p class="flex items-start gap-1.5 rounded-lg bg-[var(--destructive)]/10 px-3 py-2 text-xs font-medium text-[var(--destructive)]">
-              <app-icon name="alert-triangle" [size]="13" class="mt-px shrink-0" />
+            <p class="flex items-start gap-1.5 rounded-lg bg-[var(--destructive)]/10 px-3 py-2.5 text-sm font-semibold text-[var(--destructive)]">
+              <app-icon name="alert-triangle" [size]="16" class="mt-px shrink-0" />
               {{ error() }}
             </p>
           }
-          <p class="text-[11px] text-muted-foreground">The file is read on this device — it isn't uploaded anywhere.</p>
+          <p class="text-xs text-muted-foreground">The file is read on this device — it isn't uploaded anywhere.</p>
         </div>
       </div>
     }
@@ -81,8 +81,8 @@ export class PriceListImportComponent {
   private unmatched = signal<ParsedPriceRow[]>([]);
 
   readonly columns: BulkColumn[] = [
-    { key: 'price', label: 'Price (RM)', kind: 'edit' },
-    { key: 'sumInsured', label: 'Sum insured (RM)', kind: 'edit' },
+    { key: 'price', label: 'Price', kind: 'edit', prefix: 'RM' },
+    { key: 'sumInsured', label: 'Sum insured', kind: 'edit', prefix: 'RM' },
   ];
 
   async read(files: FileList | null) {

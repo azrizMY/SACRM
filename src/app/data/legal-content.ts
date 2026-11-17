@@ -30,7 +30,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
           list: [
             'Account details: your name, email address, phone number, primary brand and password (stored only as a secure hash, never in plain text).',
             'Profile details you choose to add: photo, role, bio, showroom name and address, and social media links.',
-            'Your work in the app: price settings, quote and poster preferences (such as poster colour and festive frame), and display and language settings.',
+            'Your work in the app: price settings, quote and poster preferences (such as poster colour), and display and language settings.',
             'Technical data needed to keep you signed in and secure: a session cookie, and sign-in attempts used to block password guessing.',
           ],
         },
@@ -118,7 +118,7 @@ export const LEGAL: Record<LegalDoc, Record<LegalLang, LegalText>> = {
           list: [
             'Butiran akaun: nama, alamat e-mel, nombor telefon, jenama utama dan kata laluan anda (disimpan sebagai hash yang selamat sahaja, tidak sekali-kali dalam teks biasa).',
             'Butiran profil yang anda pilih untuk tambah: foto, jawatan, bio, nama dan alamat bilik pameran, serta pautan media sosial.',
-            'Kerja anda dalam aplikasi: tetapan harga, pilihan sebut harga dan poster (seperti warna poster dan bingkai perayaan), serta tetapan paparan dan bahasa.',
+            'Kerja anda dalam aplikasi: tetapan harga, pilihan sebut harga dan poster (seperti warna poster), serta tetapan paparan dan bahasa.',
             'Data teknikal yang diperlukan untuk memastikan anda kekal log masuk dan selamat: kuki sesi, dan cubaan log masuk yang digunakan untuk menyekat tekaan kata laluan.',
           ],
         },

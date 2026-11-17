@@ -16,11 +16,11 @@ import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
       <div class="flex w-full max-w-sm flex-col gap-6">
         <a routerLink="/welcome" class="flex items-center justify-center gap-2.5 lg:hidden">
           <span class="logo-chip flex size-10 items-center justify-center rounded-xl">
-            <app-icon name="car" [size]="18" />
+            <app-icon name="car" [size]="20" />
           </span>
           <div class="flex flex-col leading-tight">
             <span class="text-sm font-bold tracking-tight">Redline</span>
-            <span class="text-[11px] text-muted-foreground">Car Quotation</span>
+            <span class="text-xs text-muted-foreground">Car Quotation</span>
           </div>
         </a>
 
@@ -31,24 +31,24 @@ import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
           </div>
 
           @if (error()) {
-            <div class="flex items-center gap-2 rounded-lg bg-[var(--destructive)]/10 px-3 py-2 text-xs font-medium text-[var(--destructive)]">
-              <app-icon name="info" [size]="14" class="shrink-0" />
+            <div class="flex items-center gap-2 rounded-lg bg-[var(--destructive)]/10 px-3 py-2.5 text-sm font-semibold text-[var(--destructive)]">
+              <app-icon name="info" [size]="18" class="shrink-0" />
               {{ error() }}
             </div>
           }
 
           @if (done()) {
-            <div class="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-medium text-primary">
-              <app-icon name="check" [size]="14" class="shrink-0" />
+            <div class="flex items-center gap-2 rounded-lg bg-brand-soft px-3 py-2.5 text-sm font-semibold text-brand">
+              <app-icon name="check" [size]="18" class="shrink-0" />
               Your password has been reset. You can log in with your new password now.
             </div>
             <a routerLink="/login" class="flex items-center justify-center btn-glow rounded-lg px-4 py-3 text-sm font-semibold">Go to Log In</a>
           } @else {
             <form class="flex flex-col gap-4" (ngSubmit)="submit()">
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
                 Email
-                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary),transparent_80%)]">
-                  <app-icon name="mail" [size]="15" class="shrink-0 text-muted-foreground" />
+                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3">
+                  <app-icon name="mail" [size]="18" class="shrink-0 text-muted-foreground" />
                   <input
                     type="email"
                     name="email"
@@ -60,21 +60,22 @@ import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
                 </div>
               </label>
 
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
                 Primary Brand
-                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary),transparent_80%)]">
-                  <app-icon name="star" [size]="15" class="shrink-0 text-muted-foreground" />
+                <span class="text-sm font-normal text-muted-foreground">The brand you chose when you made your account.</span>
+                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3">
+                  <app-icon name="star" [size]="18" class="shrink-0 text-muted-foreground" />
                   <select [(ngModel)]="primaryBrand" name="primaryBrand" class="h-10 w-full bg-transparent text-sm text-foreground outline-none">
-                    <option value="" disabled selected>The brand you chose for your account</option>
+                    <option value="" disabled selected>Choose a brand</option>
                     @for (b of brands; track b) { <option [value]="b">{{ b }}</option> }
                   </select>
                 </div>
               </label>
 
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
                 New Password
-                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary),transparent_80%)]">
-                  <app-icon name="lock" [size]="15" class="shrink-0 text-muted-foreground" />
+                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3">
+                  <app-icon name="lock" [size]="18" class="shrink-0 text-muted-foreground" />
                   <input
                     [type]="showPassword() ? 'text' : 'password'"
                     name="password"
@@ -84,15 +85,15 @@ import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
                     class="h-10 w-full bg-transparent text-sm text-foreground outline-none"
                   />
                   <button type="button" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" class="-mr-2 flex size-9 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground">
-                    <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" [size]="15" />
+                    <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" [size]="18" />
                   </button>
                 </div>
               </label>
 
-              <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
                 Confirm New Password
-                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary),transparent_80%)]">
-                  <app-icon name="lock" [size]="15" class="shrink-0 text-muted-foreground" />
+                <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3">
+                  <app-icon name="lock" [size]="18" class="shrink-0 text-muted-foreground" />
                   <input
                     [type]="showPassword() ? 'text' : 'password'"
                     name="confirmPassword"
@@ -117,7 +118,7 @@ import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
 
         <p class="text-center text-sm text-muted-foreground">
           Remembered your password?
-          <a routerLink="/login" class="font-medium text-primary hover:underline">Log in</a>
+          <a routerLink="/login" class="font-medium text-brand hover:underline">Log in</a>
         </p>
       </div>
     </app-auth-layout>

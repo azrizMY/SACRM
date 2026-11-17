@@ -15,13 +15,13 @@ import { VehicleCatalogService } from './vehicle-catalog.service';
   imports: [RouterLink, IconComponent, TranslatePipe],
   template: `
     @if (settings.brandsISellUnset() && catalog.brands().length > 1) {
-      <div class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
-        <app-icon name="info" [size]="16" class="shrink-0 text-primary" />
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-muted-foreground">
+        <app-icon name="info" [size]="18" class="shrink-0" />
         <span class="min-w-0 flex-1">
           {{ 'Showing {brand} only. Sell other brands too? Add them in' | t: { brand: settings.brandsISell()[0] } }}
-          <a routerLink="/settings" class="font-semibold text-primary hover:underline">{{ 'Settings' | t }}</a>.
+          <a routerLink="/profile" class="font-semibold text-foreground underline">{{ 'My Profile' | t }}</a>.
         </span>
-        <button type="button" (click)="dismiss()" class="shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+        <button type="button" (click)="dismiss()" class="btn btn-outline btn-sm shrink-0">
           {{ 'Got it' | t }}
         </button>
       </div>

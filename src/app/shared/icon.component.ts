@@ -71,7 +71,12 @@ type IconName =
   | 'share'
   | 'zoom-in'
   | 'zoom-out'
-  | 'filter';
+  | 'filter'
+  | 'help-circle'
+  | 'ellipsis'
+  | 'palette'
+  | 'layout'
+  | 'home';
 
 const PATHS: Record<IconName, string> = {
   'layout-dashboard':
@@ -168,6 +173,12 @@ const PATHS: Record<IconName, string> = {
   'zoom-out':
     '<circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="8" x2="14" y1="11" y2="11"/>',
   filter: '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',
+  'help-circle': '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  ellipsis: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  palette:
+    '<circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>',
+  layout: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>',
+  home: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
 };
 
 @Component({
@@ -177,15 +188,15 @@ const PATHS: Record<IconName, string> = {
   template: `
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      [attr.width]="size"
-      [attr.height]="size"
+      [style.width.rem]="size / 16"
+      [style.height.rem]="size / 16"
       viewBox="0 0 24 24"
       stroke="currentColor"
       [attr.stroke-width]="strokeWidth"
       stroke-linecap="round"
       stroke-linejoin="round"
       [attr.fill]="filled ? 'currentColor' : 'none'"
-      [class]="class"
+      [class]="'shrink-0 ' + class"
       aria-hidden="true"
       [innerHTML]="svg"
     ></svg>

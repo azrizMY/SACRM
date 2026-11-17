@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, Input, Output, computed, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, Output, computed, signal } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from './icon.component';
@@ -38,18 +38,23 @@ const rmWhole = (v: number) => `RM ${Math.round(v).toLocaleString('en-MY')}`;
   standalone: true,
   imports: [NgClass, FormsModule, IconComponent, TranslatePipe, CarShadowPipe],
   template: `
-    <!-- Car dropdowns — pinned while scrolling -->
+    <!-- Car dropdowns — pinned while scrolling, to swap a chosen car. An empty slot has no dropdown
+         here: its "Choose a car" box below is the picker, so there's one way to add a car. -->
+    @if (columns.length > 0) {
     <div class="sticky z-20 bg-background py-3" [ngClass]="stickyClass">
       <div class="grid grid-cols-3 gap-2 sm:gap-6">
         @for (i of slotIndexes; track i) {
+          @if (!columnAt(i)) {
+            <div aria-hidden="true"></div>
+          } @else {
           <div class="relative">
             <select
               [ngModel]="columnAt(i)?.vehicle?.id ?? null"
               (ngModelChange)="chooseCar.emit({ column: i, vehicleId: $event })"
               [attr.aria-label]="('Car' | t) + ' ' + (i + 1)"
-              class="h-10 w-full appearance-none truncate rounded-xl border border-border bg-card pl-3 pr-7 text-xs font-semibold text-foreground outline-none transition-colors focus:border-ring sm:pl-4 sm:text-sm"
+              class="h-10 w-full appearance-none truncate rounded-lg border border-input bg-input pl-2.5 pr-7 text-sm font-semibold text-foreground sm:pl-4 sm:text-sm"
             >
-              <option [ngValue]="null">{{ (columnAt(i) ? 'None' : 'Choose a car') | t }}</option>
+              <option [ngValue]="null">{{ columnAt(i) ? ('None' | t) : ('Car {n}' | t: { n: i + 1 }) }}</option>
               @for (g of carGroups; track g.brand) {
                 <optgroup [label]="g.brand">
                   @for (v of g.vehicles; track v.id) {
@@ -58,11 +63,13 @@ const rmWhole = (v: number) => `RM ${Math.round(v).toLocaleString('en-MY')}`;
                 </optgroup>
               }
             </select>
-            <app-icon name="chevron-down" [size]="14" class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <app-icon name="chevron-down" [size]="18" class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           </div>
+          }
         }
       </div>
     </div>
+    }
 
     <!-- Car heroes -->
     <div class="grid grid-cols-3 gap-2 pt-4 sm:gap-6">
@@ -71,12 +78,12 @@ const rmWhole = (v: number) => `RM ${Math.round(v).toLocaleString('en-MY')}`;
           <div class="relative flex flex-col items-center gap-1 text-center">
             <div class="flex h-5 w-full items-center justify-between">
               @if (c.fromQuote) {
-                <span class="whitespace-nowrap rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">{{ quoteBadge | t }}</span>
+                <span class="whitespace-nowrap rounded-full bg-brand-soft px-2 py-0.5 text-xs font-semibold text-brand">{{ quoteBadge | t }}</span>
               } @else {
                 <span></span>
               }
               <button type="button" (click)="remove.emit(c.index)" [attr.aria-label]="'Remove' | t" class="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-                <app-icon name="x" [size]="13" />
+                <app-icon name="x" [size]="16" />
               </button>
             </div>
             <div class="flex h-20 w-full items-end justify-center sm:h-36">
@@ -86,7 +93,7 @@ const rmWhole = (v: number) => `RM ${Math.round(v).toLocaleString('en-MY')}`;
                 <app-icon name="car" [size]="40" class="text-muted-foreground" />
               }
             </div>
-            <span class="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:text-xs">{{ c.vehicle.brand }}</span>
+            <span class="mt-2 text-sm font-semibold text-muted-foreground sm:text-xs">{{ c.vehicle.brand }}</span>
             <span class="text-balance text-sm font-semibold leading-tight sm:text-2xl">{{ modelVariantLabel(c.vehicle.model, c.vehicle.variant) }}</span>
             @if (c.years.length > 1) {
               <div class="relative mt-1">
@@ -100,33 +107,48 @@ const rmWhole = (v: number) => `RM ${Math.round(v).toLocaleString('en-MY')}`;
                     <option [ngValue]="y">{{ y }}</option>
                   }
                 </select>
-                <app-icon name="chevron-down" [size]="12" class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <app-icon name="chevron-down" [size]="16" class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               </div>
             } @else {
               <span class="text-xs text-muted-foreground">{{ c.year }}</span>
             }
             <span class="mt-1 text-xs text-muted-foreground sm:text-sm">{{ 'From' | t }} {{ rmWhole(c.quote.price) }}</span>
             @if (showAdditionalRebate && (c.additionalRebate ?? 0) > 0) {
-              <label class="mt-1.5 flex cursor-pointer items-center gap-1.5 rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium sm:text-xs" [class.text-muted-foreground]="!c.includeAdditionalRebate">
+              <label class="mt-1.5 flex cursor-pointer items-center gap-1.5 rounded-full bg-muted/50 px-2.5 py-1.5 text-sm font-semibold sm:text-xs" [class.text-muted-foreground]="!c.includeAdditionalRebate">
                 <input
                   type="checkbox"
                   [checked]="!!c.includeAdditionalRebate"
                   (change)="toggleAdditionalRebate.emit({ index: c.index, on: !c.includeAdditionalRebate })"
-                  class="size-3.5 shrink-0 accent-[var(--primary)]"
+                  class="size-3.5 shrink-0 accent-[var(--brand-ink)]"
                 />
                 {{ 'Additional rebate' | t }} {{ rmWhole(c.additionalRebate!) }}
               </label>
             }
           </div>
         } @else {
-          <button
-            type="button"
-            (click)="openDropdown(i)"
-            class="mt-5 flex h-36 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary sm:h-52 sm:text-sm"
+          <!-- The box is the picker: a see-through dropdown covers it, so a tap opens the car list. -->
+          <label
+            class="relative flex h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-control bg-card px-2 text-center text-sm font-semibold text-foreground transition-colors focus-within:ring-2 focus-within:ring-ring hover:bg-brand-soft sm:h-44 sm:text-base"
+            [class.mt-5]="columns.length > 0"
           >
             <app-icon name="plus" [size]="20" />
             {{ 'Choose a car' | t }}
-          </button>
+            <select
+              [ngModel]="null"
+              (ngModelChange)="$event && chooseCar.emit({ column: i, vehicleId: $event })"
+              [attr.aria-label]="'Choose a car' | t"
+              class="absolute inset-0 size-full cursor-pointer opacity-0"
+            >
+              <option [ngValue]="null" disabled>{{ 'Choose a car' | t }}</option>
+              @for (g of carGroups; track g.brand) {
+                <optgroup [label]="g.brand">
+                  @for (v of g.vehicles; track v.id) {
+                    <option [ngValue]="v.id" [disabled]="isPickedElsewhere(v.id, i)">{{ modelVariantLabel(v.model, v.variant) }}</option>
+                  }
+                </optgroup>
+              }
+            </select>
+          </label>
         }
       }
     </div>
@@ -147,11 +169,11 @@ const rmWhole = (v: number) => `RM ${Math.round(v).toLocaleString('en-MY')}`;
                       @if (section.loan && isCash(c.quote)) {
                         @if (first) {
                           <span class="text-[13px] font-semibold sm:text-xl">{{ 'Cash' | t }}</span>
-                          <span class="text-[10px] leading-tight text-muted-foreground sm:text-xs">{{ 'No loan' | t }}</span>
+                          <span class="text-xs leading-tight text-muted-foreground sm:text-xs">{{ 'No loan' | t }}</span>
                         }
                       } @else {
                         <span class="text-[13px] tabular sm:text-xl" [ngClass]="row.strong ? 'font-semibold' : 'font-medium'">{{ row.value(c.quote) | t }}</span>
-                        <span class="text-[10px] leading-tight text-muted-foreground sm:text-xs">{{ (row.labelFor ? row.labelFor(c.quote) : row.label) | t }}@if (row.caption?.(setup, c.quote); as caption) { · {{ caption | t }}}</span>
+                        <span class="text-xs leading-tight text-muted-foreground sm:text-xs">{{ (row.labelFor ? row.labelFor(c.quote) : row.label) | t }}@if (row.caption?.(setup, c.quote); as caption) { · {{ caption | t }}}</span>
                       }
                     }
                   </div>
@@ -175,36 +197,36 @@ const rmWhole = (v: number) => `RM ${Math.round(v).toLocaleString('en-MY')}`;
           @for (i of slotIndexes; track i) {
             <div class="flex flex-col items-center gap-1.5 text-center">
               @if (columnAt(i); as c) {
-                <div class="flex w-full flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-4 sm:py-6" [ngClass]="isLowest(c) || isCheapest(c) ? 'bg-primary/10 ring-1 ring-primary/30' : 'bg-card'">
+                <div class="flex w-full flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-4 sm:py-6" [ngClass]="isLowest(c) || isCheapest(c) ? 'bg-brand-soft ring-1 ring-brand/30' : 'bg-card'">
                   @if (isCash(c.quote)) {
                     <!-- Cash: the price paid in full, no monthly and never "Lowest" -->
-                    <span class="text-[17px] font-semibold tabular sm:text-4xl" [ngClass]="isCheapest(c) ? 'text-primary' : ''">{{ allCash() ? rmWhole(c.quote.totalDue) : ('Cash' | t) }}</span>
-                    <span class="text-[10px] text-muted-foreground sm:text-xs">{{ allCash() ? ('Cash' | t) : rmWhole(c.quote.totalDue) }}</span>
+                    <span class="text-[17px] font-semibold tabular sm:text-4xl" [ngClass]="isCheapest(c) ? 'text-brand' : ''">{{ allCash() ? rmWhole(c.quote.totalDue) : ('Cash' | t) }}</span>
+                    <span class="text-xs text-muted-foreground sm:text-xs">{{ allCash() ? ('Cash' | t) : rmWhole(c.quote.totalDue) }}</span>
                     @if (isCheapest(c)) {
-                      <span class="mt-1 flex items-center gap-1 rounded-full bg-[var(--success)]/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--success)] sm:text-xs">
-                        <app-icon name="check" [size]="11" />{{ 'Cheapest' | t }}
+                      <span class="mt-1 flex items-center gap-1 rounded-full bg-[var(--success)]/15 px-2 py-0.5 text-xs font-semibold text-[var(--success)] sm:text-xs">
+                        <app-icon name="check" [size]="16" />{{ 'Cheapest' | t }}
                       </span>
                     } @else if (cashDiff(c)) {
-                      <span class="mt-1 text-[10px] text-muted-foreground sm:text-xs">+{{ cashDiff(c) }}</span>
+                      <span class="mt-1 text-xs text-muted-foreground sm:text-xs">+{{ cashDiff(c) }}</span>
                     }
                   } @else {
-                    <span class="text-[17px] font-semibold tabular sm:text-4xl" [ngClass]="isLowest(c) ? 'text-primary' : ''">{{ monthlyLabel(c.quote) | t }}</span>
+                    <span class="text-[17px] font-semibold tabular sm:text-4xl" [ngClass]="isLowest(c) ? 'text-brand' : ''">{{ monthlyLabel(c.quote) | t }}</span>
                     @if (c.quote.monthly !== null && c.quote.monthly > 0) {
-                      <span class="text-[10px] text-muted-foreground sm:text-xs">{{ 'per month' | t }}</span>
+                      <span class="text-xs text-muted-foreground sm:text-xs">{{ 'per month' | t }}</span>
                     }
                   }
                   @if (isLowest(c)) {
-                    <span class="mt-1 flex items-center gap-1 rounded-full bg-[var(--success)]/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--success)] sm:text-xs">
-                      <app-icon name="check" [size]="11" />{{ 'Lowest' | t }}
+                    <span class="mt-1 flex items-center gap-1 rounded-full bg-[var(--success)]/15 px-2 py-0.5 text-xs font-semibold text-[var(--success)] sm:text-xs">
+                      <app-icon name="check" [size]="16" />{{ 'Lowest' | t }}
                     </span>
                   } @else if (diffFromLowest(c)) {
-                    <span class="mt-1 text-[10px] text-muted-foreground sm:text-xs">+{{ diffFromLowest(c) }}/{{ 'mo' | t }}</span>
+                    <span class="mt-1 text-xs text-muted-foreground sm:text-xs">+{{ diffFromLowest(c) }}/{{ 'mo' | t }}</span>
                   }
                 </div>
                 @if (actionLabel) {
-                  <button type="button" (click)="action.emit(c)" class="mt-1 flex items-center gap-0.5 text-[11px] font-medium text-primary hover:underline sm:text-sm">
+                  <button type="button" (click)="action.emit(c)" class="mt-1 flex items-center gap-0.5 text-xs font-medium text-brand hover:underline sm:text-sm">
                     {{ actionLabel | t }}
-                    <app-icon name="chevron-right" [size]="13" />
+                    <app-icon name="chevron-right" [size]="16" />
                   </button>
                 }
               }
@@ -216,7 +238,6 @@ const rmWhole = (v: number) => `RM ${Math.round(v).toLocaleString('en-MY')}`;
   `,
 })
 export class CompareTableComponent {
-  private host = inject(ElementRef<HTMLElement>);
 
   private columnsSignal = signal<CompareColumn[]>([]);
   @Input({ required: true }) set columns(value: CompareColumn[]) {
@@ -322,9 +343,4 @@ export class CompareTableComponent {
   }
 
   /** The dashed "Choose a car" placeholder opens that column's dropdown. */
-  openDropdown(column: number) {
-    const el = this.host.nativeElement.querySelectorAll('.sticky select')[column] as (HTMLSelectElement & { showPicker?: () => void }) | undefined;
-    el?.focus();
-    el?.showPicker?.();
-  }
 }

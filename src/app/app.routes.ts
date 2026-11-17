@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, guestGuard, ownerGuard } from './shared/auth.guard';
+import { savedStartPage } from './shared/ui-prefs.service';
 
 // Every page is lazy-loaded so a visitor only downloads the screen they open — the landing page,
 // login and the customer quote link stay light instead of shipping the calculator, poster
@@ -21,8 +22,9 @@ export const routes: Routes = [
     loadComponent: () => import('./shell/app-shell.component').then((m) => m.AppShellComponent),
     canActivate: [authGuard],
     children: [
-      // A quoting tool first: the Calculator is home.
-      { path: '', pathMatch: 'full', redirectTo: 'calculator' },
+      // A quoting tool first: the Calculator is home, unless the user chose another start page
+      // (Settings → Appearance → Make it yours).
+      { path: '', pathMatch: 'full', redirectTo: () => savedStartPage() },
       { path: 'calculator', loadComponent: () => import('./pages/calculator.component').then((m) => m.CalculatorComponent), data: { id: 'calculator' } },
       { path: 'compare', loadComponent: () => import('./pages/compare.component').then((m) => m.CompareComponent), data: { id: 'compare' } },
       { path: 'budget', loadComponent: () => import('./pages/budget-finder-page.component').then((m) => m.BudgetFinderPageComponent), data: { id: 'budget' } },

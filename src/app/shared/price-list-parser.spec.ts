@@ -42,6 +42,31 @@ describe('price list parser', () => {
     expect(matched[0].vehicle.id).toBe('jaecoo-j7-2wd');
   });
 
+  it('matches Perodua table rows, telling look-alike variants apart', () => {
+    const lines = [
+      'MODEL OTR WITHOUT INSURANCE',
+      'AXIA 1.0 E 22,000.00',
+      'AXIA 1.0 SE 43,000.00',
+      'BEZZA 1.0 G (MT) 34,580.00',
+      'BEZZA 1.0 G (AT) 36,580.00',
+      'MYVI 1.3 G (ASA) 48,500.00',
+      'MYVI 1.3 G 46,500.00',
+      'ATIVA 1.0T AV 72,600.00',
+    ];
+    const perodua = VEHICLES.filter((v) => v.brand === 'Perodua');
+    const { matched, unmatched } = matchRows(parsePriceList('Perodua', lines), perodua);
+    expect(unmatched).toEqual([]);
+    expect(matched.map((m) => [m.vehicle.id, m.row.otr])).toEqual([
+      ['perodua-axia-1-0-e', 22000],
+      ['perodua-axia-1-0-se', 43000],
+      ['perodua-bezza-1-0-g-mt', 34580],
+      ['perodua-bezza-1-0-g-at', 36580],
+      ['perodua-myvi-1-3-g-asa', 48500],
+      ['perodua-myvi-1-3-g', 46500],
+      ['perodua-ativa-1-0t-av', 72600],
+    ]);
+  });
+
   it('lists a row that matches no car as unmatched', () => {
     const { matched, unmatched } = matchRows([{ name: 'JAECOO J9 Something', otr: 1, sumInsured: 1 }], VEHICLES.filter((v) => v.brand === 'Omoda | Jaecoo'));
     expect(matched.length).toBe(0);

@@ -25,7 +25,7 @@ export function posterAccent(id: string | null | undefined) {
 }
 
 /** Points the poster palette at the advisor's colour. Every poster renderer calls this first with
- *  the accent in its data, so whichever page draws it (Calculator, Offers, Compare, the customer
+ *  the accent in its data, so whichever page draws it (Calculator, Compare, the customer
  *  link) the poster comes out in the same colour. */
 export function usePosterAccent(id: string | null | undefined): void {
   const a = posterAccent(id);

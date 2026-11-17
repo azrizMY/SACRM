@@ -23,11 +23,11 @@ function isLocalDevHost(): boolean {
       <div class="flex w-full max-w-sm flex-col gap-6">
         <a routerLink="/welcome" class="flex items-center justify-center gap-2.5 lg:hidden">
           <span class="logo-chip flex size-10 items-center justify-center rounded-xl">
-            <app-icon name="car" [size]="18" />
+            <app-icon name="car" [size]="20" />
           </span>
           <div class="flex flex-col leading-tight">
             <span class="text-sm font-bold tracking-tight">Redline</span>
-            <span class="text-[11px] text-muted-foreground">Car Quotation</span>
+            <span class="text-xs text-muted-foreground">Car Quotation</span>
           </div>
         </a>
 
@@ -38,9 +38,9 @@ function isLocalDevHost(): boolean {
           </div>
 
           @if (error()) {
-            <div class="flex flex-col gap-1.5 rounded-lg bg-[var(--destructive)]/10 px-3 py-2 text-xs font-medium text-[var(--destructive)]">
+            <div class="flex flex-col gap-1.5 rounded-lg bg-[var(--destructive)]/10 px-3 py-2.5 text-sm font-semibold text-[var(--destructive)]">
               <span class="flex items-center gap-2">
-                <app-icon name="info" [size]="14" class="shrink-0" />
+                <app-icon name="info" [size]="18" class="shrink-0" />
                 {{ error() }}
               </span>
               <a routerLink="/forgot-password" class="ml-[22px] font-semibold underline underline-offset-2">Reset your password</a>
@@ -48,10 +48,10 @@ function isLocalDevHost(): boolean {
           }
 
           <form class="flex flex-col gap-4" (ngSubmit)="submit()">
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+            <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
               Email
-              <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary),transparent_80%)]">
-                <app-icon name="mail" [size]="15" class="shrink-0 text-muted-foreground" />
+              <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3">
+                <app-icon name="mail" [size]="18" class="shrink-0 text-muted-foreground" />
                 <input
                   type="email"
                   name="email"
@@ -63,13 +63,13 @@ function isLocalDevHost(): boolean {
               </div>
             </label>
 
-            <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+            <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
               <div class="flex items-center justify-between">
                 <span>Password</span>
-                <a routerLink="/forgot-password" class="font-medium text-primary hover:underline">Forgot password?</a>
+                <a routerLink="/forgot-password" class="font-medium text-brand hover:underline">Forgot password?</a>
               </div>
-              <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3 transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary),transparent_80%)]">
-                <app-icon name="lock" [size]="15" class="shrink-0 text-muted-foreground" />
+              <div class="flex items-center gap-2 rounded-lg border border-input bg-input px-3">
+                <app-icon name="lock" [size]="18" class="shrink-0 text-muted-foreground" />
                 <input
                   [type]="showPassword() ? 'text' : 'password'"
                   name="password"
@@ -79,7 +79,7 @@ function isLocalDevHost(): boolean {
                   class="h-10 w-full bg-transparent text-sm text-foreground outline-none"
                 />
                 <button type="button" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" class="-mr-2 flex size-9 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground">
-                  <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" [size]="15" />
+                  <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" [size]="18" />
                 </button>
               </div>
             </label>
@@ -96,7 +96,7 @@ function isLocalDevHost(): boolean {
 
         <p class="text-center text-sm text-muted-foreground">
           Don't have an account?
-          <a routerLink="/signup" class="font-medium text-primary hover:underline">Create one</a>
+          <a routerLink="/signup" class="font-medium text-brand hover:underline">Create one</a>
         </p>
       </div>
     </app-auth-layout>
@@ -128,7 +128,8 @@ export class LoginComponent {
       this.error.set(result.error);
       return;
     }
-    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/calculator';
+    // No deep link to return to: open the user's chosen start page (the Calculator by default).
+    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/';
     this.router.navigateByUrl(returnUrl);
   }
 }

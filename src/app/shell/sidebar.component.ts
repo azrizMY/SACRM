@@ -2,70 +2,47 @@ import { Component, EventEmitter, Input, Output, computed, inject } from '@angul
 import { AuthService } from '../shared/auth.service';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { IconComponent, IconName } from '../shared/icon.component';
+import { IconComponent, type IconName } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { UserMenuComponent } from './user-menu.component';
 import { TranslatePipe } from '../shared/i18n';
 import { LinkActivityService } from '../shared/link-activity.service';
+import { MENU_PAGES, PAGES } from '../shared/ui-prefs.service';
 
-type NavItem = { id: string; label: string; icon: IconName };
-
-const NAV: NavItem[] = [
-  { id: 'calculator', label: 'Calculator', icon: 'calculator' },
-  { id: 'compare', label: 'Compare', icon: 'table' },
-  { id: 'budget', label: 'Budget', icon: 'wallet' },
-  { id: 'live', label: 'Live Mode', icon: 'live' },
-  { id: 'links', label: 'Quote Links', icon: 'share' },
-  { id: 'cars', label: 'Catalog', icon: 'car' },
-  { id: 'price-settings', label: 'Price Settings', icon: 'tag' },
-  // Owner only: shown when the signed-in account is the site owner (see visibleNav).
-  { id: 'manage-cars', label: 'Manage Cars', icon: 'shield-check' },
-];
-
+/** The menu: a rail on the left on a computer or tablet, and the same menu sliding in from the
+ *  left (opened with the hamburger button) on a phone. Every item has its name. */
 @Component({
   selector: 'app-sidebar',
   standalone: true,
   imports: [CommonModule, RouterLink, IconComponent, UserMenuComponent, TranslatePipe],
   template: `
     <aside
-      class="glass flex h-full flex-col border-r border-sidebar-border text-sidebar-foreground transition-[width] duration-300 ease-[var(--ease-out-expo)]"
-      [ngClass]="collapsed ? 'w-[72px]' : 'w-60'"
+      class="flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-[var(--ease-out-expo)]"
+      [ngClass]="collapsed ? 'w-[72px]' : variant === 'mobile' ? 'w-[min(18rem,86vw)]' : 'w-60'"
     >
-      <!-- Brand -->
-      <a
-        routerLink="/welcome"
-        [title]="'Redline home' | t"
-        class="flex h-16 items-center gap-2.5 border-b border-sidebar-border transition-opacity hover:opacity-85"
-        [ngClass]="collapsed ? 'justify-center px-0' : 'px-4'"
-      >
-        <span class="logo-chip flex size-9 shrink-0 items-center justify-center rounded-xl">
-          <app-icon name="car" [size]="20" />
-        </span>
-        @if (!collapsed) {
-          <div class="flex min-w-0 flex-col leading-tight">
-            <span class="truncate text-sm font-bold tracking-tight">{{ "Redline" | t }}</span>
-            <span class="truncate text-[11px] text-muted-foreground">{{ "Car Quotation" | t }}</span>
-          </div>
+      <!-- Brand, and on a phone the close button -->
+      <div class="flex h-14 shrink-0 items-center gap-2 border-b border-sidebar-border md:h-16" [ngClass]="collapsed ? 'justify-center px-0' : 'pl-4 pr-2'">
+        <a routerLink="/welcome" [attr.aria-label]="'Redline home' | t" class="flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-85">
+          <span class="logo-chip flex size-9 shrink-0 items-center justify-center rounded-xl">
+            <app-icon name="car" [size]="20" />
+          </span>
+          @if (!collapsed) {
+            <span class="flex min-w-0 flex-col leading-tight">
+              <span class="truncate text-sm font-bold tracking-tight">Redline</span>
+              <span class="truncate text-xs text-sidebar-muted">{{ "Car Quotation" | t }}</span>
+            </span>
+          }
+        </a>
+        @if (variant === 'mobile') {
+          <button type="button" (click)="toggle.emit()" [attr.aria-label]="'Close menu' | t" class="ml-auto flex size-10 items-center justify-center rounded-md text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+            <app-icon name="x" [size]="20" />
+          </button>
         }
-      </a>
-
-      <!-- Collapse/close toggle -->
-      <div class="pt-3" [ngClass]="collapsed ? 'px-0 flex justify-center' : 'px-3'">
-        <button
-          type="button"
-          (click)="toggle.emit()"
-          [attr.aria-label]="variant === 'mobile' ? 'Close menu' : collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-          class="flex items-center gap-2 rounded-md text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          [ngClass]="collapsed ? 'size-9 justify-center p-0' : 'w-full px-2 py-1.5'"
-        >
-          <app-icon [name]="variant === 'mobile' ? 'x' : 'panel-left'" [size]="16" />
-          @if (!collapsed) {<span>{{ variant === 'mobile' ? ('Close menu' | t) : ('Collapse' | t) }}</span>}
-        </button>
       </div>
 
-      <!-- Nav -->
-      <nav class="flex-1 overflow-y-auto px-3 py-3">
-        <ul class="flex flex-col gap-1">
+      <!-- Menu -->
+      <nav data-tour="nav-menu" class="flex-1 overflow-y-auto px-3 py-3" [attr.aria-label]="'Main menu' | t">
+        <ul class="flex flex-col gap-0.5">
           @for (item of visibleNav(); track item.id) {
             <li>
               <!-- Real links, so a page can be opened in a new tab (Ctrl-click, long-press) -->
@@ -73,32 +50,28 @@ const NAV: NavItem[] = [
                 [routerLink]="'/' + item.id"
                 (click)="navigate.emit(item.id)"
                 [attr.aria-current]="item.id === active ? 'page' : null"
-                [attr.aria-label]="item.label | t"
+                [attr.aria-label]="collapsed ? (item.label | t) : null"
                 [attr.title]="collapsed ? (item.label | t) : null"
-                class="group relative flex w-full items-center gap-3 rounded-lg py-2.5 text-sm font-medium transition-all duration-200"
+                class="relative flex min-h-11 w-full items-center gap-3 rounded-lg text-sm transition-colors"
                 [ngClass]="[
-                  collapsed ? 'justify-center px-0' : 'px-2.5',
+                  collapsed ? 'justify-center px-0' : 'px-3',
                   item.id === active
-                    ? 'text-sidebar-accent-foreground'
-                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                    ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground'
+                    : 'font-medium text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 ]"
               >
                 @if (item.id === active) {
-                  <span class="absolute inset-y-2 -left-3 w-[3px] rounded-r-full bg-primary"></span>
+                  <span class="absolute inset-y-2 -left-3 w-[3px] rounded-r-full bg-primary" aria-hidden="true"></span>
                 }
-                <app-icon
-                  [name]="item.icon"
-                  [size]="18"
-                  [class]="'shrink-0 transition-transform duration-200 group-hover:scale-110 ' + (item.id === active ? 'text-foreground' : '')"
-                />
+                <app-icon [name]="item.icon" [size]="19" [class]="item.id === active ? 'text-[var(--shell-accent)]' : ''" />
                 @if (!collapsed) {
                   <span class="truncate">{{ item.label | t }}</span>
                 }
                 @if (item.id === 'links' && activity.unseen() > 0) {
                   <span
-                    class="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground"
-                    [ngClass]="collapsed ? 'absolute right-1 top-1 h-4 min-w-4 px-1' : 'ml-auto'"
-                    [attr.aria-label]="activity.unseen() + ' new visits'"
+                    class="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-foreground"
+                    [ngClass]="collapsed ? 'absolute right-1 top-1' : 'ml-auto'"
+                    [attr.aria-label]="'{n} new visits' | t: { n: activity.unseen() }"
                   >{{ activity.unseen() > 99 ? '99+' : activity.unseen() }}</span>
                 }
               </a>
@@ -107,28 +80,42 @@ const NAV: NavItem[] = [
         </ul>
       </nav>
 
-      <!-- User -->
+      <!-- Narrow / wide (computer only) -->
+      @if (variant === 'desktop') {
+        <div class="px-3 pb-2">
+          <button
+            type="button"
+            (click)="toggle.emit()"
+            [attr.aria-label]="collapsed ? ('Show menu names' | t) : ('Hide menu names' | t)"
+            class="flex min-h-10 w-full items-center gap-3 rounded-lg text-sm text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            [ngClass]="collapsed ? 'justify-center px-0' : 'px-3'"
+          >
+            <app-icon name="panel-left" [size]="18" />
+            @if (!collapsed) {<span>{{ 'Make menu narrow' | t }}</span>}
+          </button>
+        </div>
+      }
+
+      <!-- Account -->
       <div class="border-t border-sidebar-border p-3">
-        <!-- Always 'start' — the rail sits flush against the viewport's left edge, so centering
-             the menu on a collapsed (narrow, near x=0) trigger pushed half of it off-screen. -->
         <app-user-menu align="start" side="top">
           <span
-            class="flex w-full items-center gap-3 rounded-md text-left transition-colors hover:bg-sidebar-accent"
+            class="flex w-full items-center gap-3 rounded-lg text-left transition-colors hover:bg-sidebar-accent"
             [ngClass]="collapsed ? 'justify-center p-1' : 'p-1.5'"
           >
             @if (advisor.profile().photoUrl; as photo) {
-              <img [src]="photo" alt="" class="size-8 shrink-0 rounded-full border border-border object-cover" />
+              <img [src]="photo" alt="" class="size-9 shrink-0 rounded-full object-cover" />
             } @else {
-              <span class="logo-chip flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
+              <span class="logo-chip flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-bold">
                 {{ advisor.initials() }}
               </span>
             }
             @if (!collapsed) {
               <span class="flex min-w-0 flex-1 flex-col leading-tight">
-                <span class="truncate text-sm font-medium text-foreground">{{ advisor.profile().name }}</span>
-                <span class="truncate text-[11px] text-muted-foreground">{{ advisor.profile().role }}</span>
+                <span class="truncate text-sm font-semibold text-sidebar-foreground">{{ advisor.profile().name }}</span>
+                <span class="truncate text-xs text-sidebar-muted">{{ advisor.profile().role }}</span>
               </span>
-              <app-icon name="chevron-down" [size]="16" class="shrink-0 text-muted-foreground" />
+              <app-icon name="chevron-down" [size]="16" class="text-sidebar-muted" />
             }
           </span>
         </app-user-menu>
@@ -143,13 +130,14 @@ export class SidebarComponent {
   @Output() navigate = new EventEmitter<string>();
   @Output() toggle = new EventEmitter<void>();
 
+  /** The work pages. My Profile, Settings and Log out live in the account menu at the bottom. */
+  nav = MENU_PAGES.map((id) => PAGES.find((p) => p.id === id)!);
   private auth = inject(AuthService);
-  /** Every page, with Manage Cars only for the site owner. */
-  visibleNav = computed(() => NAV.filter((item) => item.id !== 'manage-cars' || this.auth.isOwner()));
+  /** The menu, plus Manage Cars at the end for the site owner only. */
+  visibleNav = computed<{ id: string; label: string; icon: IconName }[]>(() =>
+    this.auth.isOwner() ? [...this.nav, { id: 'manage-cars', label: 'Manage Cars', icon: 'shield-check' }] : this.nav,
+  );
 
   activity = inject(LinkActivityService);
-
-  constructor(
-    public advisor: AdvisorService,
-  ) {}
+  advisor = inject(AdvisorService);
 }

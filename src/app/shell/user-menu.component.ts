@@ -5,47 +5,46 @@ import { IconComponent } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { AuthService } from '../shared/auth.service';
 import { InstallService } from '../shared/install.service';
+import { TranslatePipe } from '../shared/i18n';
 
 @Component({
   selector: 'app-user-menu',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [CommonModule, IconComponent, TranslatePipe],
   template: `
     <div class="relative">
-      <button type="button" class="w-full outline-none" (click)="toggle($event)">
+      <button type="button" class="tap-auto w-full rounded-lg" [attr.aria-expanded]="open" [attr.aria-label]="'Your account' | t" (click)="toggle($event)">
         <ng-content></ng-content>
       </button>
 
       @if (open) {
         <div
-          class="absolute z-50 w-56 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg"
+          class="absolute z-50 w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lg"
           [class]="menuPosition"
         >
-          <div class="px-2 py-1.5">
-            <div class="flex flex-col">
-              <span class="text-sm font-medium text-foreground">{{ advisor.profile().name }}</span>
-              <span class="text-xs text-muted-foreground">{{ advisor.profile().email }}</span>
-            </div>
+          <div class="flex flex-col px-3 py-2">
+            <span class="text-sm font-semibold text-foreground">{{ advisor.profile().name }}</span>
+            <span class="truncate text-xs text-muted-foreground">{{ advisor.profile().email }}</span>
           </div>
           <div class="my-1 h-px bg-border"></div>
-          <button type="button" (click)="goTo('/profile')" class="flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-sm text-foreground transition-colors hover:bg-accent">
-            <app-icon name="user" [size]="16" />
-            Profile
+          <button type="button" (click)="goTo('/profile')" class="flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-sm text-foreground transition-colors hover:bg-accent">
+            <app-icon name="user" [size]="18" />
+            {{ 'My Profile' | t }}
           </button>
-          <button type="button" (click)="goTo('/settings')" class="flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-sm text-foreground transition-colors hover:bg-accent">
-            <app-icon name="settings" [size]="16" />
-            Settings
+          <button type="button" (click)="goTo('/settings')" class="flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-sm text-foreground transition-colors hover:bg-accent">
+            <app-icon name="settings" [size]="18" />
+            {{ 'Settings' | t }}
           </button>
           @if (install.available()) {
-            <button type="button" (click)="installApp()" class="flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-sm text-foreground transition-colors hover:bg-accent">
-              <app-icon name="download" [size]="16" />
-              Install app
+            <button type="button" (click)="installApp()" class="flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-sm text-foreground transition-colors hover:bg-accent">
+              <app-icon name="download" [size]="18" />
+              {{ 'Install app' | t }}
             </button>
           }
           <div class="my-1 h-px bg-border"></div>
-          <button type="button" (click)="logout()" class="flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-sm text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)]/10">
-            <app-icon name="log-out" [size]="16" />
-            Log out
+          <button type="button" (click)="logout()" class="flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-semibold text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)]/10">
+            <app-icon name="log-out" [size]="18" />
+            {{ 'Log out' | t }}
           </button>
         </div>
       }

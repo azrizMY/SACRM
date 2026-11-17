@@ -8,7 +8,9 @@ import { InsuranceQuotationEditorComponent } from './insurance-quotation-editor.
 import { NumberFieldComponent } from './number-field.component';
 import { TranslatePipe } from './i18n';
 import { QuoteEngine } from './quote-engine';
-import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type InsuranceQuotationDetails } from '../data/calculator-data';
+import { NCD_OPTIONS, formatRM, modelVariantLabel, vehicleTitle, type InsuranceQuotationDetails } from '../data/calculator-data';
+import { VehicleCatalogService } from './vehicle-catalog.service';
+import { BrandChipsComponent } from './brand-chips.component';
 
 /**
  * Every quote setting — car, rebates, cash back, insurance, rate, down payment and tenure — as
@@ -18,51 +20,44 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
 @Component({
   selector: 'app-quote-controls',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, NumberFieldComponent, InsuranceQuotationEditorComponent, TranslatePipe],
+  imports: [CommonModule, FormsModule, IconComponent, NumberFieldComponent, InsuranceQuotationEditorComponent, TranslatePipe, BrandChipsComponent],
   host: { class: 'contents' },
   template: `
     <!-- Select car -->
-    <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+    <div data-tour="calc-car" class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
       <div class="flex items-center justify-between gap-2">
-        <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Select Car" | t }}</span>
+        <span class="text-sm font-semibold text-foreground">{{ "Select Car" | t }}</span>
         @if (showCompare) {
-          <button type="button" (click)="compare.emit()" class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10">
-            <app-icon name="table" [size]="13" />
-            {{ "Compare with other cars" | t }}
+          <button type="button" (click)="compare.emit()" class="-my-1 flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold text-brand transition-colors hover:bg-brand-soft">
+            <app-icon name="table" [size]="16" />
+            {{ "Compare" | t }}
           </button>
         }
       </div>
 
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div class="flex flex-col gap-2">
-          <label for="brandSelect" class="text-xs font-medium text-muted-foreground">{{ "Brand" | t }}</label>
-          <select
-            id="brandSelect"
-            [ngModel]="selectedBrand()"
-            (ngModelChange)="onBrandChange($event)"
-            class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
-          >
-            @for (b of brands; track b) {
-              <option [value]="b">{{ b }}</option>
-            }
-          </select>
-        </div>
+      <!-- Brands as one row of chips (swipes sideways when they don't all fit); hidden with one brand -->
+      @if (brands().length > 1) {
+        <app-brand-chips [brands]="brands()" [selected]="selectedBrand()" (pick)="onBrandChange($event)" />
+      }
 
-        <div class="flex flex-col gap-2">
-          <span class="text-xs font-medium text-muted-foreground">{{ "Model" | t }}</span>
+      <div class="flex flex-col gap-2">
           <div class="relative">
             <button
               type="button"
               (click)="toggleCarDropdown($event)"
-              class="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
+              [attr.aria-label]="('Model' | t) + ': ' + modelVariantLabel(selectedModelName(), selectedVariant())"
+              class="flex h-11 w-full items-center justify-between gap-3 rounded-lg border border-input bg-input pl-3 pr-3 text-base text-foreground outline-none transition-colors focus:border-ring md:text-sm"
             >
-              <span class="truncate">{{ modelVariantLabel(selectedModelName(), selectedVariant()) }}</span>
-              <app-icon name="chevron-down" [size]="16" class="shrink-0 text-muted-foreground" />
+              <span class="truncate font-semibold">{{ modelVariantLabel(selectedModelName(), selectedVariant()) }}</span>
+              <span class="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
+                <span class="tabular">{{ fmt(selectedVehicle().price) }}</span>
+                <app-icon name="chevron-down" [size]="18" />
+              </span>
             </button>
             @if (carDropdownOpen) {
               <div class="absolute left-0 top-full z-50 mt-1 max-h-80 w-full min-w-[220px] overflow-y-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg">
                 @for (group of carGroups(); track group.model; let first = $first) {
-                  <div class="px-3 pb-1 text-xs font-medium text-muted-foreground" [ngClass]="first ? 'pt-2' : 'pt-3'">{{ group.model }}</div>
+                  <div class="px-3 pb-1 text-sm font-semibold text-foreground" [ngClass]="first ? 'pt-2' : 'pt-3'">{{ group.model }}</div>
                   @for (item of group.items; track item.variant) {
                     <button
                       type="button"
@@ -71,7 +66,7 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
                     >
                       {{ item.label | t }}
                       @if (group.model === selectedModelName() && item.variant === selectedVariant()) {
-                        <app-icon name="check" [size]="14" class="shrink-0 text-foreground" />
+                        <app-icon name="check" [size]="18" class="shrink-0 text-foreground" />
                       }
                     </button>
                   }
@@ -79,13 +74,11 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
               </div>
             }
           </div>
-        </div>
       </div>
-      <span class="text-[11px] text-muted-foreground">{{ fmt(selectedVehicle().price) }} {{ "base price" | t }}</span>
 
       @if (availableYears().length > 1) {
         <div class="flex flex-col gap-2">
-          <span class="text-xs font-medium text-muted-foreground">{{ "Model Year" | t }}</span>
+          <span class="text-sm font-semibold text-foreground">{{ "Model Year" | t }}</span>
           <div role="radiogroup" [attr.aria-label]="'Model year' | t" class="flex flex-wrap gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
             @for (y of availableYears(); track y) {
               <button
@@ -100,18 +93,13 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
               </button>
             }
           </div>
-          <span class="text-[11px] text-muted-foreground">{{ "This car is in the database under both years — each has its own price and rebate." | t }}</span>
+          <span class="text-xs text-muted-foreground">{{ "This car is in the database under both years — each has its own price and rebate." | t }}</span>
         </div>
-      } @else {
-        <span class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <app-icon name="calendar" [size]="12" />
-          {{ 'Only listed for {year} in the Car Database.' | t: { year: modelYear() } }}
-        </span>
       }
 
       @if (colourPickable(); as colours) {
         <div class="flex flex-col gap-2">
-          <label for="colourSelect" class="text-xs font-medium text-muted-foreground">{{ "Colour" | t }}</label>
+          <label for="colourSelect" class="text-sm font-semibold text-foreground">{{ "Colour" | t }}</label>
           <select
             id="colourSelect"
             [ngModel]="selectedColour()"
@@ -126,11 +114,11 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
 
     <!-- Price setup -->
     <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-      <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Price Setup" | t }}</span>
+      <span class="text-sm font-semibold text-foreground">{{ "Price Setup" | t }}</span>
 
       <div class="flex flex-col gap-2">
         <div class="flex items-center justify-between">
-          <label for="rebateInput" class="text-xs font-medium text-muted-foreground">{{ "Rebate" | t }}</label>
+          <label for="rebateInput" class="text-sm font-semibold text-foreground">{{ "Rebate" | t }}</label>
           <ng-container [ngTemplateOutlet]="sourceBadge" [ngTemplateOutletContext]="{ $implicit: rebateIsManual(), field: 'rebate' }" />
         </div>
         <app-number-field inputId="rebateInput" prefix="RM" [decimals]="0" [value]="rebateInput()" (valueChange)="onRebateChange($event)" />
@@ -138,7 +126,7 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
 
       <div class="flex flex-col gap-2">
         <div class="flex items-center justify-between">
-          <label for="additionalRebateInput" class="text-xs font-medium text-muted-foreground">{{ "Additional Rebate" | t }}</label>
+          <label for="additionalRebateInput" class="text-sm font-semibold text-foreground">{{ "Additional Rebate" | t }}</label>
           <ng-container
             [ngTemplateOutlet]="sourceBadge"
             [ngTemplateOutletContext]="{ $implicit: additionalRebateIsManual() || additionalRebateEnabled() !== autoAdditionalRebateEnabled(), field: 'additionalRebate' }"
@@ -178,7 +166,7 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
           </label>
           @if (cashbackOn()) {
             <div class="flex flex-col gap-1.5">
-              <label for="cashbackAmountInput" class="text-xs font-medium text-muted-foreground">{{ "Cash back amount" | t }} <span class="font-normal">({{ "up to {max}" | t: { max: fmt(cashbackMax()) } }})</span></label>
+              <label for="cashbackAmountInput" class="text-sm font-semibold text-foreground">{{ "Cash back amount" | t }} <span class="font-normal">({{ "up to {max}" | t: { max: fmt(cashbackMax()) } }})</span></label>
               <app-number-field inputId="cashbackAmountInput" prefix="RM" [decimals]="0" [value]="cashbackAmount()" (valueChange)="onCashbackAmountChange($event)" />
             </div>
             <p class="text-xs leading-relaxed text-muted-foreground">
@@ -194,127 +182,129 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
       }
     </div>
 
-    <!-- Insurance -->
-    <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          (click)="insuranceOpen.set(!insuranceOpen())"
-          [attr.aria-expanded]="insuranceOpen()"
-          class="flex min-w-0 flex-1 items-center gap-2 text-left"
-        >
-          <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Insurance" | t }}</span>
-            <span class="truncate text-sm font-semibold tabular text-foreground">{{ fmt2(insurance()) }} <span class="font-normal text-muted-foreground">· {{ ncd() }}% NCD</span></span>
-          </span>
-          <app-icon name="chevron-down" [size]="16" [class]="'shrink-0 text-muted-foreground transition-transform duration-200 ' + (insuranceOpen() ? 'rotate-180' : '')" />
+    <!-- Insurance: the total up top; tap an NCD box; the full breakdown is behind "Edit insurance details" -->
+    <div class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+      <div class="flex flex-col gap-1">
+        <div class="flex w-full items-center gap-2">
+          <span class="min-w-0 flex-1 text-sm font-semibold text-foreground">{{ "Insurance" | t }}</span>
+          <span class="fig whitespace-nowrap text-base">{{ fmt2(insurance()) }}</span>
+        </div>
+        <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span class="tabular">{{ ncd() }}% NCD</span>
+          <span aria-hidden="true">·</span>
+          <ng-container [ngTemplateOutlet]="sourceBadge" [ngTemplateOutletContext]="{ $implicit: insuranceIsManual(), field: 'insurance' }" />
+        </div>
+      </div>
+
+        <div class="flex flex-col gap-2">
+          <span id="ncdLabel" class="text-sm font-semibold text-foreground">{{ "No-claim discount (NCD)" | t }}</span>
+          <div role="radiogroup" aria-labelledby="ncdLabel" class="grid grid-cols-3 gap-1.5">
+            @for (opt of ncdOptions; track opt.value) {
+              <button
+                type="button"
+                role="radio"
+                [attr.aria-checked]="ncd() === opt.value"
+                (click)="ncd.set(opt.value)"
+                class="flex flex-col items-center justify-center rounded-lg border px-1 py-1.5 leading-tight transition-colors"
+                [ngClass]="ncd() === opt.value ? 'border-brand bg-brand-soft' : 'border-control hover:bg-accent'"
+              >
+                <span class="text-sm font-bold tabular">{{ opt.value }}%</span>
+                <span class="text-xs" [ngClass]="ncd() === opt.value ? 'text-foreground' : 'text-muted-foreground'">{{ ncdYear(opt) | t }}</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        <button type="button" (click)="openInsuranceBreakdown()" class="btn btn-outline w-full">
+          <app-icon name="pencil" [size]="16" />
+          {{ "Edit insurance details" | t }}
         </button>
-        <ng-container [ngTemplateOutlet]="sourceBadge" [ngTemplateOutletContext]="{ $implicit: insuranceIsManual(), field: 'insurance' }" />
-      </div>
-
-      @if (insuranceOpen()) {
-      <button
-        type="button"
-        (click)="openInsuranceBreakdown()"
-        class="flex w-fit items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-accent"
-      >
-        <app-icon name="settings" [size]="12" />
-        {{ "Insurance Breakdown" | t }}
-      </button>
-
-      <div class="flex flex-col gap-2">
-        <label for="ncdSelect" class="text-xs font-medium text-muted-foreground">
-          <span class="inline-flex items-center gap-1">
-            <app-icon name="percent" [size]="12" />
-            {{ "NCD" | t }}
-          </span>
-        </label>
-        <select
-          id="ncdSelect"
-          [ngModel]="ncd()"
-          (ngModelChange)="ncd.set(+$event)"
-          class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
-        >
-          @for (opt of ncdOptions; track opt.value) {
-            <option [value]="opt.value">{{ opt.label | t }}</option>
-          }
-        </select>
-      </div>
-
-      }
     </div>
 
-    <!-- Interest Rate -->
-    <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          (click)="rateOpen.set(!rateExpanded())"
-          [attr.aria-expanded]="rateExpanded()"
-          class="flex min-w-0 flex-1 items-center gap-2 text-left"
-        >
-          <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Interest Rate" | t }}</span>
-            @if (rateMissing()) {
-              <span class="text-sm font-semibold text-[var(--warning)]">{{ "EIR needed" | t }}</span>
-            } @else {
-              <span class="text-sm font-semibold tabular text-foreground">{{ interestRate() }}% <span class="font-normal text-muted-foreground">· {{ rateType() === 'flat' ? ('Flat' | t) : 'EIR' }}</span></span>
-            }
-          </span>
-          <app-icon name="chevron-down" [size]="16" [class]="'shrink-0 text-muted-foreground transition-transform duration-200 ' + (rateExpanded() ? 'rotate-180' : '')" />
-        </button>
-        <ng-container [ngTemplateOutlet]="sourceBadge" [ngTemplateOutletContext]="{ $implicit: interestRateIsManual(), field: 'rate' }" />
+    <!-- Interest Rate: the rate up top; a quiet Flat / EIR switch; − / + beside the rate -->
+    <div class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+      <div class="flex flex-col gap-1">
+        <div class="flex w-full items-center gap-2">
+          <span class="min-w-0 flex-1 text-sm font-semibold text-foreground">{{ "Interest Rate" | t }}</span>
+          @if (rateMissing()) {
+            <span class="text-sm font-semibold text-[var(--warning)]">{{ "EIR needed" | t }}</span>
+          } @else {
+            <span class="fig whitespace-nowrap text-base">{{ rateLabel(interestRate()) }}%</span>
+          }
+        </div>
+        <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span>{{ rateType() === 'flat' ? ('Flat rate' | t) : ('EIR (effective rate)' | t) }}</span>
+          <span aria-hidden="true">·</span>
+          <ng-container [ngTemplateOutlet]="sourceBadge" [ngTemplateOutletContext]="{ $implicit: interestRateIsManual(), field: 'rate' }" />
+        </div>
       </div>
 
-      @if (rateExpanded()) {
-      <div class="flex flex-col gap-2">
-        <span class="text-xs font-medium text-muted-foreground">{{ "Rate Type" | t }}</span>
-        <div role="radiogroup" [attr.aria-label]="'Rate Type' | t" class="flex gap-1.5 rounded-xl border border-border bg-muted/40 p-1.5">
+        <div role="radiogroup" [attr.aria-label]="'Rate Type' | t" class="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
           <button
             type="button"
             role="radio"
             [attr.aria-checked]="rateType() === 'flat'"
             (click)="setRateType('flat')"
-            class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
-            [ngClass]="rateType() === 'flat' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+            class="rounded-md px-2 py-1.5 text-sm font-semibold transition-colors"
+            [ngClass]="rateType() === 'flat' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
           >
-            {{ "Flat" | t }}
+            {{ "Flat rate" | t }}
           </button>
           <button
             type="button"
             role="radio"
             [attr.aria-checked]="rateType() === 'effective'"
             (click)="setRateType('effective')"
-            class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
-            [ngClass]="rateType() === 'effective' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+            class="rounded-md px-2 py-1.5 text-sm font-semibold transition-colors"
+            [ngClass]="rateType() === 'effective' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
           >
             {{ "EIR" | t }}
           </button>
         </div>
-      </div>
 
-      <div class="flex flex-col gap-2">
-        <label for="interestRateInput" class="text-xs font-medium text-muted-foreground">{{ rateType() === 'flat' ? ('Flat rate' | t) : ('Effective rate (EIR)' | t) }}</label>
-        <app-number-field
-          inputId="interestRateInput"
-          suffix="%"
-          [value]="rateMissing() ? null : interestRate()"
-          [invalid]="rateMissing()"
-          placeholder="Bank's EIR"
-          (valueChange)="onInterestRateChange($event)"
-        />
-        @if (rateMissing()) {
-          <span class="text-[11px] text-[var(--warning)]">
-            {{ "This car has no EIR and there's no default EIR — type the bank's rate here, or set a default EIR in Price Settings." | t }}
-          </span>
-        }
-      </div>
-      }
+        <div class="flex flex-col gap-2">
+          <label for="interestRateInput" class="text-sm font-semibold text-foreground">{{ rateType() === 'flat' ? ('Flat rate' | t) : ('Effective rate (EIR)' | t) }}</label>
+          <div class="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] gap-1.5">
+            <button
+              type="button"
+              (click)="stepRate(-1)"
+              [disabled]="rateMissing() || interestRate() <= 0"
+              [attr.aria-label]="'Lower the rate by 0.05%' | t"
+              class="btn btn-outline h-10 p-0 text-lg"
+            >−</button>
+            <app-number-field
+              inputId="interestRateInput"
+              suffix="%"
+              [value]="rateMissing() ? null : interestRate()"
+              [invalid]="rateMissing()"
+              placeholder="Bank's EIR"
+              (valueChange)="onInterestRateChange($event)"
+            />
+            <button
+              type="button"
+              (click)="stepRate(1)"
+              [attr.aria-label]="'Raise the rate by 0.05%' | t"
+              class="btn btn-outline h-10 p-0 text-lg"
+            >+</button>
+          </div>
+          @if (rateMissing()) {
+            <span class="text-xs text-[var(--warning)]">
+              {{ "This car has no EIR and there's no default EIR — type the bank's rate here, or set a default EIR in Price Settings." | t }}
+            </span>
+          } @else {
+            <p class="text-xs leading-relaxed text-muted-foreground">
+              {{ "Each tap changes it by 0.05%." | t }}
+              @if (defaultRate(); as d) {
+                {{ "The usual rate for this car is {rate}% (Price Settings). A change here is for this quote only." | t: { rate: rateLabel(d) } }}
+              }
+            </p>
+          }
+        </div>
     </div>
 
     <!-- Loan setup -->
-    <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-      <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Loan Setup" | t }}</span>
+    <div data-tour="calc-loan" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+      <span class="text-sm font-semibold text-foreground">{{ "Loan Setup" | t }}</span>
 
       @if (cashbackOn()) {
         <!-- Cash back only makes sense on a full loan — a customer paying cash upfront would just
@@ -335,21 +325,21 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
         </div>
       } @else {
       <div class="flex flex-col gap-2">
-        <span class="text-xs font-medium text-muted-foreground">{{ "Downpayment" | t }}</span>
+        <span class="text-sm font-semibold text-foreground">{{ "Downpayment" | t }}</span>
         <div role="group" [attr.aria-label]="'Quick downpayment presets' | t" class="grid grid-cols-2 gap-1.5">
           <button
             type="button"
             (click)="applyDownpaymentPreset('tenPercent')"
-            class="rounded-lg border px-2 py-2 text-xs font-semibold transition-colors"
-            [ngClass]="isDownpaymentPreset('tenPercent') ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+            class="rounded-lg border px-2 py-2.5 text-sm font-semibold transition-colors"
+            [ngClass]="isDownpaymentPreset('tenPercent') ? 'border-brand bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
           >
             10%
           </button>
           <button
             type="button"
             (click)="applyDownpaymentPreset('fullLoan')"
-            class="rounded-lg border px-2 py-2 text-xs font-semibold transition-colors"
-            [ngClass]="isDownpaymentPreset('fullLoan') ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+            class="rounded-lg border px-2 py-2.5 text-sm font-semibold transition-colors"
+            [ngClass]="isDownpaymentPreset('fullLoan') ? 'border-brand bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
           >
             {{ minDownpayment() > 0 ? ('Minimum' | t) : ('Full Loan' | t) }}
           </button>
@@ -368,7 +358,7 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
             <button
               type="button"
               (click)="downpaymentType.set('percent')"
-              class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
+              class="rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors"
               [ngClass]="downpaymentType() === 'percent' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
             >
               %
@@ -376,7 +366,7 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
             <button
               type="button"
               (click)="downpaymentType.set('amount')"
-              class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
+              class="rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors"
               [ngClass]="downpaymentType() === 'amount' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
             >
               {{ "Amt" | t }}
@@ -385,16 +375,16 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
         </div>
         @if (minDownpayment() > 0) {
           @if (downpaymentRaisedToMin()) {
-            <div class="flex items-start gap-2 rounded-lg bg-[var(--warning)]/12 px-3 py-2 text-[11px] text-foreground">
-              <app-icon name="alert-triangle" [size]="13" class="mt-px shrink-0 text-[var(--warning)]" />
+            <div class="flex items-start gap-2 rounded-lg bg-[var(--warning)]/12 px-3 py-2 text-xs text-foreground">
+              <app-icon name="alert-triangle" [size]="16" class="mt-px shrink-0 text-[var(--warning)]" />
               <span>{{ "This car needs a" | t }} <strong>{{ fmt(minDownpayment()) }}</strong> {{ "minimum downpayment (rebate counts towards it) — raised to meet it." | t }}</span>
             </div>
           } @else {
-            <span class="text-[11px] text-muted-foreground">Minimum downpayment for this car: {{ fmt(minDownpayment()) }} {{ "before rebate" | t }}</span>
+            <span class="text-xs text-muted-foreground">Minimum downpayment for this car: {{ fmt(minDownpayment()) }} {{ "before rebate" | t }}</span>
           }
         }
         @if (downpaymentRebateNote(); as n) {
-          <div class="flex flex-col gap-0.5 rounded-lg bg-[var(--success)]/10 px-3 py-2 text-[11px] text-foreground">
+          <div class="flex flex-col gap-0.5 rounded-lg bg-[var(--success)]/10 px-3 py-2 text-xs text-foreground">
             @if (n.covered) {
               <span><strong>{{ 'Rebates cover the {pct}% down payment.' | t: { pct: n.pct } }}</strong> {{ 'Customer pays {amount} (loan rounding only).' | t: { amount: fmt2(n.after) } }}</span>
             } @else {
@@ -402,7 +392,7 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
             }
           </div>
         } @else {
-          <span class="text-[11px] text-muted-foreground">
+          <span class="text-xs text-muted-foreground">
             @if (downpaymentType() === 'percent') {
               Rebate is applied to reduce the cash downpayment needed.
             } @else {
@@ -414,12 +404,12 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
 
       <div class="flex items-center gap-3">
         <div class="h-px flex-1 bg-border"></div>
-        <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "or" | t }}</span>
+        <span class="text-sm font-semibold text-foreground">{{ "or" | t }}</span>
         <div class="h-px flex-1 bg-border"></div>
       </div>
 
       <div class="flex flex-col gap-2">
-        <label for="loanAmountInput" class="text-xs font-medium text-muted-foreground">{{ "Loan Amount" | t }}</label>
+        <label for="loanAmountInput" class="text-sm font-semibold text-foreground">{{ "Loan Amount" | t }}</label>
         <app-number-field
           inputId="loanAmountInput"
           prefix="RM"
@@ -429,20 +419,20 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
           (committed)="commitLoanAmount()"
         />
         @if (loanCapNote(); as note) {
-          <span class="text-[11px] font-medium text-[var(--warning)]">{{ note }}</span>
+          <span class="text-xs font-medium text-[var(--warning)]">{{ note }}</span>
         } @else {
-          <span class="text-[11px] text-muted-foreground">{{ "Rounds down to the nearest RM100 once you finish typing — any remainder goes to the downpayment." | t }}</span>
+          <span class="text-xs text-muted-foreground">{{ "Rounds down to the nearest RM100 once you finish typing — any remainder goes to the downpayment." | t }}</span>
         }
       </div>
 
       <div class="flex items-center gap-3">
         <div class="h-px flex-1 bg-border"></div>
-        <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ "or" | t }}</span>
+        <span class="text-sm font-semibold text-foreground">{{ "or" | t }}</span>
         <div class="h-px flex-1 bg-border"></div>
       </div>
 
       <div class="flex flex-col gap-2">
-        <label for="monthlyInstallmentInput" class="text-xs font-medium text-muted-foreground">{{ "Monthly Installment" | t }}</label>
+        <label for="monthlyInstallmentInput" class="text-sm font-semibold text-foreground">{{ "Monthly Installment" | t }}</label>
         <app-number-field
           inputId="monthlyInstallmentInput"
           prefix="RM"
@@ -451,9 +441,9 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
           (committed)="commitMonthlyInstallment()"
         />
         @if (monthlyCapNote(); as note) {
-          <span class="text-[11px] font-medium text-[var(--warning)]">{{ note }}</span>
+          <span class="text-xs font-medium text-[var(--warning)]">{{ note }}</span>
         } @else {
-          <span class="text-[11px] text-muted-foreground">{{ 'Targets the {tenure} tenure and works backwards to the loan amount and deposit.' | t: { tenure: (monthlyInstallmentTenureLabel() | t) } }}</span>
+          <span class="text-xs text-muted-foreground">{{ 'Targets the {tenure} tenure and works backwards to the loan amount and deposit.' | t: { tenure: (monthlyInstallmentTenureLabel() | t) } }}</span>
         }
       </div>
       }
@@ -461,42 +451,44 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
 
     <!-- Tenure -->
     <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-      <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{{ "Quotation Summary" | t }}</span>
+      <span class="text-sm font-semibold text-foreground">{{ "Quotation Summary" | t }}</span>
 
       <div class="flex flex-col gap-2">
         <div class="flex items-center justify-between">
-          <span class="text-xs font-medium text-muted-foreground">{{ "Tenure Selection" | t }}</span>
-          <span class="text-xs font-semibold tabular text-foreground">{{ posterTenureSummary() }}</span>
+          <span class="text-sm font-semibold text-foreground">{{ "Tenure Selection" | t }}</span>
+          <span class="text-xs font-semibold tabular text-foreground">{{ customTenureActive() ? ('{n} months' | t: { n: highlightedTenure() }) : posterTenureSummary() }}</span>
         </div>
         <div role="group" [attr.aria-label]="'Repayment table tenures (years)' | t" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
           @for (y of posterYearOptions; track y) {
             <button
               type="button"
-              [attr.aria-pressed]="posterTenureYears().includes(y)"
+              [attr.aria-pressed]="!customTenureActive() && posterTenureYears().includes(y)"
               (click)="togglePosterYear(y)"
-              class="flex aspect-square items-center justify-center rounded-full text-xs font-semibold transition-colors"
-              [ngClass]="posterTenureYears().includes(y) ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+              class="flex h-10 items-center justify-center rounded-full text-sm font-semibold transition-colors"
+              [ngClass]="!customTenureActive() && posterTenureYears().includes(y) ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
             >
               {{ y }}
             </button>
           }
         </div>
-        <span class="text-[11px] text-muted-foreground">{{ "Pick 3 tenures to show in the repayment table above." | t }}</span>
+        <span class="text-xs text-muted-foreground">{{ "Pick 3 tenures to show on the poster." | t }}</span>
       </div>
 
       <div class="flex flex-col gap-2">
-        <label for="customTenureMonthsInput" class="text-xs font-medium text-muted-foreground">{{ "Custom Tenure (Months)" | t }}</label>
+        <label for="customTenureMonthsInput" class="text-sm font-semibold text-foreground">{{ "Custom Tenure (Months)" | t }}</label>
         <input
           id="customTenureMonthsInput"
           type="number"
           min="1"
           max="120"
           step="1"
-          [ngModel]="highlightedTenure()"
-          (ngModelChange)="onCustomTenureInput($event)"
-          class="h-10 w-full rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular outline-none transition-colors focus:border-ring"
+          [ngModel]="customTenureActive() ? highlightedTenure() : null"
+          (ngModelChange)="$event !== null && $event !== '' && onCustomTenureInput($event)"
+          [placeholder]="'e.g. 84' | t"
+          class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm font-medium tabular outline-none transition-colors"
+          [ngClass]="customTenureActive() ? 'border-brand bg-brand-soft' : ''"
         />
-        <span class="text-[11px] text-muted-foreground">{{ "Type any month count to use as the chosen tenure — this replaces the repayment table above with just this one, until you pick a tenure button again." | t }}</span>
+        <span class="text-xs text-muted-foreground">{{ "Optional. Any month count — the poster then shows just this one, until you pick a tenure above again." | t }}</span>
       </div>
     </div>
 
@@ -507,13 +499,13 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
           type="button"
           (click)="resetField(field)"
           [title]="'Back to the default value' | t"
-          class="flex shrink-0 items-center gap-1 rounded-md bg-[var(--warning)]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--warning)] transition-colors hover:bg-[var(--warning)]/25"
+          class="tap-auto flex shrink-0 items-center gap-1 rounded-md bg-[var(--warning)]/15 px-1.5 py-0.5 text-xs font-semibold text-[var(--warning)] transition-colors hover:bg-[var(--warning)]/25"
         >
           {{ "Manual" | t }}
-          <app-icon name="rotate-ccw" [size]="10" />
+          <app-icon name="rotate-ccw" [size]="13" />
         </button>
       } @else {
-        <span class="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{{ "Default" | t }}</span>
+        <span class="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">{{ "Default" | t }}</span>
       }
     </ng-template>
 
@@ -525,10 +517,10 @@ import { NCD_OPTIONS, VEHICLES, formatRM, modelVariantLabel, vehicleTitle, type 
           <div class="flex items-center gap-3 border-b border-border p-4">
             <div class="flex flex-col">
               <span class="text-sm font-semibold">{{ "Insurance Breakdown" | t }}</span>
-              <span class="text-[11px] text-muted-foreground">{{ vehicleTitle(selectedVehicle().brand, modelVariantLabel(selectedVehicle().model, selectedVehicle().variant)) }}</span>
+              <span class="text-xs text-muted-foreground">{{ vehicleTitle(selectedVehicle().brand, modelVariantLabel(selectedVehicle().model, selectedVehicle().variant)) }}</span>
             </div>
             <button type="button" (click)="closeInsuranceBreakdown()" [attr.aria-label]="'Close' | t" class="ml-auto flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-              <app-icon name="x" [size]="16" />
+              <app-icon name="x" [size]="18" />
             </button>
           </div>
           <div class="overflow-y-auto p-4">
@@ -562,7 +554,14 @@ export class QuoteControlsComponent {
   }
 
   ncdOptions = NCD_OPTIONS;
-  brands: string[] = Array.from(new Set(VEHICLES.map((v) => v.brand)));
+  private catalog = inject(VehicleCatalogService);
+  /** The brands this account sells, Primary Brand first — plus the car on screen's own brand if it
+   *  isn't one of them (e.g. opened from an older comparison), so its chip is never missing. */
+  brands = computed(() => {
+    const sold = this.catalog.soldBrands();
+    const current = this.q.selectedBrand();
+    return sold.includes(current) ? sold : [...sold, current];
+  });
   posterYearOptions = Array.from({ length: 9 }, (_, i) => i + 1);
   modelVariantLabel = modelVariantLabel;
   vehicleTitle = vehicleTitle;
@@ -595,13 +594,29 @@ export class QuoteControlsComponent {
     this.carDropdownOpen = false;
   }
 
-  // Insurance and Interest Rate are usually left on their defaults, so they fold into one-line
-  // summaries; the rate section forces itself open while a rate is missing.
-  insuranceOpen = signal(false);
-  rateOpen = signal(false);
-  rateExpanded = computed(() => this.rateOpen() || this.q.rateMissing());
 
   insuranceBreakdownOpen = signal(false);
+
+
+  /** "Year 2" under each NCD box (from the option's own label), "No NCD" for 0%. */
+  ncdYear(opt: { value: number; label: string }): string {
+    return opt.value === 0 ? 'No NCD' : (opt.label.split(' — ')[1] ?? '');
+  }
+
+  /** The rate this car starts on before any change on this quote, or null when it has none. */
+  defaultRate = computed(() => this.q.autoInterestRate());
+
+  /** 2.3 → "2.30": two decimals, so a 0.05 step is always visible. */
+  rateLabel(rate: number): string {
+    return rate.toFixed(2);
+  }
+
+  /** − / + beside the rate: 0.05% per tap, never below 0. */
+  stepRate(direction: -1 | 1) {
+    const base = this.q.rateMissing() ? 0 : this.q.interestRate();
+    const next = Math.max(0, Math.round((base + direction * 0.05) * 100) / 100);
+    this.q.onInterestRateChange(next);
+  }
 
   openInsuranceBreakdown() {
     this.insuranceBreakdownOpen.set(true);
@@ -776,6 +791,11 @@ export class QuoteControlsComponent {
 
   get downpaymentRebateNote() {
     return this.q.downpaymentRebateNote;
+  }
+
+  /** A custom month count is in use (Custom Tenure), instead of the year buttons. */
+  get customTenureActive() {
+    return this.q.customTenureActive;
   }
 
   get highlightedTenure() {

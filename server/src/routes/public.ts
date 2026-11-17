@@ -83,9 +83,6 @@ function validTariff(t: unknown): unknown {
 
 /** The poster colours the app offers (POSTER_ACCENTS in src/app/shared/poster-theme.ts). */
 const POSTER_ACCENT_IDS = ['red', 'blue', 'navy', 'teal', 'orange', 'purple', 'magenta', 'gold'];
-/** The festive frames the app offers (POSTER_FRAMES in src/app/shared/poster-frames.ts). */
-const POSTER_FRAME_IDS = ['raya', 'ramadan', 'haji', 'cny', 'deepavali', 'christmas', 'merdeka', 'malaysiaday', 'newyear'];
-
 export async function handlePublicRoute(request: Request, env: Env, url: URL): Promise<Response> {
   const bundleMatch = url.pathname.match(/^\/api\/public\/quote\/([^/]+)$/);
   if (bundleMatch && request.method === 'GET') {
@@ -136,7 +133,6 @@ async function getPublicQuoteBundle(env: Env, token: string): Promise<Response> 
     loanRounding: settingsData.salesDefaults?.loanRounding === 'up' ? 'up' : 'down',
     // Only a known colour id is passed on (the app falls back to red for anything else).
     posterAccent: POSTER_ACCENT_IDS.includes(settingsData.salesDefaults?.posterAccent) ? settingsData.salesDefaults.posterAccent : undefined,
-    posterFrame: POSTER_FRAME_IDS.includes(settingsData.salesDefaults?.posterFrame) ? settingsData.salesDefaults.posterFrame : undefined,
   };
   (salesDefaults as Record<string, unknown>).testDriveEnabled = settingsData.salesDefaults?.testDriveEnabled !== false;
   (salesDefaults as Record<string, unknown>).insuranceRegion = settingsData.salesDefaults?.insuranceRegion === 'east' ? 'east' : 'peninsular';

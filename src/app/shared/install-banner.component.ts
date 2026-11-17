@@ -10,16 +10,16 @@ import { TranslatePipe } from './i18n';
   imports: [IconComponent, TranslatePipe],
   template: `
     @if (install.showBanner()) {
-      <div class="animate-rise mb-4 flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary/10 p-4 sm:flex-row sm:items-center">
+      <div class="animate-rise mb-4 flex flex-col gap-3 rounded-xl border border-brand/30 bg-brand-soft p-4 sm:flex-row sm:items-center">
         <div class="flex flex-1 items-start gap-3">
           <span class="logo-chip flex size-10 shrink-0 items-center justify-center rounded-xl">
-            <app-icon name="car" [size]="18" />
+            <app-icon name="car" [size]="20" />
           </span>
           <div class="flex flex-col gap-0.5">
             <span class="text-sm font-semibold">{{ 'Install Redline on your phone' | t }}</span>
             @if (showIosSteps()) {
               <span class="text-xs leading-relaxed text-muted-foreground">
-                {{ 'Tap the Share button' | t }} <app-icon name="share" [size]="12" class="inline align-[-1px]" />
+                {{ 'Tap the Share button' | t }} <app-icon name="share" [size]="16" class="inline align-[-1px]" />
                 {{ 'in Safari, then choose “Add to Home Screen”.' | t }}
               </span>
             } @else {
@@ -28,11 +28,11 @@ import { TranslatePipe } from './i18n';
           </div>
         </div>
         <div class="flex items-center gap-2 self-end sm:self-auto">
-          <button type="button" (click)="install.dismissBanner()" class="rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+          <button type="button" (click)="install.dismissBanner()" class="rounded-lg px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:text-foreground">
             {{ 'Not now' | t }}
           </button>
           @if (!showIosSteps()) {
-            <button type="button" (click)="onInstall()" class="btn-glow rounded-lg px-3.5 py-2 text-xs font-semibold">{{ 'Install' | t }}</button>
+            <button type="button" (click)="onInstall()" class="btn-glow rounded-lg px-3.5 py-2.5 text-sm font-semibold">{{ 'Install' | t }}</button>
           }
         </div>
       </div>

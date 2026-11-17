@@ -19,7 +19,7 @@ export const guestGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   if (!auth.isAuthenticated()) return true;
-  return router.createUrlTree(['/calculator']);
+  return router.createUrlTree(['/']);
 };
 
 /** Manage Cars: the site owner only. Anyone else lands back on the Calculator. The server refuses

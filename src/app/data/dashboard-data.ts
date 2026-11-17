@@ -79,6 +79,8 @@ const BRAND_LOGOS: Record<string, string> = {
   'Omoda | Jaecoo': '/brands/jaecoo.svg',
   Honda: '/brands/honda.svg',
   GWM: '/brands/gwm.svg',
+  // Perodua publishes no SVG: this is the logo from perodua.com.my, cropped, on a transparent background.
+  Perodua: '/brands/perodua.png',
   // Same legacy alias as BRAND_STYLES above — see its comment.
   Jaecoo: '/brands/jaecoo.svg',
 };
