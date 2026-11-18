@@ -1149,4 +1149,7 @@ export const MS: Record<string, string> = {
   "Live Mode runs on a tablet or computer": "Mod Live berjalan pada tablet atau komputer",
   "It puts a big, clear quote on your TikTok Live while you change the car and deposit off camera. Your phone stays free to film.": "Ia memaparkan sebut harga yang besar dan jelas di TikTok Live anda sementara anda menukar kereta dan deposit di luar kamera. Telefon anda kekal bebas untuk merakam.",
   "Optional. Any month count — the poster then shows just this one, until you pick a tenure above again.": "Pilihan. Sebarang bilangan bulan — poster akan memaparkan tempoh ini sahaja, sehingga anda memilih tempoh di atas semula.",
+  "New version available": "Versi baharu tersedia",
+  "Refresh to get the latest updates.": "Muat semula untuk mendapatkan kemas kini terkini.",
+  "Later": "Nanti",
 };
