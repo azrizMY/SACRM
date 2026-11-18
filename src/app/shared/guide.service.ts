@@ -189,15 +189,17 @@ export class GuideService {
   firstSteps = computed<FirstStep[]>(() => {
     const s = this.settings.settings();
     return [
-      { id: 'quote', label: 'Save or share your first quote', hint: 'Make a quote and send the poster to someone.', link: '/calculator', done: !!s.onboarding.quoteShared },
-      { id: 'photo', label: 'Add your photo', hint: 'It appears on every poster and on your quote page.', link: '/profile', done: !!this.advisor.profile().photoUrl },
       { id: 'brands', label: 'Choose the brands you sell', hint: 'Only these brands show in your lists.', link: '/profile', done: !this.settings.brandsISellUnset() },
+      { id: 'photo', label: 'Add your photo', hint: 'It appears on every poster and on your quote page.', link: '/profile', done: !!this.advisor.profile().photoUrl },
       { id: 'prices', label: 'Check your prices and rates', hint: 'Every quote follows what you set here.', link: '/price-settings', done: !!s.onboarding.pricesReviewed },
-      { id: 'links', label: 'Open your Quote Links', hint: 'A page your customers can use on their own.', link: '/links', done: !!s.onboarding.activitySeenAt },
+      { id: 'quote', label: 'Share your first quote', hint: 'Make a quote and send the poster to someone.', link: '/calculator', done: !!s.onboarding.quoteShared },
+      { id: 'links', label: 'Send your Quote Link to a customer', hint: 'Ticks when a customer opens it.', link: '/links', done: !!s.onboarding.linkOpened },
     ];
   });
   firstStepsDone = computed(() => this.firstSteps().filter((s) => s.done).length);
   firstStepsLeft = computed(() => this.firstSteps().length - this.firstStepsDone());
+  /** The first step still to do — highlighted with a Go button. */
+  nextStep = computed(() => this.firstSteps().find((s) => !s.done) ?? null);
   /** Show the checklist (and the dot on Help) until everything is done or it has been put away. */
   firstStepsVisible = computed(() => this.firstStepsLeft() > 0 && !this.settings.settings().onboarding.hidden);
 

@@ -8,7 +8,7 @@ import { VehicleCatalogService } from './vehicle-catalog.service';
 
 /**
  * My Profile → Your brands and Your quote link: the Primary Brand, the brands you sell, and the
- * customer link's "Book test drive" button. Held until Save, as they were in Settings.
+ * Held until Save, as they were in Settings.
  */
 @Component({
   selector: 'app-my-brands',
@@ -57,25 +57,6 @@ import { VehicleCatalogService } from './vehicle-catalog.service';
         </div>
       </div>
 
-      <!-- Your quote link -->
-      <div class="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm sm:p-5">
-        <div class="flex flex-col gap-0.5">
-          <h2 class="text-base font-semibold">{{ "Book test drive" | t }}</h2>
-          <p class="text-xs text-muted-foreground">{{ "A button on your quote link that WhatsApps you a test drive request for the car." | t }}</p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          [attr.aria-label]="'Book test drive' | t"
-          [attr.aria-checked]="testDrive"
-          (click)="testDrive = !testDrive"
-          class="tap-auto relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
-          [ngClass]="testDrive ? 'bg-primary' : 'bg-muted'"
-        >
-          <span class="inline-block size-4 transform rounded-full bg-white shadow transition-transform" [ngClass]="testDrive ? 'translate-x-6' : 'translate-x-1'"></span>
-        </button>
-      </div>
-
       @if (unsavedCount() > 0 || savedFlash()) {
         <div class="pointer-events-none sticky bottom-4 z-30 flex justify-end">
           <div class="pointer-events-auto flex items-center gap-3 rounded-xl border border-border bg-popover py-2 pl-4 pr-2 text-popover-foreground shadow-lg">
@@ -101,7 +82,6 @@ export class MyBrandsComponent {
 
   primary = '';
   sold: string[] = [];
-  testDrive = true;
   savedFlash = signal(false);
 
   constructor() {
@@ -133,7 +113,6 @@ export class MyBrandsComponent {
     let n = 0;
     if (this.primary !== s.dashboardTarget.brand) n++;
     if (JSON.stringify([...this.sold].sort()) !== JSON.stringify([...savedSold].sort())) n++;
-    if (this.testDrive !== (s.salesDefaults.testDriveEnabled !== false)) n++;
     return n;
   }
 
@@ -142,7 +121,7 @@ export class MyBrandsComponent {
     const brandsISell = this.sold.filter((b) => b !== this.primary);
     // Leave "Brands I sell" unset until the advisor has actually chosen (it drives a one-time hint).
     const brandsChosen = s.salesDefaults.brandsISell !== undefined || brandsISell.length > 0;
-    this.settings.updateSalesDefaults(brandsChosen ? { brandsISell, testDriveEnabled: this.testDrive } : { testDriveEnabled: this.testDrive });
+    if (brandsChosen) this.settings.updateSalesDefaults({ brandsISell });
     if (this.primary !== s.dashboardTarget.brand) this.settings.updateDashboardTarget({ brand: this.primary });
     this.savedFlash.set(true);
     setTimeout(() => this.savedFlash.set(false), 2000);
@@ -152,6 +131,5 @@ export class MyBrandsComponent {
     const s = this.settings.settings();
     this.primary = s.dashboardTarget.brand;
     this.sold = (s.salesDefaults.brandsISell ?? []).filter((b) => b !== this.primary);
-    this.testDrive = s.salesDefaults.testDriveEnabled !== false;
   }
 }

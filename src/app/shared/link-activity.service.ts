@@ -56,7 +56,10 @@ export class LinkActivityService {
         return;
       }
       // untracked: reading the last-seen time mustn't re-run this when it changes
-      untracked(() => void this.refreshUnseen());
+      untracked(() => {
+        void this.refreshUnseen();
+        void this.checkLinkOpened();
+      });
       timer = setInterval(() => void this.refreshUnseen(), 5 * 60 * 1000);
     });
   }
@@ -72,6 +75,18 @@ export class LinkActivityService {
       this.unseen.set(r.visits);
     } catch {
       this.unseen.set(0);
+    }
+  }
+
+  /** Ticks "Send your Quote Link to a customer" once any customer has ever opened a link (the
+   *  server already leaves out the advisor's own visits). */
+  async checkLinkOpened() {
+    if (this.settings.settings().onboarding.linkOpened) return;
+    try {
+      const r = await firstValueFrom(this.http.get<{ visits: number }>(`/api/link-events/count?since=1`));
+      if (r.visits > 0) this.settings.updateOnboarding({ linkOpened: true });
+    } catch {
+      /* try again next sign-in */
     }
   }
 

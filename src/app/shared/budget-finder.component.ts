@@ -301,7 +301,7 @@ export class BudgetFinderComponent {
   /** Customer link only: where "Not sure if you qualify?" leads (the advisor's WhatsApp). */
   @Input() doubtHref: string | null = null;
   @Input() openLabel = 'See full quote';
-  /** Where the phone "See N cars" pill sits — raised on the customer link, above its tab bar. */
+  /** Where the phone "See N cars" pill sits. */
   @Input() stickyBottom = 'bottom-4';
   @ViewChild('results') private resultsAnchor?: ElementRef<HTMLElement>;
 

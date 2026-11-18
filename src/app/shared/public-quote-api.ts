@@ -10,6 +10,7 @@ export type PublicAdvisor = {
   phoneDisplay: string;
   phoneWa: string;
   photoUrl?: string;
+  coverUrl?: string;
   bio?: string;
   showroom?: Showroom;
   socials?: SocialLinks;
@@ -34,8 +35,6 @@ export type PublicQuoteBundle = {
     posterAccent?: string;
     /** Motor tariff column and table, so the customer sees the same tariff insurance. */
     insuranceRegion?: 'peninsular' | 'east';
-    /** "Book test drive": on unless the advisor turned it off. */
-    testDriveEnabled?: boolean;
     motorTariff?: MotorTariff;
   };
   vehicleInsurance: VehicleInsuranceOverrides;

@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IconComponent, type IconName } from '../shared/icon.component';
@@ -123,16 +123,38 @@ const QR_QUIET = 4;
       </div>
     </div>
 
+    <!-- Big QR: tap the code to show it full size so a customer can scan it off this screen -->
+    @if (zoomed(); as z) {
+      <div class="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-5 p-6" style="background: rgb(0 0 0 / 0.94)" role="dialog" aria-modal="true" [attr.aria-label]="z.title">
+        <button type="button" class="absolute inset-0 cursor-zoom-out" [attr.aria-label]="'Close' | t" (click)="zoomed.set(null)"></button>
+        <div class="relative flex flex-col items-center gap-4">
+          <h2 class="text-lg font-bold text-white">{{ z.title }}</h2>
+          <img [src]="z.big" alt="" class="rounded-2xl bg-white p-4" style="width: min(80vw, 70vh); height: min(80vw, 70vh); image-rendering: pixelated" />
+          <p class="text-sm text-white/70">{{ 'Ask your customer to scan this with their phone camera.' | t }}</p>
+          <button type="button" class="btn btn-outline bg-black/40 text-white" (click)="zoomed.set(null)">
+            <app-icon name="x" [size]="16" />
+            {{ 'Close' | t }}
+          </button>
+        </div>
+      </div>
+    }
+
     <ng-template #linkBody let-link>
       <div
         class="flex flex-col items-center gap-4 px-5 py-5 sm:flex-row sm:items-start"
       >
         <!-- Dark modules on white so any phone camera reads it, in light or dark mode -->
-        <img
-          [src]="link.qr"
-          [attr.alt]="'QR code for' | t"
-          class="size-36 shrink-0 rounded-lg border border-border bg-white p-2"
-        />
+        <button
+          type="button"
+          (click)="zoomQr(link)"
+          [attr.aria-label]="'Show the QR code bigger' | t"
+          class="group relative shrink-0 rounded-lg"
+        >
+          <img [src]="link.qr" alt="" class="size-36 rounded-lg border border-border bg-white p-2" />
+          <span class="absolute -bottom-2 -right-2 flex size-8 ring-2 ring-card items-center justify-center rounded-full bg-black/75 text-white shadow transition-transform group-hover:scale-110">
+            <app-icon name="zoom-in" [size]="16" />
+          </span>
+        </button>
         <div class="flex w-full min-w-0 flex-col gap-2.5">
           <code
             class="block truncate rounded-md bg-muted px-3 py-2.5 font-mono text-sm text-foreground"
@@ -188,6 +210,8 @@ export class QuoteLinksComponent {
   private settings = inject(SettingsService);
 
   copied = signal<LinkId | null>(null);
+  /** The QR code shown full size, if any. */
+  zoomed = signal<{ title: string; big: string } | null>(null);
   private copiedTimer?: ReturnType<typeof setTimeout>;
 
   private token = computed(() => this.auth.currentUser()?.publicToken ?? '');
@@ -211,19 +235,6 @@ export class QuoteLinksComponent {
     const poster = this.posterLang();
     return [
       {
-        id: 'all',
-        title: translate(ui, 'All brands'),
-        hint: translate(ui, 'Your customer can pick any car you sell.'),
-        url: base,
-        qr: qrDataUrl(base, 8),
-        message: translate(
-          poster,
-          'Here is my quote page. Pick a car and see your monthly instalment: {url}',
-          { url: base },
-        ),
-        file: 'quote-link',
-      },
-      {
         id: 'brand',
         title: translate(ui, '{brand} only', { brand }),
         hint: translate(
@@ -239,6 +250,19 @@ export class QuoteLinksComponent {
           { brand, url: `${base}/brand` },
         ),
         file: `quote-link-${brand}`,
+      },
+      {
+        id: 'all',
+        title: translate(ui, 'All brands'),
+        hint: translate(ui, 'Your customer can pick any car you sell.'),
+        url: base,
+        qr: qrDataUrl(base, 8),
+        message: translate(
+          poster,
+          'Here is my quote page. Pick a car and see your monthly instalment: {url}',
+          { url: base },
+        ),
+        file: 'quote-link',
       },
     ];
   });
@@ -283,6 +307,15 @@ export class QuoteLinksComponent {
 
   markShared() {
     this.settings.markQuoteShared();
+  }
+
+  zoomQr(link: QuoteLink) {
+    this.zoomed.set({ title: link.title, big: qrDataUrl(link.url, QR_SCALE) });
+  }
+
+  @HostListener('document:keydown.escape')
+  closeZoom() {
+    this.zoomed.set(null);
   }
 
   /** A large, print-ready PNG of the link's QR code. */

@@ -182,6 +182,140 @@ import { BrandChipsComponent } from './brand-chips.component';
       }
     </div>
 
+    <!-- Loan setup -->
+    <div data-tour="calc-loan" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-sm font-semibold text-foreground">{{ "Loan Setup" | t }}</span>
+        @if (!cashbackOn()) {<span class="flex items-center gap-1 text-xs text-muted-foreground"><app-icon name="refresh-cw" [size]="12" />{{ "Change any one" | t }}</span>}
+      </div>
+
+      @if (cashbackOn()) {
+        <!-- Cash back only makes sense on a full loan — a customer paying cash upfront would just
+             take the rebate off that instead — so the downpayment is fixed while it's on. -->
+        <div class="flex flex-col gap-1 rounded-lg border border-[var(--success)]/40 bg-[var(--success)]/10 px-3 py-3">
+          @if (totals().downpaymentCash >= 100) {
+            <!-- A car with a minimum downpayment: that minimum is still paid in cash -->
+            <span class="text-sm font-semibold">{{ "Cash back is on" | t }}</span>
+            <span class="text-xs leading-relaxed text-muted-foreground">
+              {{ "Minimum downpayment {dp} · Loan {loan} · Cash back {cash}. Untick cash back in Price Setup to set a different downpayment." | t: { dp: fmt(totals().downpaymentCash), loan: fmt(loanAmount()), cash: fmt(totals().cashback) } }}
+            </span>
+          } @else {
+            <span class="text-sm font-semibold">{{ "Full loan — cash back is on" | t }}</span>
+            <span class="text-xs leading-relaxed text-muted-foreground">
+              {{ "Loan {loan} · Cash back {cash}. Untick cash back in Price Setup to set a downpayment." | t: { loan: fmt(loanAmount()), cash: fmt(totals().cashback) } }}
+            </span>
+          }
+        </div>
+      } @else {
+      <!-- Draft B: the three ways to size the loan sit together; changing any one moves the other two -->
+      <div role="group" [attr.aria-label]="'Quick downpayment presets' | t" class="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          (click)="applyDownpaymentPreset('tenPercent')"
+          class="rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors"
+          [ngClass]="isDownpaymentPreset('tenPercent') ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+        >
+          10%
+        </button>
+        <button
+          type="button"
+          (click)="applyDownpaymentPreset('fullLoan')"
+          class="rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors"
+          [ngClass]="isDownpaymentPreset('fullLoan') ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+        >
+          {{ minDownpayment() > 0 ? ('Minimum' | t) : ('Full Loan' | t) }}
+        </button>
+      </div>
+
+      <div class="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5 border-l-2 border-primary pl-3">
+        <span class="text-sm font-medium text-muted-foreground">{{ "Downpayment" | t }}</span>
+        <div class="flex gap-1.5">
+          <app-number-field
+            class="min-w-0 flex-1"
+            ariaLabel="Downpayment"
+            [prefix]="downpaymentType() === 'amount' ? 'RM' : ''"
+            [suffix]="downpaymentType() === 'percent' ? '%' : ''"
+            [value]="downpaymentValue()"
+            (valueChange)="downpaymentValue.set($event ?? 0)"
+            (committed)="commitDownpayment()"
+          />
+          <div class="flex shrink-0 gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
+            <button
+              type="button"
+              (click)="downpaymentType.set('percent')"
+              class="rounded-md px-2 py-1 text-sm font-semibold transition-colors"
+              [ngClass]="downpaymentType() === 'percent' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
+            >
+              %
+            </button>
+            <button
+              type="button"
+              (click)="downpaymentType.set('amount')"
+              class="rounded-md px-2 py-1 text-sm font-semibold transition-colors"
+              [ngClass]="downpaymentType() === 'amount' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
+            >
+              RM
+            </button>
+          </div>
+        </div>
+
+        <label for="loanAmountInput" class="text-sm font-medium text-muted-foreground">{{ "Loan Amount" | t }}</label>
+        <app-number-field
+          inputId="loanAmountInput"
+          prefix="RM"
+          [decimals]="0"
+          [value]="loanAmountDisplay()"
+          (valueChange)="onLoanAmountInput($event)"
+          (committed)="commitLoanAmount()"
+        />
+
+        <label for="monthlyInstallmentInput" class="flex flex-col text-sm font-medium leading-tight text-muted-foreground">
+          {{ "Monthly" | t }}
+          <span class="text-xs font-normal">{{ monthlyInstallmentTenureLabel() | t }}</span>
+        </label>
+        <app-number-field
+          inputId="monthlyInstallmentInput"
+          prefix="RM"
+          [value]="monthlyInstallmentDisplay()"
+          (valueChange)="onMonthlyInstallmentInput($event)"
+          (committed)="commitMonthlyInstallment()"
+        />
+      </div>
+
+      @if (minDownpayment() > 0) {
+        @if (downpaymentRaisedToMin()) {
+          <div class="flex items-start gap-2 rounded-lg bg-[var(--warning)]/12 px-3 py-2 text-xs text-foreground">
+            <app-icon name="alert-triangle" [size]="16" class="mt-px shrink-0 text-[var(--warning)]" />
+            <span>{{ "This car needs a" | t }} <strong>{{ fmt(minDownpayment()) }}</strong> {{ "minimum downpayment (rebate counts towards it) — raised to meet it." | t }}</span>
+          </div>
+        } @else {
+          <span class="text-xs text-muted-foreground">Minimum downpayment for this car: {{ fmt(minDownpayment()) }} {{ "before rebate" | t }}</span>
+        }
+      }
+      @if (downpaymentRebateNote(); as n) {
+        <div class="flex flex-col gap-0.5 rounded-lg bg-[var(--success)]/10 px-3 py-2 text-xs text-foreground">
+          @if (n.covered) {
+            <span><strong>{{ 'Rebates cover the {pct}% down payment.' | t: { pct: n.pct } }}</strong> {{ 'Customer pays {amount} (loan rounding only).' | t: { amount: fmt2(n.after) } }}</span>
+          } @else {
+            <span>{{ n.pct }}% is {{ fmt(n.before) }} — rebates of {{ fmt(n.rebate) }} {{ "bring it down to" | t }} <strong>{{ fmt2(n.after) }}</strong>.</span>
+          }
+        </div>
+      }
+      @if (loanCapNote(); as note) {
+        <span class="text-xs font-medium text-[var(--warning)]">{{ note }}</span>
+      }
+      @if (monthlyCapNote(); as note) {
+        <span class="text-xs font-medium text-[var(--warning)]">{{ note }}</span>
+      }
+      @if (!downpaymentRebateNote() && !loanCapNote() && !monthlyCapNote()) {
+        <span class="text-xs text-muted-foreground">
+          {{ (downpaymentType() === 'percent' ? 'Rebate lowers the cash downpayment.' : 'Rebate lowers the car price, not the deposit.') | t }}
+          {{ 'Loan amount rounds down to RM100.' | t }}
+        </span>
+      }
+      }
+    </div>
+
     <!-- Insurance: the total up top; tap an NCD box; the full breakdown is behind "Edit insurance details" -->
     <div class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
       <div class="flex flex-col gap-1">
@@ -190,7 +324,11 @@ import { BrandChipsComponent } from './brand-chips.component';
           <span class="fig whitespace-nowrap text-base">{{ fmt2(insurance()) }}</span>
         </div>
         <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span class="tabular">{{ ncd() }}% NCD</span>
+          @if (ncdSaving() > 0) {
+            <span class="tabular font-semibold text-[var(--success)]">{{ 'Save {amount}' | t: { amount: fmt2(ncdSaving()) } }}</span>
+          } @else {
+            <span>{{ 'No NCD' | t }}</span>
+          }
           <span aria-hidden="true">·</span>
           <ng-container [ngTemplateOutlet]="sourceBadge" [ngTemplateOutletContext]="{ $implicit: insuranceIsManual(), field: 'insurance' }" />
         </div>
@@ -219,6 +357,49 @@ import { BrandChipsComponent } from './brand-chips.component';
           <app-icon name="pencil" [size]="16" />
           {{ "Edit insurance details" | t }}
         </button>
+    </div>
+
+    <!-- Tenure -->
+    <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+      <span class="text-sm font-semibold text-foreground">{{ "Tenure" | t }}</span>
+
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-semibold text-foreground">{{ "Tenure Selection" | t }}</span>
+          <span class="text-xs font-semibold tabular text-foreground">{{ customTenureActive() ? ('{n} months' | t: { n: highlightedTenure() }) : posterTenureSummary() }}</span>
+        </div>
+        <div role="group" [attr.aria-label]="'Repayment table tenures (years)' | t" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
+          @for (y of posterYearOptions; track y) {
+            <button
+              type="button"
+              [attr.aria-pressed]="!customTenureActive() && posterTenureYears().includes(y)"
+              (click)="togglePosterYear(y)"
+              class="flex h-10 items-center justify-center rounded-full text-sm font-semibold transition-colors"
+              [ngClass]="!customTenureActive() && posterTenureYears().includes(y) ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+            >
+              {{ y }}
+            </button>
+          }
+        </div>
+        <span class="text-xs text-muted-foreground">{{ "Pick 3 tenures to show on the poster." | t }}</span>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <label for="customTenureMonthsInput" class="text-sm font-semibold text-foreground">{{ "Custom Tenure (Months)" | t }}</label>
+        <input
+          id="customTenureMonthsInput"
+          type="number"
+          min="1"
+          max="120"
+          step="1"
+          [ngModel]="customTenureActive() ? highlightedTenure() : null"
+          (ngModelChange)="$event !== null && $event !== '' && onCustomTenureInput($event)"
+          [placeholder]="'e.g. 84' | t"
+          class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm font-medium tabular outline-none transition-colors"
+          [ngClass]="customTenureActive() ? 'border-brand bg-brand-soft' : ''"
+        />
+        <span class="text-xs text-muted-foreground">{{ "Optional. Any month count — the poster then shows just this one, until you pick a tenure above again." | t }}</span>
+      </div>
     </div>
 
     <!-- Interest Rate: the rate up top; a quiet Flat / EIR switch; − / + beside the rate -->
@@ -300,196 +481,6 @@ import { BrandChipsComponent } from './brand-chips.component';
             </p>
           }
         </div>
-    </div>
-
-    <!-- Loan setup -->
-    <div data-tour="calc-loan" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-      <span class="text-sm font-semibold text-foreground">{{ "Loan Setup" | t }}</span>
-
-      @if (cashbackOn()) {
-        <!-- Cash back only makes sense on a full loan — a customer paying cash upfront would just
-             take the rebate off that instead — so the downpayment is fixed while it's on. -->
-        <div class="flex flex-col gap-1 rounded-lg border border-[var(--success)]/40 bg-[var(--success)]/10 px-3 py-3">
-          @if (totals().downpaymentCash >= 100) {
-            <!-- A car with a minimum downpayment: that minimum is still paid in cash -->
-            <span class="text-sm font-semibold">{{ "Cash back is on" | t }}</span>
-            <span class="text-xs leading-relaxed text-muted-foreground">
-              {{ "Minimum downpayment {dp} · Loan {loan} · Cash back {cash}. Untick cash back in Price Setup to set a different downpayment." | t: { dp: fmt(totals().downpaymentCash), loan: fmt(loanAmount()), cash: fmt(totals().cashback) } }}
-            </span>
-          } @else {
-            <span class="text-sm font-semibold">{{ "Full loan — cash back is on" | t }}</span>
-            <span class="text-xs leading-relaxed text-muted-foreground">
-              {{ "Loan {loan} · Cash back {cash}. Untick cash back in Price Setup to set a downpayment." | t: { loan: fmt(loanAmount()), cash: fmt(totals().cashback) } }}
-            </span>
-          }
-        </div>
-      } @else {
-      <div class="flex flex-col gap-2">
-        <span class="text-sm font-semibold text-foreground">{{ "Downpayment" | t }}</span>
-        <div role="group" [attr.aria-label]="'Quick downpayment presets' | t" class="grid grid-cols-2 gap-1.5">
-          <button
-            type="button"
-            (click)="applyDownpaymentPreset('tenPercent')"
-            class="rounded-lg border px-2 py-2.5 text-sm font-semibold transition-colors"
-            [ngClass]="isDownpaymentPreset('tenPercent') ? 'border-brand bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-          >
-            10%
-          </button>
-          <button
-            type="button"
-            (click)="applyDownpaymentPreset('fullLoan')"
-            class="rounded-lg border px-2 py-2.5 text-sm font-semibold transition-colors"
-            [ngClass]="isDownpaymentPreset('fullLoan') ? 'border-brand bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-          >
-            {{ minDownpayment() > 0 ? ('Minimum' | t) : ('Full Loan' | t) }}
-          </button>
-        </div>
-        <div class="flex gap-2">
-          <app-number-field
-            class="min-w-0 flex-1"
-            ariaLabel="Downpayment"
-            [prefix]="downpaymentType() === 'amount' ? 'RM' : ''"
-            [suffix]="downpaymentType() === 'percent' ? '%' : ''"
-            [value]="downpaymentValue()"
-            (valueChange)="downpaymentValue.set($event ?? 0)"
-            (committed)="commitDownpayment()"
-          />
-          <div class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
-            <button
-              type="button"
-              (click)="downpaymentType.set('percent')"
-              class="rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors"
-              [ngClass]="downpaymentType() === 'percent' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
-            >
-              %
-            </button>
-            <button
-              type="button"
-              (click)="downpaymentType.set('amount')"
-              class="rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors"
-              [ngClass]="downpaymentType() === 'amount' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
-            >
-              {{ "Amt" | t }}
-            </button>
-          </div>
-        </div>
-        @if (minDownpayment() > 0) {
-          @if (downpaymentRaisedToMin()) {
-            <div class="flex items-start gap-2 rounded-lg bg-[var(--warning)]/12 px-3 py-2 text-xs text-foreground">
-              <app-icon name="alert-triangle" [size]="16" class="mt-px shrink-0 text-[var(--warning)]" />
-              <span>{{ "This car needs a" | t }} <strong>{{ fmt(minDownpayment()) }}</strong> {{ "minimum downpayment (rebate counts towards it) — raised to meet it." | t }}</span>
-            </div>
-          } @else {
-            <span class="text-xs text-muted-foreground">Minimum downpayment for this car: {{ fmt(minDownpayment()) }} {{ "before rebate" | t }}</span>
-          }
-        }
-        @if (downpaymentRebateNote(); as n) {
-          <div class="flex flex-col gap-0.5 rounded-lg bg-[var(--success)]/10 px-3 py-2 text-xs text-foreground">
-            @if (n.covered) {
-              <span><strong>{{ 'Rebates cover the {pct}% down payment.' | t: { pct: n.pct } }}</strong> {{ 'Customer pays {amount} (loan rounding only).' | t: { amount: fmt2(n.after) } }}</span>
-            } @else {
-              <span>{{ n.pct }}% is {{ fmt(n.before) }} — rebates of {{ fmt(n.rebate) }} {{ "bring it down to" | t }} <strong>{{ fmt2(n.after) }}</strong>.</span>
-            }
-          </div>
-        } @else {
-          <span class="text-xs text-muted-foreground">
-            @if (downpaymentType() === 'percent') {
-              Rebate is applied to reduce the cash downpayment needed.
-            } @else {
-              Rebate reduces the car price separately, not counted as cash deposit.
-            }
-          </span>
-        }
-      </div>
-
-      <div class="flex items-center gap-3">
-        <div class="h-px flex-1 bg-border"></div>
-        <span class="text-sm font-semibold text-foreground">{{ "or" | t }}</span>
-        <div class="h-px flex-1 bg-border"></div>
-      </div>
-
-      <div class="flex flex-col gap-2">
-        <label for="loanAmountInput" class="text-sm font-semibold text-foreground">{{ "Loan Amount" | t }}</label>
-        <app-number-field
-          inputId="loanAmountInput"
-          prefix="RM"
-          [decimals]="0"
-          [value]="loanAmountDisplay()"
-          (valueChange)="onLoanAmountInput($event)"
-          (committed)="commitLoanAmount()"
-        />
-        @if (loanCapNote(); as note) {
-          <span class="text-xs font-medium text-[var(--warning)]">{{ note }}</span>
-        } @else {
-          <span class="text-xs text-muted-foreground">{{ "Rounds down to the nearest RM100 once you finish typing — any remainder goes to the downpayment." | t }}</span>
-        }
-      </div>
-
-      <div class="flex items-center gap-3">
-        <div class="h-px flex-1 bg-border"></div>
-        <span class="text-sm font-semibold text-foreground">{{ "or" | t }}</span>
-        <div class="h-px flex-1 bg-border"></div>
-      </div>
-
-      <div class="flex flex-col gap-2">
-        <label for="monthlyInstallmentInput" class="text-sm font-semibold text-foreground">{{ "Monthly Installment" | t }}</label>
-        <app-number-field
-          inputId="monthlyInstallmentInput"
-          prefix="RM"
-          [value]="monthlyInstallmentDisplay()"
-          (valueChange)="onMonthlyInstallmentInput($event)"
-          (committed)="commitMonthlyInstallment()"
-        />
-        @if (monthlyCapNote(); as note) {
-          <span class="text-xs font-medium text-[var(--warning)]">{{ note }}</span>
-        } @else {
-          <span class="text-xs text-muted-foreground">{{ 'Targets the {tenure} tenure and works backwards to the loan amount and deposit.' | t: { tenure: (monthlyInstallmentTenureLabel() | t) } }}</span>
-        }
-      </div>
-      }
-    </div>
-
-    <!-- Tenure -->
-    <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-      <span class="text-sm font-semibold text-foreground">{{ "Quotation Summary" | t }}</span>
-
-      <div class="flex flex-col gap-2">
-        <div class="flex items-center justify-between">
-          <span class="text-sm font-semibold text-foreground">{{ "Tenure Selection" | t }}</span>
-          <span class="text-xs font-semibold tabular text-foreground">{{ customTenureActive() ? ('{n} months' | t: { n: highlightedTenure() }) : posterTenureSummary() }}</span>
-        </div>
-        <div role="group" [attr.aria-label]="'Repayment table tenures (years)' | t" class="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
-          @for (y of posterYearOptions; track y) {
-            <button
-              type="button"
-              [attr.aria-pressed]="!customTenureActive() && posterTenureYears().includes(y)"
-              (click)="togglePosterYear(y)"
-              class="flex h-10 items-center justify-center rounded-full text-sm font-semibold transition-colors"
-              [ngClass]="!customTenureActive() && posterTenureYears().includes(y) ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-            >
-              {{ y }}
-            </button>
-          }
-        </div>
-        <span class="text-xs text-muted-foreground">{{ "Pick 3 tenures to show on the poster." | t }}</span>
-      </div>
-
-      <div class="flex flex-col gap-2">
-        <label for="customTenureMonthsInput" class="text-sm font-semibold text-foreground">{{ "Custom Tenure (Months)" | t }}</label>
-        <input
-          id="customTenureMonthsInput"
-          type="number"
-          min="1"
-          max="120"
-          step="1"
-          [ngModel]="customTenureActive() ? highlightedTenure() : null"
-          (ngModelChange)="$event !== null && $event !== '' && onCustomTenureInput($event)"
-          [placeholder]="'e.g. 84' | t"
-          class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm font-medium tabular outline-none transition-colors"
-          [ngClass]="customTenureActive() ? 'border-brand bg-brand-soft' : ''"
-        />
-        <span class="text-xs text-muted-foreground">{{ "Optional. Any month count — the poster then shows just this one, until you pick a tenure above again." | t }}</span>
-      </div>
     </div>
 
     <!-- "Default" / tappable "Manual ↺" badge — tapping Manual puts just that field back on its default -->
@@ -715,6 +706,11 @@ export class QuoteControlsComponent {
 
   get insurance() {
     return this.q.insurance;
+  }
+
+  /** How much less the insurance costs with the chosen NCD than with none (service tax included). */
+  ncdSaving(): number {
+    return Math.max(0, this.q.loanBasisInsurance() - this.q.insurance());
   }
 
   get rateType() {

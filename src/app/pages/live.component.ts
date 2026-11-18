@@ -49,7 +49,7 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
   imports: [CommonModule, NgTemplateOutlet, IconComponent, TranslatePipe, QuoteControlsComponent, LiveScreenComponent],
   // Tablet and PC: exactly the height of the main area, so the page itself never scrolls — only the
   // settings panels do.
-  host: { class: 'block md:h-full' },
+  host: { class: 'block lg:h-full' },
   template: `
     <!-- Phones -->
     <!-- Phones: the phone is the camera, so the Live Screen runs on a tablet or computer. Say what
@@ -60,9 +60,17 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
       <p class="max-w-xs text-pretty text-sm text-muted-foreground">{{ "It puts a big, clear quote on your TikTok Live while you change the car and deposit off camera. Your phone stays free to film." | t }}</p>
     </div>
 
-    <!-- Tablet and PC. Full screen lifts this whole workspace over the app's menu and top bar. -->
+    <!-- Narrow windows and portrait tablets: the Live Screen would be too small to read on a stream,
+         so ask for more room instead of shrinking it. -->
+    <div class="hidden min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center md:flex lg:hidden">
+      <span class="flex size-14 items-center justify-center rounded-2xl bg-brand-soft text-brand"><app-icon name="maximize" [size]="28" /></span>
+      <h2 class="text-base font-semibold">{{ "Make the window wider" | t }}</h2>
+      <p class="max-w-sm text-pretty text-sm text-muted-foreground">{{ "Live Mode needs room to show the Live Screen big and clear. Widen this window, or turn your tablet sideways." | t }}</p>
+    </div>
+
+    <!-- Wide tablets and PC. Full screen lifts this whole workspace over the app's menu and top bar. -->
     <div
-      class="hidden flex-col gap-3 md:flex xl:gap-4"
+      class="hidden flex-col gap-3 lg:flex xl:gap-4"
       [ngClass]="fullscreen() ? 'fixed inset-0 z-[100] bg-background p-3 xl:p-4' : 'mx-auto h-full max-w-[1600px]'"
     >
       @if (!fullscreen()) {
@@ -85,14 +93,13 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
       }
 
       <!--
+        Only two layouts, side by side at every size (never stacked):
         PC: Display settings | Live Screen | quick picks + Quote.
-        Landscape tablet: Live Screen | quick picks + Quote / Display tabs.
-        Portrait tablet: Live Screen on top, the same panel below.
+        Smaller: Live Screen | quick picks + Quote / Display tabs.
       -->
       <div
         class="grid min-h-0 flex-1 gap-3
           grid-cols-[minmax(0,1fr)_380px] grid-rows-[minmax(0,1fr)]
-          max-xl:portrait:grid-cols-1 max-xl:portrait:grid-rows-[minmax(0,1.15fr)_minmax(0,1fr)]
           xl:grid-cols-[250px_minmax(0,1fr)_400px] xl:gap-4"
       >
         <!-- PC only: display settings on the left -->
@@ -116,12 +123,8 @@ const DP_CHIPS = [0, 5000, 10000, 15000, 20000];
           }
         </section>
 
-        <!-- Right on PC and landscape tablets, below on portrait tablets: quick picks, then the settings -->
-        <div
-          class="col-start-2 row-start-1 flex min-h-0 min-w-0 flex-col gap-3
-            max-xl:portrait:col-start-1 max-xl:portrait:row-start-2
-            xl:col-start-3"
-        >
+        <!-- Right of the Live Screen: quick picks, then the settings -->
+        <div class="col-start-2 row-start-1 flex min-h-0 min-w-0 flex-col gap-3 xl:col-start-3">
           @if (fullscreen()) {
             <div class="flex shrink-0 items-center justify-end gap-2">
               <ng-container *ngTemplateOutlet="resetBtn" />

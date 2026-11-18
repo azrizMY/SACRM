@@ -8,6 +8,7 @@ type PublicAdvisor = {
   phoneDisplay: string;
   phoneWa: string;
   photoUrl?: string;
+  coverUrl?: string;
   bio?: string;
   showroom?: Showroom;
   socials?: Record<string, string>;
@@ -114,6 +115,7 @@ async function getPublicQuoteBundle(env: Env, token: string): Promise<Response> 
     phoneDisplay: advisorData.phoneDisplay ?? '',
     phoneWa: advisorData.phoneWa ?? '',
     photoUrl: advisorData.photoUrl,
+    coverUrl: typeof advisorData.coverUrl === 'string' && advisorData.coverUrl.startsWith('data:image/') ? advisorData.coverUrl : undefined,
     bio: cleanString(advisorData.bio, 1000),
     showroom: publicShowroom(advisorData.showroom),
     socials: publicSocials(advisorData.socials),
@@ -134,7 +136,6 @@ async function getPublicQuoteBundle(env: Env, token: string): Promise<Response> 
     // Only a known colour id is passed on (the app falls back to red for anything else).
     posterAccent: POSTER_ACCENT_IDS.includes(settingsData.salesDefaults?.posterAccent) ? settingsData.salesDefaults.posterAccent : undefined,
   };
-  (salesDefaults as Record<string, unknown>).testDriveEnabled = settingsData.salesDefaults?.testDriveEnabled !== false;
   (salesDefaults as Record<string, unknown>).insuranceRegion = settingsData.salesDefaults?.insuranceRegion === 'east' ? 'east' : 'peninsular';
   const tariff = validTariff(settingsData.salesDefaults?.motorTariff);
   if (tariff) (salesDefaults as Record<string, unknown>).motorTariff = tariff;

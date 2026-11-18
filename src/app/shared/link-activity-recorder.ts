@@ -14,7 +14,6 @@ export type LinkEventType =
   | 'compare_used'
   | 'budget_used'
   | 'whatsapp_tapped'
-  | 'test_drive_tapped'
   | 'trade_in';
 
 type QueuedEvent = { type: LinkEventType; car?: string; payload?: Record<string, unknown>; at: number };

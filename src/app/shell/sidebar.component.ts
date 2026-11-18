@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { IconComponent, type IconName } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { UserMenuComponent } from './user-menu.component';
+import { SetupProgressComponent } from './setup-progress.component';
 import { TranslatePipe } from '../shared/i18n';
 import { LinkActivityService } from '../shared/link-activity.service';
 import { MENU_PAGES, PAGES } from '../shared/ui-prefs.service';
@@ -14,7 +15,7 @@ import { MENU_PAGES, PAGES } from '../shared/ui-prefs.service';
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterLink, IconComponent, UserMenuComponent, TranslatePipe],
+  imports: [CommonModule, RouterLink, IconComponent, UserMenuComponent, SetupProgressComponent, TranslatePipe],
   template: `
     <aside
       class="flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-[var(--ease-out-expo)]"
@@ -80,6 +81,8 @@ import { MENU_PAGES, PAGES } from '../shared/ui-prefs.service';
         </ul>
       </nav>
 
+      <app-setup-progress [collapsed]="collapsed" [variant]="variant" />
+
       <!-- Narrow / wide (computer only) -->
       @if (variant === 'desktop') {
         <div class="px-3 pb-2">
@@ -133,10 +136,8 @@ export class SidebarComponent {
   /** The work pages. My Profile, Settings and Log out live in the account menu at the bottom. */
   nav = MENU_PAGES.map((id) => PAGES.find((p) => p.id === id)!);
   private auth = inject(AuthService);
-  /** The menu, plus Manage Cars at the end for the site owner only. */
-  visibleNav = computed<{ id: string; label: string; icon: IconName }[]>(() =>
-    this.auth.isOwner() ? [...this.nav, { id: 'manage-cars', label: 'Manage Cars', icon: 'database' }] : this.nav,
-  );
+  /** Manage Cars (owner only) lives in the account menu with My Profile and Settings. */
+  visibleNav = computed<{ id: string; label: string; icon: IconName }[]>(() => this.nav);
 
   activity = inject(LinkActivityService);
   advisor = inject(AdvisorService);

@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { SidebarComponent } from './sidebar.component';
 import { TopbarComponent } from './topbar.component';
@@ -31,7 +31,7 @@ const TITLES: Record<string, string> = {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, SidebarComponent, TopbarComponent, IconComponent, TranslatePipe, InstallBannerComponent, ToastHostComponent],
+  imports: [CommonModule, RouterOutlet, SidebarComponent, TopbarComponent, IconComponent, TranslatePipe, InstallBannerComponent, ToastHostComponent],
   template: `
     <div class="flex h-dvh w-full overflow-hidden">
       <!-- Computer / tablet: the menu rail -->
@@ -104,37 +104,6 @@ const TITLES: Record<string, string> = {
                 </button>
               }
             </div>
-
-            @if (guide.firstStepsVisible()) {
-              <div class="flex flex-col gap-3 border-t border-border pt-5">
-                <div class="flex items-baseline justify-between gap-3">
-                  <h3 class="text-base font-bold">{{ 'First steps' | t }}</h3>
-                  <span class="text-sm font-semibold text-muted-foreground">{{ '{done} of {total} done' | t: { done: guide.firstStepsDone(), total: guide.firstSteps().length } }}</span>
-                </div>
-                <ul class="flex flex-col gap-1">
-                  @for (s of guide.firstSteps(); track s.id) {
-                    <li>
-                      <a [routerLink]="s.link" (click)="guide.helpOpen.set(false)" class="flex min-h-12 items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent">
-                        <span
-                          class="flex size-7 shrink-0 items-center justify-center rounded-full border-2"
-                          [ngClass]="s.done ? 'border-[var(--success)] bg-[var(--success)] text-[var(--success-foreground)]' : 'border-control'"
-                        >
-                          @if (s.done) {<app-icon name="check" [size]="16" [strokeWidth]="3" />}
-                        </span>
-                        <span class="flex min-w-0 flex-1 flex-col">
-                          <span class="text-base font-semibold" [ngClass]="s.done ? 'text-muted-foreground line-through' : ''">{{ s.label | t }}</span>
-                          @if (!s.done) {<span class="text-sm text-muted-foreground">{{ s.hint | t }}</span>}
-                        </span>
-                        @if (!s.done) {<app-icon name="chevron-right" [size]="20" class="text-muted-foreground" />}
-                      </a>
-                    </li>
-                  }
-                </ul>
-                <button type="button" (click)="guide.hideFirstSteps()" class="self-start rounded-lg px-2 py-2 text-sm font-semibold text-muted-foreground underline underline-offset-4 hover:text-foreground">
-                  {{ "Don't show this list" | t }}
-                </button>
-              </div>
-            }
 
             <div class="flex flex-col gap-2 border-t border-border pt-5">
               <button type="button" (click)="replayWelcome()" class="flex min-h-12 items-center gap-3 rounded-lg border border-border px-4 text-left text-base font-semibold transition-colors hover:bg-accent">

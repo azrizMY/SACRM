@@ -24,7 +24,6 @@ const EVENT_FIELDS: Record<string, Record<string, FieldKind>> = {
   compare_used: { cars: 'ids' },
   budget_used: { monthly: 'number', cash: 'number', fullLoan: 'boolean' },
   whatsapp_tapped: { year: 'number', deposit: 'number', tenure: 'number', monthly: 'number' },
-  test_drive_tapped: {},
   trade_in: { tradeIn: 'boolean' },
 };
 

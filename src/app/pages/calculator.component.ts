@@ -57,21 +57,7 @@ import { GuideService } from '../shared/guide.service';
       [ngClass]="mobileTab() === 'preview' ? 'max-md:h-[calc(100dvh-5.5rem)] md:max-xl:h-[calc(100dvh-7rem)]' : ''"
     >
       <!-- Mobile Preview/Customize switcher -->
-      <div class="sticky -top-4 z-10 -mx-4 -mt-4 flex flex-col gap-2 border-b border-border bg-background px-4 pb-2 pt-4 md:-top-6 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 xl:hidden">
-        <!-- Live monthly (same as the customer link), so changes on Customize show without switching to Preview -->
-        <div data-tour="calc-monthly" class="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2">
-          @if (isCashPurchase()) {
-            <span class="text-sm font-medium text-muted-foreground">{{ "Selling price" | t }}</span>
-            <span class="fig whitespace-nowrap text-lg">{{ fmt2(allInPrice()) }}</span>
-          } @else {
-            <span class="text-sm font-medium text-muted-foreground">{{ "Monthly" | t }} · {{ selectedTenureLabel() }}</span>
-            @if (rateMissing()) {
-              <span class="text-base font-bold text-[var(--warning)]">{{ 'Rate needed' | t }}</span>
-            } @else {
-              <span class="fig hl whitespace-nowrap text-lg">{{ fmt2(selectedTenureMonthly()) }}</span>
-            }
-          }
-        </div>
+      <div class="sticky -top-4 z-10 -mx-4 -mt-4 flex flex-col gap-2 border-b border-border bg-background px-4 py-3 md:-top-6 md:-mx-6 md:-mt-6 md:px-6 xl:hidden">
         <div data-tour="calc-tabs" role="tablist" [attr.aria-label]="'Quote view' | t" class="flex rounded-lg bg-muted p-1">
           <button
             type="button"
@@ -176,11 +162,6 @@ import { GuideService } from '../shared/guide.service';
               {{ sharingPoster() ? ('Sharing…' | t) : ('Share' | t) }}
             </button>
           </div>
-
-          <p class="flex shrink-0 items-start justify-center gap-1.5 text-center text-xs leading-relaxed text-muted-foreground">
-            <app-icon name="info" [size]="16" class="shrink-0" />
-            {{ "Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here." | t }}
-          </p>
         </div>
 
         <!-- Customize quote -->
@@ -203,6 +184,30 @@ import { GuideService } from '../shared/guide.service';
           </div>
 
           <app-quote-controls [q]="q" [showCompare]="true" (compare)="compareWithOthers()" />
+
+          <!-- Phone / tablet: the same Save / Share row, pinned at the bottom of Customize, so a change
+               can be shared without switching back to Preview. Pulled out over the page's own padding,
+               the same way the top switcher is. -->
+          <div class="sticky -bottom-4 z-10 -mx-4 -mb-4 flex gap-2 border-t border-border bg-background px-4 py-3 md:-bottom-6 md:-mx-6 md:-mb-6 md:px-6 xl:hidden">
+            <button
+              type="button"
+              (click)="savePosterImage()"
+              [disabled]="savingPoster() || rateMissing()"
+              class="btn btn-outline btn-lg flex-1"
+            >
+              <app-icon [name]="posterSaved() ? 'check' : 'download'" [size]="20" />
+              {{ savingPoster() ? ('Saving…' | t) : posterSaved() ? ('Saved!' | t) : ('Save' | t) }}
+            </button>
+            <button
+              type="button"
+              (click)="sharePosterImage()"
+              [disabled]="sharingPoster() || rateMissing()"
+              class="btn btn-primary btn-lg flex-1"
+            >
+              <app-icon name="share" [size]="20" />
+              {{ sharingPoster() ? ('Sharing…' | t) : ('Share' | t) }}
+            </button>
+          </div>
         </div>
       </div>
     </div>

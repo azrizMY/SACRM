@@ -10,6 +10,9 @@ export type AdvisorProfile = {
   /** Uploaded headshot (data URL) shown on the Profile page and the Calculator's Quote Preview —
    *  falls back to initials on a gradient tile everywhere it's absent. */
   photoUrl?: string;
+  /** Wide cover photo (data URL, 4:1) shown at the top of the customer link's Profile page; when
+   *  absent the customer link uses one of the advisor's cars instead. */
+  coverUrl?: string;
   showroom?: Showroom;
   /** Canonical profile URLs, only for platforms the SA filled in. */
   socials?: SocialLinks;
