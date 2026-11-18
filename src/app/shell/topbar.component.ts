@@ -39,9 +39,6 @@ import { TranslatePipe } from '../shared/i18n';
         >
           <app-icon name="help-circle" [size]="18" />
           {{ 'Help' | t }}
-          @if (guide.helpDot()) {
-            <span class="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-primary ring-2 ring-background" aria-hidden="true"></span>
-          }
         </button>
       </div>
     </header>

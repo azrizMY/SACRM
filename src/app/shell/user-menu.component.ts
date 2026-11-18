@@ -35,6 +35,12 @@ import { TranslatePipe } from '../shared/i18n';
             <app-icon name="settings" [size]="18" />
             {{ 'Settings' | t }}
           </button>
+          @if (auth.isOwner()) {
+            <button type="button" (click)="goTo('/manage-cars')" class="flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-sm text-foreground transition-colors hover:bg-accent">
+              <app-icon name="database" [size]="18" />
+              {{ 'Manage Cars' | t }}
+            </button>
+          }
           @if (install.available()) {
             <button type="button" (click)="installApp()" class="flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-sm text-foreground transition-colors hover:bg-accent">
               <app-icon name="download" [size]="18" />
@@ -61,7 +67,7 @@ export class UserMenuComponent {
     private host: ElementRef,
     private router: Router,
     public advisor: AdvisorService,
-    private auth: AuthService,
+    public auth: AuthService,
     public install: InstallService,
   ) {}
 

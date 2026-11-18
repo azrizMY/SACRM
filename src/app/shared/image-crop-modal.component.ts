@@ -4,11 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { IconComponent } from './icon.component';
 import { encodeJpegWithBudget } from './image-compress';
 
-/** Square stage the photo is displayed and dragged within, in CSS px. */
+/** Width of the stage the photo is displayed and dragged within, in CSS px (square crops). Wide crops
+ *  use WIDE_STAGE_WIDTH, with the height following the aspect ratio. */
 const STAGE_SIZE = 280;
-/** Final exported photo is a square this many px on a side, before JPEG byte-budget encoding. */
-const OUTPUT_SIZE = 480;
-const MAX_OUTPUT_BYTES = 150 * 1024;
+const WIDE_STAGE_WIDTH = 320;
 const MAX_ZOOM = 4;
 
 /**
@@ -25,7 +24,7 @@ const MAX_ZOOM = 4;
       <button type="button" aria-label="Close" class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="cancel.emit()"></button>
       <div class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
         <div class="flex items-center gap-3 border-b border-border p-4">
-          <span class="text-sm font-semibold">Adjust Photo</span>
+          <span class="text-sm font-semibold">{{ title }}</span>
           <button
             type="button"
             (click)="cancel.emit()"
@@ -39,8 +38,8 @@ const MAX_ZOOM = 4;
         <div class="flex flex-col items-center gap-4 p-4">
           <div
             class="relative touch-none select-none overflow-hidden rounded-2xl border border-border bg-muted/40"
-            [style.width.px]="stageSize"
-            [style.height.px]="stageSize"
+            [style.width.px]="stageW"
+            [style.height.px]="stageH"
             (pointerdown)="onPointerDown($event)"
             (pointermove)="onPointerMove($event)"
             (pointerup)="onPointerUp($event)"
@@ -90,10 +89,21 @@ const MAX_ZOOM = 4;
 })
 export class ImageCropModalComponent implements OnInit, OnDestroy {
   @Input({ required: true }) file!: File;
+  /** Width ÷ height of the crop: 1 for the square profile photo, 3 for the wide cover photo. */
+  @Input() aspect = 1;
+  /** Exported width in px (height follows the aspect), before JPEG byte-budget encoding. */
+  @Input() outputWidth = 480;
+  @Input() maxBytes = 150 * 1024;
+  @Input() title = 'Adjust Photo';
   @Output() crop = new EventEmitter<string>();
   @Output() cancel = new EventEmitter<void>();
 
-  stageSize = STAGE_SIZE;
+  get stageW(): number {
+    return this.aspect > 1 ? WIDE_STAGE_WIDTH : STAGE_SIZE;
+  }
+  get stageH(): number {
+    return Math.round(this.stageW / this.aspect);
+  }
   maxZoom = MAX_ZOOM;
 
   img = signal<HTMLImageElement | null>(null);
@@ -105,18 +115,18 @@ export class ImageCropModalComponent implements OnInit, OnDestroy {
   private baseScale = computed(() => {
     const image = this.img();
     if (!image) return 1;
-    return Math.max(this.stageSize / image.naturalWidth, this.stageSize / image.naturalHeight);
+    return Math.max(this.stageW / image.naturalWidth, this.stageH / image.naturalHeight);
   });
   displayScale = computed(() => this.baseScale() * this.zoom());
   private maxPanX = computed(() => {
     const image = this.img();
     if (!image) return 0;
-    return Math.max(0, (image.naturalWidth * this.displayScale() - this.stageSize) / 2);
+    return Math.max(0, (image.naturalWidth * this.displayScale() - this.stageW) / 2);
   });
   private maxPanY = computed(() => {
     const image = this.img();
     if (!image) return 0;
-    return Math.max(0, (image.naturalHeight * this.displayScale() - this.stageSize) / 2);
+    return Math.max(0, (image.naturalHeight * this.displayScale() - this.stageH) / 2);
   });
 
   // Active pointers, keyed by pointerId — one entry means single-finger pan, two means pinch-zoom.
@@ -216,20 +226,23 @@ export class ImageCropModalComponent implements OnInit, OnDestroy {
     const scale = this.displayScale();
     const dispW = image.naturalWidth * scale;
     const dispH = image.naturalHeight * scale;
-    const imgLeft = this.stageSize / 2 + this.panX() - dispW / 2;
-    const imgTop = this.stageSize / 2 + this.panY() - dispH / 2;
+    const imgLeft = this.stageW / 2 + this.panX() - dispW / 2;
+    const imgTop = this.stageH / 2 + this.panY() - dispH / 2;
 
     const sx = -imgLeft / scale;
     const sy = -imgTop / scale;
-    const sSize = this.stageSize / scale;
+    const sW = this.stageW / scale;
+    const sH = this.stageH / scale;
 
+    const outW = this.outputWidth;
+    const outH = Math.round(outW / this.aspect);
     const canvas = document.createElement('canvas');
-    canvas.width = OUTPUT_SIZE;
-    canvas.height = OUTPUT_SIZE;
+    canvas.width = outW;
+    canvas.height = outH;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.drawImage(image, sx, sy, sSize, sSize, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+    ctx.drawImage(image, sx, sy, sW, sH, 0, 0, outW, outH);
 
-    this.crop.emit(encodeJpegWithBudget(canvas, MAX_OUTPUT_BYTES));
+    this.crop.emit(encodeJpegWithBudget(canvas, this.maxBytes));
   }
 }

@@ -35,6 +35,35 @@ import {
 
       <!-- Identity card -->
       <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+        <!-- Cover photo: the banner at the top of your customer link's Profile page -->
+        @if ((editing() ? form.coverUrl : advisor.profile().coverUrl); as cover) {
+          <div class="relative aspect-[4/1] border-b border-border">
+            <img [src]="cover" alt="" class="size-full object-cover" />
+            @if (editing()) {
+              <div class="absolute bottom-2 right-2 flex gap-1.5">
+                <button type="button" (click)="coverInput.click()" class="flex items-center gap-1.5 rounded-md bg-black/70 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-black/85">
+                  <app-icon name="upload" [size]="14" />
+                  Change cover
+                </button>
+                <button type="button" (click)="form.coverUrl = undefined" class="flex items-center gap-1.5 rounded-md bg-black/70 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-black/85">
+                  <app-icon name="trash" [size]="14" />
+                  Remove
+                </button>
+              </div>
+            }
+          </div>
+        } @else if (editing()) {
+          <button
+            type="button"
+            (click)="coverInput.click()"
+            class="flex aspect-[4/1] min-h-28 w-full flex-col items-center justify-center gap-1 border-b border-dashed border-border bg-muted/30 px-4 text-center text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+          >
+            <app-icon name="image" [size]="20" class="text-muted-foreground" />
+            Add a cover photo
+            <span class="text-xs font-normal text-muted-foreground">Shows at the top of your customer link. Without one, it shows one of your cars.</span>
+          </button>
+        }
+        <input #coverInput type="file" accept="image/*" class="hidden" (change)="onCoverFileChange($event)" />
         <div class="flex flex-col gap-5 p-6 sm:flex-row sm:items-start sm:justify-between">
           <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div class="relative flex size-20 shrink-0">
@@ -276,12 +305,23 @@ import {
         }
       </div>
 
-      <!-- Your brands and the customer link's test drive button (moved here from Settings) -->
+      <!-- Your brands (moved here from Settings) -->
       <app-my-brands />
     </div>
 
     @if (cropFile(); as file) {
       <app-image-crop-modal [file]="file" (crop)="onCropped($event)" (cancel)="cropFile.set(null)" />
+    }
+    @if (coverCropFile(); as file) {
+      <app-image-crop-modal
+        [file]="file"
+        [aspect]="4"
+        [outputWidth]="1200"
+        [maxBytes]="200 * 1024"
+        title="Adjust Cover Photo"
+        (crop)="form.coverUrl = $event; coverCropFile.set(null)"
+        (cancel)="coverCropFile.set(null)"
+      />
     }
   `,
 })
@@ -292,6 +332,7 @@ export class ProfileComponent {
   editing = signal(false);
   photoError = signal<string | null>(null);
   cropFile = signal<File | null>(null);
+  coverCropFile = signal<File | null>(null);
   form: AdvisorProfile;
 
   formatPhone = formatMalaysianPhone;
@@ -388,6 +429,19 @@ export class ProfileComponent {
   onCropped(dataUrl: string) {
     this.form.photoUrl = dataUrl;
     this.cropFile.set(null);
+  }
+
+  onCoverFileChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      this.photoError.set(`"${file.name}" isn't an image file.`);
+      return;
+    }
+    this.photoError.set(null);
+    this.coverCropFile.set(file);
   }
 
   removePhoto() {

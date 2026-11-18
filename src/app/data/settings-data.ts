@@ -35,8 +35,6 @@ export type SalesDefaults = {
    *  Compare, Budget and the Catalog; the Primary Brand is always one of them. Absent = just the
    *  Primary Brand (with a one-time hint pointing to the setting). */
   brandsISell?: string[];
-  /** The customer link's "Book test drive" button. Absent = on. */
-  testDriveEnabled?: boolean;
   /** Which motor tariff column applies: Peninsular, or Sabah & Sarawak. Absent = Peninsular. */
   insuranceRegion?: TariffRegion;
   /** The account's motor tariff table (Settings → Insurance tariff). Absent = the published schedule. */
@@ -104,6 +102,8 @@ export type Onboarding = {
   hidden?: boolean;
   /** When Quote Links → Activity was last opened — newer visits show as a badge on the menu. */
   activitySeenAt?: number;
+  /** A customer (not the advisor) has opened one of the advisor's Quote Links. */
+  linkOpened?: boolean;
 };
 
 // ---------- Live Mode (TikTok Live calculator) ----------

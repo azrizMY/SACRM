@@ -2,11 +2,12 @@ import { CarShadowPipe } from '../shared/car-shadow';
 import { applyAppColour } from '../shared/app-colour';
 import { Component, DestroyRef, ElementRef, HostListener, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { SettingsService } from '../shared/settings.service';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IconComponent, type IconName } from '../shared/icon.component';
 import { BrandIconComponent } from '../shared/brand-icon.component';
+import { NumberFieldComponent } from '../shared/number-field.component';
 import { I18nService, TranslatePipe, translate, type Lang } from '../shared/i18n';
 import { CompareTableComponent, type CompareColumn } from '../shared/compare-table.component';
 import { quoteForComparison, type ComparePricing, type CompareSetup } from '../data/compare-data';
@@ -59,7 +60,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
 @Component({
   selector: 'app-public-quote',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent, BrandIconComponent, TranslatePipe, CarShadowPipe, CompareTableComponent, BudgetFinderComponent, BrandChipsComponent, ScrollRowComponent],
+  imports: [CommonModule, NgTemplateOutlet, FormsModule, RouterLink, IconComponent, NumberFieldComponent, BrandIconComponent, TranslatePipe, CarShadowPipe, CompareTableComponent, BudgetFinderComponent, BrandChipsComponent, ScrollRowComponent],
   // Its own instance, pinned to the advisor's poster language rather than any UI language.
   providers: [I18nService],
   template: `
@@ -74,10 +75,11 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
         <p class="max-w-xs text-sm text-muted-foreground">{{ "Please check the link your sales advisor sent you, or ask them to resend it." | t }}</p>
       </div>
     } @else {
-      <!-- Desktop side menu (mobile/tablet use the bottom tab bar) -->
-      <aside class="glass fixed inset-y-0 left-0 z-30 hidden w-64 flex-col gap-6 px-4 py-6 text-sidebar-foreground xl:flex">
+      <!-- The menu: always open on a computer, behind the hamburger on a phone or tablet
+           (same as the advisor's own app). -->
+      <ng-template #menuBody let-drawer="drawer">
         <!-- Hidden (space kept) on Profile, which already shows the advisor large. -->
-        <div class="flex flex-col items-center gap-2 px-2 text-center" [class.invisible]="section() === 'profile'">
+        <div class="flex flex-col items-center gap-2 px-2 text-center" [class.invisible]="!drawer && section() === 'profile'">
           @if (bundle()!.advisor.photoUrl; as photo) {
             <img [src]="photo" alt="" class="size-16 rounded-full object-cover ring-2 ring-brand/60 ring-offset-2 ring-offset-background" />
           } @else {
@@ -109,91 +111,169 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
             </button>
           }
         </nav>
+      </ng-template>
+
+      <aside class="glass fixed inset-y-0 left-0 z-30 hidden w-64 flex-col gap-6 px-4 py-6 text-sidebar-foreground xl:flex">
+        <ng-container [ngTemplateOutlet]="menuBody" [ngTemplateOutletContext]="{ drawer: false }" />
       </aside>
+
+      <!-- Phone / tablet: top bar with the hamburger. Fixed (not sticky): the page host is only a
+           screen tall, so sticky would let it scroll away. The spacer keeps its room in the flow. -->
+      <div class="h-14 xl:hidden" aria-hidden="true"></div>
+      <header class="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-2 border-b border-border bg-background px-3 xl:hidden">
+        <button
+          type="button"
+          class="-ml-1 flex size-10 items-center justify-center rounded-md text-foreground transition-colors hover:bg-accent"
+          [attr.aria-label]="'Open menu' | t"
+          [attr.aria-expanded]="menuOpen()"
+          (click)="menuOpen.set(true)"
+        >
+          <app-icon name="menu" [size]="20" />
+        </button>
+        <h1 class="min-w-0 truncate text-lg font-bold tracking-tight">{{ sectionLabel() | t }}</h1>
+      </header>
+
+      @if (menuOpen()) {
+        <div class="fixed inset-0 z-50 xl:hidden">
+          <button type="button" [attr.aria-label]="'Close menu' | t" class="absolute inset-0 bg-black/60" (click)="menuOpen.set(false)"></button>
+          <div class="glass animate-slide-in-left absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col gap-6 bg-background px-4 py-6 text-sidebar-foreground">
+            <button
+              type="button"
+              (click)="menuOpen.set(false)"
+              [attr.aria-label]="'Close menu' | t"
+              class="absolute right-3 top-3 flex size-9 items-center justify-center rounded-md text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <app-icon name="x" [size]="18" />
+            </button>
+            <ng-container [ngTemplateOutlet]="menuBody" [ngTemplateOutletContext]="{ drawer: true }" />
+          </div>
+        </div>
+      }
 
       <div class="xl:pl-60">
       <div [class.hidden]="section() !== 'quote'">
-      <div class="mx-auto flex max-w-7xl flex-col gap-6 p-4 pb-24 md:p-6 md:pb-24 xl:pb-6 2xl:max-w-[1800px]">
-        <!-- Mobile Preview/Customize switcher -->
-        <!-- Pinned flush to the top (pulled up over the page's own top padding) so no strip of the
-             background glow shows above it. -->
-        <div class="sticky top-0 z-10 -mx-4 -mt-4 flex flex-col gap-2 border-b border-border bg-background px-4 pb-2 pt-4 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 xl:hidden">
-          <div class="flex items-center justify-between gap-3">
-            @if (isCashPurchase()) {
-              <span class="text-base font-semibold text-muted-foreground">{{ "Selling price" | t }}</span>
-              <span class="fig whitespace-nowrap text-3xl">{{ fmt2(allInPrice()) }}</span>
-            } @else {
-              <span class="flex flex-col text-base font-semibold leading-tight text-muted-foreground">
-                <span>{{ "Monthly instalment" | t }}</span>
-                <span class="text-sm font-medium">{{ tenureYears() }} {{ "yrs" | t }}</span>
-              </span>
-              <span class="fig whitespace-nowrap text-[2rem] sm:text-4xl"><span class="hl">{{ fmt2(monthlyInstalment()) }}</span></span>
-            }
-          </div>
-          <div role="tablist" [attr.aria-label]="'Quote view' | t" class="flex rounded-xl bg-muted p-1">
-            <button
-              type="button"
-              role="tab"
-              [attr.aria-selected]="mobileTab() === 'preview'"
-              (click)="mobileTab.set('preview')"
-              class="flex-1 rounded-lg px-3 py-2.5 text-base font-semibold transition-colors"
-              [ngClass]="mobileTab() === 'preview' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
-            >
-              {{ "Preview" | t }}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              [attr.aria-selected]="mobileTab() === 'customize'"
-              (click)="mobileTab.set('customize')"
-              class="flex-1 rounded-lg px-3 py-2.5 text-base font-semibold transition-colors"
-              [ngClass]="mobileTab() === 'customize' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
-            >
-              {{ "Customize" | t }}
-            </button>
+      <!-- On a computer: the Calculator's layout — the poster takes two thirds with the WhatsApp button
+           under it, and the settings are one scrolling column on the right.
+           On a phone / tablet: one page, no switching — the advisor's rebate and rate pinned at the top, a compact
+           quote card (tap for the full poster), the settings right under it, and the WhatsApp button
+           pinned at the bottom. -->
+      <div class="mx-auto flex max-w-7xl flex-col gap-3 p-4 md:p-6 xl:h-dvh xl:gap-6">
+
+        <!-- Phone / tablet: this month's rebate, pinned flush under the top bar while
+             scrolling (pulled up over the page's own top padding so no strip of the background glow
+             shows above it). On a computer it's the card at the foot of the settings column. -->
+        <div class="sticky top-14 z-10 -mx-4 -mt-4 border-b border-border bg-background px-4 py-3 md:-mx-6 md:-mt-6 md:px-6 xl:hidden">
+          <div class="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+            <span>{{ "{month} rebate" | t: { month: rebateMonth() } }}</span>
+            <strong class="tabular shrink-0 font-semibold text-foreground">{{ fmt(rebateInput()) }}</strong>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_24rem] 2xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] 2xl:gap-8">
-          <!-- Quote preview -->
-          <div
-            class="flex-col gap-2 xl:sticky xl:top-4 xl:flex"
-            [ngClass]="mobileTab() === 'preview' ? 'flex' : 'hidden'"
-          >
-            <div data-tour="quote-preview" class="shrink-0 overflow-hidden rounded-xl shadow-md xl:mx-auto">
-              <canvas #posterCanvas class="block h-auto w-full xl:mx-auto xl:w-auto xl:max-w-full xl:max-h-[calc(100vh-6.5rem)]"></canvas>
+        <div class="grid grid-cols-1 items-start gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-3 xl:grid-rows-[minmax(0,1fr)]">
+          <!-- Quote preview: the whole poster on a computer (click for the full view); a compact quote card
+               on a phone / tablet. The poster canvas is still drawn while hidden — the full view copies it. -->
+          <div class="flex h-full min-h-0 flex-col gap-2 self-stretch xl:col-span-2">
+            <div class="flex min-h-0 flex-col gap-2 rounded-xl xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
+              <!-- Phone / tablet: a compact quote card in the poster's style — the figures only, no car
+                   photo — so the settings start on the first screen. Tap it for the full poster. -->
+              <button
+                type="button"
+                data-tour="quote-preview"
+                (click)="openFullQuote()"
+                [attr.aria-label]="'View full quote' | t"
+                class="flex w-full shrink-0 flex-col gap-3 overflow-hidden rounded-xl border border-border bg-card p-4 text-left text-card-foreground shadow-md transition-colors hover:border-control xl:hidden"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex min-w-0 flex-col gap-0.5">
+                    <span class="flex items-center gap-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      <span class="h-2.5 w-0.5 -skew-x-12 bg-primary" aria-hidden="true"></span>
+                      {{ "Vehicle loan estimate" | t }}
+                    </span>
+                    <span class="truncate text-base font-bold">{{ modelVariantLabel(selectedModelName(), selectedVariant()) }} · {{ modelYear() }}</span>
+                  </div>
+                  <span class="flex shrink-0 items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold">
+                    <app-icon name="maximize" [size]="13" />
+                    {{ "Full quote" | t }}
+                  </span>
+                </div>
+
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{{ "Selling price" | t }}</span>
+                  <span class="fig text-[1.75rem]">{{ fmt2(allInPrice()) }}</span>
+                </div>
+
+                @if (!isCashPurchase()) {
+                  <div class="grid grid-cols-2 gap-2">
+                    <div class="flex flex-col gap-0.5 border-l-2 border-primary bg-muted/60 px-2.5 py-1.5">
+                      <span class="text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{{ "Downpayment" | t }}</span>
+                      <span class="fig text-sm">{{ fmt2(downpaymentCash()) }}</span>
+                    </div>
+                    <div class="flex flex-col gap-0.5 border-l-2 border-primary bg-muted/60 px-2.5 py-1.5">
+                      <span class="text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{{ "Loan amount" | t }}</span>
+                      <span class="fig text-sm">{{ fmt2(loanAmount()) }}</span>
+                    </div>
+                  </div>
+                }
+
+                <div class="flex flex-col text-xs">
+                  <div class="flex items-center justify-between gap-3 border-b border-border py-1.5">
+                    <span class="text-muted-foreground">{{ "OTR price" | t }}</span>
+                    <span class="tabular font-semibold">{{ fmt2(basePrice()) }}</span>
+                  </div>
+                  <div class="flex items-center justify-between gap-3 border-b border-border py-1.5">
+                    <span class="text-muted-foreground">{{ "Insurance" | t }} <span class="text-[0.625rem]">({{ ncd() }}% NCD)</span></span>
+                    <span class="tabular font-semibold text-[var(--warning)]">+ {{ fmt2(insurance()) }}</span>
+                  </div>
+                  <div class="flex items-center justify-between gap-3 py-1.5">
+                    <span class="text-muted-foreground">{{ "Rebate" | t }}</span>
+                    <span class="tabular font-semibold text-[var(--success)]">− {{ fmt2(effectiveRebate()) }}</span>
+                  </div>
+                </div>
+
+                @if (!isCashPurchase()) {
+                  <div class="flex items-center justify-between gap-3 bg-primary px-3 py-2 text-primary-foreground [clip-path:polygon(0_0,calc(100%-10px)_0,100%_10px,100%_100%,0_100%)]">
+                    <span class="text-sm font-bold">{{ tenureYears() + ' Yrs' | t }} <span class="ml-1 text-xs font-medium opacity-80">{{ interestRate() }}% {{ rateType() === 'flat' ? ('Flat' | t) : 'EIR' }}</span></span>
+                    <span class="fig text-lg">{{ fmt2(monthlyInstalment()) }}<span class="ml-0.5 text-xs font-semibold opacity-80">/{{ "mo" | t }}</span></span>
+                  </div>
+                }
+              </button>
+
+              <button
+                type="button"
+                data-tour="quote-preview"
+                (click)="openFullQuote()"
+                [attr.aria-label]="'View full quote' | t"
+                class="group relative mx-auto w-full shrink-0 overflow-hidden rounded-xl border border-border text-left shadow-md max-xl:hidden xl:block"
+              >
+                <canvas #posterCanvas class="block h-auto w-full"></canvas>
+                <span class="pointer-events-none absolute bottom-2.5 right-2.5 flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1.5 text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  <app-icon name="maximize" [size]="14" />
+                  {{ "View full quote" | t }}
+                </span>
+              </button>
+              <p class="hidden shrink-0 text-balance text-center text-xs leading-relaxed text-muted-foreground xl:block">
+                <app-icon name="info" [size]="16" class="mr-1 inline-block align-[-2px]" />
+                {{ "Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here." | t }}
+              </p>
             </div>
+            <!-- Where the Calculator has Save / Share -->
             @if (bundle()!.advisor.phoneWa) {
               <button
                 type="button"
                 data-tour="quote-whatsapp"
                 (click)="openWhatsAppToAdvisor()"
-                class="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-3 text-sm font-semibold text-white shadow-sm transition-[filter] hover:brightness-95 xl:hidden"
+                class="btn btn-lg flex w-full shrink-0 items-center justify-center gap-2 bg-[#25D366] text-white shadow-sm transition-[filter] hover:brightness-95 max-xl:hidden"
               >
                 <app-brand-icon name="whatsapp" [size]="20" />
                 {{ "WhatsApp Me Here" | t }}
               </button>
             }
-            @if (testDriveOn()) {
-              <button
-                type="button"
-                (click)="openTestDrive(selectedVehicle())"
-                class="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm font-semibold transition-colors hover:bg-accent xl:hidden"
-              >
-                <app-icon name="car" [size]="20" />
-                {{ "Book test drive" | t }}
-              </button>
-            }
-            <p class="shrink-0 text-balance text-center text-xs leading-relaxed text-muted-foreground">
-              <app-icon name="info" [size]="16" class="mr-1 inline-block align-[-2px]" />
-              {{ "Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here." | t }}
-            </p>
           </div>
 
           <!-- Trade-in: a simple yes/no that goes into the WhatsApp message (the model is asked on WhatsApp) -->
           <ng-template #tradeInCard>
             @if (bundle()!.advisor.phoneWa) {
-              <section class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm 2xl:flex-1">
+              <section class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
                 <span class="text-sm font-semibold text-foreground">{{ "Trade-in" | t }}</span>
                 <span class="text-sm font-medium">{{ "Do you have a car to trade in?" | t }}</span>
                 <div role="group" [attr.aria-label]="'Do you have a car to trade in?' | t" class="grid grid-cols-2 gap-1.5">
@@ -218,36 +298,8 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
 
           <!-- Customize quote -->
           <div
-            class="flex-col gap-4 xl:sticky xl:top-4 xl:flex xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 2xl:static 2xl:max-h-none 2xl:overflow-visible 2xl:pr-0"
-            [ngClass]="mobileTab() === 'customize' ? 'flex' : 'hidden'"
+            class="flex flex-col gap-4 xl:col-span-1 xl:h-full xl:min-h-0 xl:overflow-y-auto xl:overscroll-contain xl:pr-1"
           >
-            <!-- Desktop: the contact buttons get their own row, so they never squeeze the heading
-                 or run off the edge on a laptop screen. -->
-            @if (bundle()!.advisor.phoneWa || testDriveOn()) {
-              <div class="hidden gap-2 xl:grid" [ngClass]="bundle()!.advisor.phoneWa && testDriveOn() ? 'grid-cols-2' : 'grid-cols-1'">
-                @if (bundle()!.advisor.phoneWa) {
-                  <button
-                    type="button"
-                    data-tour="quote-whatsapp"
-                    (click)="openWhatsAppToAdvisor()"
-                    class="flex min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-[#25D366] px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition-[filter] hover:brightness-95"
-                  >
-                    <app-brand-icon name="whatsapp" [size]="18" />
-                    <span class="truncate">{{ "WhatsApp Me Here" | t }}</span>
-                  </button>
-                }
-                @if (testDriveOn()) {
-                  <button
-                    type="button"
-                    (click)="openTestDrive(selectedVehicle())"
-                    class="flex min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-border bg-card px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-accent"
-                  >
-                    <app-icon name="car" [size]="16" />
-                    <span class="truncate">{{ "Book test drive" | t }}</span>
-                  </button>
-                }
-              </div>
-            }
             <div class="flex items-center justify-between gap-2">
               <h3 class="min-w-0 truncate text-base font-semibold leading-none">{{ "Customize Quote" | t }}</h3>
               <div class="flex shrink-0 items-center gap-1">
@@ -271,8 +323,8 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
               </div>
             </div>
 
-            <div class="flex flex-col gap-4 2xl:grid 2xl:grid-cols-2 2xl:items-stretch 2xl:gap-4">
-              <div class="flex flex-col gap-4">
+            <div class="flex flex-col gap-4">
+              <div class="contents">
               <!-- Select car -->
               <div data-tour="quote-car" class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
                 <div class="flex items-center justify-between gap-2">
@@ -360,117 +412,50 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
               }
             </div>
 
-            <!-- Price setup -->
+            <!-- Loan setup: same layout as the advisor's Calculator — the three ways to size the loan sit
+                 together, and changing any one moves the other two -->
             <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-              <span class="text-sm font-semibold text-foreground">{{ "Price Setup" | t }}</span>
-
-              <div class="flex flex-col gap-2">
-                <span class="text-sm font-semibold text-foreground">{{ "Rebate (RM)" | t }}</span>
-                <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 opacity-80">
-                  <span class="text-sm font-medium text-muted-foreground">{{ "RM" | t }}</span>
-                  <span class="text-sm font-medium tabular">{{ rebateInput() }}</span>
-                </div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-sm font-semibold text-foreground">{{ "Loan Setup" | t }}</span>
+                <span class="flex items-center gap-1 text-xs text-muted-foreground"><app-icon name="refresh-cw" [size]="12" />{{ "Change any one" | t }}</span>
               </div>
-            </div>
 
-            <!-- Insurance -->
-            <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-semibold text-foreground">{{ "Insurance" | t }}</span>
+              <div data-tour="quote-downpayment" role="group" [attr.aria-label]="'Quick downpayment presets' | t" class="flex flex-wrap gap-1.5">
                 <button
                   type="button"
-                  (click)="openInsuranceBreakdown()"
-                  class="flex items-center gap-1 rounded-md px-2 py-1.5 text-sm font-semibold text-brand transition-colors hover:bg-accent"
+                  (click)="applyDownpaymentPreset('tenPercent')"
+                  class="rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors"
+                  [ngClass]="isDownpaymentPreset('tenPercent') ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                 >
-                  <app-icon name="settings" [size]="16" />
-                  {{ "Insurance Breakdown" | t }}
+                  10%
+                </button>
+                <button
+                  type="button"
+                  (click)="applyDownpaymentPreset('fullLoan')"
+                  class="rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors"
+                  [ngClass]="isDownpaymentPreset('fullLoan') ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                >
+                  {{ minDownpayment() > 0 ? ('Minimum' | t) : ('Full Loan' | t) }}
                 </button>
               </div>
 
-              <div class="flex flex-col gap-2">
-                <label for="ncdSelect" class="text-sm font-semibold text-foreground">
-                  <span class="inline-flex items-center gap-1">
-                    <app-icon name="percent" [size]="16" />
-                    {{ "NCD" | t }}
-                  </span>
-                </label>
-                <select
-                  id="ncdSelect"
-                  [ngModel]="ncd()"
-                  (ngModelChange)="ncd.set(+$event)"
-                  class="h-10 w-full rounded-lg border border-input bg-input px-3 text-sm text-foreground outline-none transition-colors focus:border-ring"
-                >
-                  @for (opt of ncdOptions; track opt.value) {
-                    <option [value]="opt.value">{{ opt.label | t }}</option>
-                  }
-                </select>
-              </div>
-
-              <div class="flex flex-col gap-1 rounded-lg bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
-                <span>{{ "Total Insurance Cost" | t }}</span>
-                <span class="text-sm font-semibold tabular text-foreground">{{ fmt2(insurance()) }}</span>
-              </div>
-            </div>
-
-            <!-- Trade-in under Insurance — on wide screens this lands beside Tenure -->
-            <ng-container [ngTemplateOutlet]="tradeInCard" />
-              </div>
-
-              <div class="flex flex-col gap-4">
-            <!-- Interest Rate -->
-            <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-              <span class="text-sm font-semibold text-foreground">{{ "Interest Rate" | t }}</span>
-
-              <div class="flex flex-col gap-2">
-                <span class="text-sm font-semibold text-foreground">{{ "Interest Rate" | t }}</span>
-                <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 opacity-80">
-                  <span class="text-sm font-medium tabular">{{ interestRate() }}%</span>
-                  <span class="text-xs text-muted-foreground">{{ rateType() === 'flat' ? ('Flat' | t) : 'EIR' }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Loan setup -->
-            <div class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
-              <span class="text-sm font-semibold text-foreground">{{ "Loan Setup" | t }}</span>
-
-              <div class="flex flex-col gap-2">
-                <span class="text-sm font-semibold text-foreground">{{ "Downpayment" | t }}</span>
-                <div data-tour="quote-downpayment" role="group" [attr.aria-label]="'Quick downpayment presets' | t" class="grid grid-cols-2 gap-1.5">
-                  <button
-                    type="button"
-                    (click)="applyDownpaymentPreset('tenPercent')"
-                    class="rounded-lg border px-2 py-2.5 text-sm font-semibold transition-colors"
-                    [ngClass]="isDownpaymentPreset('tenPercent') ? 'border-brand bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                  >
-                    10%
-                  </button>
-                  <button
-                    type="button"
-                    (click)="applyDownpaymentPreset('fullLoan')"
-                    class="rounded-lg border px-2 py-2.5 text-sm font-semibold transition-colors"
-                    [ngClass]="isDownpaymentPreset('fullLoan') ? 'border-brand bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                  >
-                    {{ minDownpayment() > 0 ? ('Minimum' | t) : ('Full Loan' | t) }}
-                  </button>
-                </div>
-                <div class="flex gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    [attr.max]="downpaymentType() === 'percent' ? 100 : null"
-                    [step]="downpaymentType() === 'percent' ? 1 : 500"
-                    [ngModel]="downpaymentValue()"
-                    (ngModelChange)="downpaymentValue.set(+$event || 0)"
-                    (blur)="commitDownpayment()"
-                    (keydown.enter)="commitDownpayment()"
-                    class="h-10 w-full rounded-lg border border-input bg-input/30 px-3 text-sm font-medium tabular outline-none transition-colors focus:border-ring"
+              <div class="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5 border-l-2 border-primary pl-3">
+                <span class="text-sm font-medium text-muted-foreground">{{ "Downpayment" | t }}</span>
+                <div class="flex gap-1.5">
+                  <app-number-field
+                    class="min-w-0 flex-1"
+                    ariaLabel="Downpayment"
+                    [prefix]="downpaymentType() === 'amount' ? 'RM' : ''"
+                    [suffix]="downpaymentType() === 'percent' ? '%' : ''"
+                    [value]="downpaymentValue()"
+                    (valueChange)="downpaymentValue.set($event ?? 0)"
+                    (committed)="commitDownpayment()"
                   />
-                  <div class="flex shrink-0 gap-1 rounded-lg border border-border bg-muted/40 p-1">
+                  <div class="flex shrink-0 gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
                     <button
                       type="button"
                       (click)="downpaymentType.set('percent')"
-                      class="rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors"
+                      class="rounded-md px-2 py-1 text-sm font-semibold transition-colors"
                       [ngClass]="downpaymentType() === 'percent' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
                     >
                       %
@@ -478,80 +463,98 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                     <button
                       type="button"
                       (click)="downpaymentType.set('amount')"
-                      class="rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors"
+                      class="rounded-md px-2 py-1 text-sm font-semibold transition-colors"
                       [ngClass]="downpaymentType() === 'amount' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
                     >
-                      {{ "Amt" | t }}
+                      RM
                     </button>
                   </div>
                 </div>
-                @if (minDownpayment() > 0) {
-                  @if (downpaymentRaisedToMin()) {
-                    <div class="flex items-start gap-2 rounded-lg bg-[var(--warning)]/12 px-3 py-2 text-xs text-foreground">
-                      <app-icon name="alert-triangle" [size]="16" class="mt-px shrink-0 text-[var(--warning)]" />
-                      <span>{{ "This car needs a" | t }} <strong>{{ fmt(minDownpayment()) }}</strong> {{ "minimum downpayment (rebate counts towards it) — raised to meet it." | t }}</span>
-                    </div>
-                  } @else {
-                    <span class="text-xs text-muted-foreground">Minimum downpayment for this car: {{ fmt(minDownpayment()) }} {{ "before rebate" | t }}</span>
-                  }
+
+                <label for="loanAmountInput" class="text-sm font-medium text-muted-foreground">{{ "Loan Amount" | t }}</label>
+                <app-number-field
+                  inputId="loanAmountInput"
+                  prefix="RM"
+                  [decimals]="0"
+                  [value]="loanAmountDisplay()"
+                  (valueChange)="onLoanAmountInput($event)"
+                  (committed)="commitLoanAmount()"
+                />
+
+                <label for="monthlyInstallmentInput" class="flex flex-col text-sm font-medium leading-tight text-muted-foreground">
+                  {{ "Monthly" | t }}
+                  <span class="text-xs font-normal">{{ tenureYears() + ' Yrs' | t }}</span>
+                </label>
+                <app-number-field
+                  inputId="monthlyInstallmentInput"
+                  prefix="RM"
+                  [value]="monthlyInstallmentDisplay()"
+                  (valueChange)="onMonthlyInstallmentInput($event)"
+                  (committed)="commitMonthlyInstallment()"
+                />
+              </div>
+
+              @if (minDownpayment() > 0) {
+                @if (downpaymentRaisedToMin()) {
+                  <div class="flex items-start gap-2 rounded-lg bg-[var(--warning)]/12 px-3 py-2 text-xs text-foreground">
+                    <app-icon name="alert-triangle" [size]="16" class="mt-px shrink-0 text-[var(--warning)]" />
+                    <span>{{ "This car needs a" | t }} <strong>{{ fmt(minDownpayment()) }}</strong> {{ "minimum downpayment (rebate counts towards it) — raised to meet it." | t }}</span>
+                  </div>
+                } @else {
+                  <span class="text-xs text-muted-foreground">Minimum downpayment for this car: {{ fmt(minDownpayment()) }} {{ "before rebate" | t }}</span>
                 }
+              } @else {
+                <span class="text-xs text-muted-foreground">{{ 'Loan amount rounds down to RM100.' | t }}</span>
+              }
+            </div>
+
               </div>
 
-              <div class="flex items-center gap-3">
-                <div class="h-px flex-1 bg-border"></div>
-                <span class="text-sm font-semibold text-foreground">{{ "or" | t }}</span>
-                <div class="h-px flex-1 bg-border"></div>
+              <div class="contents">
+            <!-- Insurance: same as the Calculator — the total up top, NCD as tap boxes, and the
+                 breakdown behind a button (view only here) -->
+            <div class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
+              <div class="flex flex-col gap-1">
+                <div class="flex w-full items-center gap-2">
+                  <span class="min-w-0 flex-1 text-sm font-semibold text-foreground">{{ "Insurance" | t }}</span>
+                  <span class="fig whitespace-nowrap text-base">{{ fmt2(insurance()) }}</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  @if (ncdSaving() > 0) {
+                    <span class="tabular font-semibold text-[var(--success)]">{{ 'Save {amount}' | t: { amount: fmt2(ncdSaving()) } }}</span>
+                  } @else {
+                    <span>{{ 'No NCD' | t }}</span>
+                  }
+                </div>
               </div>
 
               <div class="flex flex-col gap-2">
-                <label for="loanAmountInput" class="text-sm font-semibold text-foreground">{{ "Loan Amount (RM)" | t }}</label>
-                <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 focus-within:border-ring">
-                  <span class="text-sm font-medium text-muted-foreground">{{ "RM" | t }}</span>
-                  <input
-                    id="loanAmountInput"
-                    type="number"
-                    min="0"
-                    step="100"
-                    inputmode="numeric"
-                    [ngModel]="loanAmountDisplay()"
-                    (ngModelChange)="onLoanAmountInput($event)"
-                    (blur)="commitLoanAmount()"
-                    (keydown.enter)="commitLoanAmount()"
-                    class="w-full bg-transparent text-sm font-medium tabular outline-none"
-                  />
+                <span id="ncdLabel" class="text-sm font-semibold text-foreground">{{ "No-claim discount (NCD)" | t }}</span>
+                <div role="radiogroup" aria-labelledby="ncdLabel" class="grid grid-cols-3 gap-1.5">
+                  @for (opt of ncdOptions; track opt.value) {
+                    <button
+                      type="button"
+                      role="radio"
+                      [attr.aria-checked]="ncd() === opt.value"
+                      (click)="ncd.set(opt.value)"
+                      class="flex flex-col items-center justify-center rounded-lg border px-1 py-1.5 leading-tight transition-colors"
+                      [ngClass]="ncd() === opt.value ? 'border-brand bg-brand-soft' : 'border-control hover:bg-accent'"
+                    >
+                      <span class="text-sm font-bold tabular">{{ opt.value }}%</span>
+                      <span class="text-xs" [ngClass]="ncd() === opt.value ? 'text-foreground' : 'text-muted-foreground'">{{ ncdYear(opt) | t }}</span>
+                    </button>
+                  }
                 </div>
-                <span class="text-xs text-muted-foreground">{{ "Rounds down to the nearest RM100 once you finish typing — any remainder goes to the downpayment." | t }}</span>
               </div>
 
-              <div class="flex items-center gap-3">
-                <div class="h-px flex-1 bg-border"></div>
-                <span class="text-sm font-semibold text-foreground">{{ "or" | t }}</span>
-                <div class="h-px flex-1 bg-border"></div>
-              </div>
-
-              <div class="flex flex-col gap-2">
-                <label for="monthlyInstallmentInput" class="text-sm font-semibold text-foreground">{{ "Monthly Installment (RM)" | t }}</label>
-                <div class="flex items-center gap-2 rounded-lg border border-input bg-input/30 px-3 py-2 focus-within:border-ring">
-                  <span class="text-sm font-medium text-muted-foreground">{{ "RM" | t }}</span>
-                  <input
-                    id="monthlyInstallmentInput"
-                    type="number"
-                    min="0"
-                    step="10"
-                    inputmode="numeric"
-                    [ngModel]="monthlyInstallmentDisplay()"
-                    (ngModelChange)="onMonthlyInstallmentInput($event)"
-                    (blur)="commitMonthlyInstallment()"
-                    (keydown.enter)="commitMonthlyInstallment()"
-                    class="w-full bg-transparent text-sm font-medium tabular outline-none"
-                  />
-                </div>
-                <span class="text-xs text-muted-foreground">{{ 'Targets the {tenure} tenure and works backwards to the loan amount and deposit.' | t: { tenure: (tenureYears() + ' Yrs' | t) } }}</span>
-              </div>
+              <button type="button" (click)="openInsuranceBreakdown()" class="btn btn-outline w-full">
+                <app-icon name="eye" [size]="16" />
+                {{ "Insurance details" | t }}
+              </button>
             </div>
 
             <!-- Tenure -->
-            <div data-tour="quote-tenure" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm 2xl:flex-1">
+            <div data-tour="quote-tenure" class="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
               <span class="text-sm font-semibold text-foreground">{{ "Tenure" | t }}</span>
               <div class="flex flex-col gap-2">
                 <div class="flex items-center justify-between">
@@ -565,8 +568,8 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                       role="radio"
                       [attr.aria-checked]="tenureYears() === y"
                       (click)="selectTenureYear(y)"
-                      class="flex aspect-square items-center justify-center rounded-full text-xs font-semibold transition-colors"
-                      [ngClass]="tenureYears() === y ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                      class="flex h-10 items-center justify-center rounded-full text-sm font-semibold transition-colors"
+                      [ngClass]="tenureYears() === y ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                     >
                       {{ y }}
                     </button>
@@ -574,6 +577,44 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                 </div>
                 <span class="text-xs text-muted-foreground">{{ "Pick one tenure — this is what your monthly payment above is based on." | t }}</span>
               </div>
+            </div>
+
+            <!-- Trade-in: a last yes/no before sending -->
+            <ng-container [ngTemplateOutlet]="tradeInCard" />
+
+            <!-- Estimate note (on a computer it sits under the poster instead) -->
+            <p class="text-balance text-center text-xs leading-relaxed text-muted-foreground xl:hidden">
+              <app-icon name="info" [size]="16" class="mr-1 inline-block align-[-2px]" />
+              {{ "Estimate only. Insurance, bank rate and final loan approval may vary from the figures shown here." | t }}
+            </p>
+
+            <!-- Bottom dock, pinned while scrolling: the WhatsApp button on a phone / tablet; on a computer
+                 the advisor's rebate and rate card (WhatsApp sits under the poster there). -->
+            <div class="sticky bottom-0 z-10 -mx-4 -mb-4 flex flex-col gap-2 border-t border-border bg-background px-4 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 md:-mx-6 md:-mb-6 md:px-6 xl:mx-0 xl:mb-0 xl:px-0 xl:pb-0">
+              <div class="hidden flex-col gap-1.5 rounded-xl border border-border bg-card px-4 py-3 text-sm text-card-foreground shadow-sm xl:flex">
+                <div class="flex items-center justify-between gap-3">
+                  <span class="text-muted-foreground">{{ "Rebate" | t }}</span>
+                  <span class="tabular font-semibold">{{ fmt(rebateInput()) }}</span>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <span class="text-muted-foreground">{{ "Interest" | t }}</span>
+                  <span class="tabular font-semibold">{{ interestRate() }}% {{ rateType() === 'flat' ? ('Flat' | t) : 'EIR' }}</span>
+                </div>
+                <span class="text-xs text-muted-foreground">
+                  {{ "Set by your advisor" | t }}
+                </span>
+              </div>
+              @if (bundle()!.advisor.phoneWa) {
+                <button
+                  type="button"
+                  data-tour="quote-whatsapp"
+                  (click)="openWhatsAppToAdvisor()"
+                  class="btn btn-lg flex w-full items-center justify-center gap-2 bg-[#25D366] text-white shadow-sm transition-[filter] hover:brightness-95 xl:hidden"
+                >
+                  <app-brand-icon name="whatsapp" [size]="20" />
+                  {{ "WhatsApp Me Here" | t }}
+                </button>
+              }
             </div>
               </div>
             </div>
@@ -583,145 +624,103 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
       </div>
 
       @if (section() === 'profile') {
-        <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 pb-28 md:gap-5 md:p-6 md:pb-28 xl:py-8">
-          <!-- Advisor card: on wider screens the name, bio and buttons sit beside the photo so the card
-               fills the width. -->
+        <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:gap-5 md:p-6 xl:py-8">
+          <!-- Advisor card: the advisor's cover photo (My Profile), or one of their cars, with their photo
+               on its edge, then name, role and bio, with WhatsApp / Call beside them on wider screens. -->
           <section class="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm">
-            <div class="p-5 md:p-7">
-              <div class="flex flex-col items-center gap-4 text-center md:flex-row md:items-center md:gap-6 md:text-left">
+            <div class="relative bg-gradient-to-b from-white to-[oklch(0.9_0.005_280)]" [ngClass]="bundle()!.advisor.coverUrl ? 'aspect-[4/1]' : 'h-28 sm:h-36 md:h-44'">
+              @if (bundle()!.advisor.coverUrl; as cover) {
+                <img [src]="cover" alt="" class="absolute inset-0 size-full object-cover" />
+              } @else if (featuredModels()[0]?.car?.photoUrl) {
+                <img [src]="featuredModels()[0]!.car.photoUrl! | carShadow" alt="" class="absolute inset-y-0 right-0 h-full w-2/3 object-contain object-right p-2 md:w-1/2 md:p-3" />
+              }
+              <div class="absolute -bottom-10 left-5 z-10 md:-bottom-12 md:left-7">
                 @if (bundle()!.advisor.photoUrl; as photo) {
-                  <img [src]="photo" alt="" class="size-24 shrink-0 rounded-full object-cover ring-1 ring-border sm:size-28 md:size-32" />
+                  <img [src]="photo" alt="" class="size-20 rounded-full object-cover ring-4 ring-card md:size-24" />
                 } @else {
-                  <span class="flex size-24 shrink-0 items-center justify-center rounded-full text-3xl font-bold ring-1 ring-border sm:size-28 md:size-32 logo-chip">
-                    {{ advisorInitials() }}
-                  </span>
-                }
-                <div class="flex min-w-0 flex-1 flex-col items-center gap-1.5 md:items-start">
-                  <h1 class="text-balance text-xl font-semibold tracking-tight md:text-2xl">{{ bundle()!.advisor.name }}</h1>
-                  <div class="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 md:justify-start">
-                    @if (bundle()!.advisor.role; as role) {
-                      <span class="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-medium text-brand">{{ role }}</span>
-                    }
-                    @if (!callHref() && bundle()!.advisor.phoneDisplay) {
-                      <span class="text-sm tabular text-muted-foreground">{{ formatPhone(bundle()!.advisor.phoneDisplay) }}</span>
-                    }
-                  </div>
-                  @if (bundle()!.advisor.bio; as bio) {
-                    <p class="mt-1.5 max-w-md whitespace-pre-line text-pretty text-sm leading-relaxed text-muted-foreground md:max-w-2xl">{{ bio }}</p>
-                  }
-                </div>
-                <!-- Get in touch: two contact tiles, a panel of its own on the right on wider screens -->
-                @if (callHref() || profileWhatsAppHref()) {
-                  <div class="flex w-full flex-col gap-2.5 md:w-64 md:shrink-0 md:self-stretch md:justify-center md:border-l md:border-border md:pl-6">
-                    <span class="hidden text-sm font-semibold text-foreground md:block">{{ "Get in touch" | t }}</span>
-                    <div class="grid gap-2.5 sm:grid-cols-2 md:grid-cols-1">
-                      @if (profileWhatsAppHref(); as href) {
-                        <a
-                          [href]="href"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          (click)="activity?.record('whatsapp_tapped')"
-                          class="group flex items-center gap-3 rounded-2xl bg-gradient-to-br from-[#25D366] to-[#128C7E] p-2.5 pr-3 text-left text-white shadow-lg shadow-[#25D366]/20 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[#25D366]/30"
-                        >
-                          <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/25">
-                            <app-brand-icon name="whatsapp" [size]="20" />
-                          </span>
-                          <span class="flex min-w-0 flex-1 flex-col leading-tight">
-                            <span class="text-xs font-medium text-white/80">{{ "Chat on" | t }}</span>
-                            <span class="truncate text-sm font-bold">WhatsApp</span>
-                          </span>
-                          <app-icon name="arrow-up-right" [size]="18" class="hidden shrink-0 opacity-70 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100 sm:block" />
-                        </a>
-                      }
-                      @if (callHref(); as href) {
-                        <a
-                          [href]="href"
-                          class="group flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-2.5 pr-3 text-left text-foreground transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:bg-accent"
-                        >
-                          <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md ">
-                            <app-icon name="phone" [size]="20" />
-                          </span>
-                          <span class="flex min-w-0 flex-1 flex-col leading-tight">
-                            <span class="text-sm font-semibold text-foreground">{{ "Call me" | t }}</span>
-                            <span class="truncate text-sm font-bold tabular">{{ bundle()!.advisor.phoneDisplay ? formatPhone(bundle()!.advisor.phoneDisplay) : ('Call' | t) }}</span>
-                          </span>
-                          <app-icon name="arrow-up-right" [size]="18" class="hidden shrink-0 text-muted-foreground transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground sm:block" />
-                        </a>
-                      }
-                    </div>
-                  </div>
+                  <span class="flex size-20 items-center justify-center rounded-full text-2xl font-bold ring-4 ring-card md:size-24 logo-chip">{{ advisorInitials() }}</span>
                 }
               </div>
             </div>
-          </section>
 
-          <!-- Showroom and social links side by side on wider screens -->
-          @if (showroom() || socials().length) {
-            <div class="grid gap-4 md:gap-5" [ngClass]="showroom() && socials().length ? 'md:grid-cols-3' : ''">
-              @if (showroom(); as s) {
-                <section class="flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm md:col-span-2">
-                  <div class="flex items-start gap-3">
-                    <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
-                      <app-icon name="map-pin" [size]="20" />
-                    </span>
-                    <div class="flex min-w-0 flex-col gap-1">
-                      <span class="text-sm font-semibold text-foreground">{{ "Visit the Showroom" | t }}</span>
-                      <span class="text-sm font-semibold">{{ s.name || ('Showroom' | t) }}</span>
-                      @if (s.address; as address) {
-                        <p class="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{{ address }}</p>
-                      }
-                    </div>
-                  </div>
-                  <div class="grid auto-cols-fr grid-flow-col gap-2">
-                    @if (showroomMapsHref(); as href) {
-                      <a
-                        [href]="href"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 text-sm font-medium transition-colors hover:bg-accent"
-                      >
-                        <app-brand-icon name="googlemaps" [size]="18" class="text-[#4285F4]" />
-                        {{ "Google Maps" | t }}
-                      </a>
-                    }
-                    @if (showroomWazeHref(); as href) {
-                      <a
-                        [href]="href"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 text-sm font-medium transition-colors hover:bg-accent"
-                      >
-                        <app-brand-icon name="waze" [size]="18" class="text-[#33CCFF]" />
-                        {{ "Waze" | t }}
-                      </a>
-                    }
-                  </div>
-                </section>
-              }
-
-              @if (socials().length) {
-                <section class="flex flex-col justify-center gap-4 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm">
-                  <span class="text-center text-sm font-semibold text-foreground">{{ "Follow Me" | t }}</span>
-                  <div class="flex flex-wrap justify-center gap-x-2 gap-y-4">
+            <div class="grid gap-4 p-5 pt-12 md:grid-cols-[minmax(0,1fr)_17rem] md:gap-6 md:p-7 md:pt-16">
+              <div class="flex min-w-0 flex-col gap-1.5">
+                <h1 class="text-balance text-xl font-semibold tracking-tight md:text-2xl">{{ bundle()!.advisor.name }}</h1>
+                @if (bundle()!.advisor.role; as role) {
+                  <span class="text-sm text-muted-foreground">{{ role }}@if (bundle()!.defaultBrand; as brand) { · {{ brand }}}</span>
+                }
+                @if (!callHref() && bundle()!.advisor.phoneDisplay) {
+                  <span class="text-sm tabular text-muted-foreground">{{ formatPhone(bundle()!.advisor.phoneDisplay) }}</span>
+                }
+                @if (bundle()!.advisor.bio; as bio) {
+                  <p class="mt-1 max-w-2xl whitespace-pre-line text-pretty text-sm leading-relaxed text-muted-foreground">{{ bio }}</p>
+                }
+                @if (socials().length) {
+                  <div class="mt-2 flex flex-wrap gap-2">
                     @for (s of socials(); track s.id) {
                       <a
                         [href]="s.href"
                         target="_blank"
                         rel="noopener noreferrer"
                         [attr.aria-label]="s.label + ' (opens in a new tab)'"
-                        class="group flex w-[4.5rem] flex-col items-center gap-1.5 rounded-xl p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        [title]="s.label | t"
+                        class="rounded-xl outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-ring active:scale-95"
                       >
-                        <app-brand-icon [name]="s.id" [size]="52" [tile]="true" class="transition-transform group-hover:scale-105 group-active:scale-95" />
-                        <span class="w-full truncate text-center text-sm font-semibold text-foreground group-hover:text-foreground">{{ s.label | t }}</span>
+                        <app-brand-icon [name]="s.id" [size]="36" [tile]="true" />
                       </a>
                     }
                   </div>
-                </section>
+                }
+              </div>
+
+              <!-- Get in touch: WhatsApp, full width on a phone and beside the name on wider screens. Call only
+                   shows for an advisor without a WhatsApp number, so there's always a way to reach them. -->
+              @if (callHref() || profileWhatsAppHref()) {
+                <div class="flex flex-col gap-2 md:content-start">
+                  @if (profileWhatsAppHref(); as href) {
+                    <a
+                      [href]="href"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      (click)="activity?.record('whatsapp_tapped')"
+                      class="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-3 text-sm font-semibold text-white shadow-sm transition-[filter] hover:brightness-95"
+                    >
+                      <app-brand-icon name="whatsapp" [size]="18" />
+                      WhatsApp
+                    </a>
+                  }
+                  @if (!profileWhatsAppHref() && callHref(); as href) {
+                    <a
+                      [href]="href"
+                      class="flex h-11 items-center justify-center gap-2 rounded-xl border border-control px-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+                    >
+                      <app-icon name="phone" [size]="18" />
+                      <span class="truncate">{{ "Call" | t }}<span class="hidden tabular md:inline">{{ bundle()!.advisor.phoneDisplay ? ' ' + formatPhone(bundle()!.advisor.phoneDisplay) : '' }}</span></span>
+                    </a>
+                  }
+                </div>
               }
             </div>
-          }
+          </section>
 
-          <!-- A few of the advisor's cars, so the link opens on cars and prices, not just a contact card.
+          <!-- Start here: most customers open the link for a price, so the quote is one clear button -->
+          <section class="flex flex-col gap-3 rounded-2xl border border-brand/30 bg-brand-soft p-5 md:flex-row md:items-center md:justify-between md:gap-6">
+            <div class="flex flex-col gap-1">
+              <h2 class="text-base font-semibold tracking-tight">{{ "See your monthly in 1 minute" | t }}</h2>
+              <p class="text-sm text-muted-foreground">{{ "Pick a car, set your deposit and years." | t }}</p>
+            </div>
+            <div class="flex flex-col gap-2 md:items-end">
+              <button type="button" (click)="selectSection('quote')" class="btn btn-primary btn-lg w-full md:w-auto md:px-8">
+                <app-icon name="calculator" [size]="18" />
+                {{ "Build my quote" | t }}
+              </button>
+              <button type="button" (click)="selectSection('budget')" class="self-center text-sm font-semibold text-brand hover:underline md:self-end">
+                {{ "or find a car for your budget" | t }}
+              </button>
+            </div>
+          </section>
+
+          <!-- A few of the advisor's cars: one swipe row on a phone, four across on wider screens.
                A tap starts a quote for that car. -->
           @if (featuredModels().length) {
             <section class="flex flex-col gap-3">
@@ -732,12 +731,12 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                   <app-icon name="chevron-right" [size]="16" />
                 </button>
               </div>
-              <div class="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+              <div class="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 md:mx-0 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible md:px-0 md:pb-0">
                 @for (f of featuredModels(); track f.key) {
                   <button
                     type="button"
                     (click)="quoteThisCar(f.car)"
-                    class="group flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left text-card-foreground shadow-sm transition-shadow hover:shadow-md"
+                    class="group flex w-40 shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-border bg-card text-left text-card-foreground shadow-sm transition-shadow hover:shadow-md md:w-auto"
                   >
                     <span class="flex aspect-[16/10] items-center justify-center overflow-hidden bg-gradient-to-b from-white to-[oklch(0.9_0.005_280)]">
                       @if (f.car.photoUrl) {
@@ -760,59 +759,37 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
             </section>
           }
 
-          <!-- Shortcuts to the other sections -->
-          <div class="grid gap-3 pt-2 md:grid-cols-3 md:gap-4">
-            <button
-              type="button"
-              (click)="selectSection('quote')"
-              class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
-            >
-              <span class="flex items-center gap-3">
+          <!-- Showroom: address with Google Maps / Waze -->
+          @if (showroom(); as s) {
+            <section class="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm md:flex-row md:items-center md:justify-between">
+              <div class="flex items-start gap-3">
                 <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
-                  <app-icon name="calculator" [size]="20" />
+                  <app-icon name="map-pin" [size]="20" />
                 </span>
-                <span class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold">{{ "Build your own quote" | t }}</span>
-                  <span class="text-xs text-muted-foreground">{{ "See your monthly instalment in under a minute." | t }}</span>
-                </span>
-              </span>
-              <app-icon name="chevron-right" [size]="20" class="shrink-0 text-muted-foreground" />
-            </button>
-
-            <button
-              type="button"
-              (click)="selectSection('budget')"
-              class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
-            >
-              <span class="flex items-center gap-3">
-                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
-                  <app-icon name="wallet" [size]="20" />
-                </span>
-                <span class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold">{{ "Find a car for your budget" | t }}</span>
-                  <span class="text-xs text-muted-foreground">{{ "Tell us your monthly and see the deposit for every car." | t }}</span>
-                </span>
-              </span>
-              <app-icon name="chevron-right" [size]="20" class="shrink-0 text-muted-foreground" />
-            </button>
-
-            <button
-              type="button"
-              (click)="selectSection('cars')"
-              class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-sm transition-colors hover:bg-accent"
-            >
-              <span class="flex items-center gap-3">
-                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
-                  <app-icon name="car" [size]="20" />
-                </span>
-                <span class="flex flex-col gap-0.5">
-                  <span class="text-sm font-semibold">{{ "Browse cars & brochures" | t }}</span>
-                  <span class="text-xs text-muted-foreground">{{ "See every model and open its brochure." | t }}</span>
-                </span>
-              </span>
-              <app-icon name="chevron-right" [size]="20" class="shrink-0 text-muted-foreground" />
-            </button>
-          </div>
+                <div class="flex min-w-0 flex-col gap-1">
+                  <span class="text-sm font-semibold text-foreground">{{ "Visit the Showroom" | t }}</span>
+                  <span class="text-sm font-semibold">{{ s.name || ('Showroom' | t) }}</span>
+                  @if (s.address; as address) {
+                    <p class="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{{ address }}</p>
+                  }
+                </div>
+              </div>
+              <div class="grid auto-cols-fr grid-flow-col gap-2 md:w-72 md:shrink-0">
+                @if (showroomMapsHref(); as href) {
+                  <a [href]="href" target="_blank" rel="noopener noreferrer" class="flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 text-sm font-medium transition-colors hover:bg-accent">
+                    <app-brand-icon name="googlemaps" [size]="18" class="text-[#4285F4]" />
+                    {{ "Google Maps" | t }}
+                  </a>
+                }
+                @if (showroomWazeHref(); as href) {
+                  <a [href]="href" target="_blank" rel="noopener noreferrer" class="flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-3 text-sm font-medium transition-colors hover:bg-accent">
+                    <app-brand-icon name="waze" [size]="18" class="text-[#33CCFF]" />
+                    {{ "Waze" | t }}
+                  </a>
+                }
+              </div>
+            </section>
+          }
 
           <a routerLink="/privacy" [queryParams]="{ lang: pageLang() }" target="_blank" class="self-center py-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
             {{ "Privacy Policy" | t }}
@@ -823,19 +800,19 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
       <!-- Budget: start from the monthly the customer is comfortable with — every car shows the deposit
            that gets it there. Never says anyone can't afford a car; doubts go to the advisor. -->
       @if (section() === 'budget') {
-        <div class="mx-auto flex w-full max-w-5xl flex-col p-4 pb-28 md:p-6 md:pb-28 xl:py-8">
+        <div class="mx-auto flex w-full max-w-5xl flex-col p-4 md:p-6 xl:py-8">
           <div class="flex flex-col gap-1 pb-5">
             <h1 class="text-base font-semibold tracking-tight">{{ "Find a car for your budget" | t }}</h1>
             <p class="text-sm text-muted-foreground">{{ "Start from the monthly you are comfortable with, and see the deposit for every car." | t }}</p>
           </div>
-          <app-budget-finder [vehicles]="budgetVehicles()" [brands]="carsBrands()" [primaryBrand]="bundle()!.defaultBrand" [rules]="budgetRules()" [doubtHref]="qualifyWhatsAppHref()" stickyBottom="bottom-24" (pick)="quoteFromBudget($event)" (searched)="activity?.record('budget_used', null, $event)" />
+          <app-budget-finder [vehicles]="budgetVehicles()" [brands]="carsBrands()" [primaryBrand]="bundle()!.defaultBrand" [rules]="budgetRules()" [doubtHref]="qualifyWhatsAppHref()" (pick)="quoteFromBudget($event)" (searched)="activity?.record('budget_used', null, $event)" />
         </div>
       }
 
       <!-- Compare: up to 3 of the SA's cars side by side, on the same loan as this customer's quote
            (downpayment, tenure and NCD are the Quote tab's own, so the two stay in step). -->
       @if (section() === 'compare') {
-        <div class="mx-auto flex w-full max-w-5xl flex-col p-4 pb-28 md:p-6 md:pb-28 xl:py-8">
+        <div class="mx-auto flex w-full max-w-5xl flex-col p-4 md:p-6 xl:py-8">
           <div class="flex flex-col gap-1 pb-5">
             <h1 class="text-base font-semibold tracking-tight">{{ "Compare cars" | t }}</h1>
             <p class="text-sm text-muted-foreground">{{ "Choose up to 3 cars. Every car is quoted on the same loan." | t }}</p>
@@ -906,7 +883,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
             [setup]="compareSetup()"
             actionLabel="Get this quote"
             quoteBadge="Current quote"
-            stickyClass="top-0 -mx-4 mt-6 px-4 md:-mx-6 md:px-6"
+            stickyClass="top-14 -mx-4 mt-6 px-4 md:-mx-6 md:px-6 xl:top-0"
             (chooseCar)="chooseCompareCar($event.column, $event.vehicleId)"
             (remove)="removeCompareCar($event)"
             (setYear)="setCompareYear($event.index, $event.year)"
@@ -934,7 +911,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
       <!-- Cars:the SA's lineup with brochures, grouped by model. View + quote only — no Share here,
            since this page is the customer's, not the SA's. -->
       @if (section() === 'cars') {
-        <div class="mx-auto flex w-full max-w-7xl flex-col gap-5 p-4 pb-28 md:p-6 md:pb-28 xl:py-8">
+        <div class="mx-auto flex w-full max-w-7xl flex-col gap-5 p-4 md:p-6 xl:py-8">
           <div class="flex flex-col gap-1">
             <h1 class="text-base font-semibold tracking-tight">{{ "Cars & brochures" | t }}</h1>
             <p class="text-sm text-muted-foreground">{{ "Browse the lineup, open a brochure, or get a quote for any car." | t }}</p>
@@ -1026,16 +1003,6 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                   {{ "Quote" | t }}
                 </button>
               </div>
-              @if (testDriveOn()) {
-                <button
-                  type="button"
-                  (click)="openTestDrive(v)"
-                  class="flex items-center justify-center gap-1 rounded-lg border border-border py-2 text-sm font-semibold transition-colors hover:bg-accent"
-                >
-                  <app-icon name="car" [size]="16" />
-                  {{ "Book test drive" | t }}
-                </button>
-              }
             </div>
           </article>
           </ng-template>
@@ -1043,70 +1010,30 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
       }
       </div>
 
-      <!-- Book test drive: optional day preference, then a ready-written WhatsApp -->
-      @if (testDriveCar(); as car) {
-        <div class="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-4" role="dialog" [attr.aria-label]="'Book test drive' | t">
-          <button type="button" [attr.aria-label]="'Close' | t" class="absolute inset-0 bg-black/60 backdrop-blur-sm" (click)="testDriveCar.set(null)"></button>
-          <div class="relative flex w-full max-w-md flex-col gap-4 rounded-t-2xl border border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-card-foreground shadow-xl sm:rounded-2xl">
-            <div class="flex items-start justify-between gap-3">
-              <div class="flex flex-col gap-0.5">
-                <span class="text-base font-bold">{{ "Book test drive" | t }}</span>
-                <span class="text-sm text-muted-foreground">{{ vehicleTitle(car.brand, modelVariantLabel(car.model, car.variant)) }}</span>
-              </div>
-              <button type="button" (click)="testDriveCar.set(null)" [attr.aria-label]="'Close' | t" class="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent">
-                <app-icon name="x" [size]="18" />
-              </button>
-            </div>
-            <div class="flex flex-col gap-2">
-              <span class="text-sm font-semibold text-foreground">{{ "When suits you? (optional)" | t }}</span>
-              <div class="flex flex-wrap gap-1.5">
-                @for (w of testDriveWhens; track w.id) {
-                  <button
-                    type="button"
-                    (click)="testDriveWhen.set(testDriveWhen() === w.id ? null : w.id)"
-                    class="rounded-full border px-3 py-2 text-sm font-semibold transition-colors"
-                    [ngClass]="testDriveWhen() === w.id ? 'border-brand bg-primary text-primary-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-accent'"
-                  >
-                    {{ w.label | t }}
-                  </button>
-                }
-              </div>
-            </div>
-            <button
-              type="button"
-              (click)="sendTestDrive(car)"
-              class="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-sm font-semibold text-white shadow-sm transition-[filter] hover:brightness-95"
-            >
-              <app-brand-icon name="whatsapp" [size]="20" />
-              {{ "Send on WhatsApp" | t }}
+      <!-- Full quote: the poster at full width, scrollable, over everything -->
+      @if (fullQuoteOpen()) {
+        <div class="fixed inset-0 z-50 flex flex-col bg-black" role="dialog" aria-modal="true" [attr.aria-label]="'Your quote' | t">
+          <div class="flex shrink-0 items-center justify-between gap-3 px-4 py-3">
+            <span class="text-base font-semibold text-white">{{ "Your quote" | t }}</span>
+            <button type="button" (click)="fullQuoteOpen.set(false)" class="btn btn-outline border-white/30 text-white hover:bg-white/10">
+              <app-icon name="x" [size]="16" />
+              {{ "Close" | t }}
             </button>
           </div>
+          <!-- Tap the poster to zoom in 2× (scroll around), tap again to fit -->
+          <div class="min-h-0 flex-1 overflow-auto overscroll-contain px-3 pb-6" (click)="$event.target === $event.currentTarget && fullQuoteOpen.set(false)">
+            <canvas
+              #fullQuoteCanvas
+              (click)="fullQuoteZoomed.set(!fullQuoteZoomed())"
+              class="mx-auto block h-auto rounded-xl"
+              [ngClass]="fullQuoteZoomed() ? 'w-[200%] max-w-none cursor-zoom-out' : 'w-full max-w-3xl cursor-zoom-in'"
+            ></canvas>
+          </div>
+          <p class="shrink-0 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-center text-xs text-white/70">
+            {{ (fullQuoteZoomed() ? 'Tap the quote to fit it to the screen.' : 'Tap the quote to zoom in.') | t }}
+          </p>
         </div>
       }
-
-      <!-- Mobile/tablet bottom tab bar -->
-      <nav
-        [attr.aria-label]="'Page sections' | t"
-        class="glass fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)] xl:hidden"
-      >
-        <div role="tablist" class="mx-auto flex max-w-md">
-          @for (t of sections; track t.id) {
-            <button
-              type="button"
-              role="tab"
-              [attr.aria-selected]="section() === t.id"
-              (click)="selectSection(t.id)"
-              class="flex min-w-0 flex-1 flex-col items-center gap-1 pb-2 pt-2 text-xs font-semibold transition-colors"
-              [ngClass]="section() === t.id ? 'text-[var(--shell-accent)]' : 'text-sidebar-muted'"
-            >
-              <span class="flex h-8 w-14 items-center justify-center rounded-full transition-all duration-300" [ngClass]="section() === t.id ? 'logo-chip' : ''">
-                <app-icon [name]="t.icon" [size]="20" />
-              </span>
-              {{ t.label | t }}
-            </button>
-          }
-        </div>
-      </nav>
 
       @if (insuranceBreakdownOpen()) {
         <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1210,7 +1137,30 @@ export class PublicQuoteComponent implements OnInit {
    *  select hidden and never switched away from the SA's Primary Brand, for a link the SA wants
    *  to hand out for one specific brand only. */
   singleBrandMode = this.route.snapshot.data['singleBrand'] === true;
-  mobileTab = signal<'preview' | 'customize'>('preview');
+  /** This month's name in the page's language ("November" / "November", "Disember"…) for the pinned rebate line. */
+  rebateMonth = computed(() => new Date().toLocaleDateString(this.i18n.lang() === 'ms' ? 'ms-MY' : 'en-MY', { month: 'long' }));
+
+  /** The full-quote viewer (tap the poster). */
+  fullQuoteOpen = signal(false);
+  fullQuoteZoomed = signal(false);
+  /** Copies the live poster into the viewer as it opens (drawImage, so a cross-origin car photo
+   *  can't block it the way toDataURL would). */
+  @ViewChild('fullQuoteCanvas') set fullQuoteCanvas(ref: ElementRef<HTMLCanvasElement> | undefined) {
+    const src = this.posterCanvasRef?.nativeElement;
+    const dst = ref?.nativeElement;
+    if (!src || !dst) return;
+    dst.width = src.width;
+    dst.height = src.height;
+    dst.getContext('2d')?.drawImage(src, 0, 0);
+  }
+
+  openFullQuote() {
+    this.fullQuoteZoomed.set(false);
+    this.fullQuoteOpen.set(true);
+  }
+
+  /** Phone / tablet menu drawer (the hamburger). */
+  menuOpen = signal(false);
 
   sections: { id: PageSection; label: string; icon: IconName }[] = [
     // Quote is the page's main feature, so it sits right after Profile; Compare leads on from it.
@@ -1293,7 +1243,11 @@ export class PublicQuoteComponent implements OnInit {
   }
   section = signal<PageSection>('profile');
 
+  /** Top bar title on a phone / tablet. */
+  sectionLabel = computed(() => this.sections.find((t) => t.id === this.section())?.label ?? '');
+
   selectSection(id: PageSection) {
+    this.menuOpen.set(false);
     const changed = this.section() !== id;
     if (id === 'compare' && this.compareSlots().length === 0) {
       const v = this.selectedVehicle();
@@ -1341,6 +1295,10 @@ export class PublicQuoteComponent implements OnInit {
   modelVariantLabel = modelVariantLabel;
   formatPhone = formatMalaysianPhone;
   ncdOptions = NCD_OPTIONS;
+  /** "Year 2" under each NCD box (from the option's own label), "No NCD" for 0%. Same as the Calculator. */
+  ncdYear(opt: { value: number; label: string }): string {
+    return opt.value === 0 ? 'No NCD' : (opt.label.split(' — ')[1] ?? '');
+  }
 
   advisorInitials = computed(() =>
     (this.bundle()?.advisor.name ?? '')
@@ -1418,6 +1376,8 @@ export class PublicQuoteComponent implements OnInit {
   @HostListener('document:keydown.escape')
   onEsc() {
     this.carDropdownOpen = false;
+    this.fullQuoteOpen.set(false);
+    this.menuOpen.set(false);
   }
 
   availableYears = computed(() => yearsForVariant2(this.vehicles(), this.selectedBrand(), this.selectedModelName(), this.selectedVariant()));
@@ -1511,6 +1471,8 @@ export class PublicQuoteComponent implements OnInit {
   /** Same insurance quotation at 0% NCD — what the loan is sized against, so dialling in a better
    *  NCD only shrinks the downpayment (see computeQuotationTotals's loanBasisInsuranceAmount). */
   loanBasisInsurance = computed(() => computeInsuranceBreakdown(this.insuranceDetails(), 0).totalDue);
+  /** What the customer's NCD saves on insurance (shown as "Save RM…"). */
+  ncdSaving = computed(() => Math.max(0, this.loanBasisInsurance() - this.insurance()));
 
   insuranceBreakdownOpen = signal(false);
   openInsuranceBreakdown() {
@@ -1603,8 +1565,8 @@ export class PublicQuoteComponent implements OnInit {
   }
   loanAmountDisplay = computed(() => this.loanAmountDraft() ?? this.loanAmount());
 
-  onLoanAmountInput(value: number) {
-    this.loanAmountDraft.set(Math.max(0, +value || 0));
+  onLoanAmountInput(value: number | null) {
+    this.loanAmountDraft.set(Math.max(0, value ?? 0));
   }
 
   commitLoanAmount() {
@@ -1626,8 +1588,8 @@ export class PublicQuoteComponent implements OnInit {
    *  the same way a manually-typed Loan Amount is. Closest achievable, not exact. */
   monthlyInstallmentDisplay = computed(() => this.monthlyInstallmentDraft() ?? roundCents(this.monthlyInstalment()));
 
-  onMonthlyInstallmentInput(value: number) {
-    this.monthlyInstallmentDraft.set(Math.max(0, +value || 0));
+  onMonthlyInstallmentInput(value: number | null) {
+    this.monthlyInstallmentDraft.set(Math.max(0, value ?? 0));
   }
 
   commitMonthlyInstallment() {
@@ -1781,14 +1743,8 @@ export class PublicQuoteComponent implements OnInit {
    *  step matters most: it's a small text button, and it's how a customer sends the quote on. */
   startTour() {
     const advisor = this.bundle()?.advisor.name || 'your advisor';
-    const showPreview = () => {
-      this.section.set('quote');
-      this.mobileTab.set('preview');
-    };
-    const showCustomize = () => {
-      this.section.set('quote');
-      this.mobileTab.set('customize');
-    };
+    const showPreview = () => this.section.set('quote');
+    const showCustomize = showPreview;
     const steps: TourStep[] = [
       {
         title: this.i18n.t('Build your own quote'),
@@ -1798,7 +1754,7 @@ export class PublicQuoteComponent implements OnInit {
       {
         target: 'quote-preview',
         title: this.i18n.t('Your live quote'),
-        body: this.i18n.t('This is your quote. It updates as you change anything in the Customize tab.'),
+        body: this.i18n.t('This is your quote. It updates as you change anything below. Tap it to see it in full.'),
         before: showPreview,
       },
       {
@@ -1889,37 +1845,6 @@ export class PublicQuoteComponent implements OnInit {
     { value: true, label: 'Yes' },
     { value: false, label: 'No' },
   ];
-
-  // ---------- Book test drive ----------
-
-  testDriveOn = computed(() => !!this.bundle()?.advisor.phoneWa && this.bundle()?.salesDefaults.testDriveEnabled !== false);
-  testDriveCar = signal<Vehicle | null>(null);
-  testDriveWhen = signal<'weekday' | 'weekend' | 'thisweek' | null>(null);
-  readonly testDriveWhens = [
-    { id: 'weekday' as const, label: 'Weekday' },
-    { id: 'weekend' as const, label: 'Weekend' },
-    { id: 'thisweek' as const, label: 'This week' },
-  ];
-
-  openTestDrive(car: Vehicle) {
-    this.testDriveWhen.set(null);
-    this.testDriveCar.set(car);
-  }
-
-  /** The advisor's own message (or the default) with the car filled in, plus the day the customer picked. */
-  sendTestDrive(car: Vehicle) {
-    const lang = this.waLang();
-    const name = this.bundle()!.advisor.name;
-    const carName = vehicleTitle(car.brand, modelVariantLabel(car.model, car.variant));
-    const template = translate(lang, "Hi {name}, I'd like to test drive the {car}. When is a good time?");
-    const when = this.testDriveWhen();
-    const whenText = when === 'weekday' ? 'Preferably on a weekday.' : when === 'weekend' ? 'Preferably on a weekend.' : when === 'thisweek' ? 'This week if possible.' : '';
-    const text = template.split('{name}').join(name).split('{car}').join(carName) + (whenText ? ' ' + translate(lang, whenText) : '');
-    this.activity?.record('test_drive_tapped', car.id);
-    const phone = this.bundle()!.advisor.phoneWa.replace(/[^0-9]/g, '');
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
-    this.testDriveCar.set(null);
-  }
 
   openWhatsAppToAdvisor() {
     const vehicle = this.selectedVehicle();
@@ -2078,7 +2003,6 @@ export class PublicQuoteComponent implements OnInit {
     this.downpaymentType.set('amount');
     this.downpaymentValue.set(pick.deposit);
     this.tenureYears.set(pick.tenureYears);
-    this.mobileTab.set('preview');
     this.selectSection('quote');
   }
 
