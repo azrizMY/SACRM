@@ -35,61 +35,84 @@ import {
 
       <!-- Identity card -->
       <div class="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm">
-        <!-- Cover photo: the banner at the top of your customer link's Profile page -->
-        @if ((editing() ? form.coverUrl : advisor.profile().coverUrl); as cover) {
-          <div class="relative aspect-[4/1] border-b border-border">
-            <img [src]="cover" alt="" class="size-full object-cover" />
-            @if (editing()) {
-              <div class="absolute bottom-2 right-2 flex gap-1.5">
-                <button type="button" (click)="coverInput.click()" class="flex items-center gap-1.5 rounded-md bg-black/70 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-black/85">
-                  <app-icon name="upload" [size]="14" />
-                  Change cover
-                </button>
-                <button type="button" (click)="form.coverUrl = undefined" class="flex items-center gap-1.5 rounded-md bg-black/70 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-black/85">
-                  <app-icon name="trash" [size]="14" />
-                  Remove
-                </button>
-              </div>
-            }
-          </div>
-        } @else if (editing()) {
-          <button
-            type="button"
-            (click)="coverInput.click()"
-            class="flex aspect-[4/1] min-h-28 w-full flex-col items-center justify-center gap-1 border-b border-dashed border-border bg-muted/30 px-4 text-center text-sm font-semibold text-foreground transition-colors hover:bg-accent"
-          >
-            <app-icon name="image" [size]="20" class="text-muted-foreground" />
-            Add a cover photo
-            <span class="text-xs font-normal text-muted-foreground">Shows at the top of your customer link. Without one, it shows one of your cars.</span>
-          </button>
-        }
-        <input #coverInput type="file" accept="image/*" class="hidden" (change)="onCoverFileChange($event)" />
-        <div class="flex flex-col gap-5 p-6 sm:flex-row sm:items-start sm:justify-between">
-          <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div class="relative flex size-20 shrink-0">
-              @if ((editing() ? form.photoUrl : advisor.profile().photoUrl); as photo) {
-                <img [src]="photo" alt="" class="size-20 shrink-0 rounded-full border border-border object-cover" />
-              } @else {
-                <div
-                  class="flex size-20 shrink-0 items-center justify-center rounded-full border border-border text-2xl font-bold logo-chip"
-                >
-                  {{ advisor.initials() }}
+        <!-- Cover + photo, laid out like the customer link's Profile page: the cover on top and your
+             photo sitting on its bottom edge. -->
+        <div class="relative">
+          @if ((editing() ? form.coverUrl : advisor.profile().coverUrl); as cover) {
+            <div class="relative aspect-[4/1] min-h-24 border-b border-border">
+              <img [src]="cover" alt="" class="size-full object-cover" />
+              @if (editing()) {
+                <div class="absolute bottom-2 right-2 flex gap-1.5">
+                  <button type="button" (click)="coverInput.click()" class="flex items-center gap-1.5 rounded-md bg-black/70 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-black/85">
+                    <app-icon name="upload" [size]="14" />
+                    Change cover
+                  </button>
+                  <button type="button" (click)="form.coverUrl = undefined" class="flex items-center gap-1.5 rounded-md bg-black/70 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-black/85">
+                    <app-icon name="trash" [size]="14" />
+                    Remove
+                  </button>
                 </div>
               }
-              @if (editing()) {
-                <button
-                  type="button"
-                  (click)="photoInput.click()"
-                  aria-label="Change photo"
-                  class="absolute -bottom-1.5 -right-1.5 flex size-7 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition-colors hover:bg-accent"
-                >
-                  <app-icon name="upload" [size]="16" />
-                </button>
-                <input #photoInput type="file" accept="image/*" class="hidden" (change)="onPhotoFileChange($event)" />
-              }
             </div>
-            <div class="flex flex-col gap-1.5">
-              @if (editing() && form.photoUrl) {
+          } @else if (editing()) {
+            <button
+              type="button"
+              (click)="coverInput.click()"
+              class="flex aspect-[4/1] min-h-28 w-full flex-col items-center justify-center gap-1 border-b border-dashed border-border bg-muted/30 px-4 pl-32 text-center text-sm font-semibold text-foreground transition-colors hover:bg-accent sm:pl-4"
+            >
+              <app-icon name="image" [size]="20" class="text-muted-foreground" />
+              Add a cover photo
+              <span class="text-xs font-normal text-muted-foreground">Shows at the top of your customer link. Without one, it shows one of your cars.</span>
+            </button>
+          } @else {
+            <!-- No cover yet: the same light backdrop the customer link shows behind one of your cars -->
+            <div class="flex h-24 items-start justify-end border-b border-border bg-gradient-to-b from-white to-[oklch(0.9_0.005_280)] p-3 md:h-28" title="Without a cover photo, your customer link shows one of your cars here.">
+              <span class="rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white">No cover photo yet</span>
+            </div>
+          }
+          <input #coverInput type="file" accept="image/*" class="hidden" (change)="onCoverFileChange($event)" />
+
+          <div class="absolute -bottom-10 left-6 z-10 md:-bottom-12">
+            @if ((editing() ? form.photoUrl : advisor.profile().photoUrl); as photo) {
+              <img [src]="photo" alt="" class="size-20 rounded-full object-cover ring-4 ring-card md:size-24" />
+            } @else {
+              <div class="flex size-20 items-center justify-center rounded-full text-2xl font-bold ring-4 ring-card md:size-24 logo-chip">
+                {{ advisor.initials() }}
+              </div>
+            }
+            @if (editing()) {
+              <button
+                type="button"
+                (click)="photoInput.click()"
+                aria-label="Change photo"
+                class="absolute bottom-0 right-0 flex size-8 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition-colors hover:bg-accent"
+              >
+                <app-icon name="upload" [size]="16" />
+              </button>
+              <input #photoInput type="file" accept="image/*" class="hidden" (change)="onPhotoFileChange($event)" />
+            }
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-4 p-6 pt-14 sm:flex-row sm:items-start sm:justify-between md:pt-16">
+          <div class="flex min-w-0 flex-col gap-1.5">
+            @if (!editing()) {
+              <h3 class="text-xl font-semibold tracking-tight">{{ advisor.profile().name }}</h3>
+              <span class="w-fit rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand">{{ advisor.profile().role }}</span>
+            } @else {
+              <input
+                type="text"
+                [(ngModel)]="form.name"
+                placeholder="Name"
+                class="h-9 w-full rounded-lg border border-input bg-input px-3 text-sm font-semibold text-foreground outline-none focus:border-ring sm:w-56"
+              />
+              <input
+                type="text"
+                [(ngModel)]="form.role"
+                placeholder="Role"
+                class="h-8 w-full rounded-lg border border-input bg-input px-3 text-xs text-foreground outline-none focus:border-ring sm:w-44"
+              />
+              @if (form.photoUrl) {
                 <button
                   type="button"
                   (click)="removePhoto()"
@@ -98,34 +121,17 @@ import {
                   Remove photo
                 </button>
               }
-              @if (photoError(); as err) {
-                <span class="text-xs font-medium text-destructive">{{ err }}</span>
-              }
-              @if (!editing()) {
-                <h3 class="text-xl font-semibold tracking-tight">{{ advisor.profile().name }}</h3>
-                <span class="w-fit rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand">{{ advisor.profile().role }}</span>
-              } @else {
-                <input
-                  type="text"
-                  [(ngModel)]="form.name"
-                  placeholder="Name"
-                  class="h-9 w-full rounded-lg border border-input bg-input px-3 text-sm font-semibold text-foreground outline-none focus:border-ring sm:w-56"
-                />
-                <input
-                  type="text"
-                  [(ngModel)]="form.role"
-                  placeholder="Role"
-                  class="h-8 w-full rounded-lg border border-input bg-input px-3 text-xs text-foreground outline-none focus:border-ring sm:w-44"
-                />
-              }
-            </div>
+            }
+            @if (photoError(); as err) {
+              <span class="text-xs font-medium text-destructive">{{ err }}</span>
+            }
           </div>
 
           @if (!editing()) {
             <button
               type="button"
               (click)="startEdit()"
-              class="flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+              class="flex w-fit shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
             >
               <app-icon name="pencil" [size]="16" />
               Edit Profile
@@ -162,11 +168,15 @@ import {
               }
             </div>
             <div class="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
-              <app-icon name="phone" [size]="18" class="shrink-0 text-brand" />
+              <!-- Customers reach you on WhatsApp (there is no Call button on the customer link) -->
+              <app-brand-icon name="whatsapp" [size]="18" class="shrink-0 text-[#25D366]" />
               @if (!editing()) {
-                <span class="truncate text-sm">{{ formatPhone(advisor.profile().phoneDisplay) }}</span>
+                <span class="flex min-w-0 flex-col leading-tight">
+                  <span class="text-xs text-muted-foreground">WhatsApp</span>
+                  <span class="truncate text-sm">{{ formatPhone(advisor.profile().phoneDisplay) }}</span>
+                </span>
               } @else {
-                <input type="text" [(ngModel)]="form.phoneDisplay" placeholder="e.g. 012-345 6789" class="h-8 w-full bg-transparent text-sm text-foreground outline-none" />
+                <input type="text" [(ngModel)]="form.phoneDisplay" placeholder="WhatsApp number, e.g. 012-345 6789" class="h-8 w-full bg-transparent text-sm text-foreground outline-none" />
               }
             </div>
           </div>
