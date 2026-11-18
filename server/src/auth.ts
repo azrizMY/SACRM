@@ -2,7 +2,8 @@ export const SESSION_COOKIE = 'redline_session';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const PBKDF2_ITERATIONS = 100_000;
 
-export type SessionUser = { id: string; email: string; name: string; publicToken: string };
+export type UserRole = 'user' | 'owner';
+export type SessionUser = { id: string; email: string; name: string; publicToken: string; role: UserRole };
 
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes)
@@ -113,19 +114,19 @@ export async function getUserFromSession(db: D1Database, request: Request): Prom
   const tokenHash = await sha256Hex(token);
   const row = await db
     .prepare(
-      `SELECT users.id as id, users.email as email, users.name as name, users.public_token as publicToken,
+      `SELECT users.id as id, users.email as email, users.name as name, users.public_token as publicToken, users.role as role,
               sessions.expires_at as expiresAt
        FROM sessions JOIN users ON users.id = sessions.user_id
        WHERE sessions.id = ?`,
     )
     .bind(tokenHash)
-    .first<{ id: string; email: string; name: string; publicToken: string; expiresAt: number }>();
+    .first<{ id: string; email: string; name: string; publicToken: string; role: UserRole; expiresAt: number }>();
   if (!row) return null;
   if (row.expiresAt < Date.now()) {
     await db.prepare('DELETE FROM sessions WHERE id = ?').bind(tokenHash).run();
     return null;
   }
-  return { id: row.id, email: row.email, name: row.name, publicToken: row.publicToken };
+  return { id: row.id, email: row.email, name: row.name, publicToken: row.publicToken, role: row.role };
 }
 
 export async function deleteSession(db: D1Database, request: Request): Promise<void> {

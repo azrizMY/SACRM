@@ -6,6 +6,7 @@ import { handleBankersRoute } from './routes/bankers';
 import { handleCustomersRoute } from './routes/customers';
 import { handlePublicRoute } from './routes/public';
 import { handleLinkEventsRoute, handlePublicEvents } from './routes/link-events';
+import { handleCatalogRoute, handleFileRoute, handlePublicCatalog } from './routes/catalog';
 import { json } from './http';
 import { handlePhotoRoute, withLinkPreview } from './link-preview';
 import { withSecurityHeaders } from './security-headers';
@@ -15,6 +16,9 @@ const STATIC_FILE = /\.(?:m?js|css|map|json|webmanifest|png|jpe?g|webp|svg|ico|g
 export interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
+  /** Uploaded catalogue files (logos, car photos, brochures). Optional so the site still runs
+   *  before the store is created; uploads then answer "not set up yet". */
+  FILES?: KVNamespace;
   RESEND_API_KEY: string;
   RESEND_FROM?: string;
 }
@@ -22,6 +26,11 @@ export interface Env {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    // Uploaded catalogue files are files, not API answers: they get file headers (cacheable, no
+    // anti-framing rule, so the browser's PDF viewer can show a brochure).
+    if (url.pathname.startsWith('/api/files/') && request.method === 'GET') {
+      return withSecurityHeaders(await handleFileRoute(env, url.pathname.slice('/api/files/'.length)), false);
+    }
     if (url.pathname.startsWith('/api/')) {
       try {
         return withSecurityHeaders(await handleApi(request, env, url), true);
@@ -43,7 +52,9 @@ export default {
 async function handleApi(request: Request, env: Env, url: URL): Promise<Response> {
   if (url.pathname.startsWith('/api/public/photo/')) return (await handlePhotoRoute(request, env, url)) ?? json({ error: 'Not found' }, 404);
   if (url.pathname.startsWith('/api/public/events/')) return handlePublicEvents(request, env, url);
+  if (url.pathname === '/api/public/catalog' && request.method === 'GET') return handlePublicCatalog(env);
   if (url.pathname.startsWith('/api/public/')) return handlePublicRoute(request, env, url);
+  if (url.pathname.startsWith('/api/catalog/')) return handleCatalogRoute(request, env, url);
   if (url.pathname.startsWith('/api/link-events')) return handleLinkEventsRoute(request, env, url);
   if (url.pathname.startsWith('/api/auth/')) return handleAuthRoute(request, env, url);
   if (url.pathname === '/api/settings') return handleSettingsRoute(request, env);

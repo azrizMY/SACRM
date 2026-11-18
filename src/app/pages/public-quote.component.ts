@@ -1848,6 +1848,7 @@ export class PublicQuoteComponent implements OnInit {
       carImageUrl: vehicle.photoUrl ?? null,
       colours: vehicle.colours ?? [],
       colourSurcharges: vehicle.colourSurcharges ?? {},
+      colourHex: vehicle.colourHex,
       sellingPrice: this.allInPrice(),
       downpayment: this.downpaymentCash(),
       loanAmount: this.loanAmount(),

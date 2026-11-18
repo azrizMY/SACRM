@@ -21,3 +21,10 @@ export const guestGuard: CanActivateFn = () => {
   if (!auth.isAuthenticated()) return true;
   return router.createUrlTree(['/']);
 };
+
+/** Manage Cars: the site owner only. Anyone else lands back on the Calculator. The server refuses
+ *  catalogue changes from other accounts as well, so this only keeps the page out of their way. */
+export const ownerGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  return auth.isOwner() ? true : inject(Router).createUrlTree(['/calculator']);
+};

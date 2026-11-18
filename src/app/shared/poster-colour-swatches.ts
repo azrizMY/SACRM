@@ -76,7 +76,16 @@ const FALLBACK_HEX = '#9E9EA8';
 
 /** Strips a trailing " + Black Roof" (or similar) qualifier before lookup — that stays in the
  *  displayed label, but a two-tone dot for it isn't worth the complexity. */
-export function swatchHexFor(colourName: string): string {
+export function swatchHexFor(colourName: string, ownerHex?: Record<string, string>): string {
+  // The owner's own pick (Manage Cars) wins; otherwise the built-in name lookup.
+  const own = ownerHex?.[colourName];
+  if (own) return own;
   const base = colourName.split('+')[0].trim();
   return COLOUR_SWATCH_HEX[base] ?? FALLBACK_HEX;
+}
+
+/** The built-in dot colour for a name, or null when the name isn't in the lookup — Manage Cars
+ *  uses it to start a new colour's swatch on a sensible value. */
+export function knownSwatchHex(colourName: string): string | null {
+  return COLOUR_SWATCH_HEX[colourName.split('+')[0].trim()] ?? null;
 }

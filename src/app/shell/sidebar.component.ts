@@ -1,7 +1,8 @@
-import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, Output, computed, inject } from '@angular/core';
+import { AuthService } from '../shared/auth.service';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { IconComponent } from '../shared/icon.component';
+import { IconComponent, type IconName } from '../shared/icon.component';
 import { AdvisorService } from '../shared/advisor.service';
 import { UserMenuComponent } from './user-menu.component';
 import { TranslatePipe } from '../shared/i18n';
@@ -42,7 +43,7 @@ import { MENU_PAGES, PAGES } from '../shared/ui-prefs.service';
       <!-- Menu -->
       <nav data-tour="nav-menu" class="flex-1 overflow-y-auto px-3 py-3" [attr.aria-label]="'Main menu' | t">
         <ul class="flex flex-col gap-0.5">
-          @for (item of nav; track item.id) {
+          @for (item of visibleNav(); track item.id) {
             <li>
               <!-- Real links, so a page can be opened in a new tab (Ctrl-click, long-press) -->
               <a
@@ -131,6 +132,11 @@ export class SidebarComponent {
 
   /** The work pages. My Profile, Settings and Log out live in the account menu at the bottom. */
   nav = MENU_PAGES.map((id) => PAGES.find((p) => p.id === id)!);
+  private auth = inject(AuthService);
+  /** The menu, plus Manage Cars at the end for the site owner only. */
+  visibleNav = computed<{ id: string; label: string; icon: IconName }[]>(() =>
+    this.auth.isOwner() ? [...this.nav, { id: 'manage-cars', label: 'Manage Cars', icon: 'database' }] : this.nav,
+  );
 
   activity = inject(LinkActivityService);
   advisor = inject(AdvisorService);

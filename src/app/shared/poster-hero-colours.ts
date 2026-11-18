@@ -79,7 +79,7 @@ function drawChips(ctx: CanvasRenderingContext2D, data: PosterData, top: number,
       const dx = x + CHIP.pad + CHIP.dot;
       ctx.beginPath();
       ctx.arc(dx, y, CHIP.dot, 0, Math.PI * 2);
-      ctx.fillStyle = swatchHexFor(chip.colour);
+      ctx.fillStyle = swatchHexFor(chip.colour, data.colourHex);
       ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,0.6)';
       ctx.lineWidth = 1.5;

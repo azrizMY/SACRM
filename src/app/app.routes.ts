@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard } from './shared/auth.guard';
+import { authGuard, guestGuard, ownerGuard } from './shared/auth.guard';
 import { savedStartPage } from './shared/ui-prefs.service';
 
 // Every page is lazy-loaded so a visitor only downloads the screen they open — the landing page,
@@ -32,6 +32,7 @@ export const routes: Routes = [
       { path: 'links', loadComponent: () => import('./pages/quote-links.component').then((m) => m.QuoteLinksComponent), data: { id: 'links' } },
       { path: 'cars', loadComponent: () => import('./pages/my-cars.component').then((m) => m.MyCarsComponent), data: { id: 'cars' } },
       { path: 'price-settings', loadComponent: () => import('./pages/price-settings.component').then((m) => m.PriceSettingsComponent), data: { id: 'price-settings' } },
+      { path: 'manage-cars', loadComponent: () => import('./pages/manage-cars.component').then((m) => m.ManageCarsComponent), canActivate: [ownerGuard], data: { id: 'manage-cars' } },
       { path: 'profile', loadComponent: () => import('./pages/profile.component').then((m) => m.ProfileComponent), data: { id: 'profile' } },
       { path: 'settings', loadComponent: () => import('./pages/account-settings.component').then((m) => m.AccountSettingsComponent), data: { id: 'settings' } },
       { path: '**', redirectTo: 'calculator' },

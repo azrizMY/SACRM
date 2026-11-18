@@ -41,6 +41,9 @@ export type PosterData = {
    *  note next to that colour's row so the printed list stays honest about which options cost
    *  more, independent of whichever colour is actually selected/quoted. */
   colourSurcharges: Record<string, number>;
+  /** The owner's own dot colour per colour name (Manage Cars); a name without one uses the
+   *  built-in lookup. */
+  colourHex?: Record<string, string>;
 
   sellingPrice: number;
   downpayment: number;

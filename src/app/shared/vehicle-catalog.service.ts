@@ -3,7 +3,20 @@ import { HttpClient } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { SettingsService } from './settings.service';
 import { firstValueFrom } from 'rxjs';
-import { DEFAULT_VEHICLES, VEHICLES, type VehicleOverride } from '../data/calculator-data';
+import { timeout } from 'rxjs/operators';
+import {
+  DEFAULT_VEHICLES,
+  VEHICLES,
+  applyCatalog,
+  type CatalogVehicleData,
+  type CatalogVehicleEntry,
+  type VehicleOverride,
+} from '../data/calculator-data';
+import { setCatalogBrandLogos } from '../data/dashboard-data';
+
+/** A brand row of the owner's shared catalogue: one they added, or a built-in one with a new logo. */
+export type CatalogBrand = { name: string; logoUrl: string | null };
+type CatalogResponse = { brands: CatalogBrand[]; vehicles: CatalogVehicleEntry[] };
 
 /**
  * Owns the runtime-editable pricing catalog (Price Settings): edit a variant's price, rates, and
@@ -57,6 +70,95 @@ export class VehicleCatalogService {
     this.version();
     return this.overridesById.size > 0;
   });
+
+  /** The owner's shared catalogue as last loaded (Manage Cars reads these to show what changed). */
+  catalogBrands = signal<CatalogBrand[]>([]);
+  catalogEntries = signal<CatalogVehicleEntry[]>([]);
+
+  /** Every brand: the ones with cars, plus any the owner added that have no cars yet. */
+  allBrands = computed(() => {
+    const withCars = this.brands();
+    const extra = this.catalogBrands()
+      .map((b) => b.name)
+      .filter((n) => !withCars.includes(n));
+    return [...withCars, ...extra];
+  });
+
+  /** Loads the owner's shared catalogue (brands, cars, logos, photos, brochures) for everyone,
+   *  signed in or not. Runs once at app start, before any account's own price edits are applied.
+   *  A slow or failed load leaves the built-in catalogue in place rather than blocking the app. */
+  async loadCatalog(): Promise<void> {
+    try {
+      const res = await firstValueFrom(this.http.get<CatalogResponse>('/api/public/catalog').pipe(timeout(6000)));
+      this.catalogBrands.set(res.brands ?? []);
+      this.catalogEntries.set(res.vehicles ?? []);
+      this.applyAll();
+    } catch {
+      // Keep the built-in catalogue.
+    }
+  }
+
+  /** Rebuilds the live catalogue: built-in cars, then the owner's shared changes, then this
+   *  account's own Price Settings edits on top, so a user's own price always wins. */
+  private applyAll(): void {
+    applyCatalog(this.catalogEntries());
+    setCatalogBrandLogos(Object.fromEntries(this.catalogBrands().filter((b) => b.logoUrl).map((b) => [b.name, b.logoUrl as string])));
+    for (const v of VEHICLES) {
+      const override = this.overridesById.get(v.id);
+      if (override) Object.assign(v, override);
+    }
+    this.version.update((n) => n + 1);
+  }
+
+  // ---- Owner-only changes (Manage Cars). The server refuses these for any other account. ----
+
+  /** Uploads a logo, car photo or brochure and returns the path to store on the brand or car. */
+  async uploadFile(file: File): Promise<string> {
+    const res = await firstValueFrom(
+      this.http.post<{ url: string }>(`/api/catalog/files?name=${encodeURIComponent(file.name)}`, file, {
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      }),
+    );
+    return res.url;
+  }
+
+  async saveBrand(name: string, logoUrl: string | null): Promise<void> {
+    const saved = await firstValueFrom(this.http.put<CatalogBrand>('/api/catalog/brands', { name, logoUrl }));
+    this.catalogBrands.update((list) => [...list.filter((b) => b.name !== saved.name), saved]);
+    this.applyAll();
+  }
+
+  /** Renames a brand the owner added. The server moves its cars and every account's saved brand
+   *  choices with it; here the catalogue is reloaded, and this account's own choices are moved too
+   *  so they aren't saved back under the old name. */
+  async renameBrand(from: string, to: string): Promise<void> {
+    await firstValueFrom(this.http.post('/api/catalog/brands/rename', { from, to }));
+    const s = this.settings.settings();
+    if (s.dashboardTarget.brand === from) this.settings.updateDashboardTarget({ brand: to });
+    const sold = s.salesDefaults.brandsISell;
+    if (sold?.includes(from)) this.settings.updateSalesDefaults({ brandsISell: sold.map((b) => (b === from ? to : b)) });
+    await this.loadCatalog();
+  }
+
+  async deleteBrand(name: string): Promise<void> {
+    await firstValueFrom(this.http.delete(`/api/catalog/brands/${encodeURIComponent(name)}`));
+    this.catalogBrands.update((list) => list.filter((b) => b.name !== name));
+    this.applyAll();
+  }
+
+  /** Adds a new car, or saves the owner's changes to an existing one (built-in or added). */
+  async saveVehicle(id: string, data: CatalogVehicleData): Promise<void> {
+    await firstValueFrom(this.http.put(`/api/catalog/vehicles/${encodeURIComponent(id)}`, data));
+    this.catalogEntries.update((list) => [...list.filter((e) => e.id !== id), { id, data }]);
+    this.applyAll();
+  }
+
+  /** Deletes a car the owner added, or undoes every owner change to a built-in car. */
+  async deleteVehicle(id: string): Promise<void> {
+    await firstValueFrom(this.http.delete(`/api/catalog/vehicles/${encodeURIComponent(id)}`));
+    this.catalogEntries.update((list) => list.filter((e) => e.id !== id));
+    this.applyAll();
+  }
 
   /** Fetches the signed-in account's saved price/rate/year overrides and applies them onto the
    *  hardcoded catalog — called once per login/session-restore by AuthService, never directly by

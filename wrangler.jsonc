@@ -12,6 +12,8 @@
       "database_id": "6c0b28ac-1ce7-4573-a1e7-83e64095074d"
     }
   ],
+  // Manage Cars uploads (brand logos, car photos, brochures) for Preview deployments.
+  "kv_namespaces": [{ "binding": "FILES", "id": "51fc2276c00345fa9c1d47c3524fbb5c" }],
   // RESEND_API_KEY is a real secret — set it with
   // `wrangler pages secret put RESEND_API_KEY --project-name sacrm` (and separately for the
   // preview environment), never in this file.
@@ -29,6 +31,8 @@
           "database_id": "7ffbc12b-99be-4fb1-a72e-7db1c4b29501"
         }
       ],
+      // Manage Cars uploads on the live site (bindings aren't inherited, so it's listed again here).
+      "kv_namespaces": [{ "binding": "FILES", "id": "a73af78ce10e4ce28403b661530b5fa3" }],
       "vars": {
         "RESEND_FROM": "Redline <onboarding@resend.dev>"
       }

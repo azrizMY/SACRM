@@ -143,3 +143,42 @@ export async function compressImageFile(file: File, options: CompressOptions): P
 
   return encodeJpegWithBudget(drawAt(width, height), options.maxBytes);
 }
+
+/** Below this, an image that's already small enough is uploaded as it is. */
+const SMALL_ENOUGH_BYTES = 400 * 1024;
+
+/**
+ * Shrinks a photo or logo before it's uploaded (Manage Cars): at most `maxSide` pixels on its
+ * longest side, saved as WebP, which keeps a clear (transparent) background, unlike JPEG. Browsers
+ * that can't write WebP (older Safari) get PNG instead. SVGs, non-images, files already small, and
+ * any result that wouldn't actually be smaller are left exactly as they were.
+ */
+export async function shrinkImageForUpload(file: File, maxSide: number): Promise<File> {
+  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') return file;
+  let img: HTMLImageElement;
+  try {
+    img = await loadImage(file);
+  } catch {
+    return file;
+  }
+  const longest = Math.max(img.naturalWidth, img.naturalHeight);
+  const scale = longest > maxSide ? maxSide / longest : 1;
+  if (scale === 1 && file.size <= SMALL_ENOUGH_BYTES) return file;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return file;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  const toBlob = (type: string, quality?: number) => new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
+  let blob = await toBlob('image/webp', 0.86);
+  if (!blob || blob.type !== 'image/webp') blob = await toBlob('image/png');
+  if (!blob || blob.size >= file.size) return file;
+
+  const ext = blob.type === 'image/webp' ? 'webp' : 'png';
+  const name = `${file.name.replace(/\.[^.]+$/, '') || 'image'}.${ext}`;
+  return new File([blob], name, { type: blob.type });
+}

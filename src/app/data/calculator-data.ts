@@ -52,6 +52,9 @@ export type Vehicle = {
    *  top of `price` when that exact colour is selected. Not every colour has one; a colour absent
    *  from this map (or the map itself absent) means RM0 surcharge. */
   colourSurcharges?: Record<string, number>;
+  /** The dot colour (#rrggbb) for a factory colour, set by the owner in Manage Cars. A colour
+   *  without one uses the poster's built-in name lookup (poster-colour-swatches.ts). */
+  colourHex?: Record<string, string>;
   /** Every model year this variant is available in — e.g. an older year a showroom still has in
    *  stock — each with its own rebate and additional rebate (see VehicleYear); price, rates, and
    *  insurance are identical across a variant's model years, so they live once here instead.
@@ -237,6 +240,82 @@ export const VEHICLES: Vehicle[] = [
  *  kept only so a from-scratch reset is possible later; never mutated itself. Clones `years` too,
  *  since it's an array a reset must not still be sharing with the live (possibly edited) catalog. */
 export const DEFAULT_VEHICLES: Vehicle[] = VEHICLES.map((v) => ({ ...v, years: v.years.map((y) => ({ ...y })) }));
+
+/** The catalogue exactly as built into the code, before the owner's shared catalogue is applied
+ *  (see applyCatalog). Never changed. */
+export const BUILT_IN_VEHICLES: readonly Vehicle[] = VEHICLES.map((v) => cloneVehicle(v));
+const BUILT_IN_IDS = new Set(BUILT_IN_VEHICLES.map((v) => v.id));
+
+export function isBuiltInVehicle(id: string): boolean {
+  return BUILT_IN_IDS.has(id);
+}
+
+/** One row of the owner's shared catalogue: a whole new variant, the changed fields of a built-in
+ *  one, or `{ hidden: true }` to take a built-in variant off the list. A null photo or brochure
+ *  means "remove it". */
+export type CatalogVehicleData = Partial<Omit<Vehicle, 'id' | 'photoUrl' | 'brochureUrl'>> & {
+  photoUrl?: string | null;
+  brochureUrl?: string | null;
+  hidden?: boolean;
+  /** With `hidden`: the owner deleted this built-in variant. It's off every list like a hidden one,
+   *  and Manage Cars only shows it under "Deleted cars", where it can be restored. */
+  deleted?: boolean;
+};
+export type CatalogVehicleEntry = { id: string; data: CatalogVehicleData };
+
+function cloneVehicle(v: Vehicle): Vehicle {
+  return {
+    ...v,
+    years: v.years.map((y) => ({ ...y })),
+    ...(v.colours ? { colours: [...v.colours] } : {}),
+    ...(v.colourSurcharges ? { colourSurcharges: { ...v.colourSurcharges } } : {}),
+    ...(v.colourHex ? { colourHex: { ...v.colourHex } } : {}),
+  };
+}
+
+/** The built-in catalogue with the owner's shared entries applied. A new variant missing its
+ *  identity or price is skipped rather than half-shown. */
+export function catalogWith(entries: readonly CatalogVehicleEntry[]): Vehicle[] {
+  const byId = new Map(entries.map((e) => [e.id, e.data]));
+  const out: Vehicle[] = [];
+  for (const base of BUILT_IN_VEHICLES) {
+    const data = byId.get(base.id);
+    if (data?.hidden) continue;
+    out.push(data ? mergeVehicle(cloneVehicle(base), data) : cloneVehicle(base));
+  }
+  for (const { id, data } of entries) {
+    if (BUILT_IN_IDS.has(id) || data.hidden) continue;
+    if (!data.brand || !data.model || !data.variant || typeof data.price !== 'number') continue;
+    out.push(mergeVehicle({ id, brand: data.brand, model: data.model, variant: data.variant, price: data.price, years: [{ year: new Date().getFullYear() }] }, data));
+  }
+  return out;
+}
+
+function mergeVehicle(target: Vehicle, data: CatalogVehicleData): Vehicle {
+  const { hidden: _hidden, deleted: _deleted, photoUrl, brochureUrl, ...rest } = data;
+  Object.assign(target, rest);
+  if (rest.years?.length) target.years = rest.years.map((y) => ({ ...y }));
+  if (rest.colours) target.colours = [...rest.colours];
+  if (rest.colourHex) target.colourHex = { ...rest.colourHex };
+  if (photoUrl !== undefined) {
+    if (photoUrl) target.photoUrl = photoUrl;
+    else delete target.photoUrl;
+  }
+  if (brochureUrl !== undefined) {
+    if (brochureUrl) target.brochureUrl = brochureUrl;
+    else delete target.brochureUrl;
+  }
+  return target;
+}
+
+/** Swaps the owner's shared catalogue into VEHICLES and DEFAULT_VEHICLES in place, so every page
+ *  that already imports them sees it. Per-account Price Settings edits are applied after this (see
+ *  VehicleCatalogService), so a user's own price always wins over the owner's. */
+export function applyCatalog(entries: readonly CatalogVehicleEntry[]): void {
+  const next = catalogWith(entries);
+  VEHICLES.splice(0, VEHICLES.length, ...next);
+  DEFAULT_VEHICLES.splice(0, DEFAULT_VEHICLES.length, ...next.map((v) => cloneVehicle(v)));
+}
 
 /** Only the fields Price Settings can actually edit at runtime — price, rates, and
  *  model years/rebates. Brand/model/variant identity, other insurance figures, and photo/brochure
