@@ -4,14 +4,16 @@ import { AppUpdateService } from './shared/app-update.service';
 import { InstallService } from './shared/install.service';
 import { ThemeService } from './shared/theme.service';
 import { TourOverlayComponent } from './shared/tour-overlay.component';
+import { UpdateBannerComponent } from './shared/update-banner.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, TourOverlayComponent],
+  imports: [RouterOutlet, TourOverlayComponent, UpdateBannerComponent],
   template: `
     <router-outlet />
     <app-tour-overlay />
+    <app-update-banner />
   `,
 })
 export class AppComponent {
