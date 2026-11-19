@@ -209,22 +209,16 @@ import { BrandChipsComponent } from './brand-chips.component';
       } @else {
       <!-- Draft B: the three ways to size the loan sit together; changing any one moves the other two -->
       <div role="group" [attr.aria-label]="'Quick downpayment presets' | t" class="flex flex-wrap gap-1.5">
-        <button
-          type="button"
-          (click)="applyDownpaymentPreset('tenPercent')"
-          class="rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors"
-          [ngClass]="isDownpaymentPreset('tenPercent') ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-        >
-          10%
-        </button>
-        <button
-          type="button"
-          (click)="applyDownpaymentPreset('fullLoan')"
-          class="rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors"
-          [ngClass]="isDownpaymentPreset('fullLoan') ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-        >
-          {{ minDownpayment() > 0 ? ('Minimum' | t) : ('Full Loan' | t) }}
-        </button>
+        @for (p of downpaymentPresets; track $index) {
+          <button
+            type="button"
+            (click)="applyDownpaymentPreset(p)"
+            class="rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors"
+            [ngClass]="isDownpaymentPreset(p) ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+          >
+            {{ downpaymentPresetLabel(p) | t }}
+          </button>
+        }
       </div>
 
       <div class="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5 border-l-2 border-primary pl-3">
@@ -343,11 +337,11 @@ import { BrandChipsComponent } from './brand-chips.component';
                 role="radio"
                 [attr.aria-checked]="ncd() === opt.value"
                 (click)="ncd.set(opt.value)"
-                class="flex flex-col items-center justify-center rounded-lg border px-1 py-1.5 leading-tight transition-colors"
-                [ngClass]="ncd() === opt.value ? 'border-brand bg-brand-soft' : 'border-control hover:bg-accent'"
+                class="flex flex-col items-center justify-center rounded-lg px-1 py-1.5 leading-tight transition-colors"
+                [ngClass]="ncd() === opt.value ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
               >
                 <span class="text-sm font-bold tabular">{{ opt.value }}%</span>
-                <span class="text-xs" [ngClass]="ncd() === opt.value ? 'text-foreground' : 'text-muted-foreground'">{{ ncdYear(opt) | t }}</span>
+                <span class="text-xs" [ngClass]="ncd() === opt.value ? 'text-primary-foreground/85' : ''">{{ ncdYear(opt) | t }}</span>
               </button>
             }
           </div>
@@ -856,6 +850,14 @@ export class QuoteControlsComponent {
 
   onCashbackAmountChange(...args: Parameters<QuoteEngine['onCashbackAmountChange']>) {
     return this.q.onCashbackAmountChange(...args);
+  }
+
+  get downpaymentPresets() {
+    return this.q.downpaymentPresets;
+  }
+
+  downpaymentPresetLabel(...args: Parameters<QuoteEngine['downpaymentPresetLabel']>) {
+    return this.q.downpaymentPresetLabel(...args);
   }
 
   applyDownpaymentPreset(...args: Parameters<QuoteEngine['applyDownpaymentPreset']>) {

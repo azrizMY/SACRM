@@ -10,13 +10,14 @@ import {
   applyCatalog,
   type CatalogVehicleData,
   type CatalogVehicleEntry,
+  type ModelOrder,
   type VehicleOverride,
 } from '../data/calculator-data';
 import { setCatalogBrandLogos } from '../data/dashboard-data';
 
 /** A brand row of the owner's shared catalogue: one they added, or a built-in one with a new logo. */
 export type CatalogBrand = { name: string; logoUrl: string | null };
-type CatalogResponse = { brands: CatalogBrand[]; vehicles: CatalogVehicleEntry[] };
+type CatalogResponse = { brands: CatalogBrand[]; vehicles: CatalogVehicleEntry[]; modelOrder?: ModelOrder };
 
 /**
  * Owns the runtime-editable pricing catalog (Price Settings): edit a variant's price, rates, and
@@ -74,6 +75,8 @@ export class VehicleCatalogService {
   /** The owner's shared catalogue as last loaded (Manage Cars reads these to show what changed). */
   catalogBrands = signal<CatalogBrand[]>([]);
   catalogEntries = signal<CatalogVehicleEntry[]>([]);
+  /** The owner's model order per brand (Manage Cars → Reorder). */
+  modelOrder = signal<ModelOrder>({});
 
   /** Every brand: the ones with cars, plus any the owner added that have no cars yet. */
   allBrands = computed(() => {
@@ -92,6 +95,7 @@ export class VehicleCatalogService {
       const res = await firstValueFrom(this.http.get<CatalogResponse>('/api/public/catalog').pipe(timeout(6000)));
       this.catalogBrands.set(res.brands ?? []);
       this.catalogEntries.set(res.vehicles ?? []);
+      this.modelOrder.set(res.modelOrder ?? {});
       this.applyAll();
     } catch {
       // Keep the built-in catalogue.
@@ -101,7 +105,7 @@ export class VehicleCatalogService {
   /** Rebuilds the live catalogue: built-in cars, then the owner's shared changes, then this
    *  account's own Price Settings edits on top, so a user's own price always wins. */
   private applyAll(): void {
-    applyCatalog(this.catalogEntries());
+    applyCatalog(this.catalogEntries(), this.modelOrder());
     setCatalogBrandLogos(Object.fromEntries(this.catalogBrands().filter((b) => b.logoUrl).map((b) => [b.name, b.logoUrl as string])));
     for (const v of VEHICLES) {
       const override = this.overridesById.get(v.id);
@@ -120,6 +124,13 @@ export class VehicleCatalogService {
       }),
     );
     return res.url;
+  }
+
+  /** Saves the order of one brand's models for everyone; every list in the app follows it. */
+  async saveModelOrder(brand: string, models: string[]): Promise<void> {
+    await firstValueFrom(this.http.put('/api/catalog/model-order', { brand, models }));
+    this.modelOrder.update((o) => ({ ...o, [brand]: models }));
+    this.applyAll();
   }
 
   async saveBrand(name: string, logoUrl: string | null): Promise<void> {

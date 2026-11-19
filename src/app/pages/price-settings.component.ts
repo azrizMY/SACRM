@@ -815,13 +815,12 @@ export class PriceSettingsComponent {
       .sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]))
       .map(([brand, models]) => ({
         brand,
-        models: Array.from(models.entries())
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([model, rows]) => ({
-            key: `${brand}|${model}`,
-            model,
-            rows: rows.sort((a, b) => a.variant.localeCompare(b.variant)),
-          })),
+        // Models and variants in the owner's shared order (Manage Cars → Reorder), like every list.
+        models: Array.from(models.entries()).map(([model, rows]) => ({
+          key: `${brand}|${model}`,
+          model,
+          rows,
+        })),
       }));
   });
 

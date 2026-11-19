@@ -181,12 +181,64 @@ function errorText(err: unknown, fallback: string): string {
         <section class="flex flex-col gap-4">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <h2 class="text-base font-semibold">{{ brand }} cars</h2>
-            <!-- A new model here; another variant of an existing model is "Add variant" on its group -->
-            <button type="button" class="btn btn-primary" (click)="openCarForm()">
-              <app-icon name="plus" [size]="16" /> Add model
-            </button>
+            <span class="flex items-center gap-2">
+              <!-- The order of this brand's models everywhere in the app, for every account -->
+              @if (modelNames().length > 1 && reorder()?.brand !== brand) {
+                <button type="button" class="btn btn-outline" (click)="startReorder(brand)">
+                  <app-icon name="chevrons-up-down" [size]="16" /> Reorder
+                </button>
+              }
+              <!-- A new model here; another variant of an existing model is "Add variant" on its group -->
+              <button type="button" class="btn btn-primary" (click)="openCarForm()">
+                <app-icon name="plus" [size]="16" /> Add model
+              </button>
+            </span>
           </div>
 
+          @if (reorder(); as r) {
+            @if (r.brand === brand) {
+              <div class="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
+                <div class="flex flex-wrap items-start justify-between gap-2">
+                  <div class="flex min-w-0 flex-col gap-0.5">
+                    <span class="text-sm font-semibold">Order of {{ brand }} models</span>
+                    <span class="text-xs text-muted-foreground">Drag, or use the arrows. Everyone sees this order: Calculator, Catalog, Live Mode, Compare, Price Settings and customer links.</span>
+                  </div>
+                  <button type="button" class="btn btn-outline btn-sm" (click)="sortReorderByPrice()">
+                    <app-icon name="arrow-up" [size]="14" /> Sort by price
+                  </button>
+                </div>
+                <ol class="flex flex-col gap-1.5">
+                  @for (m of r.models; track m; let i = $index; let first = $first; let last = $last) {
+                    <li
+                      draggable="true"
+                      (dragstart)="onReorderDragStart($event, i)"
+                      (dragover)="onReorderDragOver($event, i)"
+                      (drop)="$event.preventDefault()"
+                      (dragend)="dragFrom.set(null)"
+                      class="flex items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-colors"
+                      [ngClass]="dragFrom() === i ? 'border-brand bg-brand-soft' : 'border-border bg-background'"
+                    >
+                      <app-icon name="grip-vertical" [size]="18" class="hidden shrink-0 cursor-grab text-muted-foreground sm:block" />
+                      <span class="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold tabular-nums">{{ i + 1 }}</span>
+                      <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ m }} <span class="font-normal text-muted-foreground">· from {{ rm(modelFromPrice(m)) }}</span></span>
+                      <button type="button" class="btn btn-outline btn-sm size-8 p-0" [disabled]="first" (click)="moveModel(i, -1)" [attr.aria-label]="'Move ' + m + ' up'">
+                        <app-icon name="chevron-up" [size]="16" />
+                      </button>
+                      <button type="button" class="btn btn-outline btn-sm size-8 p-0" [disabled]="last" (click)="moveModel(i, 1)" [attr.aria-label]="'Move ' + m + ' down'">
+                        <app-icon name="chevron-down" [size]="16" />
+                      </button>
+                    </li>
+                  }
+                </ol>
+                <div class="flex items-center justify-end gap-2">
+                  <button type="button" class="btn" (click)="reorder.set(null)" [disabled]="savingOrder()">Cancel</button>
+                  <button type="button" class="btn btn-primary" (click)="saveReorder()" [disabled]="savingOrder()">{{ savingOrder() ? 'Saving…' : 'Done' }}</button>
+                </div>
+              </div>
+            }
+          }
+
+          @if (reorder()?.brand !== brand) {
           @for (g of modelGroups(); track g.model) {
             <div class="flex flex-col gap-1.5">
               <div class="flex items-baseline justify-between gap-3 px-0.5">
@@ -271,6 +323,7 @@ function errorText(err: unknown, fallback: string): string {
               <h3>No {{ brand }} cars yet</h3>
               <p>Press Add model to add the first one.</p>
             </div>
+          }
           }
 
           <!-- Built-in cars you deleted: out of the way, but a mistake can still be undone -->
@@ -501,7 +554,12 @@ export class ManageCarsComponent {
       edited: false,
       hidden: true,
     }));
-    return [...shown, ...hidden].sort((a, b) => a.vehicle.model.localeCompare(b.vehicle.model) || a.vehicle.price - b.vehicle.price);
+    // In the owner's shared order (Reorder): models as everywhere else, cheapest variant first; a
+    // model whose cars are all hidden goes last.
+    const rank = new Map<string, number>();
+    for (const r of shown) if (!rank.has(r.vehicle.model)) rank.set(r.vehicle.model, rank.size);
+    const at = (r: CarRow) => rank.get(r.vehicle.model) ?? Number.MAX_SAFE_INTEGER;
+    return [...shown, ...hidden].sort((a, b) => at(a) - at(b) || a.vehicle.model.localeCompare(b.vehicle.model) || a.vehicle.price - b.vehicle.price);
   });
 
   /** Built-in cars of the selected brand the owner deleted — only listed so they can be restored. */
@@ -513,7 +571,7 @@ export class ManageCarsComponent {
   });
   showDeleted = signal(false);
 
-  /** The rows grouped by model, models in name order, cheapest variant first. */
+  /** The rows grouped by model, models in the owner's order, cheapest variant first. */
   modelGroups = computed(() => {
     const out: { model: string; rows: CarRow[] }[] = [];
     for (const r of this.rows()) {
@@ -525,6 +583,71 @@ export class ManageCarsComponent {
   });
 
   modelNames = computed(() => Array.from(new Set(this.rows().map((r) => r.vehicle.model))));
+
+  // ---- Reorder: the order of a brand's models for everyone ----
+  reorder = signal<{ brand: string; models: string[] } | null>(null);
+  dragFrom = signal<number | null>(null);
+  savingOrder = signal(false);
+
+  startReorder(brand: string) {
+    this.reorder.set({ brand, models: [...this.modelNames()] });
+  }
+
+  /** The cheapest variant's price, shown beside each model while reordering. */
+  modelFromPrice(model: string): number {
+    const prices = this.rows().filter((r) => r.vehicle.model === model).map((r) => r.vehicle.price);
+    return prices.length ? Math.min(...prices) : 0;
+  }
+
+  moveModel(index: number, step: -1 | 1) {
+    const r = this.reorder();
+    if (!r) return;
+    const to = index + step;
+    if (to < 0 || to >= r.models.length) return;
+    const models = [...r.models];
+    [models[index], models[to]] = [models[to], models[index]];
+    this.reorder.set({ ...r, models });
+  }
+
+  onReorderDragStart(event: DragEvent, index: number) {
+    event.dataTransfer?.setData('text/plain', String(index));
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+    this.dragFrom.set(index);
+  }
+
+  /** Moves the dragged model live as it passes over another row. */
+  onReorderDragOver(event: DragEvent, index: number) {
+    event.preventDefault();
+    const from = this.dragFrom();
+    const r = this.reorder();
+    if (from === null || !r || from === index) return;
+    const models = [...r.models];
+    const [moved] = models.splice(from, 1);
+    models.splice(index, 0, moved);
+    this.reorder.set({ ...r, models });
+    this.dragFrom.set(index);
+  }
+
+  sortReorderByPrice() {
+    const r = this.reorder();
+    if (!r) return;
+    this.reorder.set({ ...r, models: [...r.models].sort((a, b) => this.modelFromPrice(a) - this.modelFromPrice(b)) });
+  }
+
+  async saveReorder(): Promise<void> {
+    const r = this.reorder();
+    if (!r || this.savingOrder()) return;
+    this.savingOrder.set(true);
+    try {
+      await this.catalog.saveModelOrder(r.brand, r.models);
+      this.reorder.set(null);
+      this.toast.show(`${r.brand} order saved. Everyone sees it now.`);
+    } catch (err) {
+      this.toast.show(errorText(err, "Couldn't save the order. Please try again."));
+    } finally {
+      this.savingOrder.set(false);
+    }
+  }
 
   constructor() {
     const first = this.brands()[0];

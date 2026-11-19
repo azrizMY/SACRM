@@ -49,6 +49,7 @@ import { BudgetFinderComponent, type BudgetPick } from '../shared/budget-finder.
 import { BrandChipsComponent } from '../shared/brand-chips.component';
 import { ScrollRowComponent } from '../shared/scroll-row.component';
 import { LinkActivityRecorder } from '../shared/link-activity-recorder';
+import { DOWNPAYMENT_PRESETS, type DownpaymentPreset } from '../shared/quote-engine';
 import type { BudgetRules } from '../shared/budget-finder';
 
 /** The full 1-9 year range the tenure picker offers — same range as the Calculator's own poster
@@ -421,22 +422,16 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
               </div>
 
               <div data-tour="quote-downpayment" role="group" [attr.aria-label]="'Quick downpayment presets' | t" class="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  (click)="applyDownpaymentPreset('tenPercent')"
-                  class="rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors"
-                  [ngClass]="isDownpaymentPreset('tenPercent') ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                >
-                  10%
-                </button>
-                <button
-                  type="button"
-                  (click)="applyDownpaymentPreset('fullLoan')"
-                  class="rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors"
-                  [ngClass]="isDownpaymentPreset('fullLoan') ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-                >
-                  {{ minDownpayment() > 0 ? ('Minimum' | t) : ('Full Loan' | t) }}
-                </button>
+                @for (p of downpaymentPresets; track $index) {
+                  <button
+                    type="button"
+                    (click)="applyDownpaymentPreset(p)"
+                    class="rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors"
+                    [ngClass]="isDownpaymentPreset(p) ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                  >
+                    {{ downpaymentPresetLabel(p) | t }}
+                  </button>
+                }
               </div>
 
               <div class="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5 border-l-2 border-primary pl-3">
@@ -537,11 +532,11 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
                       role="radio"
                       [attr.aria-checked]="ncd() === opt.value"
                       (click)="ncd.set(opt.value)"
-                      class="flex flex-col items-center justify-center rounded-lg border px-1 py-1.5 leading-tight transition-colors"
-                      [ngClass]="ncd() === opt.value ? 'border-brand bg-brand-soft' : 'border-control hover:bg-accent'"
+                      class="flex flex-col items-center justify-center rounded-lg px-1 py-1.5 leading-tight transition-colors"
+                      [ngClass]="ncd() === opt.value ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
                     >
                       <span class="text-sm font-bold tabular">{{ opt.value }}%</span>
-                      <span class="text-xs" [ngClass]="ncd() === opt.value ? 'text-foreground' : 'text-muted-foreground'">{{ ncdYear(opt) | t }}</span>
+                      <span class="text-xs" [ngClass]="ncd() === opt.value ? 'text-primary-foreground/85' : ''">{{ ncdYear(opt) | t }}</span>
                     </button>
                   }
                 </div>
@@ -631,7 +626,7 @@ type PageSection = 'quote' | 'profile' | 'budget' | 'compare' | 'cars';
             <div class="relative bg-gradient-to-b from-white to-[oklch(0.9_0.005_280)]" [ngClass]="bundle()!.advisor.coverUrl ? 'aspect-[4/1]' : 'h-28 sm:h-36 md:h-44'">
               @if (bundle()!.advisor.coverUrl; as cover) {
                 <img [src]="cover" alt="" class="absolute inset-0 size-full object-cover" />
-              } @else if (featuredModels()[0]?.car?.photoUrl) {
+              } @else if (featuredModels().length && featuredModels()[0].car.photoUrl) {
                 <img [src]="featuredModels()[0]!.car.photoUrl! | carShadow" alt="" class="absolute inset-y-0 right-0 h-full w-2/3 object-contain object-right p-2 md:w-1/2 md:p-3" />
               }
               <div class="absolute -bottom-10 left-5 z-10 md:-bottom-12 md:left-7">
@@ -1526,24 +1521,37 @@ export class PublicQuoteComponent implements OnInit {
   // back before the customer finishes — a draft signal holds the raw typed number until blur/Enter.
   private loanAmountDraft = signal<number | null>(null);
 
-  /** One-tap downpayment setups: 10% of the price, or Full Loan (no cash down beyond the RM100
-   *  rounding remainder). */
-  applyDownpaymentPreset(preset: 'tenPercent' | 'fullLoan') {
+  /** One-tap downpayment setups: 10% of the price, Full Loan (no cash down beyond the RM100
+   *  rounding remainder, or the car's minimum downpayment), or an RM 10k deposit. */
+  readonly downpaymentPresets = DOWNPAYMENT_PRESETS;
+
+  applyDownpaymentPreset(preset: DownpaymentPreset) {
     this.loanAmountDraft.set(null);
     this.monthlyInstallmentDraft.set(null);
-    if (preset === 'tenPercent') {
-      this.downpaymentType.set('percent');
-      this.downpaymentValue.set(10);
-    } else {
+    if (preset === 'fullLoan') {
       this.downpaymentType.set('amount');
       this.downpaymentValue.set(this.minCashNeeded());
+    } else if ('percent' in preset) {
+      this.downpaymentType.set('percent');
+      this.downpaymentValue.set(preset.percent);
+    } else {
+      this.downpaymentType.set('amount');
+      this.downpaymentValue.set(preset.amount);
     }
   }
 
-  isDownpaymentPreset(preset: 'tenPercent' | 'fullLoan'): boolean {
+  isDownpaymentPreset(preset: DownpaymentPreset): boolean {
     const type = this.downpaymentType();
-    if (preset === 'tenPercent') return type === 'percent' && this.downpaymentValue() === 10;
-    return type === 'amount' && this.downpaymentValue() === this.minCashNeeded();
+    if (preset === 'fullLoan') return type === 'amount' && this.downpaymentValue() === this.minCashNeeded();
+    if ('percent' in preset) return type === 'percent' && this.downpaymentValue() === preset.percent;
+    return type === 'amount' && this.downpaymentValue() === preset.amount;
+  }
+
+  /** "10%", "RM 10k", or "Full Loan" ("Minimum" for a car with a minimum downpayment). */
+  downpaymentPresetLabel(preset: DownpaymentPreset): string {
+    if (preset === 'fullLoan') return this.minDownpayment() > 0 ? 'Minimum' : 'Full Loan';
+    if ('percent' in preset) return `${preset.percent}%`;
+    return preset.amount >= 1000 ? `RM ${preset.amount / 1000}k` : `RM ${preset.amount}`;
   }
 
   /** Unlike Loan Amount/Monthly Installment (which need a draft signal so the derived, rounded
@@ -1766,7 +1774,7 @@ export class PublicQuoteComponent implements OnInit {
       {
         target: 'quote-downpayment',
         title: this.i18n.t('Set your downpayment'),
-        body: this.i18n.t('Tap 10% or Full Loan for a quick setup, or type your own amount.'),
+        body: this.i18n.t('Tap 10%, Full Loan or RM 10k for a quick setup, or type your own amount.'),
         before: showCustomize,
       },
       {
