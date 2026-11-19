@@ -32,14 +32,32 @@ const FILE_PATH = /^\/(?:api\/files\/f_[0-9a-f-]{36}|(?:cars|brochures|brands)\/
 type CatalogVehicleData = Record<string, unknown>;
 
 export async function handlePublicCatalog(env: Env): Promise<Response> {
-  const [brands, vehicles] = await Promise.all([
+  const [brands, vehicles, modelOrder] = await Promise.all([
     env.DB.prepare('SELECT name, logo_url AS logoUrl FROM catalog_brands ORDER BY name').all<{ name: string; logoUrl: string | null }>(),
     env.DB.prepare('SELECT id, data FROM catalog_vehicles ORDER BY updated_at').all<{ id: string; data: string }>(),
+    loadModelOrder(env),
   ]);
   return json({
     brands: brands.results,
     vehicles: vehicles.results.map((r) => ({ id: r.id, data: JSON.parse(r.data) as CatalogVehicleData })),
+    modelOrder,
   });
+}
+
+/** The owner's model order per brand. An empty answer (never an error) if the table is missing, so
+ *  the catalogue still loads before its migration has run. */
+async function loadModelOrder(env: Env): Promise<Record<string, string[]>> {
+  try {
+    const rows = await env.DB.prepare('SELECT brand, models FROM catalog_model_order').all<{ brand: string; models: string }>();
+    const out: Record<string, string[]> = {};
+    for (const r of rows.results) {
+      const models = JSON.parse(r.models);
+      if (Array.isArray(models)) out[r.brand] = models.filter((m): m is string => typeof m === 'string');
+    }
+    return out;
+  } catch {
+    return {};
+  }
 }
 
 export async function handleFileRoute(env: Env, key: string): Promise<Response> {
@@ -82,6 +100,26 @@ export async function handleCatalogRoute(request: Request, env: Env, url: URL): 
   // holds the old name moves in one batch: its brand row, its cars, and every account's Primary
   // Brand and "Brands I sell". (Built-in brands live in the app's code and aren't renamed; the
   // Manage Cars page only offers this for brands the owner added.)
+  if (url.pathname === '/api/catalog/model-order' && request.method === 'PUT') {
+    const body = await readJsonBody<{ brand?: unknown; models?: unknown }>(request);
+    const brand = cleanText(body?.brand, 60);
+    if (!brand) return json({ error: 'Which brand is this order for?' }, 400);
+    if (!Array.isArray(body?.models) || body.models.length > 300) return json({ error: 'That model order is not valid.' }, 400);
+    const models: string[] = [];
+    for (const raw of body.models) {
+      const name = cleanText(raw, 120);
+      if (name && !models.includes(name)) models.push(name);
+    }
+    if (models.length) {
+      await env.DB.prepare('INSERT INTO catalog_model_order (brand, models, updated_at) VALUES (?, ?, ?) ON CONFLICT(brand) DO UPDATE SET models = excluded.models, updated_at = excluded.updated_at')
+        .bind(brand, JSON.stringify(models), Date.now())
+        .run();
+    } else {
+      await env.DB.prepare('DELETE FROM catalog_model_order WHERE brand = ?').bind(brand).run();
+    }
+    return json({ brand, models });
+  }
+
   if (url.pathname === '/api/catalog/brands/rename' && request.method === 'POST') {
     const body = await readJsonBody<{ from?: unknown; to?: unknown }>(request);
     const from = cleanText(body?.from, 60);
@@ -100,6 +138,7 @@ export async function handleCatalogRoute(request: Request, env: Env, url: URL): 
     await env.DB.batch([
       env.DB.prepare('INSERT INTO catalog_brands (name, logo_url, updated_at) SELECT ?, logo_url, ? FROM catalog_brands WHERE name = ?').bind(to, now, from),
       env.DB.prepare('DELETE FROM catalog_brands WHERE name = ?').bind(from),
+      env.DB.prepare('UPDATE catalog_model_order SET brand = ? WHERE brand = ?').bind(to, from),
       env.DB.prepare("UPDATE catalog_vehicles SET data = json_set(data, '$.brand', ?), updated_at = ? WHERE json_extract(data, '$.brand') = ?").bind(to, now, from),
       env.DB.prepare("UPDATE settings SET data = json_set(data, '$.dashboardTarget.brand', ?) WHERE json_extract(data, '$.dashboardTarget.brand') = ?").bind(to, from),
       env.DB.prepare(

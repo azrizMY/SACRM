@@ -32,6 +32,12 @@ import {
  * built (inside Angular's injection context, which is what lets it inject settings). Settings
  * must be the first field — every starting value below reads from it.
  */
+/** A one-tap downpayment: a % of the price, a cash amount, or Full Loan. */
+export type DownpaymentPreset = { percent: number } | { amount: number } | 'fullLoan';
+/** The downpayment quick picks, in order, everywhere a quote is built (Calculator, Live Mode,
+ *  customer link). */
+export const DOWNPAYMENT_PRESETS: readonly DownpaymentPreset[] = [{ percent: 10 }, 'fullLoan', { amount: 10000 }];
+
 export class QuoteEngine {
   private settingsService = inject(SettingsService);
 
@@ -385,24 +391,37 @@ export class QuoteEngine {
   // blur/Enter — so the field shows exactly what was typed while editing.
   private loanAmountDraft = signal<number | null>(null);
 
-  /** One-tap downpayment setups: 10% of the price, or Full Loan (no cash down beyond the RM100
-   *  rounding remainder). */
-  applyDownpaymentPreset(preset: 'tenPercent' | 'fullLoan') {
+  /** One-tap downpayment setups: 10% of the price, Full Loan (no cash down beyond the RM100
+   *  rounding remainder, or the car's minimum downpayment), or an RM 10k deposit. */
+  readonly downpaymentPresets = DOWNPAYMENT_PRESETS;
+
+  applyDownpaymentPreset(preset: DownpaymentPreset) {
     this.loanAmountDraft.set(null);
     this.monthlyInstallmentDraft.set(null);
-    if (preset === 'tenPercent') {
-      this.downpaymentType.set('percent');
-      this.downpaymentValue.set(10);
-    } else {
+    if (preset === 'fullLoan') {
       this.downpaymentType.set('amount');
       this.downpaymentValue.set(this.minCashNeeded());
+    } else if ('percent' in preset) {
+      this.downpaymentType.set('percent');
+      this.downpaymentValue.set(preset.percent);
+    } else {
+      this.downpaymentType.set('amount');
+      this.downpaymentValue.set(preset.amount);
     }
   }
 
-  isDownpaymentPreset(preset: 'tenPercent' | 'fullLoan'): boolean {
+  isDownpaymentPreset(preset: DownpaymentPreset): boolean {
     const type = this.downpaymentType();
-    if (preset === 'tenPercent') return type === 'percent' && this.downpaymentValue() === 10;
-    return type === 'amount' && this.downpaymentValue() === this.minCashNeeded();
+    if (preset === 'fullLoan') return type === 'amount' && this.downpaymentValue() === this.minCashNeeded();
+    if ('percent' in preset) return type === 'percent' && this.downpaymentValue() === preset.percent;
+    return type === 'amount' && this.downpaymentValue() === preset.amount;
+  }
+
+  /** "10%", "RM 10k", or "Full Loan" ("Minimum" for a car with a minimum downpayment). */
+  downpaymentPresetLabel(preset: DownpaymentPreset): string {
+    if (preset === 'fullLoan') return this.minDownpayment() > 0 ? 'Minimum' : 'Full Loan';
+    if ('percent' in preset) return `${preset.percent}%`;
+    return preset.amount >= 1000 ? `RM ${preset.amount / 1000}k` : `RM ${preset.amount}`;
   }
 
   /** Unlike Loan Amount/Monthly Installment (which need a draft signal so the derived, rounded

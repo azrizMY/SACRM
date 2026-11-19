@@ -308,11 +308,44 @@ function mergeVehicle(target: Vehicle, data: CatalogVehicleData): Vehicle {
   return target;
 }
 
-/** Swaps the owner's shared catalogue into VEHICLES and DEFAULT_VEHICLES in place, so every page
- *  that already imports them sees it. Per-account Price Settings edits are applied after this (see
- *  VehicleCatalogService), so a user's own price always wins over the owner's. */
-export function applyCatalog(entries: readonly CatalogVehicleEntry[]): void {
-  const next = catalogWith(entries);
+/** The owner's order of each brand's models (Manage Cars → Reorder): brand → model names, first
+ *  to last. Shared by every account. */
+export type ModelOrder = Record<string, string[]>;
+
+/** Puts the car list in the owner's order, once, for every page: brands keep their order; within a
+ *  brand, models follow the owner's list, and models not on it (added later) come after it, cheapest
+ *  first. A brand with no saved order keeps the catalogue's own model order. Variants inside a model
+ *  are always cheapest first. */
+export function orderVehicles(list: readonly Vehicle[], order: ModelOrder): Vehicle[] {
+  const brands: string[] = [];
+  const byBrand = new Map<string, Vehicle[]>();
+  for (const v of list) {
+    if (!byBrand.has(v.brand)) {
+      byBrand.set(v.brand, []);
+      brands.push(v.brand);
+    }
+    byBrand.get(v.brand)!.push(v);
+  }
+  const out: Vehicle[] = [];
+  for (const brand of brands) {
+    const cars = byBrand.get(brand)!;
+    const models = Array.from(new Set(cars.map((v) => v.model)));
+    const fromPrice = new Map(models.map((m) => [m, Math.min(...cars.filter((v) => v.model === m).map((v) => v.price))]));
+    const saved = order[brand] ?? [];
+    const listed = saved.filter((m) => models.includes(m));
+    const rest = models.filter((m) => !listed.includes(m));
+    if (listed.length) rest.sort((a, b) => fromPrice.get(a)! - fromPrice.get(b)!);
+    for (const m of [...listed, ...rest]) out.push(...cars.filter((v) => v.model === m).sort((a, b) => a.price - b.price));
+  }
+  return out;
+}
+
+/** Swaps the owner's shared catalogue into VEHICLES and DEFAULT_VEHICLES in place, in the owner's
+ *  model order, so every page that already imports them sees it. Per-account Price Settings edits
+ *  are applied after this (see VehicleCatalogService), so a user's own price always wins over the
+ *  owner's. */
+export function applyCatalog(entries: readonly CatalogVehicleEntry[], order: ModelOrder = {}): void {
+  const next = orderVehicles(catalogWith(entries), order);
   VEHICLES.splice(0, VEHICLES.length, ...next);
   DEFAULT_VEHICLES.splice(0, DEFAULT_VEHICLES.length, ...next.map((v) => cloneVehicle(v)));
 }

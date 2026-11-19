@@ -25,7 +25,7 @@ export const GUIDES: Record<PageId, PageGuide> = {
       { title: 'This is the quote poster', body: 'It is ready to send. Everything on it changes as you change the quote.', target: 'calc-poster' },
       { title: 'Preview and Customize', body: 'Preview shows the poster. Customize is where you change the car, the deposit and the loan.', target: 'calc-tabs', optional: true },
       { title: 'Pick the car', body: 'Choose the brand and the model. The price, rebate and insurance fill in for you.', target: 'calc-car' },
-      { title: 'Set the deposit', body: 'Tap 10% or Full Loan, or type your own figure. You can also type the monthly instalment the customer wants.', target: 'calc-loan' },
+      { title: 'Set the deposit', body: 'Tap 10%, Full Loan or RM 10k, or type your own figure. You can also type the monthly instalment the customer wants.', target: 'calc-loan' },
       { title: 'Save or share', body: 'Save the poster to your phone, or share it straight to WhatsApp.', target: 'calc-share' },
       { title: 'The menu', body: 'Budget, Compare, Quote Links and the rest are here. Tap Help on any page for a short guide like this one.', target: 'nav-menu' },
     ],
