@@ -23,7 +23,7 @@ export const GUIDES: Record<PageId, PageGuide> = {
     about: 'Make a quote here. Pick the car, check the monthly instalment, then save or share the poster.',
     steps: [
       { title: 'This is the quote poster', body: 'It is ready to send. Everything on it changes as you change the quote.', target: 'calc-poster' },
-      { title: 'Preview and Customize', body: 'Preview shows the poster. Customize is where you change the car, the deposit and the loan.', target: 'calc-tabs', optional: true },
+      { title: 'Quote and Customize', body: 'Quote shows the poster. Customize is where you change the car, the deposit and the loan.', target: 'calc-tabs', optional: true },
       { title: 'Pick the car', body: 'Choose the brand and the model. The price, rebate and insurance fill in for you.', target: 'calc-car' },
       { title: 'Set the deposit', body: 'Tap 10%, Full Loan or RM 10k, or type your own figure. You can also type the monthly instalment the customer wants.', target: 'calc-loan' },
       { title: 'Save or share', body: 'Save the poster to your phone, or share it straight to WhatsApp.', target: 'calc-share' },
@@ -159,7 +159,7 @@ export class GuideService {
   }
 
   /** The steps to list in the Help panel: an optional step is left out when the part it explains
-   *  isn't on this screen (e.g. the phone-only Preview/Customize tabs on a computer). */
+   *  isn't on this screen (e.g. the phone-only Quote/Customize tabs on a computer). */
   stepsOnScreen(steps: GuideStep[]): GuideStep[] {
     return steps.filter((s) => {
       if (!s.optional || !s.target) return true;

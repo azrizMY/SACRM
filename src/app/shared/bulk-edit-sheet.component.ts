@@ -56,8 +56,9 @@ export type BulkSave = { id: string; values: BulkValues }[];
     }
   `,
   template: `
-    <div class="fixed inset-0 z-[60] flex flex-col bg-background text-foreground" role="dialog" [attr.aria-label]="title">
-      <!-- Header -->
+    <div [ngClass]="inline ? 'flex flex-col' : 'fixed inset-0 z-[60] flex flex-col bg-background text-foreground'" [attr.role]="inline ? null : 'dialog'" [attr.aria-label]="title">
+      <!-- Header (the full-screen sheet only; inline, the page itself is the header) -->
+      @if (!inline) {
       <div class="flex items-center gap-3 border-b border-border px-4 py-3 md:px-6">
         <div class="flex min-w-0 flex-1 flex-col">
           <span class="truncate text-base font-bold">{{ title }}</span>
@@ -69,10 +70,11 @@ export type BulkSave = { id: string; values: BulkValues }[];
           <app-icon name="x" [size]="20" />
         </button>
       </div>
+      }
 
       <!-- Rows -->
-      <div class="flex-1 overflow-y-auto">
-        <div class="mx-auto flex max-w-5xl flex-col gap-5 p-4 md:p-6">
+      <div [ngClass]="inline ? '' : 'flex-1 overflow-y-auto'">
+        <div [ngClass]="inline ? 'flex flex-col gap-5' : 'mx-auto flex max-w-5xl flex-col gap-5 p-4 md:p-6'">
           @if (note) {
             <p class="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">{{ note }}</p>
           }
@@ -154,7 +156,7 @@ export type BulkSave = { id: string; values: BulkValues }[];
                           <label class="flex min-w-0 flex-col gap-1 md:items-end" [style.order]="ci + 2">
                             <span class="flex flex-col text-sm font-semibold leading-tight text-foreground md:hidden">
                               {{ c.label }}
-                              @if (c.hint) {
+                              @if (c.hint && !inline) {
                                 <span class="text-xs font-normal text-muted-foreground">{{ c.hint }}</span>
                               }
                             </span>
@@ -195,8 +197,11 @@ export type BulkSave = { id: string; values: BulkValues }[];
         </div>
       </div>
 
-      <!-- Footer -->
-      <div class="flex items-center gap-3 border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-6">
+      <!-- Footer: inline, it sticks to the bottom of the page while the rows scroll -->
+      <div
+        class="flex items-center gap-3 border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-6"
+        [ngClass]="inline ? 'sticky -bottom-4 z-10 -mx-4 mt-4 bg-background md:-bottom-6 md:-mx-6' : ''"
+      >
         <span class="min-w-0 flex-1 text-xs text-muted-foreground">
           @if (error) {
             <span class="font-semibold text-[var(--destructive)]">{{ error }}</span>
@@ -206,7 +211,13 @@ export type BulkSave = { id: string; values: BulkValues }[];
         </span>
         <!-- How many rows will be saved, beside a plain Save — a normal button once there's something to save -->
         <span class="text-sm text-muted-foreground">{{ changedRows().length === 0 ? 'No changes yet' : changedRows().length === 1 ? '1 change' : changedRows().length + ' changes' }}</span>
-        <button type="button" (click)="requestClose()" class="btn">Cancel</button>
+        @if (inline) {
+          @if (changedRows().length) {
+            <button type="button" (click)="undo()" class="btn">Undo</button>
+          }
+        } @else {
+          <button type="button" (click)="requestClose()" class="btn">Cancel</button>
+        }
         <button type="button" (click)="save()" [disabled]="changedRows().length === 0 || busy" class="btn" [ngClass]="changedRows().length ? 'btn-primary' : 'btn-outline'">
           {{ busy ? 'Saving…' : 'Save' }}
         </button>
@@ -246,6 +257,10 @@ export class BulkEditSheetComponent implements OnChanges {
   @Input() error = '';
   @Output() saved = new EventEmitter<BulkSave>();
   @Output() closed = new EventEmitter<void>();
+
+  /** Shown in the page (Price Settings' monthly rebates tab) instead of as a full-screen sheet:
+   *  no header or close, the Save bar sticks to the bottom, and Cancel becomes Undo. */
+  @Input() inline = false;
 
   /** Rebates: a "Same for all {model}" action on each model with more than one row. */
   @Input() groupFill = false;
@@ -400,6 +415,11 @@ export class BulkEditSheetComponent implements OnChanges {
     else this.closed.emit();
   }
 
+  /** Inline: throws away the typed changes and shows the saved figures again. */
+  undo() {
+    this.working.set(Object.fromEntries(this.rowList().map((r) => [r.id, { ...r.values }])));
+  }
+
   discard() {
     this.confirmingClose.set(false);
     this.closed.emit();
@@ -407,6 +427,7 @@ export class BulkEditSheetComponent implements OnChanges {
 
   @HostListener('document:keydown.escape')
   onEscape() {
+    if (this.inline) return;
     if (this.confirmingClose()) this.confirmingClose.set(false);
     else this.requestClose();
   }

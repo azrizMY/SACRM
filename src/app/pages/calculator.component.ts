@@ -56,7 +56,7 @@ import { GuideService } from '../shared/guide.service';
       class="mx-auto flex max-w-7xl flex-col gap-3 xl:h-[calc(100dvh-7rem)] xl:gap-6"
       [ngClass]="mobileTab() === 'preview' ? 'max-md:h-[calc(100dvh-5.5rem)] md:max-xl:h-[calc(100dvh-7rem)]' : ''"
     >
-      <!-- Mobile Preview/Customize switcher -->
+      <!-- Mobile Quote/Customize switcher -->
       <div class="sticky -top-4 z-10 -mx-4 -mt-4 flex flex-col gap-2 border-b border-border bg-background px-4 py-3 md:-top-6 md:-mx-6 md:-mt-6 md:px-6 xl:hidden">
         <div data-tour="calc-tabs" role="tablist" [attr.aria-label]="'Quote view' | t" class="flex rounded-lg bg-muted p-1">
           <button
@@ -67,7 +67,7 @@ import { GuideService } from '../shared/guide.service';
             class="flex-1 rounded-md px-3 py-2 text-sm font-semibold transition-colors"
             [ngClass]="mobileTab() === 'preview' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'"
           >
-            {{ "Preview" | t }}
+            {{ "Quote" | t }}
           </button>
           <button
             type="button"
