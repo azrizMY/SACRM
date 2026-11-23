@@ -1160,7 +1160,7 @@ export class PublicQuoteComponent implements OnInit {
   sections: { id: PageSection; label: string; icon: IconName }[] = [
     // Quote is the page's main feature, so it sits right after Profile; Compare leads on from it.
     { id: 'profile', label: 'Profile', icon: 'user' },
-    { id: 'quote', label: 'Quote', icon: 'calculator' },
+    { id: 'quote', label: 'Calculator', icon: 'calculator' },
     { id: 'budget', label: 'Budget', icon: 'wallet' },
     { id: 'compare', label: 'Compare', icon: 'table' },
     { id: 'cars', label: 'Cars', icon: 'car' },

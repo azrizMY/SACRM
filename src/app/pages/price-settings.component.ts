@@ -14,7 +14,7 @@ import { bandKey, bandLabel } from '../data/motor-tariff';
 import { SettingsService } from '../shared/settings.service';
 import { VehicleCatalogService } from '../shared/vehicle-catalog.service';
 import { brandInitials, brandLogo, brandStyle, formatRM2 } from '../data/dashboard-data';
-import { basicPremiumDefault, computeInsuranceBreakdown, formatRM, minDownpaymentCash, modelVariantLabel, type InsuranceQuotationDetails, type Vehicle, type VehicleOverride, type VehicleYear } from '../data/calculator-data';
+import { DEFAULT_VEHICLES, basicPremiumDefault, computeInsuranceBreakdown, formatRM, minDownpaymentCash, modelVariantLabel, type InsuranceQuotationDetails, type Vehicle, type VehicleOverride, type VehicleYear } from '../data/calculator-data';
 
 /** Everything the editor panel can change for one variant — price and rates live here, since
  *  they're the same regardless of which year is in stock; Rebate and Additional Rebate both live
@@ -140,8 +140,9 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
       <!-- Tabs, with the default rates beside them (they live on the Quote defaults tab). Plain text,
            no box: it's a reference line, not something to act on. On a phone it wraps under the tabs. -->
       <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <!-- Cars (each car's price, rebates, rate, insurance) | Quote defaults (what every new quote starts with) -->
-        <div role="tablist" aria-label="Price Settings" class="grid w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 sm:w-80">
+        <!-- This month's rebates (the monthly job, opens here) | Cars (price, rate, insurance: set once) | Quote defaults -->
+        <div role="tablist" aria-label="Price Settings" class="grid w-full grid-cols-3 gap-1 rounded-lg bg-muted p-1 sm:w-[28rem]">
+          <button type="button" role="tab" [attr.aria-selected]="tab() === 'rebates'" (click)="setTab('rebates')" class="rounded-md px-2 py-2 text-sm font-semibold transition-colors" [ngClass]="tab() === 'rebates' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"><span class="sm:hidden">Rebates</span><span class="hidden sm:inline">{{ rebateTabLabel() }}</span></button>
           <button type="button" role="tab" [attr.aria-selected]="tab() === 'cars'" (click)="setTab('cars')" class="rounded-md px-3 py-2 text-sm font-semibold transition-colors" [ngClass]="tab() === 'cars' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'">{{ 'Cars' | t }}</button>
           <button type="button" role="tab" [attr.aria-selected]="tab() === 'defaults'" (click)="setTab('defaults')" class="rounded-md px-3 py-2 text-sm font-semibold transition-colors" [ngClass]="tab() === 'defaults' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'">{{ 'Quote defaults' | t }}</button>
         </div>
@@ -169,6 +170,44 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
 
       @if (tab() === 'defaults') {
         <app-quote-defaults />
+      } @else if (tab() === 'rebates') {
+        <!-- This month's rebates: every car of a brand, typed in place, one Save -->
+        <div class="flex flex-col gap-3">
+          @if (catalog.soldBrands().length > 1) {
+            <div class="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-0.5 md:mx-0 md:flex-wrap md:px-0" role="group" aria-label="Brand">
+              @for (b of catalog.soldBrands(); track b) {
+                <button
+                  type="button"
+                  [attr.aria-pressed]="rebateBrand() === b"
+                  (click)="rebateBrand.set(b)"
+                  class="flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold transition-colors"
+                  [ngClass]="rebateBrand() === b ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
+                >
+                  <ng-container [ngTemplateOutlet]="brandMark" [ngTemplateOutletContext]="{ $implicit: b, size: 'size-4 text-[8px]' }" />
+                  {{ b }}
+                </button>
+              }
+            </div>
+          }
+          <p class="text-pretty text-sm text-muted-foreground">
+            Type this month's rebates, then Save once. Customers see them as the {{ monthName() }} rebate on your quote link.
+            @if (rebateSavedFlash()) {
+              <span class="ml-1 inline-flex items-center gap-1 font-semibold text-[var(--success)]"><app-icon name="check" [size]="16" /> Saved</span>
+            }
+          </p>
+          @if (rebateBrand(); as brand) {
+            <app-bulk-edit-sheet
+              [inline]="true"
+              [title]="monthName() + ' rebates — ' + brand"
+              [groupFill]="true"
+              [columns]="rebateColumns"
+              [rows]="rebateRows()"
+              [busy]="rebateSaving()"
+              [error]="rebateError()"
+              (saved)="saveRebates($event)"
+            />
+          }
+        </div>
       } @else {
       @if (showHelp()) {
         <div class="flex items-start gap-3 rounded-lg bg-muted p-3 text-sm leading-relaxed text-foreground">
@@ -252,7 +291,15 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
       <div class="@container flex flex-col gap-5">
         @if (groups().length) {
           <div class="flex items-center justify-between text-sm text-muted-foreground">
-            <span>{{ navRows().length }} {{ navRows().length === 1 ? 'car' : 'cars' }}{{ onlyCustomRate() ? ' with their own rate' : '' }}</span>
+            <span class="flex items-center gap-3">
+              <span>{{ navRows().length }} {{ navRows().length === 1 ? 'car' : 'cars' }}{{ onlyCustomRate() ? ' with their own rate' : onlyChanged() ? ' you changed' : '' }}</span>
+              @if (changedCount() > 0 || onlyChanged()) {
+                <button type="button" (click)="onlyChanged.set(!onlyChanged())" [attr.aria-pressed]="onlyChanged()" class="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors" [ngClass]="onlyChanged() ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'">
+                  <span class="size-1.5 rounded-full" [ngClass]="onlyChanged() ? 'bg-primary-foreground' : 'bg-primary'"></span>
+                  Changed {{ changedCount() }}
+                </button>
+              }
+            </span>
             <button type="button" (click)="toggleAllGroups()" class="btn">
               {{ collapsed().size ? 'Expand all' : 'Collapse all' }}
             </button>
@@ -264,13 +311,9 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
             <div class="flex flex-wrap items-center gap-2">
               <ng-container [ngTemplateOutlet]="brandMark" [ngTemplateOutletContext]="{ $implicit: brandGroup.brand, size: 'size-5 text-xs' }" />
               <h2 class="mr-auto text-base font-semibold">{{ brandGroup.brand }}</h2>
-              <button type="button" (click)="importBrand.set(brandGroup.brand)" class="btn btn-outline">
-                <app-icon name="upload" [size]="20" />
+              <button type="button" (click)="importBrand.set(brandGroup.brand)" class="btn">
+                <app-icon name="upload" [size]="18" />
                 Import price list
-              </button>
-              <button type="button" (click)="openRebates(brandGroup.brand)" class="btn btn-outline">
-                <app-icon name="tag" [size]="20" />
-                Edit rebates
               </button>
             </div>
             @for (modelGroup of brandGroup.models; track modelGroup.key) {
@@ -292,9 +335,8 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
 
                 @if (!collapsed().has(modelGroup.key)) {
                   <!-- Column headers (table layout only) -->
-                  <div class="hidden border-t border-border px-4 py-2 text-sm font-semibold text-muted-foreground @2xl:grid @2xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1.5fr)_7.5rem_6.5rem_6rem_1rem] @2xl:gap-3">
+                  <div class="hidden border-t border-border px-4 py-2 text-sm font-semibold text-muted-foreground @2xl:grid @2xl:grid-cols-[minmax(0,1.6fr)_7.5rem_6.5rem_6rem_1rem] @2xl:gap-3">
                     <span>Variant</span>
-                    <span>Years &amp; rebates</span>
                     <span class="text-right">Price</span>
                     <span class="text-right">Insurance</span>
                     <span class="text-right">Flat rate</span>
@@ -306,50 +348,25 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
                         type="button"
                         [id]="'ps-row-' + v.id"
                         (click)="requestOpen(v.id)"
-                        class="flex w-full min-w-0 flex-col gap-2 px-4 py-3 text-left transition-colors @2xl:grid @2xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1.5fr)_7.5rem_6.5rem_6rem_1rem] @2xl:items-center @2xl:gap-3"
+                        class="flex w-full min-w-0 items-center gap-3 px-4 py-3 text-left transition-colors @2xl:grid @2xl:grid-cols-[minmax(0,1.6fr)_7.5rem_6.5rem_6rem_1rem]"
                         [ngClass]="v.id === selectedId() ? 'bg-brand-soft shadow-[inset_3px_0_0_var(--primary)]' : 'hover:bg-accent/40'"
                       >
-                        <span class="flex min-w-0 items-center justify-between gap-2">
+                        <span class="flex min-w-0 flex-1 items-center gap-2">
                           <span class="truncate text-sm font-semibold">{{ v.variant || v.model }}</span>
-                          <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground @2xl:hidden" />
-                        </span>
-
-                        <span class="flex flex-wrap gap-1">
-                          @for (y of yearChips(v); track y.year) {
-                            <span class="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-xs font-semibold tabular">
-                              {{ y.year }}
-                              @if (y.rebate > 0) {
-                                <span class="font-medium text-[var(--success)]">−{{ fmt(y.rebate) }}</span>
-                              }
-                            </span>
+                          @if (carChanged(v)) {
+                            <span class="size-2 shrink-0 rounded-full bg-primary" title="You changed this car's price, rate or insurance" aria-label="Changed"></span>
                           }
                         </span>
-
-                        <span class="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground @2xl:contents">
-                          <span class="@2xl:text-right">
-                            <span class="@2xl:hidden">Price </span>
-                            <strong class="font-semibold text-foreground tabular">{{ fmt(v.price) }}</strong>
-                          </span>
-                          <span class="@2xl:text-right">
-                            <span class="@2xl:hidden">Insurance </span>
-                            <strong class="font-semibold text-foreground tabular">{{ fmt2(savedInsuranceTotalFor(v)) }}</strong>
-                          </span>
-                          <span class="flex flex-col @2xl:items-end">
-                            <span>
-                              <span class="@2xl:hidden">Rate </span>
-                              @if (v.interestRate != null) {
-                                <strong class="font-semibold text-foreground tabular">{{ v.interestRate }}%</strong>
-                              } @else {
-                                <span class="tabular">{{ defaultRate() }}% <span class="text-muted-foreground/70">default</span></span>
-                              }
-                            </span>
-                            @if (v.effectiveRate != null) {
-                              <span class="text-xs tabular">EIR {{ v.effectiveRate }}%</span>
-                            }
-                          </span>
+                        <strong class="shrink-0 text-sm font-semibold tabular @2xl:text-right">{{ fmt(v.price) }}</strong>
+                        <span class="hidden text-right text-sm tabular text-muted-foreground @2xl:block">{{ fmt2(savedInsuranceTotalFor(v)) }}</span>
+                        <span class="hidden text-right text-sm tabular @2xl:block">
+                          @if (v.interestRate != null) {
+                            <strong class="font-semibold text-foreground">{{ v.interestRate }}%</strong>
+                          } @else {
+                            <span class="text-muted-foreground">{{ defaultRate() }}% default</span>
+                          }
                         </span>
-
-                        <app-icon name="chevron-right" [size]="18" class="hidden shrink-0 text-muted-foreground @2xl:block" />
+                        <app-icon name="chevron-right" [size]="18" class="shrink-0 text-muted-foreground" />
                       </button>
                     }
                   </div>
@@ -405,11 +422,20 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
             @if (form().price !== baseline().price) {
               <span class="text-xs text-muted-foreground">was <span class="tabular line-through">{{ fmt(baseline().price) }}</span></span>
             }
+            <span class="flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
+              {{ monthName() }} rebate <strong class="tabular text-foreground">{{ fmt(currentRebate(v)) }}</strong> ·
+              <button type="button" (click)="goToRebates(v.brand)" class="tap-auto font-semibold text-brand hover:underline">Change it on the rebates tab</button>
+            </span>
           </section>
 
           <!-- Rates -->
-          <section class="flex flex-col gap-2">
-            <span class="text-sm font-semibold text-muted-foreground">Interest rates</span>
+          <details class="group rounded-xl border border-border">
+            <summary class="flex cursor-pointer list-none items-center gap-3 px-3 py-3 [&::-webkit-details-marker]:hidden">
+              <span class="flex-1 text-sm font-semibold text-foreground">Interest rate</span>
+              <span class="text-right text-sm tabular text-muted-foreground">{{ form().interestRate != null ? form().interestRate + '% flat' : 'Default ' + defaultRate() + '% flat' }}</span>
+              <app-icon name="chevron-down" [size]="18" class="shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+            </summary>
+            <section class="flex flex-col gap-2 border-t border-border px-3 pb-3 pt-3">
             <div class="grid grid-cols-2 gap-3">
               <div class="flex flex-col gap-1">
                 <div class="flex items-center justify-between gap-2">
@@ -444,11 +470,17 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
               </div>
             </div>
             <p class="text-xs text-muted-foreground">EIR is quoted separately by the bank — it isn't calculated from the flat rate.</p>
-          </section>
+            </section>
+          </details>
 
           <!-- Minimum downpayment -->
-          <section class="flex flex-col gap-2">
-            <span class="text-sm font-semibold text-muted-foreground">Minimum downpayment</span>
+          <details class="group rounded-xl border border-border">
+            <summary class="flex cursor-pointer list-none items-center gap-3 px-3 py-3 [&::-webkit-details-marker]:hidden">
+              <span class="flex-1 text-sm font-semibold text-foreground">Minimum downpayment</span>
+              <span class="text-right text-sm tabular text-muted-foreground">{{ form().minDpValue > 0 ? (form().minDpType === 'percent' ? form().minDpValue + '%' : fmt(form().minDpValue)) : 'None' }}</span>
+              <app-icon name="chevron-down" [size]="18" class="shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+            </summary>
+            <section class="flex flex-col gap-2 border-t border-border px-3 pb-3 pt-3">
             <div class="flex gap-2">
               <app-number-field
                 class="min-w-0 flex-1"
@@ -482,26 +514,22 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
                 0 = no minimum — Full Loan allowed.
               }
             </p>
-          </section>
+            </section>
+          </details>
 
-          <!-- Model years -->
-          <section class="flex flex-col gap-2">
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-semibold text-muted-foreground">Model years</span>
-              @if (yearsChanged()) {
-                <span class="rounded-full bg-[var(--warning)]/15 px-1.5 py-0.5 text-xs font-semibold text-[var(--warning)]">Edited</span>
-              }
-            </div>
-            <div class="hidden grid-cols-[5.5rem_1fr_1fr_2.25rem] gap-2 text-sm font-semibold text-muted-foreground sm:grid">
-              <span>Year</span>
-              <span>Rebate</span>
-              <span>Additional rebate</span>
-              <span></span>
-            </div>
+          <!-- Model years (their rebates are typed on the rebates tab) -->
+          <details class="group rounded-xl border border-border">
+            <summary class="flex cursor-pointer list-none items-center gap-3 px-3 py-3 [&::-webkit-details-marker]:hidden">
+              <span class="flex-1 text-sm font-semibold text-foreground">Model years</span>
+              <span class="text-right text-sm tabular text-muted-foreground">{{ yearsLabel() }}</span>
+              <app-icon name="chevron-down" [size]="18" class="shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+            </summary>
+            <section class="flex flex-col gap-2 border-t border-border px-3 pb-3 pt-3">
+            <p class="text-xs text-muted-foreground">Older years still in stock. Each year's rebate is set on the rebates tab.</p>
             @for (y of form().years; track $index) {
-              <div class="grid grid-cols-[1fr_auto] items-end gap-2 rounded-lg bg-muted/40 p-2.5 sm:grid-cols-[5.5rem_1fr_1fr_2.25rem] sm:bg-transparent sm:p-0">
+              <div class="grid grid-cols-[1fr_auto] items-end gap-2">
                 <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
-                  <span class="sm:sr-only">Model year</span>
+                  <span class="sr-only">Model year</span>
                   <app-number-field
                     ariaLabel="Model year"
                     [grouping]="false"
@@ -517,20 +545,10 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
                   [disabled]="form().years.length <= 1"
                   title="Remove this model year"
                   aria-label="Remove this model year"
-                  class="flex size-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--destructive)]/10 hover:text-[var(--destructive)] disabled:pointer-events-none disabled:opacity-30 sm:order-last"
+                  class="flex size-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--destructive)]/10 hover:text-[var(--destructive)] disabled:pointer-events-none disabled:opacity-30"
                 >
                   <app-icon name="trash" [size]="18" />
                 </button>
-                <div class="col-span-2 grid grid-cols-2 gap-2 sm:contents">
-                  <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
-                    <span class="sm:sr-only">Rebate</span>
-                    <app-number-field prefix="RM" ariaLabel="Rebate" [decimals]="0" [value]="y.rebate ?? null" placeholder="0" (valueChange)="setYearField($index, 'rebate', $event)" />
-                  </label>
-                  <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
-                    <span class="sm:sr-only">Additional rebate</span>
-                    <app-number-field prefix="RM" ariaLabel="Additional rebate" [decimals]="0" [value]="y.additionalRebate ?? null" placeholder="—" (valueChange)="setYearField($index, 'additionalRebate', $event)" />
-                  </label>
-                </div>
               </div>
             }
             @if (duplicateYearIndexes().size > 0) {
@@ -547,11 +565,17 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
               <app-icon name="plus" [size]="16" />
               Add older year
             </button>
-          </section>
+            </section>
+          </details>
 
           <!-- Insurance: sum insured and band (for the tariff), then the quotation — all in this panel's Save -->
-          <section class="flex flex-col gap-2">
-            <span class="text-sm font-semibold text-muted-foreground">Insurance</span>
+          <details class="group rounded-xl border border-border">
+            <summary class="flex cursor-pointer list-none items-center gap-3 px-3 py-3 [&::-webkit-details-marker]:hidden">
+              <span class="flex-1 text-sm font-semibold text-foreground">Insurance</span>
+              <span class="text-right text-sm tabular text-muted-foreground">{{ fmt2(draftInsuranceTotal()) }}</span>
+              <app-icon name="chevron-down" [size]="18" class="shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+            </summary>
+            <section class="flex flex-col gap-2 border-t border-border px-3 pb-3 pt-3">
             <div class="grid grid-cols-2 gap-3">
               <label class="flex flex-col gap-1 text-sm font-semibold text-foreground">
                 Sum insured
@@ -605,7 +629,8 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
                 />
               </div>
             }
-          </section>
+            </section>
+          </details>
         </div>
 
         <!-- Footer: status + actions -->
@@ -655,21 +680,6 @@ type PendingAction = { kind: 'close' } | { kind: 'open'; id: string };
           </div>
         </div>
       </div>
-    }
-
-    <!-- Edit rebates for a whole brand -->
-    @if (rebateBrand(); as brand) {
-      <app-bulk-edit-sheet
-        [title]="'Edit rebates — ' + brand"
-        subtitle="Type each car's rebate. Leave a box empty for no rebate."
-        [groupFill]="true"
-        [columns]="rebateColumns"
-        [rows]="rebateRows()"
-        [busy]="rebateSaving()"
-        [error]="rebateError()"
-        (saved)="saveRebates($event)"
-        (closed)="rebateBrand.set(null)"
-      />
     }
 
     <!-- Import a brand's price list -->
@@ -728,19 +738,43 @@ export class PriceSettingsComponent {
   /** Opens on the Primary Brand, not All. */
   brandFilter = signal('All');
   onlyCustomRate = signal(false);
+  /** Cars tab: only the cars whose price, rate or insurance differs from the standard catalogue. */
+  onlyChanged = signal(false);
   showHelp = signal(false);
   /** Model groups the user folded away, keyed "brand|model". */
   collapsed = signal<Set<string>>(new Set());
 
   ncdPct = computed(() => this.settingsService.settings().salesDefaults.ncd);
 
-  /** Cars, or Quote defaults (opened directly with ?tab=defaults). */
-  tab = signal<'cars' | 'defaults'>('cars');
+  /** This month's rebates (opens here: the one thing that changes every month), Cars, or Quote
+   *  defaults. ?tab=cars / ?tab=defaults open the others directly. */
+  tab = signal<'rebates' | 'cars' | 'defaults'>('rebates');
+  /** "November", in the advisor's language — the rebates tab and the customer link use it. */
+  monthName = computed(() => new Date().toLocaleDateString('en-MY', { month: 'long' }));
+  rebateTabLabel = computed(() => `${this.monthName()} rebates`);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
-  setTab(tab: 'cars' | 'defaults') {
+  setTab(tab: 'rebates' | 'cars' | 'defaults') {
+    if (tab !== 'cars' && this.selectedId()) {
+      if (this.dirty()) {
+        this.pending.set({ kind: 'close' });
+        return;
+      }
+      this.selectedId.set(null);
+    }
     this.tab.set(tab);
-    void this.router.navigate([], { relativeTo: this.route, queryParams: { tab: tab === 'defaults' ? 'defaults' : null }, replaceUrl: true });
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { tab: tab === 'rebates' ? null : tab }, replaceUrl: true });
+  }
+
+  /** From a car's editor: its brand's rebates, on the rebates tab. */
+  goToRebates(brand: string) {
+    if (this.dirty()) {
+      this.pending.set({ kind: 'close' });
+      return;
+    }
+    this.selectedId.set(null);
+    this.rebateBrand.set(brand);
+    this.setTab('rebates');
   }
 
   constructor(
@@ -748,7 +782,9 @@ export class PriceSettingsComponent {
     private settingsService: SettingsService,
   ) {
     this.brandFilter.set(this.catalog.soldBrands()[0] ?? 'All');
-    if (this.route.snapshot.queryParamMap.get('tab') === 'defaults') this.tab.set('defaults');
+    const tabParam = this.route.snapshot.queryParamMap.get('tab');
+    if (tabParam === 'defaults' || tabParam === 'cars') this.tab.set(tabParam);
+    this.rebateBrand.set(this.catalog.soldBrands()[0] ?? null);
     // Ticks "Check your prices and rates" in Help → First steps.
     this.settingsService.updateOnboarding({ pricesReviewed: true });
   }
@@ -764,6 +800,35 @@ export class PriceSettingsComponent {
   /** The account's default EIR, or null when none is set (EIR quotes then ask for the bank's rate). */
   defaultEir = computed(() => this.settingsService.settings().salesDefaults.effectiveRate ?? null);
   customRateCount = computed(() => this.catalog.vehicles().filter((v) => v.interestRate != null).length);
+
+  /** This account changed the car's price, rate, minimum downpayment or insurance from the standard
+   *  catalogue (rebates don't count: they change every month and live on their own tab). */
+  carChanged(v: Vehicle): boolean {
+    const base = DEFAULT_VEHICLES.find((d) => d.id === v.id);
+    if (!base) return false;
+    const insurance = this.settingsService.settings().vehicleInsurance?.[v.id];
+    return (
+      v.price !== base.price ||
+      (v.interestRate != null && v.interestRate !== base.interestRate) ||
+      (v.effectiveRate != null && v.effectiveRate !== base.effectiveRate) ||
+      JSON.stringify(v.minDownpayment ?? null) !== JSON.stringify(base.minDownpayment ?? null) ||
+      (v.sumInsured != null && v.sumInsured !== base.sumInsured) ||
+      (v.ratingBand != null && v.ratingBand !== base.ratingBand) ||
+      !!insurance
+    );
+  }
+  changedCount = computed(() => this.catalog.soldVehicles().filter((v) => this.carChanged(v)).length);
+
+  /** This month's rebate on the car's newest model year. */
+  currentRebate(v: Vehicle): number {
+    const newest = [...v.years].sort((a, b) => b.year - a.year)[0];
+    return newest?.rebate ?? 0;
+  }
+
+  /** "2026, 2025" — the editor's Model years row. */
+  yearsLabel(): string {
+    return [...this.form().years].map((y) => y.year).sort((a, b) => b - a).join(', ');
+  }
 
   resetAllConfirm = signal(false);
 
@@ -794,6 +859,7 @@ export class PriceSettingsComponent {
         (v) =>
           (brand === 'All' || v.brand === brand) &&
           (!onlyCustom || v.interestRate != null) &&
+          (!this.onlyChanged() || this.carChanged(v)) &&
           (!q || `${v.brand} ${v.model} ${v.variant}`.toLowerCase().includes(q)),
       );
   });
@@ -1059,6 +1125,7 @@ export class PriceSettingsComponent {
   rebateBrand = signal<string | null>(null);
   importBrand = signal<string | null>(null);
   rebateSaving = signal(false);
+  rebateSavedFlash = signal(false);
   rebateError = signal('');
 
   readonly rebateColumns: BulkColumn[] = [
@@ -1126,7 +1193,8 @@ export class PriceSettingsComponent {
     this.rebateError.set('');
     try {
       await this.catalog.updateVehicles(patches);
-      this.rebateBrand.set(null);
+      this.rebateSavedFlash.set(true);
+      setTimeout(() => this.rebateSavedFlash.set(false), 2500);
     } catch {
       this.rebateError.set("Couldn't save — check your connection and try again.");
     } finally {
